@@ -2,80 +2,27 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>ЭХО во тьме</title>
-<meta name="description" content="Ты слеп. Каждый звук показывает путь — и выдаёт тебя.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@200;400&family=Exo+2:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Awesome Game</title>
+<style>
+  :root { --bg: #120f1c; --fg: #efe6dc; --dim: #9d92ad; --line: #352b47; --echo: #5ee1ff; --rust: #e2733d; color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding-inline: 16px; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 720px; width: 100%; padding-block: 32px; }
+  h1 { font-weight: 300; letter-spacing: .1em; margin: 0 0 20px; }
+  .games { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  a { display: block; padding: 20px; border: 1px solid var(--line); border-radius: 14px; color: inherit; text-decoration: none; transition: border-color .2s; }
+  a:hover, a:focus-visible { border-color: var(--c); outline: none; }
+  a b { display: block; font-size: 22px; color: var(--c); margin-bottom: 6px; }
+  a span { color: var(--dim); font-size: 14px; }
+</style>
 </head>
 <body>
-<canvas id="game"></canvas>
-
-<div id="hud" class="hidden">
-  <div class="hud-row">
-    <span id="hud-level">Уровень 1</span>
-    <span id="hud-lives"></span>
+<main>
+  <h1>Игры</h1>
+  <div class="games">
+    <a href="echo/" style="--c: var(--echo)"><b>ЭХО</b><span>Стелс-хоррор на эхолокации: каждый звук показывает путь и выдаёт тебя.</span></a>
+    <a href="rust/" style="--c: var(--rust)"><b>Ржавый рассвет</b><span>Спокойная инкрементальная игра: чини роботов на свалке, пока всё не заработает само.</span></a>
   </div>
-  <div class="hud-row small">
-    <span id="hud-crystals">◆ 0/0</span>
-    <span id="hud-stones">● 3</span>
-    <span id="hud-score">0</span>
-  </div>
-</div>
-
-<div id="message"></div>
-
-<div id="overlay">
-  <div class="panel" id="panel-menu">
-    <h1>ЭХО</h1>
-    <p class="lead">Ты слеп. Пещера — сплошная тьма.<br>Каждый звук, который ты издаёшь, показывает тебе путь…<br><b>и выдаёт тебя тем, кто живёт во тьме.</b></p>
-    <ul class="rules">
-      <li><kbd>WASD</kbd>/<kbd>стрелки</kbd> — идти, <kbd>Shift</kbd> — бежать (шумно)</li>
-      <li>Зажми <kbd>Пробел</kbd> или <kbd>ЛКМ</kbd> — заряди импульс-эхо. Сильнее — дальше видно, но дальше слышно</li>
-      <li><kbd>ПКМ</kbd> или <kbd>E</kbd> — бросить камень туда, куда смотрит мышь: отвлекает охотников</li>
-      <li>Собери все <span class="c">◆ кристаллы</span>, чтобы открыть портал</li>
-      <li>Охотников видно лишь в миг, когда их касается эхо. Слушай сердце — оно бьётся чаще, когда они рядом</li>
-    </ul>
-    <label class="name">Имя: <input id="name" maxlength="16" placeholder="Аноним" autocomplete="off"></label>
-    <button id="btn-start">Войти во тьму</button>
-    <p class="hint">Enter — начать · P / Esc — пауза · Лучше в наушниках</p>
-    <div id="board-menu" class="board"></div>
-  </div>
-
-  <div class="panel hidden" id="panel-level">
-    <h2>Портал пройден</h2>
-    <p id="level-stats"></p>
-    <button id="btn-next">Глубже</button>
-    <p class="hint">Enter — продолжить</p>
-  </div>
-
-  <div class="panel hidden" id="panel-dead">
-    <h2 class="red">Тебя нашли</h2>
-    <p id="dead-stats"></p>
-    <button id="btn-retry">Ещё раз</button>
-    <p class="hint">Enter — продолжить</p>
-  </div>
-
-  <div class="panel hidden" id="panel-over">
-    <h2 class="red">Тьма победила</h2>
-    <p id="over-stats"></p>
-    <div id="board-over" class="board"></div>
-    <button id="btn-restart">Новая игра</button>
-    <p class="hint">Enter — начать заново</p>
-  </div>
-
-  <div class="panel hidden" id="panel-pause">
-    <h2>Пауза</h2>
-    <button id="btn-resume">Продолжить</button>
-    <p class="hint">P / Esc — продолжить</p>
-  </div>
-</div>
-
-<div id="touch" class="hidden">
-  <button id="touch-stone">●</button>
-</div>
-
-<script src="game.js"></script>
+</main>
 </body>
 </html>

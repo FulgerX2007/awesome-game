@@ -1,4 +1,4 @@
-// Command awesome-game serves the "ЭХО" browser game and its leaderboard API.
+// Command awesome-game serves the browser games and their small APIs.
 package main
 
 import (
@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/fulgerx2007/awesome-game/internal/leaderboard"
+	"github.com/fulgerx2007/awesome-game/internal/saves"
 )
 
 //go:embed web
@@ -19,7 +21,8 @@ var webFS embed.FS
 
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
-	dataPath := flag.String("data", "data/scores.json", "leaderboard file (empty = in-memory)")
+	dataPath := flag.String("data", "data/scores.json", "ЭХО leaderboard file (empty = in-memory)")
+	savesDir := flag.String("saves", "data/saves", "Ржавый рассвет cloud saves dir (empty = in-memory)")
 	flag.Parse()
 
 	board, err := leaderboard.New(10, *dataPath)
@@ -29,14 +32,14 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           newMux(board),
+		Handler:           newMux(board, saves.New(*savesDir)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	log.Printf("ЭХО: http://localhost%s", *addr)
+	log.Printf("игры: http://localhost%s", *addr)
 	log.Fatal(srv.ListenAndServe())
 }
 
-func newMux(board *leaderboard.Board) *http.ServeMux {
+func newMux(board *leaderboard.Board, store *saves.Store) *http.ServeMux {
 	static, err := fs.Sub(webFS, "web")
 	if err != nil {
 		panic(err)
@@ -67,6 +70,38 @@ func newMux(board *leaderboard.Board) *http.ServeMux {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"rank": rank, "top": board.Top()})
+	})
+	mux.HandleFunc("GET /api/saves/{code}", func(w http.ResponseWriter, r *http.Request) {
+		data, err := store.Get(r.PathValue("code"))
+		switch {
+		case errors.Is(err, saves.ErrBadCode):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, saves.ErrNotFound):
+			http.Error(w, err.Error(), http.StatusNotFound)
+		case err != nil:
+			log.Printf("load save: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		default:
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(data)
+		}
+	})
+	mux.HandleFunc("PUT /api/saves/{code}", func(w http.ResponseWriter, r *http.Request) {
+		data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, saves.MaxSize+1))
+		if err != nil {
+			http.Error(w, saves.ErrBadData.Error(), http.StatusRequestEntityTooLarge)
+			return
+		}
+		err = store.Put(r.PathValue("code"), data)
+		switch {
+		case errors.Is(err, saves.ErrBadCode), errors.Is(err, saves.ErrBadData):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case err != nil:
+			log.Printf("store save: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		default:
+			w.WriteHeader(http.StatusNoContent)
+		}
 	})
 	return mux
 }

@@ -979,7 +979,7 @@
 
   async function loadBoard() {
     try {
-      const res = await fetch('api/scores');
+      const res = await fetch('/api/scores');
       if (!res.ok) throw new Error(res.status);
       renderBoard($('board-menu'), await res.json());
     } catch { renderLocalBest($('board-menu')); }
@@ -989,7 +989,7 @@
     if (G.score > Number(store.get('echo.best', 0))) store.set('echo.best', G.score);
     const el = $('board-over');
     try {
-      const res = await fetch('api/scores', {
+      const res = await fetch('/api/scores', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: playerName(), score: G.score, level: L.num }),
       });
