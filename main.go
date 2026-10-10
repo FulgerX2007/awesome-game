@@ -46,7 +46,7 @@ func main() {
 }
 
 // Games with a leaderboard; anything else under /api/boards/ is a 404.
-var boardGames = []string{"echo", "comet"}
+var boardGames = []string{"echo", "valley"}
 
 func newBoards(path func(string) string) (map[string]*leaderboard.Board, error) {
 	boards := make(map[string]*leaderboard.Board, len(boardGames))

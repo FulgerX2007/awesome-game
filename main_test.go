@@ -16,7 +16,7 @@ func TestServer(t *testing.T) {
 	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
 	defer srv.Close()
 
-	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/comet/", "/comet/core.js"} {
+	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js"} {
 		res, err := http.Get(srv.URL + path)
 		if err != nil || res.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s: %v %v", path, res.StatusCode, err)
@@ -75,14 +75,14 @@ func TestBoardsAreSeparate(t *testing.T) {
 	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
 	defer srv.Close()
 
-	http.Post(srv.URL+"/api/boards/comet/scores", "application/json", strings.NewReader(`{"name":"К","score":77,"level":5}`))
-	var echo, comet []leaderboard.Entry
+	http.Post(srv.URL+"/api/boards/valley/scores", "application/json", strings.NewReader(`{"name":"К","score":77,"level":5}`))
+	var echo, valley []leaderboard.Entry
 	res, _ := http.Get(srv.URL + "/api/boards/echo/scores")
 	json.NewDecoder(res.Body).Decode(&echo)
-	res, _ = http.Get(srv.URL + "/api/boards/comet/scores")
-	json.NewDecoder(res.Body).Decode(&comet)
-	if len(echo) != 0 || len(comet) != 1 || comet[0].Score != 77 {
-		t.Fatalf("echo=%+v comet=%+v", echo, comet)
+	res, _ = http.Get(srv.URL + "/api/boards/valley/scores")
+	json.NewDecoder(res.Body).Decode(&valley)
+	if len(echo) != 0 || len(valley) != 1 || valley[0].Score != 77 {
+		t.Fatalf("echo=%+v valley=%+v", echo, valley)
 	}
 	if res, _ := http.Get(srv.URL + "/api/boards/nope/scores"); res.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown board: %d", res.StatusCode)

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Долина</title>
+<meta name="description" content="Спокойная раскладка шестиугольных плиток: собирай долину из лесов, полей, рек и деревень.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Rubik:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="map" aria-label="Карта долины"></canvas>
+
+<header class="card score-card">
+  <h1>Долина</h1>
+  <div class="score" id="score">0</div>
+  <div class="muted" id="stack-label">в стопке: 0</div>
+</header>
+
+<aside class="card hand">
+  <div class="hand-main">
+    <canvas id="tile-now" width="132" height="132" aria-label="Текущая плитка"></canvas>
+    <div class="rot">
+      <button class="icon" id="rot-left" aria-label="Повернуть против часовой">⟲</button>
+      <button class="icon" id="rot-right" aria-label="Повернуть по часовой">⟳</button>
+    </div>
+  </div>
+  <div class="hand-next">
+    <span class="muted small">дальше</span>
+    <canvas id="tile-next1" width="60" height="60"></canvas>
+    <canvas id="tile-next2" width="60" height="60"></canvas>
+  </div>
+  <p class="quest-note small" id="quest-note" hidden></p>
+</aside>
+
+<section class="card quests" id="quests" hidden>
+  <h2>Задания</h2>
+  <ul id="quest-list"></ul>
+</section>
+
+<nav class="tools">
+  <button class="icon" id="zoom-out" aria-label="Отдалить">−</button>
+  <button class="icon" id="zoom-in" aria-label="Приблизить">+</button>
+  <button class="icon wide" id="recenter">К центру</button>
+  <button class="icon wide" id="btn-mute" aria-pressed="false">Звук: вкл</button>
+  <button class="icon wide" id="btn-menu">Меню</button>
+</nav>
+
+<div class="toast" id="toast" hidden></div>
+
+<div class="overlay" id="overlay" hidden>
+  <section class="panel" id="panel-help" hidden>
+    <h2>Долина</h2>
+    <p>Выкладывай плитки рядом с уже лежащими. Каждый совпавший край — <b>+10</b>.</p>
+    <ul>
+      <li>Совпали все края, а соседей хотя бы три — <b>идеально</b>: +30 и плитка в стопку.</li>
+      <li>Плитки с флажком несут задание: собрать область ровно из N плиток одной местности. Выполнишь — получишь очки и три плитки. Перерастёт — задание сгорит.</li>
+      <li>Колесо мыши, правый клик или <kbd>Q</kbd>/<kbd>E</kbd> — поворот. Перетаскивание — двигать карту.</li>
+      <li>На телефоне: тап выбирает место, второй тап кладёт плитку, двумя пальцами — масштаб.</li>
+    </ul>
+    <div class="row">
+      <button class="btn ghost" id="btn-new">Начать заново</button>
+      <button class="btn" id="btn-close">Играть</button>
+    </div>
+    <div class="board" id="board-menu"></div>
+  </section>
+
+  <section class="panel" id="panel-over" hidden>
+    <h2>Долина готова</h2>
+    <p id="over-text"></p>
+    <dl class="stats" id="over-stats"></dl>
+    <label class="name">Имя <input id="name" maxlength="16" placeholder="Аноним" autocomplete="off"></label>
+    <div class="row">
+      <button class="btn ghost" id="btn-look">Посмотреть на карту</button>
+      <button class="btn" id="btn-again">Новая долина</button>
+    </div>
+    <div class="board" id="board-over"></div>
+  </section>
+</div>
+
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
