@@ -1,0 +1,82 @@
+/* Layout: one tall column of space, HUD floating top-left, panels centred over the canvas. */
+:root {
+  --void: #07060f;
+  --deep: #120f26;
+  --fg: #eef2ff;
+  --dim: #8f93b8;
+  --comet: #bdf3ff;
+  --flare: #ff7a3d;
+  --gold: #ffd166;
+  --hole: #c48bff;
+  --rock: #b7a99a;
+  --line: #2a2650;
+  --font-display: "Days One", "Arial Black", system-ui, sans-serif;
+  --font-body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  background: var(--void); color: var(--fg); font: 15px/1.5 var(--font-body);
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--comet); outline-offset: 2px; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+.hud {
+  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px;
+  pointer-events: none; text-shadow: 0 2px 12px rgba(0,0,0,.6); font-variant-numeric: tabular-nums;
+}
+.score { font: 400 clamp(34px, 7vw, 52px)/1 var(--font-display); color: var(--fg); }
+.sub { display: flex; gap: 14px; margin-top: 4px; color: var(--dim); font-weight: 600; }
+#hud-stars { color: var(--gold); }
+.mute {
+  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 16px;
+  padding: 6px 12px; border-radius: 999px; background: rgba(18,15,38,.6); border: 1px solid var(--line);
+  color: var(--dim); font-size: 13px; cursor: pointer;
+}
+
+.overlay {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding-inline: 16px; padding-block: 24px; overflow-y: auto;
+  background: radial-gradient(ellipse at center, rgba(7,6,15,.35), rgba(7,6,15,.85));
+}
+.panel { width: min(440px, 100%); margin: auto; text-align: center; }
+h1 {
+  margin: 0; font: 400 clamp(52px, 14vw, 84px)/1 var(--font-display); letter-spacing: .02em;
+  background: linear-gradient(100deg, var(--comet) 10%, #fff 45%, var(--flare) 95%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+h2 { margin: 0 0 6px; font: 400 32px/1.15 var(--font-display); text-wrap: balance; }
+.lead { color: var(--fg); margin: 10px 0 12px; }
+.rules { text-align: left; color: var(--dim); padding-left: 18px; margin: 0 0 14px; display: grid; gap: 4px; }
+.rules b { color: var(--fg); font-weight: 700; }
+.flare { color: var(--flare); } .rock { color: var(--rock); } .hole { color: var(--hole); } .gold { color: var(--gold); }
+.name { display: inline-flex; gap: 8px; align-items: center; color: var(--dim); }
+.name input {
+  width: 170px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--deep); color: var(--fg); font: inherit; user-select: text;
+}
+.btn {
+  display: block; margin: 16px auto 4px; padding: 12px 40px; border-radius: 999px; cursor: pointer;
+  background: var(--comet); color: var(--void); border: 0; font: 400 18px var(--font-display); letter-spacing: .03em;
+  box-shadow: 0 0 30px rgba(189,243,255,.35); transition: transform .1s, box-shadow .2s;
+}
+.btn:hover { box-shadow: 0 0 44px rgba(189,243,255,.55); }
+.btn:active { transform: scale(.97); }
+.hint { color: var(--dim); font-size: 13px; margin: 4px 0 0; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 8px 0 4px; }
+.stats div { padding: 8px; border-radius: 10px; background: rgba(18,15,38,.7); border: 1px solid var(--line); }
+.stats dt { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); }
+.stats dd { margin: 0; font: 400 22px var(--font-display); font-variant-numeric: tabular-nums; }
+.stats .record dd { color: var(--gold); }
+.board { margin: 16px auto 0; max-width: 340px; font-size: 14px; color: var(--dim); }
+.board table { width: 100%; border-collapse: collapse; }
+.board caption { color: var(--fg); letter-spacing: .12em; font-size: 12px; margin-bottom: 4px; }
+.board td { padding: 2px 6px; text-align: left; }
+.board td:last-child { text-align: right; color: var(--fg); font-variant-numeric: tabular-nums; }
+.board tr.me td { color: var(--comet); }
+
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }

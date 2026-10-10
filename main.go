@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/fulgerx2007/awesome-game/internal/leaderboard"
@@ -21,25 +22,45 @@ var webFS embed.FS
 
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
-	dataPath := flag.String("data", "data/scores.json", "ЭХО leaderboard file (empty = in-memory)")
-	savesDir := flag.String("saves", "data/saves", "Ржавый рассвет cloud saves dir (empty = in-memory)")
+	dataDir := flag.String("data", "data", "directory for leaderboards and saves (empty = in-memory)")
 	flag.Parse()
 
-	board, err := leaderboard.New(10, *dataPath)
+	inData := func(name string) string {
+		if *dataDir == "" {
+			return ""
+		}
+		return filepath.Join(*dataDir, name)
+	}
+	boards, err := newBoards(inData)
 	if err != nil {
-		log.Fatalf("load leaderboard: %v", err)
+		log.Fatalf("load leaderboards: %v", err)
 	}
 
 	srv := &http.Server{
 		Addr:              *addr,
-		Handler:           newMux(board, saves.New(*savesDir)),
+		Handler:           newMux(boards, saves.New(inData("saves"))),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	log.Printf("игры: http://localhost%s", *addr)
 	log.Fatal(srv.ListenAndServe())
 }
 
-func newMux(board *leaderboard.Board, store *saves.Store) *http.ServeMux {
+// Games with a leaderboard; anything else under /api/boards/ is a 404.
+var boardGames = []string{"echo", "comet"}
+
+func newBoards(path func(string) string) (map[string]*leaderboard.Board, error) {
+	boards := make(map[string]*leaderboard.Board, len(boardGames))
+	for _, g := range boardGames {
+		b, err := leaderboard.New(10, path("scores-"+g+".json"))
+		if err != nil {
+			return nil, err
+		}
+		boards[g] = b
+	}
+	return boards, nil
+}
+
+func newMux(boards map[string]*leaderboard.Board, store *saves.Store) *http.ServeMux {
 	static, err := fs.Sub(webFS, "web")
 	if err != nil {
 		panic(err)
@@ -49,10 +70,23 @@ func newMux(board *leaderboard.Board, store *saves.Store) *http.ServeMux {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("GET /api/scores", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, board.Top())
+	boardFor := func(w http.ResponseWriter, r *http.Request) *leaderboard.Board {
+		b, ok := boards[r.PathValue("game")]
+		if !ok {
+			http.Error(w, "unknown game", http.StatusNotFound)
+		}
+		return b
+	}
+	mux.HandleFunc("GET /api/boards/{game}/scores", func(w http.ResponseWriter, r *http.Request) {
+		if board := boardFor(w, r); board != nil {
+			writeJSON(w, http.StatusOK, board.Top())
+		}
 	})
-	mux.HandleFunc("POST /api/scores", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /api/boards/{game}/scores", func(w http.ResponseWriter, r *http.Request) {
+		board := boardFor(w, r)
+		if board == nil {
+			return
+		}
 		var e leaderboard.Entry
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&e); err != nil {
 			http.Error(w, "bad json", http.StatusBadRequest)
