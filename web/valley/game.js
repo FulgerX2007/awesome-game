@@ -22,6 +22,15 @@
     meadow: { name: 'Луг', base: '#94c66d', color: '#94c66d' },
   };
   const QUEST_NAME = { forest: 'Лес', field: 'Поле', water: 'Река', village: 'Деревня' };
+  // Whole-sentence keys per terrain, so each language can decline the terrain name its own way.
+  const QUEST_TEXT = {
+    forest: { note: 'Задание: лес ровно из {n}', done: 'Лес из {n}: задание выполнено, +3 плитки', failed: 'Лес перерос {n}: задание сгорело' },
+    field: { note: 'Задание: поле ровно из {n}', done: 'Поле из {n}: задание выполнено, +3 плитки', failed: 'Поле перерос {n}: задание сгорело' },
+    water: { note: 'Задание: река ровно из {n}', done: 'Река из {n}: задание выполнено, +3 плитки', failed: 'Река перерос {n}: задание сгорело' },
+    village: { note: 'Задание: деревня ровно из {n}', done: 'Деревня из {n}: задание выполнено, +3 плитки', failed: 'Деревня перерос {n}: задание сгорело' },
+  };
+  const t = I18n.t, TILES = 'плитка|плитки|плиток';
+  const questText = (q, kind) => t(QUEST_TEXT[q.terrain][kind], { n: q.target, tiles: I18n.p(q.target, TILES) });
 
   // ───────────── Sound ─────────────
   const Sound = (() => {
@@ -334,7 +343,7 @@
       ctx.font = `700 ${Math.round(clamp(14 * z, 11, 20))}px Comfortaa, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillStyle = ev.perfect ? '#f2c66d' : '#f2efe4';
-      ctx.fillText(ev.perfect ? `+${ev.points} идеально` : `+${ev.points}`, 0, -size * 1.15);
+      ctx.fillText(ev.perfect ? t('+{n} идеально', { n: ev.points }) : `+${ev.points}`, 0, -size * 1.15);
       ctx.restore();
     }
 
@@ -407,20 +416,20 @@
     drawPreview('tile-next2', st[2]);
     const q = st[0] && st[0].quest;
     $('quest-note').hidden = !q;
-    if (q) $('quest-note').textContent = `Задание: ${QUEST_NAME[q.terrain].toLowerCase()} ровно из ${q.target}`;
+    if (q) $('quest-note').textContent = questText(q, 'note');
   }
 
   function renderQuests() {
     const list = G.quests.filter((q) => q.state === 'open' || (q.doneAt && performance.now() - q.doneAt < 4000));
     $('quests').hidden = !list.length;
     $('quest-list').innerHTML = list.map((q) =>
-      `<li class="${q.state}"><i style="background:${TERRAIN[q.terrain].color}"></i>${QUEST_NAME[q.terrain]}: ${q.progress}/${q.target}</li>`).join('');
+      `<li class="${q.state}"><i style="background:${TERRAIN[q.terrain].color}"></i>${t(QUEST_NAME[q.terrain])}: ${q.progress}/${q.target}</li>`).join('');
   }
 
   function updateHud() {
     $('score').textContent = String(G.score);
-    $('stack-label').textContent = G.over ? 'стопка пуста' : `в стопке: ${G.stack.length}`;
-    $('btn-mute').textContent = Sound.muted ? 'Звук: выкл' : 'Звук: вкл';
+    $('stack-label').textContent = G.over ? t('стопка пуста') : t('в стопке: {n}', { n: G.stack.length });
+    $('btn-mute').textContent = Sound.muted ? t('Звук: выкл') : t('Звук: вкл');
     $('btn-mute').setAttribute('aria-pressed', String(Sound.muted));
   }
 
@@ -457,7 +466,7 @@
       if (e.type === 'perfect') {
         fx.sparks.push({ x: p.x, y: p.y, t: 0, life: 0.8 });
         Sound.perfect();
-        toast('Идеально! +1 плитка в стопку');
+        toast(t('Идеально! +1 плитка в стопку'));
       }
       if (e.type === 'quest') {
         e.quest.doneAt = now;
@@ -465,11 +474,11 @@
         fx.sparks.push({ x: qp.x, y: qp.y, t: 0, life: 1.2 });
         fx.floaters.push({ x: qp.x, y: qp.y - HEX * 0.6, t: 0, text: `+${e.quest.target * 10}`, color: '#f2c66d' });
         Sound.quest();
-        toast(`${QUEST_NAME[e.quest.terrain]} из ${e.quest.target}: задание выполнено, +3 плитки`);
+        toast(questText(e.quest, 'done'));
       }
       if (e.type === 'questFailed') {
         Sound.fail();
-        toast(`${QUEST_NAME[e.quest.terrain]} перерос ${e.quest.target}: задание сгорело`);
+        toast(questText(e.quest, 'failed'));
       }
       if (e.type === 'over') setTimeout(onOver, 900);
     }
@@ -481,10 +490,10 @@
 
   function onOver() {
     const done = G.quests.filter((q) => q.state === 'done').length;
-    $('over-text').textContent = G.score >= best ? 'Лучшая долина из всех, что ты собирал.' : `Твой рекорд — ${best}.`;
+    $('over-text').textContent = G.score >= best ? t('Лучшая долина из всех, что ты собирал.') : t('Твой рекорд — {n}.', { n: best });
     $('over-stats').innerHTML =
-      `<div><dt>Очки</dt><dd>${G.score}</dd></div><div><dt>Плиток</dt><dd>${G.placed}</dd></div>` +
-      `<div><dt>Идеально</dt><dd>${G.perfect}</dd></div><div><dt>Заданий</dt><dd>${done}</dd></div>`;
+      `<div><dt>${t('Очки')}</dt><dd>${G.score}</dd></div><div><dt>${t('Плиток')}</dt><dd>${G.placed}</dd></div>` +
+      `<div><dt>${t('Идеально')}</dt><dd>${G.perfect}</dd></div><div><dt>${t('Заданий')}</dt><dd>${done}</dd></div>`;
     showPanel('panel-over');
     submitScore();
     recenter(false);
@@ -498,12 +507,12 @@
   const closePanel = () => { $('overlay').hidden = true; };
 
   // ───────────── Leaderboard ─────────────
-  const playerName = () => ($('name').value.trim() || 'Аноним').slice(0, 16);
+  const playerName = () => ($('name').value.trim() || t('Аноним')).slice(0, 16);
   function renderBoard(el, entries, myRank) {
-    if (!entries || !entries.length) { el.innerHTML = best ? `<p>Твой рекорд: <b>${best}</b></p>` : ''; return; }
+    if (!entries || !entries.length) { el.innerHTML = best ? `<p>${t('Твой рекорд: {n}', { n: `<b>${best}</b>` })}</p>` : ''; return; }
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-    el.innerHTML = '<table><caption>Лучшие долины</caption>' + entries.map((e, i) =>
-      `<tr class="${i + 1 === myRank ? 'me' : ''}"><td>${i + 1}.</td><td>${esc(e.name)}</td><td>${e.level} плиток</td><td>${e.score}</td></tr>`).join('') + '</table>';
+    el.innerHTML = `<table><caption>${t('Лучшие долины')}</caption>` + entries.map((e, i) =>
+      `<tr class="${i + 1 === myRank ? 'me' : ''}"><td>${i + 1}.</td><td>${esc(e.name === 'Аноним' ? t('Аноним') : e.name)}</td><td>${e.level} ${I18n.p(e.level, TILES)}</td><td>${e.score}</td></tr>`).join('') + '</table>';
   }
   async function loadBoard() {
     try {
@@ -575,7 +584,7 @@
     if (!C.canPlace(G, c.q, c.r) || G.over) { selected = null; return; }
     if (wasDrag.type === 'mouse') placeAt(c);
     else if (selected && selected.q === c.q && selected.r === c.r) placeAt(c);
-    else { selected = c; if (!store.get('valley.tapHint')) { store.set('valley.tapHint', '1'); toast('Тапни ещё раз, чтобы положить плитку'); } }
+    else { selected = c; if (!store.get('valley.tapHint')) { store.set('valley.tapHint', '1'); toast(t('Тапни ещё раз, чтобы положить плитку')); } }
   };
   canvas.addEventListener('pointerup', endPointer);
   canvas.addEventListener('pointercancel', endPointer);
@@ -626,10 +635,13 @@
   window.addEventListener('pagehide', save);
 
   // ───────────── Boot ─────────────
+  $('lang-slot').replaceWith(I18n.toggle('lang-toggle'));
+  const meta = document.querySelector('meta[name=description]');
+  if (meta) meta.content = t(meta.content);
   resize();
   G = load();
   if (G) { recenter(true); renderHand(); renderQuests(); updateHud(); } else newGame();
-  if (G.over) $('btn-close').textContent = 'Смотреть карту';
+  if (G.over) $('btn-close').textContent = t('Смотреть карту');
   if (!store.get('valley.seenHelp')) { store.set('valley.seenHelp', '1'); showPanel('panel-help'); loadBoard(); }
 
   let last = performance.now(), questTick = 0;

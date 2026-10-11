@@ -13,7 +13,7 @@
 <canvas id="map" aria-label="Карта долины"></canvas>
 
 <header class="card score-card">
-  <h1>Долина</h1>
+  <div class="title-row"><h1>Долина</h1><span id="lang-slot"></span></div>
   <div class="score" id="score">0</div>
   <div class="muted" id="stack-label">в стопке: 0</div>
 </header>
@@ -79,6 +79,8 @@
   </section>
 </div>
 
+<script src="../i18n.js"></script>
+<script src="lang.js"></script>
 <script src="core.js"></script>
 <script src="game.js"></script>
 </body>

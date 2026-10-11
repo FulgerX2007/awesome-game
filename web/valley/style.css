@@ -38,6 +38,13 @@ button { font: inherit; color: inherit; }
 .small { font-size: 12px; }
 
 .score-card { top: calc(12px + env(safe-area-inset-top, 0px)); left: 12px; padding: 10px 16px 12px; min-width: 140px; }
+.title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lang-toggle {
+  flex: none; min-width: 32px; height: 24px; padding: 0 7px; border-radius: 999px; cursor: pointer;
+  background: transparent; border: 1px solid var(--line); color: var(--dim);
+  font: 700 11px/1 var(--font-display); letter-spacing: .06em;
+}
+.lang-toggle:hover { border-color: var(--accent); color: var(--accent); }
 h1 { margin: 0; font: 700 15px/1.2 var(--font-display); color: var(--accent); letter-spacing: .04em; }
 .score { font: 700 34px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
 
@@ -115,6 +122,8 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-si
   .hand { width: 128px; padding: 8px; }
   #tile-now { width: 92px; height: 92px; }
   .hand-next canvas { width: 34px; height: 34px; }
+  .hand-next { flex-wrap: wrap; justify-content: center; row-gap: 2px; }
+  .hand-next span { flex-basis: 100%; text-align: center; }
   .score { font-size: 26px; }
   .quests { max-width: 170px; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 }
