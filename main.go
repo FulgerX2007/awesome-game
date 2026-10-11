@@ -3,7 +3,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -16,6 +18,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -139,7 +142,7 @@ func newMux(boards map[string]*leaderboard.Board, store *saves.Store) *http.Serv
 		panic(err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle("GET /", http.FileServer(http.FS(static)))
+	mux.Handle("GET /", noCache(static, http.FileServer(http.FS(static))))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
 	})
@@ -211,6 +214,36 @@ func newMux(boards map[string]*leaderboard.Board, store *saves.Store) *http.Serv
 		}
 	})
 	return mux
+}
+
+// noCache makes browsers and proxies revalidate static files on every load, so a new release
+// shows up without a hard refresh. Each file gets a content-hash ETag, so an unchanged file
+// costs only a 304 (http.FileServer honours If-None-Match once the ETag header is set).
+func noCache(files fs.FS, next http.Handler) http.Handler {
+	etags := map[string]string{}
+	fs.WalkDir(files, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		data, err := fs.ReadFile(files, path)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(data)
+		etags[path] = `"` + hex.EncodeToString(sum[:8]) + `"`
+		return nil
+	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		if name == "" || strings.HasSuffix(name, "/") {
+			name += "index.html"
+		}
+		if tag, ok := etags[name]; ok {
+			w.Header().Set("ETag", tag)
+		}
+		w.Header().Set("Cache-Control", "no-cache")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
