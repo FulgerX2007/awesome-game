@@ -1,10 +1,12 @@
 // Глубина — eat-and-grow ocean simulation. No DOM, so a bot can play it in Node.
 // Everything is in world units; the camera zooms out as the player grows.
+// The vertical axis is depth: five real ocean zones from the sunlit surface to the trench floor.
+// Each zone has its own species, more food value and less light.
 (function (root) {
   'use strict';
   const I18n = typeof module === 'object' && module.exports ? require('../i18n.js') : root.I18n;
 
-  // Creature kinds by absolute radius. speed is relative to the player's speed at the same size.
+  // Size classes by absolute radius. speed is relative to the player's speed at the same size.
   const KINDS = [
     { id: 'plankton', max: 2.5, speed: 0.15 },
     { id: 'cell', max: 6, speed: 0.45 },
@@ -16,20 +18,108 @@
     { id: 'whale', max: Infinity, speed: 0.4 },
   ];
   const KIND = Object.fromEntries(KINDS.map((k) => [k.id, k]));
+
+  // Ocean zones. Depth is a progress value d in [0, 5]: zone i spans [i, i + 1).
+  const ZONES = [
+    { id: 'sunlit', name: 'Солнечная зона', top: 0, dark: 0, gain: 1, hunters: 3, food: 32,
+      text: 'Свет, тепло и больше всего жизни.' },
+    { id: 'twilight', name: 'Сумеречная зона', top: 200, dark: 0.5, gain: 1.25, hunters: 3, food: 34,
+      text: 'Синий полумрак. Многие здесь светятся сами.' },
+    { id: 'midnight', name: 'Полночная зона', top: 1000, dark: 0.9, gain: 1.5, hunters: 4, food: 36,
+      text: 'Солнце сюда не доходит. Видно только тех, кто светится, и того, кто рядом.' },
+    { id: 'abyss', name: 'Бездна', top: 4000, dark: 0.95, gain: 1.75, hunters: 4, food: 36,
+      text: 'Холод и давление в сотни атмосфер. Еда редкая, но сытная.' },
+    { id: 'trench', name: 'Глубоководный жёлоб', top: 6000, dark: 0.96, gain: 2, hunters: 5, food: 38,
+      text: 'Самое дно океана. Сюда добирались единицы.' },
+  ];
+  const FLOOR_M = 10994; // Challenger Deep
+  const MAX_DEPTH = ZONES.length;
+  const ZONE_SWIM = 28; // seconds of straight diving at full speed to cross one zone, at any size
+
+  // Real species. cls is the size class; zones lists where they live; the rest overrides class traits.
+  // glow: bioluminescent (seen in the dark); lure: anglerfish bait; ambush: waits, then lunges.
+  const SPECIES = [
+    { id: 'diatom', cls: 'plankton', zones: [0, 1], name: 'Диатомея',
+      fact: 'Одноклеточная водоросль в стеклянном панцире. Диатомеи дают около пятой части всего кислорода Земли.' },
+    { id: 'noctiluca', cls: 'plankton', zones: [1, 2], glow: true, name: 'Ночесветка',
+      fact: 'Из-за неё ночью светятся волны: клетка вспыхивает голубым, когда её тревожат.' },
+    { id: 'snow', cls: 'plankton', zones: [3, 4], name: 'Морской снег',
+      fact: 'Хлопья органики, которые медленно падают сверху. Для бездны это главная еда, путь на дно занимает недели.' },
+    { id: 'paramecium', cls: 'cell', zones: [0], name: 'Инфузория-туфелька',
+      fact: 'Плавает тысячами ресничек и разворачивается, наткнувшись на препятствие.' },
+    { id: 'radiolarian', cls: 'cell', zones: [1, 2], name: 'Радиолярия',
+      fact: 'Строит кружевной скелет из кремнезёма. Из таких скелетов сложены целые горные породы.' },
+    { id: 'foram', cls: 'cell', zones: [3], name: 'Фораминифера',
+      fact: 'Клетка в спиральной раковине из камер. Ракушки фораминифер есть в известняке пирамид.' },
+    { id: 'xeno', cls: 'cell', zones: [4], name: 'Ксенофиофора',
+      fact: 'Одна клетка размером с ладонь. Живёт даже на дне Марианской впадины.' },
+    { id: 'copepod', cls: 'krill', zones: [0], name: 'Веслоногий рачок',
+      fact: 'Самое многочисленное животное на планете. Прыгает на сотни длин тела в секунду.' },
+    { id: 'krill', cls: 'krill', zones: [0, 1], name: 'Антарктический криль',
+      fact: 'Весь антарктический криль весит примерно столько же, сколько всё человечество. Им питаются киты.' },
+    { id: 'shrimp', cls: 'krill', zones: [2], glow: true, name: 'Глубоководная креветка',
+      fact: 'Защищаясь, выплёвывает облако светящейся слизи прямо в морду хищнику.' },
+    { id: 'amphipod', cls: 'krill', zones: [3, 4], name: 'Бокоплав',
+      fact: 'Падальщик бездны. Бокоплавы находят упавшую на дно рыбу за считанные часы.' },
+    { id: 'anchovy', cls: 'minnow', zones: [0], name: 'Анчоус',
+      fact: 'Плавает огромными косяками: так хищнику труднее выбрать одну рыбку.' },
+    { id: 'lanternfish', cls: 'minnow', zones: [1, 2], glow: true, name: 'Рыба-фонарь',
+      fact: 'Каждую ночь поднимается к поверхности за едой, а днём уходит на глубину. Это самая большая миграция на Земле.' },
+    { id: 'hatchetfish', cls: 'minnow', zones: [1, 2], glow: true, name: 'Рыба-топорик',
+      fact: 'Светится брюхом ровно так же, как свет сверху, поэтому снизу её не видно.' },
+    { id: 'snailfish', cls: 'minnow', zones: [3, 4], name: 'Морской слизень',
+      fact: 'Рыба-рекордсмен: её снимали на глубине 8 336 метров.' },
+    { id: 'mackerel', cls: 'fish', zones: [0], name: 'Скумбрия',
+      fact: 'Не может остановиться: чтобы дышать, ей нужно всё время плыть.' },
+    { id: 'moonjelly', cls: 'fish', zones: [0, 1], jelly: true, name: 'Медуза-аурелия',
+      fact: 'У неё нет мозга, сердца и костей, а тело на 98% состоит из воды.' },
+    { id: 'combjelly', cls: 'fish', zones: [1, 2], jelly: true, glow: true, name: 'Гребневик',
+      fact: 'Ряды крошечных гребней переливаются радугой. По последним данным, гребневики — одна из самых древних ветвей животных.' },
+    { id: 'viperfish', cls: 'fish', zones: [1, 2], glow: true, name: 'Рыба-гадюка',
+      fact: 'Зубы такие длинные, что не помещаются в пасти и торчат наружу.' },
+    { id: 'angler', cls: 'fish', zones: [2, 3], glow: true, lure: true, ambush: true, name: 'Удильщик',
+      fact: 'Висит в темноте неподвижно и приманивает добычу светящейся «удочкой» на лбу. Не плыви на одинокий огонёк.' },
+    { id: 'tripod', cls: 'fish', zones: [3, 4], flee: true, hunter: false, name: 'Рыба-тренога',
+      fact: 'Стоит на дне на трёх длинных лучах плавников, как на ходулях, и ждёт, что принесёт течение.' },
+    { id: 'squid', cls: 'squid', zones: [0, 1], name: 'Кальмар',
+      fact: 'Плавает реактивно: набирает воду в мантию и с силой выталкивает её.' },
+    { id: 'vampire', cls: 'squid', zones: [2, 3], glow: true, hunter: false, name: 'Адский вампир',
+      fact: 'Несмотря на имя, ест морской снег. При опасности выворачивается плащом наизнанку.' },
+    { id: 'gulper', cls: 'squid', zones: [2, 3], glow: true, name: 'Большерот',
+      fact: 'Пасть больше всего остального тела: глотает добычу крупнее себя.' },
+    { id: 'dumbo', cls: 'squid', zones: [4], hunter: false, name: 'Осьминог-дамбо',
+      fact: 'Машет плавниками, похожими на уши слонёнка. Живёт глубже всех осьминогов.' },
+    { id: 'shark', cls: 'shark', zones: [0, 1], name: 'Синяя акула',
+      fact: 'Проплывает тысячи километров вслед за косяками рыб.' },
+    { id: 'goblin', cls: 'shark', zones: [2, 3], name: 'Акула-домовой',
+      fact: 'Выстреливает челюсти вперёд, чтобы схватить добычу. Розовая, потому что сквозь кожу видны сосуды.' },
+    { id: 'giantsquid', cls: 'shark', zones: [2, 3], name: 'Гигантский кальмар',
+      fact: 'Глаза размером с футбольный мяч, одни из самых больших в животном мире. Живым его впервые сфотографировали только в 2004 году.' },
+    { id: 'humpback', cls: 'whale', zones: [0, 1], name: 'Горбатый кит',
+      fact: 'Самцы поют песни длиной до получаса, и вся популяция со временем меняет мелодию вместе.' },
+    { id: 'sperm', cls: 'whale', zones: [1, 2, 3], name: 'Кашалот',
+      fact: 'Ныряет на 2 км за гигантскими кальмарами и задерживает дыхание на час.' },
+    { id: 'siphonophore', cls: 'whale', zones: [3, 4], glow: true, hunter: false, name: 'Сифонофора',
+      fact: 'Колония из тысяч крошечных существ, вытянутая на 40 метров. Одно из самых длинных животных в мире.' },
+  ];
+  const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
+  // The player's own body at each stage.
   const STAGES = [
-    { kind: 'cell', name: 'Клетка', from: 0 },
-    { kind: 'krill', name: 'Рачок', from: 6 },
-    { kind: 'minnow', name: 'Малёк', from: 14 },
-    { kind: 'fish', name: 'Рыба', from: 30 },
-    { kind: 'squid', name: 'Кальмар', from: 70 },
-    { kind: 'shark', name: 'Акула', from: 150 },
-    { kind: 'whale', name: 'Кит', from: 330 },
+    { kind: 'cell', species: 'paramecium', name: 'Клетка', from: 0 },
+    { kind: 'krill', species: 'krill', name: 'Рачок', from: 6 },
+    { kind: 'minnow', species: 'anchovy', name: 'Малёк', from: 14 },
+    { kind: 'fish', species: 'mackerel', name: 'Рыба', from: 30 },
+    { kind: 'squid', species: 'squid', name: 'Кальмар', from: 70 },
+    { kind: 'shark', species: 'shark', name: 'Акула', from: 150 },
+    { kind: 'whale', species: 'humpback', name: 'Кит', from: 330 },
   ];
   const START_R = 3;
+  const MAX_R = 360;        // about 45 m: growth stops at a record-size whale
   const EAT_RATIO = 1.12;   // must be this much bigger to swallow
   const GAIN = 0.5;         // share of prey mass you keep
   const DASH_TIME = 0.6, DASH_COOLDOWN = 3, DASH_MULT = 2.3;
   const CHASE_LIMIT = 4.5, REST_TIME = 3;
+  const LUNGE_TIME = 1.1, LUNGE_MULT = 1.9;
 
   function rng(seed) {
     let a = seed >>> 0;
@@ -41,16 +131,49 @@
     };
   }
 
-  const kindFor = (r, R) => {
-    const k = KINDS.find((x) => r < x.max).id;
-    // Mid-size creatures are sometimes drifting jellyfish instead of fish.
-    return k === 'fish' && R() < 0.35 ? 'jelly' : k;
-  };
-  const traits = (e) => (e.kind === 'jelly' ? { speed: 0.3 } : KIND[e.kind]);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const zoneAt = (d) => clamp(Math.floor(d), 0, ZONES.length - 1);
+  function metersAt(d) {
+    const z = zoneAt(d), top = ZONES[z].top, bottom = z + 1 < ZONES.length ? ZONES[z + 1].top : FLOOR_M;
+    return top + (bottom - top) * clamp(d - z, 0, 1);
+  }
+  // Darkness 0..1, smoothly blended across zone borders.
+  function darkAt(d) {
+    const z = zoneAt(d), k = clamp(d - z, 0, 1);
+    const next = ZONES[Math.min(z + 1, ZONES.length - 1)].dark;
+    return ZONES[z].dark + (next - ZONES[z].dark) * k * k;
+  }
+
+  const classOf = (r) => (KINDS.find((x) => r < x.max) || KINDS[KINDS.length - 1]).id;
+  // A species of the right size for this depth. Classes missing from a zone borrow from the zone above.
+  function speciesFor(r, d, R) {
+    const cls = classOf(r);
+    for (let z = zoneAt(d); z >= 0; z--) {
+      const list = SPECIES.filter((s) => s.cls === cls && s.zones.includes(z));
+      if (list.length) return list[Math.floor(R() * list.length)];
+    }
+    return SPECIES.find((s) => s.cls === cls);
+  }
+  // Class traits with species overrides. Jellies drift; ambushers barely move until they lunge.
+  function traits(e) {
+    const sp = SPECIES_BY_ID[e.sp], k = KIND[sp.cls];
+    return {
+      speed: sp.jelly ? 0.3 : sp.ambush ? 0.35 : k.speed,
+      flee: sp.flee ?? (!sp.jelly && !!k.flee),
+      hunter: sp.hunter ?? (!sp.jelly && !!k.hunter),
+      school: !!k.school, glow: !!sp.glow, ambush: !!sp.ambush,
+    };
+  }
+  const isHunter = (e) => traits(e).hunter;
   const stageOf = (r) => { let s = 0; STAGES.forEach((st, i) => { if (r >= st.from) s = i; }); return s; };
   const baseSpeed = (r) => 90 * (r / 4) ** 0.7;
   // World height that fits on screen for a player of radius r.
   const viewSize = (r) => 170 * (Math.max(r, START_R) / 4) ** 0.85;
+  // World units per unit of depth progress, at the player's current size.
+  const depthScale = (p) => ZONE_SWIM * baseSpeed(p.r);
+  const depthOf = (w, y) => w.player.depth + (y - w.player.y) / depthScale(w.player);
+  // How far the player sees in the dark, in world units.
+  const lightRadius = (p) => p.r * 5 + viewSize(p.r) * 0.12;
 
   // Real-world length for the HUD: 10 µm cell up to a ~30 m whale.
   function lengthMeters(r) { return 1e-5 * (r / 3) ** 3.2; }
@@ -63,10 +186,11 @@
     return I18n.t('{n} м', { n: f(m) });
   }
 
-  function createWorld(seed, r0 = START_R) {
+  function createWorld(seed, r0 = START_R, depth = 0.15) {
     const w = {
       R: rng(seed), time: 0, nextId: 1, ents: [], events: [], deaths: 0,
-      player: { x: 0, y: 0, vx: 0, vy: 0, r: r0, peak: r0, angle: 0, dashT: 0, dashCD: 0, invuln: 2, stage: stageOf(r0) },
+      player: { x: 0, y: 0, vx: 0, vy: 0, r: r0, peak: r0, angle: 0, dashT: 0, dashCD: 0, invuln: 2, stage: stageOf(r0),
+        depth: clamp(depth, 0, MAX_DEPTH - 0.02), zone: zoneAt(depth), maxZone: zoneAt(depth) },
     };
     populate(w, true);
     return w;
@@ -75,29 +199,33 @@
   function spawn(w, r, near) {
     const p = w.player, V = viewSize(p.r);
     const a = w.R() * Math.PI * 2;
-    const d = near ? V * (0.35 + w.R() * 1.5) : V * (1.15 + w.R() * 0.75);
-    const kind = kindFor(r, w.R);
+    const dd = near ? V * (0.35 + w.R() * 1.5) : V * (1.15 + w.R() * 0.75);
+    const x = p.x + Math.cos(a) * dd, y = p.y + Math.sin(a) * dd;
+    // Nothing lives above the surface or below the floor, so the water there is just emptier.
+    const top = p.y - p.depth * depthScale(p), floor = p.y + (MAX_DEPTH - p.depth) * depthScale(p);
+    if (y < top + r || y > floor - r) return null;
+    const sp = speciesFor(r, depthOf(w, y), w.R);
     const e = {
-      id: w.nextId++, kind, r, x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d,
+      id: w.nextId++, sp: sp.id, cls: sp.cls, r, x, y,
       vx: 0, vy: 0, angle: w.R() * Math.PI * 2, heading: w.R() * Math.PI * 2,
-      mode: 'wander', target: null, think: w.R() * 0.3, chase: 0, rest: 0, hue: w.R(), phase: w.R() * 6,
+      mode: 'wander', target: null, think: w.R() * 0.3, chase: 0, rest: 0, lunge: 0, hue: w.R(), phase: w.R() * 6, met: false,
     };
     // Don't drop a hungry hunter right on top of the player.
-    if (KIND[kind]?.hunter && r > p.r && Math.hypot(e.x - p.x, e.y - p.y) < V * 0.9) return null;
+    if (traits(e).hunter && r > p.r && Math.hypot(e.x - p.x, e.y - p.y) < V * 0.9) return null;
     w.ents.push(e);
     return e;
   }
 
-  // Keep a steady population around the player, sized relative to the player.
+  // Keep a steady population around the player, sized relative to the player and shaped by the zone.
   function populate(w, initial) {
-    const p = w.player, V = viewSize(p.r);
+    const p = w.player, V = viewSize(p.r), Z = ZONES[p.zone];
     w.ents = w.ents.filter((e) => Math.hypot(e.x - p.x, e.y - p.y) < V * 2.3);
     let food = 0, others = 0, bigHunters = 0;
     for (const e of w.ents) {
       if (e.r < p.r * 0.45) food++; else others++;
-      if (KIND[e.kind]?.hunter && e.r > p.r * EAT_RATIO) bigHunters++;
+      if (isHunter(e) && e.r > p.r * EAT_RATIO) bigHunters++;
     }
-    for (let guard = 0; food < 32 && guard < 200; guard++) if (spawn(w, p.r * (0.25 + w.R() * 0.3), initial)) food++;
+    for (let guard = 0; food < Z.food && guard < 200; guard++) if (spawn(w, p.r * (0.25 + w.R() * 0.3), initial)) food++;
     for (let guard = 0; others < 34 && guard < 200; guard++) {
       const roll = w.R();
       let r;
@@ -106,8 +234,8 @@
       else r = p.r * (1.3 + w.R() * 2.4);
       const e = spawn(w, r, initial);
       if (!e) continue;
-      if (KIND[e.kind]?.hunter && r > p.r * EAT_RATIO) {
-        if (bigHunters >= 3) { w.ents.pop(); continue; }
+      if (isHunter(e) && r > p.r * EAT_RATIO) {
+        if (bigHunters >= Z.hunters) { w.ents.pop(); continue; }
         bigHunters++;
       }
       others++;
@@ -119,12 +247,13 @@
   function think(w, e) {
     const p = w.player, t = traits(e);
     const sense = e.r * 7 + 80;
+    if (e.lunge > 0) return;
     e.mode = 'wander'; e.target = null;
     if (t.flee) {
       let threat = null, td = Infinity;
       const check = (o) => {
         if (o === e || o.r <= e.r * EAT_RATIO) return;
-        if (o !== p && !KIND[o.kind]?.hunter) return;
+        if (o !== p && !isHunter(o)) return;
         const d = dist(o, e);
         if (d < sense && d < td) { threat = o; td = d; }
       };
@@ -133,15 +262,20 @@
       if (threat) { e.mode = 'flee'; e.target = threat; return; }
     }
     if (t.hunter && e.rest <= 0) {
+      // Ambushers only strike at what swims right up to them.
+      const reach = t.ambush ? e.r * 4 : sense;
       let prey = null, pd = Infinity;
       const check = (o) => {
         if (o === e || e.r <= o.r * EAT_RATIO) return;
         const d = dist(o, e);
-        if (d < sense && d < pd) { prey = o; pd = d; }
+        if (d < reach && d < pd) { prey = o; pd = d; }
       };
       if (p.invuln <= 0) check(p);
       for (const o of w.ents) check(o);
-      if (prey) { e.mode = 'hunt'; e.target = prey; }
+      if (prey) {
+        e.mode = 'hunt'; e.target = prey;
+        if (t.ambush) e.lunge = LUNGE_TIME;
+      }
     }
   }
 
@@ -152,6 +286,11 @@
     if (e.target && e.target !== w.player && !w.ents.includes(e.target)) { e.target = null; e.mode = 'wander'; }
     let speed = baseSpeed(e.r) * t.speed;
     let dirX, dirY;
+    if (e.lunge > 0) {
+      e.lunge -= dt;
+      if (e.lunge <= 0) { e.rest = REST_TIME; e.mode = 'wander'; e.target = null; }
+      speed = baseSpeed(e.r) * LUNGE_MULT;
+    }
     if (e.mode === 'flee' && e.target) {
       dirX = e.x - e.target.x; dirY = e.y - e.target.y;
     } else if (e.mode === 'hunt' && e.target) {
@@ -162,9 +301,14 @@
     } else {
       e.heading += (w.R() - 0.5) * dt * 2;
       dirX = Math.cos(e.heading); dirY = Math.sin(e.heading);
-      speed *= e.kind === 'plankton' || e.kind === 'jelly' || e.kind === 'whale' ? 0.6 : 0.35;
+      const drift = e.cls === 'plankton' || e.cls === 'whale' || SPECIES_BY_ID[e.sp].jelly;
+      speed *= t.ambush ? 0.1 : drift ? 0.6 : 0.35;
     }
     if (e.rest > 0) { e.rest -= dt; speed *= 0.5; }
+    // Turn back at the surface and the floor.
+    const ed = depthOf(w, e.y);
+    if (ed < 0.02 && dirY < 0) { dirY = Math.abs(dirY) + 0.3; e.heading = Math.abs(e.heading) % Math.PI; }
+    if (ed > MAX_DEPTH - 0.02 && dirY > 0) { dirY = -Math.abs(dirY) - 0.3; e.heading = -Math.abs(e.heading) % Math.PI; }
     const len = Math.hypot(dirX, dirY) || 1;
     const k = 1 - Math.exp(-dt * 3);
     e.vx += ((dirX / len) * speed - e.vx) * k;
@@ -174,9 +318,16 @@
     e.phase += dt * (2 + Math.hypot(e.vx, e.vy) / (e.r + 4));
   }
 
-  function grow(p, prey) {
-    p.r = Math.sqrt(p.r * p.r + prey.r * prey.r * GAIN);
+  function grow(p, prey, gain) {
+    p.r = Math.min(MAX_R, Math.sqrt(p.r * p.r + prey.r * prey.r * GAIN * gain));
     p.peak = Math.max(p.peak, p.r);
+  }
+
+  // Can the player make this creature out right now? Glowing ones are visible from afar in the dark.
+  function visible(w, e) {
+    const p = w.player, d = dist(p, e);
+    if (d > viewSize(p.r) * 0.55) return false;
+    return darkAt(p.depth) < 0.6 || traits(e).glow || d < lightRadius(p) + e.r;
   }
 
   // input: { tx, ty } point to swim toward (world), or null to drift; dash: boolean.
@@ -196,25 +347,36 @@
     const max = baseSpeed(p.r) * (p.dashT > 0 ? DASH_MULT : 1);
     const k = 1 - Math.exp(-dt * 4);
     p.vx += (ax * max - p.vx) * k; p.vy += (ay * max - p.vy) * k;
+    // The surface and the trench floor stop you.
+    const dy = p.vy * dt / depthScale(p);
+    if (p.depth + dy < 0 || p.depth + dy > MAX_DEPTH - 0.02) p.vy = 0;
+    p.depth = clamp(p.depth + p.vy * dt / depthScale(p), 0, MAX_DEPTH - 0.02);
     p.x += p.vx * dt; p.y += p.vy * dt;
     if (Math.hypot(p.vx, p.vy) > 2) p.angle = Math.atan2(p.vy, p.vx);
+    const zone = zoneAt(p.depth);
+    if (zone !== p.zone) {
+      w.events.push({ type: 'zone', zone, first: zone > p.maxZone, down: zone > p.zone });
+      p.zone = zone; p.maxZone = Math.max(p.maxZone, zone);
+    }
 
     for (const e of w.ents) moveEntity(w, e, dt);
 
     // Who eats whom.
     const eaten = new Set();
+    const gain = ZONES[p.zone].gain;
     for (const e of w.ents) {
+      if (!e.met && visible(w, e)) { e.met = true; w.events.push({ type: 'meet', sp: e.sp }); }
       const d = dist(p, e);
       if (p.r > e.r * EAT_RATIO && d < p.r) {
-        eaten.add(e); grow(p, e);
-        w.events.push({ type: 'eat', r: e.r, kind: e.kind, x: e.x, y: e.y });
-      } else if (KIND[e.kind]?.hunter && e.r > p.r * EAT_RATIO && d < e.r && p.invuln <= 0) {
+        eaten.add(e); grow(p, e, gain);
+        w.events.push({ type: 'eat', r: e.r, sp: e.sp, x: e.x, y: e.y });
+      } else if (isHunter(e) && e.r > p.r * EAT_RATIO && d < e.r && p.invuln <= 0) {
         die(w, e);
         break;
       }
     }
     for (const h of w.ents) {
-      if (!KIND[h.kind]?.hunter || eaten.has(h) || h.mode !== 'hunt') continue;
+      if (!isHunter(h) || eaten.has(h) || h.mode !== 'hunt') continue;
       for (const o of w.ents) {
         if (o === h || eaten.has(o) || h.r <= o.r * EAT_RATIO) continue;
         if (dist(h, o) < h.r) { eaten.add(o); h.mode = 'wander'; h.target = null; break; }
@@ -232,17 +394,18 @@
   function die(w, killer) {
     const p = w.player;
     w.deaths++;
-    w.events.push({ type: 'death', x: p.x, y: p.y, by: killer.kind });
+    w.events.push({ type: 'death', x: p.x, y: p.y, by: killer.sp });
     p.r = Math.max(START_R, p.r / Math.SQRT2);
     p.invuln = 3; p.vx = p.vy = 0;
     p.stage = stageOf(p.r);
     const V = viewSize(p.r);
-    w.ents = w.ents.filter((e) => !(KIND[e.kind]?.hunter && e.r > p.r && dist(e, p) < V * 1.5));
+    w.ents = w.ents.filter((e) => !(isHunter(e) && e.r > p.r && dist(e, p) < V * 1.5));
   }
 
   const api = {
-    KINDS, STAGES, START_R, EAT_RATIO, DASH_COOLDOWN, rng, createWorld, step, stageOf, viewSize, baseSpeed,
-    lengthMeters, lengthText, traits, isHunter: (e) => !!KIND[e.kind]?.hunter,
+    KINDS, STAGES, ZONES, SPECIES, SPECIES_BY_ID, START_R, MAX_R, EAT_RATIO, DASH_COOLDOWN, MAX_DEPTH, FLOOR_M,
+    rng, createWorld, step, stageOf, viewSize, baseSpeed, lengthMeters, lengthText, traits, isHunter,
+    zoneAt, metersAt, darkAt, depthScale, lightRadius, speciesFor,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DeepCore = api;

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Глубина</title>
-<meta name="description" content="Спокойная игра про океан: начни клеткой, ешь тех, кто меньше, и вырасти до кита.">
+<meta name="description" content="Спокойная игра про океан: начни клеткой, ешь тех, кто меньше, вырасти до кита и опустись на дно Марианской впадины.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marmelad&family=Golos+Text:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
@@ -15,10 +15,13 @@
 <div class="hud" id="hud" hidden>
   <div class="stage-name" id="stage-name">Клетка</div>
   <div class="length" id="length">10 мкм</div>
+  <div class="depth" id="depth"></div>
   <div class="ladder" id="ladder" aria-label="Путь до кита"></div>
 </div>
+<div class="gauge" aria-hidden="true"><i class="z0"></i><i class="z1"></i><i class="z2"></i><i class="z3"></i><i class="z4"></i><b id="gauge-mark"></b></div>
 <div class="corner">
   <span id="best"></span>
+  <button class="chip" id="btn-atlas">Атлас</button>
   <button class="chip" id="btn-sound" aria-pressed="true">Звук: вкл</button>
 </div>
 <button class="dash" id="btn-dash" aria-label="Рывок" hidden><span>рывок</span></button>
@@ -28,12 +31,16 @@
   <section class="panel">
     <h1>Глубина</h1>
     <p class="lead">Ты — крошечная клетка в толще океана. Ешь тех, кто меньше тебя, и расти: рачок, малёк, рыба, кальмар, акула, кит.</p>
+    <p class="lead small">Океан уходит вниз на 11 километров. Чем глубже, тем темнее, но и еда там сытнее, а живут там удивительные существа.</p>
     <ul class="rules">
       <li>Плыви за курсором или пальцем. <b>Пробел</b>, зажатая кнопка мыши или кнопка «рывок» — короткое ускорение.</li>
       <li>Опасны только хищники крупнее тебя. Когда хищник тебя заметил, он светится <span class="red">красным</span>. Погоня его утомляет.</li>
+      <li>В темноте видно только то, что рядом, и тех, кто светится сам. Не плыви на одинокий огонёк.</li>
+      <li>Каждый новый вид попадает в атлас, он сохраняется навсегда.</li>
       <li>Если тебя съедят, ты потеряешь половину размера и поплывёшь дальше. Конца игры нет.</li>
     </ul>
     <div class="row" id="menu-row">
+      <button class="btn ghost" id="btn-menu-atlas">Атлас</button>
       <button class="btn ghost" id="btn-restart" hidden>Начать с клетки</button>
       <button class="btn" id="btn-start">Нырнуть</button>
     </div>
@@ -43,7 +50,15 @@
 <script src="../i18n.js"></script>
 <script src="../nav.js"></script>
 <script src="lang.js"></script>
+<div class="overlay atlas" id="atlas" hidden role="dialog" aria-labelledby="atlas-title">
+  <section class="panel wide">
+    <header class="atlas-head"><h2 id="atlas-title">Атлас</h2><span id="atlas-count"></span><button class="chip" id="btn-atlas-close">Закрыть</button></header>
+    <ol class="atlas-list" id="atlas-list"></ol>
+  </section>
+</div>
+
 <script src="core.js"></script>
+<script src="models.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
