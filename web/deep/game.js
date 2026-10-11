@@ -76,7 +76,7 @@
   let playing = false;
   let best = Number(store.get('deep.best') || 0);
   const cam = { x: 0, y: 0, z: 1 };
-  const fx = { parts: [], flash: 0, danger: 0 };
+  const fx = { parts: [], texts: [], flash: 0, danger: 0 };
 
   function startWorld(r0, depth) {
     W = C.createWorld((Math.random() * 2 ** 32) >>> 0, r0, depth);
@@ -276,6 +276,16 @@
     }
     ctx.globalAlpha = 1;
     fx.parts = fx.parts.filter((p) => p.t < p.life);
+    ctx.font = '600 14px "Golos Text", sans-serif'; ctx.textAlign = 'center';
+    for (const f of fx.texts) {
+      f.t += dt;
+      ctx.globalAlpha = clamp(1.2 - f.t, 0, 1);
+      ctx.fillStyle = '#ffd98a'; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 3;
+      const x = sx(f.x), y = sy(f.y) - 10 - f.t * 28;
+      ctx.strokeText(f.text, x, y); ctx.fillText(f.text, x, y);
+    }
+    ctx.globalAlpha = 1;
+    fx.texts = fx.texts.filter((f) => f.t < 1.2);
 
     if (fx.danger > 0.02) {
       const g = ctx.createRadialGradient(SW / 2, SH / 2, Math.min(SW, SH) * 0.3, SW / 2, SH / 2, Math.max(SW, SH) * 0.75);
@@ -318,6 +328,12 @@
     $('depth').textContent = tr('глубина {m} м · {zone}', { m: depthFmt.format(Math.round(C.metersAt(p.depth))), zone: tr(C.ZONES[p.zone].name) });
     $('gauge-mark').style.top = `${(p.depth / C.MAX_DEPTH) * 100}%`;
     $('btn-atlas').textContent = tr('Атлас {n}/{total}', { n: known(), total: C.SPECIES.length });
+    const pr = C.progress(p.r), pct = Math.floor(pr.k * 100);
+    $('next-label').textContent = pr.next === null
+      ? tr('Кит растёт до 45 м · {pct}%', { pct })
+      : tr('Дальше: {stage} · {pct}%', { stage: stageName(pr.next), pct });
+    $('next-fill').style.width = `${pr.k * 100}%`;
+    $('next').classList.toggle('lost', p.invuln > 0 && W.deaths > 0);
     const bars = $('ladder').children;
     for (let i = 0; i < bars.length; i++) {
       const st = C.STAGES[i + 1], prev = C.STAGES[i];
@@ -331,6 +347,7 @@
   }
 
   const depthFmt = new Intl.NumberFormat(window.I18n.locale);
+  const pctFmt = new Intl.NumberFormat(window.I18n.locale, { maximumFractionDigits: 1 });
   const STAGE_TEXT = [
     '', 'Появились лапки и усики. Теперь тебя видно в микроскоп.',
     'Плавник, хвост и глаза. Стайки мальков разбегаются от тебя.',
@@ -344,6 +361,8 @@
     for (const e of W.events) {
       if (e.type === 'eat') {
         Sound.gulp(e.r / p.r); burst(e.x, e.y, e.r, 'rgba(220,255,230,0.8)');
+        // How far this bite moved you towards the next stage.
+        if (e.pct >= 0.05) fx.texts.push({ x: e.x, y: e.y, t: 0, text: `+${pctFmt.format(e.pct)}%` });
         if (note(e.sp, 'eaten')) newSpecies(e.sp);
       }
       if (e.type === 'meet' && note(e.sp, 'seen')) newSpecies(e.sp);

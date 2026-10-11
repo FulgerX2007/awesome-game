@@ -13,6 +13,8 @@ I18n.add({
     'Клетка': 'Celulă',
     '10 мкм': '10 μm',
     'Путь до кита': 'Drumul până la balenă',
+    'Дальше: {stage} · {pct}%': 'Urmează: {stage} · {pct}%',
+    'Кит растёт до 45 м · {pct}%': 'Balena crește până la 45 m · {pct}%',
     'длина {len}': 'lungime {len}',
     'рекорд: {len}': 'record: {len}',
     'Звук: вкл': 'Sunet: pornit',

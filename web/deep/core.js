@@ -369,7 +369,7 @@
       const d = dist(p, e);
       if (p.r > e.r * EAT_RATIO && d < p.r) {
         eaten.add(e); grow(p, e, gain);
-        w.events.push({ type: 'eat', r: e.r, sp: e.sp, x: e.x, y: e.y });
+        w.events.push({ type: 'eat', r: e.r, sp: e.sp, x: e.x, y: e.y, pct: p.r >= MAX_R ? 0 : e.r * e.r * GAIN * gain / stageArea(p.stage) * 100 });
       } else if (isHunter(e) && e.r > p.r * EAT_RATIO && d < e.r && p.invuln <= 0) {
         die(w, e);
         break;
@@ -390,6 +390,16 @@
     populate(w, false);
   }
 
+  // Growth inside a stage, by mass (r²), so every bite of the same size moves the bar the same amount.
+  // The last stage grows towards MAX_R.
+  const stageEnd = (i) => (i + 1 < STAGES.length ? STAGES[i + 1].from : MAX_R);
+  const stageStart = (i) => (i === 0 ? START_R : STAGES[i].from);
+  const stageArea = (i) => stageEnd(i) ** 2 - stageStart(i) ** 2;
+  function progress(r) {
+    const i = stageOf(r);
+    return { stage: i, next: i + 1 < STAGES.length ? i + 1 : null, k: clamp((r * r - stageStart(i) ** 2) / stageArea(i), 0, 1) };
+  }
+
   // Being eaten costs half your mass, never the run.
   function die(w, killer) {
     const p = w.player;
@@ -404,7 +414,7 @@
 
   const api = {
     KINDS, STAGES, ZONES, SPECIES, SPECIES_BY_ID, START_R, MAX_R, EAT_RATIO, DASH_COOLDOWN, MAX_DEPTH, FLOOR_M,
-    rng, createWorld, step, stageOf, viewSize, baseSpeed, lengthMeters, lengthText, traits, isHunter,
+    rng, createWorld, step, stageOf, progress, viewSize, baseSpeed, lengthMeters, lengthText, traits, isHunter,
     zoneAt, metersAt, darkAt, depthScale, lightRadius, speciesFor,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
