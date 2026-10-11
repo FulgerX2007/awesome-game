@@ -41,6 +41,33 @@ func TestServer(t *testing.T) {
 	}
 }
 
+func TestStaticRevalidates(t *testing.T) {
+	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
+	defer srv.Close()
+
+	for _, path := range []string{"/", "/deep/", "/deep/game.js"} {
+		res, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		tag := res.Header.Get("ETag")
+		if res.Header.Get("Cache-Control") != "no-cache" || tag == "" {
+			t.Fatalf("%s: Cache-Control=%q ETag=%q", path, res.Header.Get("Cache-Control"), tag)
+		}
+		req, _ := http.NewRequest(http.MethodGet, srv.URL+path, nil)
+		req.Header.Set("If-None-Match", tag)
+		res, err = http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != http.StatusNotModified {
+			t.Fatalf("%s: revalidation got %d, want 304", path, res.StatusCode)
+		}
+	}
+}
+
 func TestSavesAPI(t *testing.T) {
 	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
 	defer srv.Close()

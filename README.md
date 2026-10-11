@@ -228,7 +228,7 @@ docker run -d -p 8080:8080 -v games-data:/data ghcr.io/fulgerx2007/awesome-game:
   Есть склонения для обоих языков (`I18n.p`), перевод статической разметки и переключатель языка.
   Язык берётся из `?lang=ru|ro`, затем из сохранённого выбора, затем из языка браузера; в сохранения игр он не пишется.
   Непереведённые строки видны в `I18n.missing`.
-- `main.go` — HTTP-сервер: статика через `embed`, `GET/POST /api/boards/{game}/scores` (доски `echo` и `valley`), `GET/PUT /api/saves/{code}`.
+- `main.go` — HTTP-сервер: статика через `embed` с `Cache-Control: no-cache` и ETag по содержимому (новая версия видна без жёсткого обновления, неизменённые файлы отдаются как 304), `GET/POST /api/boards/{game}/scores` (доски `echo` и `valley`), `GET/PUT /api/saves/{code}`.
   Флаг `-data` задаёт каталог для рекордов и сохранений, по умолчанию `data`.
 - `internal/leaderboard` — топ-10 с атомарным сохранением в JSON, по файлу на игру.
 - `internal/saves` — облачные сохранения «Ржавого рассвета», по файлу на код.
