@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Глубина</title>
+<meta name="description" content="Спокойная игра про океан: начни клеткой, ешь тех, кто меньше, и вырасти до кита.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marmelad&family=Golos+Text:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="sea" aria-label="Океан"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="stage-name" id="stage-name">Клетка</div>
+  <div class="length" id="length">10 мкм</div>
+  <div class="ladder" id="ladder" aria-label="Путь до кита"></div>
+</div>
+<div class="corner">
+  <span id="best"></span>
+  <button class="chip" id="btn-sound" aria-pressed="true">Звук: вкл</button>
+</div>
+<button class="dash" id="btn-dash" aria-label="Рывок" hidden><span>рывок</span></button>
+<div class="toast" id="toast" hidden></div>
+
+<div class="overlay" id="overlay">
+  <section class="panel">
+    <h1>Глубина</h1>
+    <p class="lead">Ты — крошечная клетка в толще океана. Ешь тех, кто меньше тебя, и расти: рачок, малёк, рыба, кальмар, акула, кит.</p>
+    <ul class="rules">
+      <li>Плыви за курсором или пальцем. <b>Пробел</b>, зажатая кнопка мыши или кнопка «рывок» — короткое ускорение.</li>
+      <li>Опасны только хищники крупнее тебя. Когда хищник тебя заметил, он светится <span class="red">красным</span>. Погоня его утомляет.</li>
+      <li>Если тебя съедят, ты потеряешь половину размера и поплывёшь дальше. Конца игры нет.</li>
+    </ul>
+    <div class="row">
+      <button class="btn ghost" id="btn-restart" hidden>Начать с клетки</button>
+      <button class="btn" id="btn-start">Нырнуть</button>
+    </div>
+  </section>
+</div>
+
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

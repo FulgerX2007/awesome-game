@@ -16,7 +16,7 @@ func TestServer(t *testing.T) {
 	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
 	defer srv.Close()
 
-	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js", "/stars/", "/stars/core.js"} {
+	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js", "/stars/", "/stars/core.js", "/deep/", "/deep/core.js"} {
 		res, err := http.Get(srv.URL + path)
 		if err != nil || res.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s: %v %v", path, res.StatusCode, err)
