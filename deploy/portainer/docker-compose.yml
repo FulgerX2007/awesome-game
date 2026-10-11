@@ -1,0 +1,30 @@
+# Stack for Portainer (Stacks → Add stack). Uses the image published to GHCR on version tags,
+# so the server never builds anything. See docs/portainer.md.
+#
+# Environment variables (set them in the stack's "Environment variables" section):
+#   TAG   image tag to run: latest, 1, 1.2 or 1.2.3   (default: latest)
+#   PORT  host port the games are published on         (default: 8080)
+services:
+  games:
+    image: ghcr.io/fulgerx2007/awesome-game:${TAG:-latest}
+    container_name: awesome-game
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - games-data:/data   # leaderboards and cloud saves
+    restart: unless-stopped
+    # The image has its own HEALTHCHECK (the binary probes /healthz); Portainer shows the status.
+    stop_grace_period: 10s
+    read_only: true          # the only writable path is the /data volume
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    labels:
+      org.opencontainers.image.source: https://github.com/FulgerX2007/awesome-game
+
+volumes:
+  games-data:

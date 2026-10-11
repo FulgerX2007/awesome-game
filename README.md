@@ -155,6 +155,12 @@ docker run -d --name games -p 8080:8080 -v games-data:/data awesome-game
   По `docker stop` сервер останавливается корректно и дожидается текущих запросов.
 
 
+### Portainer
+
+Готовый стек для Portainer лежит в [`deploy/portainer/docker-compose.yml`](deploy/portainer/docker-compose.yml): образ из GHCR, версия и порт задаются переменными.
+Пошаговая инструкция — в [`docs/portainer.md`](docs/portainer.md): доступ к реестру, стек из Git с GitOps-обновлениями, проверка,
+обновление версии, резервная копия тома, обратный прокси и Swarm.
+
 ### Готовый образ
 
 При пуше тега `v*` GitHub Actions (`.github/workflows/release-image.yml`):
