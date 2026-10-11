@@ -155,6 +155,24 @@ docker run -d --name games -p 8080:8080 -v games-data:/data awesome-game
   По `docker stop` сервер останавливается корректно и дожидается текущих запросов.
 
 
+### Готовый образ
+
+При пуше тега `v*` GitHub Actions (`.github/workflows/release-image.yml`):
+1. прогоняет `go vet` и `go test`;
+2. собирает образ под `linux/amd64` и `linux/arm64`;
+3. публикует его в GitHub Container Registry.
+
+```sh
+git tag v1.0.0 && git push origin v1.0.0
+docker run -d -p 8080:8080 -v games-data:/data ghcr.io/fulgerx2007/awesome-game:1.0.0
+```
+
+- Теги образа: `1.0.0`, `1.0`, `1` и `latest`. Для `v0.*` тега `0` не бывает, а пре-релизы вроде `v1.1.0-rc.1` не двигают `latest`.
+- Версия зашита в бинарник: `awesome-game -version`, и она же пишется в лог при старте.
+- К образу прикладываются provenance и SBOM.
+- Секреты не нужны, хватает встроенного `GITHUB_TOKEN`.
+- Новый пакет в GHCR по умолчанию приватный. Сделать его публичным можно в настройках пакета на GitHub.
+
 ### Устройство
 
 - `web/echo/` — игра: Canvas 2D + WebAudio, без зависимостей и ассетов. Пещеры строит клеточный автомат,

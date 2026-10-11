@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -25,12 +26,20 @@ import (
 //go:embed web
 var webFS embed.FS
 
+// version is set at build time (-ldflags "-X main.version=v1.2.3"); release images carry the git tag.
+var version = "dev"
+
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	dataDir := flag.String("data", "data", "directory for leaderboards and saves (empty = in-memory)")
 	healthcheck := flag.Bool("healthcheck", false, "probe /healthz of a server on -addr and exit (for container health checks)")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
 
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 	if *healthcheck {
 		os.Exit(probe(*addr))
 	}
@@ -62,7 +71,7 @@ func main() {
 		srv.Shutdown(shutdown)
 	}()
 
-	log.Printf("игры: http://localhost%s", *addr)
+	log.Printf("игры %s: http://localhost%s", version, *addr)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

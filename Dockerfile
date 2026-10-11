@@ -1,12 +1,18 @@
 # syntax=docker/dockerfile:1
 
 # Build a static binary; the web games are embedded into it.
-FROM golang:1.24-alpine AS build
+# The build stage runs on the builder's own platform and cross-compiles, so multi-arch images
+# don't need to emulate the Go toolchain.
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS build
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
 WORKDIR /src
 COPY go.mod ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/awesome-game . \
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o /out/awesome-game . \
  && mkdir -p /out/data
 
 # Minimal runtime: no shell, no package manager, runs as an unprivileged user.
