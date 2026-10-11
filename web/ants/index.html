@@ -17,6 +17,10 @@
       <div class="hud-food"><b id="food">0</b> <span>еды</span></div>
       <div class="hud-sub"><span id="rate">0</span> · <span id="ant-count">5</span></div>
     </div>
+    <div class="views" role="group" aria-label="Вид">
+      <button type="button" data-view="surface" class="on">Наверху</button>
+      <button type="button" data-view="nest">Гнездо</button>
+    </div>
     <div class="hint" id="hint">Нажми на землю — положишь крошку. Проведи пальцем — проложишь тропу.</div>
     <div class="toast" id="toast" role="status"></div>
   </div>
@@ -44,6 +48,11 @@
       </div>
     </section>
     <section class="ups" id="ups"></section>
+    <section class="finds" id="finds" hidden>
+      <h2>Находки</h2>
+      <p class="finds-sub" id="finds-sub"></p>
+      <div class="finds-grid" id="finds-grid"></div>
+    </section>
     <section class="flight" id="flight" hidden></section>
     <footer class="foot">
       <div id="stats"></div>

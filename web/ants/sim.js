@@ -31,6 +31,7 @@
       home: new Float32Array(gw * gh),
       food: new Float32Array(gw * gh),
       ants: [], piles: [], respawn: [],
+      bigs: [], arrived: [], // big finds being dragged home, and kinds that reached the nest
       delivered: 0,       // food units brought home since the last take()
       t: 0,
     };
@@ -53,22 +54,31 @@
     const want = Math.min(MAX_AGENTS, Math.floor(n));
     while (s.ants.length < want) addAnt(s);
     if (s.ants.length > want) s.ants.length = want;
+    if (!s.ants.length) s.bigs.length = 0;
   }
   // Places a food pile at distance d from the nest (or at x, y when given).
-  function addPile(s, amount, d, x, y, crumb = false) {
-    if (x == null) {
-      for (let tries = 0; tries < 30; tries++) {
-        const a = s.R() * Math.PI * 2;
-        x = s.nest.x + Math.cos(a) * d; y = s.nest.y + Math.sin(a) * d;
-        if (x > 10 && y > 10 && x < s.w - 10 && y < s.h - 10) break;
-      }
-      x = Math.max(10, Math.min(s.w - 10, x)); y = Math.max(10, Math.min(s.h - 10, y));
+  function spot(s, d) {
+    let x = s.nest.x, y = s.nest.y;
+    for (let tries = 0; tries < 30; tries++) {
+      const a = s.R() * Math.PI * 2;
+      x = s.nest.x + Math.cos(a) * d; y = s.nest.y + Math.sin(a) * d;
+      if (x > 14 && y > 14 && x < s.w - 14 && y < s.h - 14) break;
     }
-    const kind = crumb ? 'crumb' : ['berry', 'seed', 'sugar', 'apple'][Math.floor(s.R() * 4)];
+    return { x: Math.max(14, Math.min(s.w - 14, x)), y: Math.max(14, Math.min(s.h - 14, y)) };
+  }
+  function addPile(s, amount, d, x, y, crumb = false, kind = null) {
+    if (x == null) ({ x, y } = spot(s, d));
+    kind = kind || (crumb ? 'crumb' : ['berry', 'seed', 'sugar', 'apple'][Math.floor(s.R() * 4)]);
     amount = Math.max(1, Math.round(amount));
     s.piles.push({ x, y, amount, max: amount, kind, crumb, rot: s.R() * 6.28 });
   }
   const pileR = (p) => 3 + Math.min(9, Math.sqrt(p.amount) * 0.6);
+  // A big find that needs `need` ants holding it before it starts to move.
+  function addBig(s, kind, need, d) {
+    const p = spot(s, d);
+    s.bigs.push({ x: p.x, y: p.y, kind, need, carriers: 0, rot: s.R() * 6.28, moving: false });
+  }
+  const bigR = (b) => 5 + Math.min(6, b.need * 0.35);
 
   // Pushes scent into the field around (x, y).
   function lay(s, field, x, y, v) {
@@ -101,7 +111,10 @@
     for (let k = natural; k < p.pileCount; k++) s.respawn.push({ t: 1 + s.R() * 4 });
 
     const speed = p.speed * dt;
+    for (const b of s.bigs) b.carriers = 0;
+    for (const a of s.ants) if (a.big) a.big.carriers++;
     for (const a of s.ants) {
+      if (a.big) continue;
       a.since += dt;
       a.legs += dt * p.speed * 0.6;
       const returning = a.carry > 0;
@@ -123,6 +136,15 @@
           a.carry = 0; a.since = 0; a.a += Math.PI;
         }
       } else {
+        for (const b of s.bigs) {
+          const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), br = bigR(b);
+          if (d < br + 24) a.a = turnTo(a.a, Math.atan2(dy, dx), 5 * dt);
+          if (d < br + 1.5 && b.carriers < b.need * 2) {
+            a.big = b; b.carriers++; a.slot = Math.atan2(a.y - b.y, a.x - b.x); a.since = 0;
+            break;
+          }
+        }
+        if (a.big) continue;
         for (const q of s.piles) {
           const dx = q.x - a.x, dy = q.y - a.y, d = Math.hypot(dx, dy), pr = pileR(q);
           if (d < pr + 14) a.a = turnTo(a.a, Math.atan2(dy, dx), 5 * dt);
@@ -143,6 +165,37 @@
       // Lost ants give up after a long walk and wander home by memory.
       if (!returning && a.since > 60) { a.a = turnTo(a.a, Math.atan2(s.nest.y - a.y, s.nest.x - a.x), 1.5 * dt); }
     }
+    // Big finds: with enough ants holding on they creep toward the nest, scenting the way.
+    for (const b of s.bigs) {
+      // A sweet smell spreads around a find, so ants notice it from afar.
+      const gx = Math.floor(b.x / CS), gy = Math.floor(b.y / CS), R = 7;
+      for (let oy = -R; oy <= R; oy++) for (let ox = -R; ox <= R; ox++) {
+        const d2 = ox * ox + oy * oy;
+        if (d2 > R * R) continue;
+        const cx = gx + ox, cy = gy + oy;
+        if (cx < 0 || cy < 0 || cx >= s.gw || cy >= s.gh) continue;
+        const i = cy * s.gw + cx;
+        if (s.food[i] < 6) s.food[i] += 3 * dt * (1 - Math.sqrt(d2) / R);
+      }
+      b.moving = b.carriers >= b.need;
+      if (b.moving) {
+        const dx = s.nest.x - b.x, dy = s.nest.y - b.y, d = Math.hypot(dx, dy) || 1;
+        const v = p.speed * 0.3 * Math.min(1.6, b.carriers / b.need) * dt;
+        b.x += dx / d * v; b.y += dy / d * v;
+        b.rot += Math.sin(s.t * 3) * 0.3 * dt;
+        if (d < NEST_R + bigR(b) * 0.5) b.done = true;
+      }
+    }
+    for (const a of s.ants) {
+      if (!a.big) continue;
+      const b = a.big, br = bigR(b);
+      if (b.done) { a.big = null; a.since = 0; a.a = a.slot; continue; }
+      a.x = b.x + Math.cos(a.slot) * (br + 1.6); a.y = b.y + Math.sin(a.slot) * (br + 1.6);
+      a.a = a.slot + Math.PI;
+      if (b.moving) { a.legs += dt * p.speed * 0.6; lay(s, s.food, a.x, a.y, 2 * dt * 4); }
+    }
+    for (const b of s.bigs) if (b.done) s.arrived.push(b.kind);
+    s.bigs = s.bigs.filter((b) => !b.done);
     for (const q of s.piles) if (q.amount <= 0 && !q.crumb) s.respawn.push({ t: 1.5 + s.R() * 3 });
     s.piles = s.piles.filter((q) => q.amount > 0);
   }
@@ -155,5 +208,8 @@
   // Returns and resets the food brought home since the last call.
   function take(s) { const d = s.delivered; s.delivered = 0; return d; }
 
-  return { CS, NEST_R, MAX_AGENTS, create, syncAnts, addPile, paint, step, take, pileR, cell };
+  // Kinds of big finds that reached the nest since the last call.
+  function arrivals(s) { const a = s.arrived; s.arrived = []; return a; }
+
+  return { CS, NEST_R, MAX_AGENTS, create, syncAnts, addPile, addBig, paint, step, take, arrivals, pileR, bigR, cell };
 });
