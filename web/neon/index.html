@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Неон</title>
+<meta name="description" content="Киберпанк-кликер: взламывай мегакорпорации ночного города, держи след в красной зоне и не попадись ЛЬДУ.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Exo+2:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <section class="city-wrap">
+    <canvas id="city" aria-label="Ночной город. Клик — взлом"></canvas>
+    <div class="hud">
+      <div class="data"><b id="data">0 Б</b> <span>данных</span></div>
+      <div class="rate" id="rate">0 Б/с</div>
+      <div class="trace" id="trace-wrap">
+        <div class="trace-label"><span>СЛЕД</span><span id="trace-pct">0%</span></div>
+        <div class="trace-bar"><i id="trace-hot"></i><b id="trace-fill"></b></div>
+      </div>
+      <div class="badge overdrive" id="overdrive" hidden></div>
+      <div class="badge lock" id="lock" hidden></div>
+    </div>
+    <p class="hint" id="hint">Кликай по городу, чтобы взламывать. Держи след в красной зоне, но не до конца</p>
+  </section>
+
+  <aside class="panel">
+    <header class="panel-head">
+      <h1 data-text="НЕОН">Неон</h1>
+      <div class="head-side"><span class="muted" id="cred"></span><span id="lang-slot"></span></div>
+    </header>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Железо и софт</h2>
+        <div class="seg" role="group" aria-label="Сколько покупать">
+          <button data-n="1" aria-pressed="true">×1</button>
+          <button data-n="10" aria-pressed="false">×10</button>
+          <button data-n="max" aria-pressed="false">макс</button>
+        </div>
+      </div>
+      <div class="rigs" id="rigs"></div>
+    </section>
+
+    <section class="block" id="sec-upgrades" hidden>
+      <div class="block-head"><h2>Апгрейды</h2></div>
+      <div class="upgrades" id="upgrades"></div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Мегакорпорации</h2><span class="muted small" id="corp-count"></span></div>
+      <ol class="corps" id="corps"></ol>
+    </section>
+
+    <section class="block" id="sec-reflash" hidden>
+      <div class="block-head"><h2>Перепрошивка</h2></div>
+      <p class="small">Сожги деку и начни с нуля в новом теле. Уличная слава останется навсегда: каждое очко даёт +10% к потоку и клику.</p>
+      <button class="btn reflash" id="btn-reflash"></button>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Сохранение</h2><span class="muted small" id="save-status">сохраняется само</span></div>
+      <div id="cloud" hidden>
+        <div class="row"><button class="btn" id="btn-cloud-save">Сохранить в облако</button><code id="cloud-code"></code></div>
+        <form class="row" id="cloud-load"><input id="cloud-input" placeholder="код сохранения" autocomplete="off" spellcheck="false"><button class="btn" type="submit">Загрузить</button></form>
+        <p class="small" id="cloud-msg"></p>
+      </div>
+      <div class="row"><button class="btn" id="btn-sound" aria-pressed="true">Звук: вкл</button><button class="btn danger" id="btn-reset">Начать с нуля</button></div>
+    </section>
+  </aside>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
