@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Искорка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <button class="brand" id="btn-home" type="button" aria-label="На карту">Искорка</button>
+    <div class="chips">
+      <span class="chip" title="Звёзды"><span aria-hidden="true">⭐</span> <b id="top-stars">0</b></span>
+      <span class="chip" title="Кристаллы"><span aria-hidden="true">💎</span> <b id="top-crystals">0</b></span>
+      <button class="chip icon" id="btn-sound" type="button" aria-label="Звук">🔊</button>
+    </div>
+  </header>
+
+  <!-- Map: the dragon's home and the trail of levels -->
+  <section id="scr-map" class="screen">
+    <div class="home">
+      <div class="home-dragon" id="home-dragon"></div>
+      <div class="home-info">
+        <div class="home-name" id="home-name">Искорка</div>
+        <div class="home-stage" id="home-stage">Яйцо</div>
+        <div class="grow" aria-hidden="true"><i id="grow-bar"></i></div>
+        <div class="home-next" id="home-next"></div>
+        <div class="home-btns">
+          <button type="button" class="pill" id="btn-shop">🛍️ Магазин</button>
+          <button type="button" class="pill" id="btn-album">📒 Альбом <small id="album-count"></small></button>
+          <button type="button" class="pill hot" id="btn-practice" hidden>🎯 Тренировка <small id="practice-count"></small></button>
+        </div>
+      </div>
+    </div>
+    <div id="regions"></div>
+    <button type="button" class="parents-link" id="btn-parents">Для взрослых</button>
+  </section>
+
+  <!-- Play -->
+  <section id="scr-play" class="screen" hidden>
+    <div class="play-bar">
+      <button type="button" class="quit" id="btn-quit" aria-label="Выйти на карту">✕</button>
+      <div class="track" id="track"></div>
+      <span class="chip run"><span aria-hidden="true">💎</span> <b id="run-crystals">0</b></span>
+    </div>
+    <div class="arena" id="arena">
+      <div class="hero">
+        <div class="bubble" id="bubble"></div>
+        <div class="play-dragon" id="play-dragon"></div>
+      </div>
+      <div class="foe" id="foe" hidden>
+        <div class="hp"><i id="hp-bar"></i></div>
+        <div class="foe-body" id="foe-body"></div>
+        <div class="foe-say" id="foe-say"></div>
+      </div>
+      <div class="fireball" id="fireball" aria-hidden="true">🔥</div>
+    </div>
+    <div class="card" id="card">
+      <div class="level-name" id="level-name"></div>
+      <div class="expr" id="expr" aria-live="polite"></div>
+      <div class="caption" id="caption"></div>
+      <div class="hint" id="hint" hidden></div>
+    </div>
+    <div class="pad" id="pad">
+      <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+      <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+      <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+      <button type="button" data-k="del" class="del" aria-label="Стереть">⌫</button><button type="button" data-k="0">0</button><button type="button" data-k="ok" class="ok" aria-label="Проверить">✓</button>
+    </div>
+  </section>
+
+  <!-- Result -->
+  <section id="scr-result" class="screen" hidden>
+    <div class="result">
+      <h2 id="res-title">Уровень пройден!</h2>
+      <div class="res-friend" id="res-friend" hidden></div>
+      <div class="res-stars" id="res-stars"></div>
+      <div class="res-note" id="res-note"></div>
+      <div class="res-crystals">+<b id="res-crystals">0</b> <span aria-hidden="true">💎</span></div>
+      <button type="button" class="chest" id="chest" aria-label="Открыть сундук">🎁</button>
+      <div class="chest-tip" id="chest-tip">Нажми на подарок!</div>
+      <div class="prize" id="prize" hidden></div>
+      <div class="grew" id="grew" hidden></div>
+      <div class="res-btns">
+        <button type="button" class="big" id="btn-next">Дальше</button>
+        <button type="button" class="pill" id="btn-again">Ещё раз</button>
+        <button type="button" class="pill" id="btn-map">На карту</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Shop -->
+<dialog id="dlg-shop" class="dlg">
+  <form method="dialog" class="dlg-x"><button aria-label="Закрыть">✕</button></form>
+  <h2>Магазин</h2>
+  <div class="shop-top">
+    <div class="shop-dragon" id="shop-dragon"></div>
+    <label class="name-field">Имя дракончика<input id="name-input" maxlength="14" autocomplete="off"></label>
+    <div class="chip"><span aria-hidden="true">💎</span> <b id="shop-crystals">0</b></div>
+  </div>
+  <h3>Цвет</h3>
+  <div class="swatches" id="swatches"></div>
+  <h3>Наряды</h3>
+  <div class="items" id="items"></div>
+  <p class="shop-tip">Кристаллы дают за каждый верный ответ. Больше всего — за ответ с первой попытки и за серию из пяти.</p>
+</dialog>
+
+<!-- Album -->
+<dialog id="dlg-album" class="dlg">
+  <form method="dialog" class="dlg-x"><button aria-label="Закрыть">✕</button></form>
+  <h2>Альбом наклеек</h2>
+  <p class="album-sub" id="album-sub"></p>
+  <div class="album" id="album"></div>
+</dialog>
+
+<!-- Parents -->
+<dialog id="dlg-parents" class="dlg">
+  <form method="dialog" class="dlg-x"><button aria-label="Закрыть">✕</button></form>
+  <h2>Для взрослых</h2>
+  <form id="gate" class="gate">
+    <label id="gate-q">Сколько будет 7 × 8?</label>
+    <input id="gate-a" inputmode="numeric" autocomplete="off">
+    <button class="pill">Войти</button>
+  </form>
+  <div id="parents" hidden>
+    <div class="stats" id="stats"></div>
+    <h3>Трудные примеры</h3>
+    <p class="muted" id="hard"></p>
+    <h3>Уровни</h3>
+    <table class="levels" id="levels"></table>
+    <h3>Настройки</h3>
+    <label class="tog"><input type="checkbox" id="opt-unlock"> Открыть все уровни</label>
+    <div id="cloud" hidden>
+      <h3>Облачное сохранение</h3>
+      <p class="muted">Код: <b id="cloud-code">ещё нет</b></p>
+      <button type="button" class="pill" id="btn-cloud-save">Сохранить в облако</button>
+      <form id="cloud-load" class="row"><input id="cloud-input" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="off"><button class="pill">Загрузить</button></form>
+      <p class="muted" id="cloud-msg"></p>
+    </div>
+    <h3>Сброс</h3>
+    <button type="button" class="pill danger" id="btn-reset">Начать заново</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
