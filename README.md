@@ -155,6 +155,17 @@ docker run -d --name games -p 8080:8080 -v games-data:/data awesome-game
   По `docker stop` сервер останавливается корректно и дожидается текущих запросов.
 
 
+Образ работает не от root (uid 65532). Если вместо тома подключить папку хоста, например на Synology,
+она должна быть доступна этому пользователю на запись. Иначе запустите контейнер от владельца папки
+(`user: "1026:100"`). При старте сервер проверяет каталог данных и пишет в лог, что именно не так
+(см. [`docs/portainer.md`](docs/portainer.md#synology-container-manager-и-папки-хоста)).
+
+### Portainer
+
+Готовый стек для Portainer лежит в [`deploy/portainer/docker-compose.yml`](deploy/portainer/docker-compose.yml): образ из GHCR, версия и порт задаются переменными.
+Пошаговая инструкция — в [`docs/portainer.md`](docs/portainer.md): доступ к реестру, стек из Git с GitOps-обновлениями, проверка,
+обновление версии, резервная копия тома, обратный прокси и Swarm.
+
 ### Готовый образ
 
 При пуше тега `v*` GitHub Actions (`.github/workflows/release-image.yml`):

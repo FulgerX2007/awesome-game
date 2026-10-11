@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -86,5 +88,22 @@ func TestBoardsAreSeparate(t *testing.T) {
 	}
 	if res, _ := http.Get(srv.URL + "/api/boards/nope/scores"); res.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown board: %d", res.StatusCode)
+	}
+}
+
+func TestCheckWritable(t *testing.T) {
+	dir := t.TempDir()
+	if err := checkWritable(filepath.Join(dir, "nested")); err != nil {
+		t.Fatalf("writable dir: %v", err)
+	}
+	if os.Getuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	ro := filepath.Join(dir, "ro")
+	if err := os.Mkdir(ro, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkWritable(ro); err == nil {
+		t.Fatal("read-only dir reported as writable")
 	}
 }
