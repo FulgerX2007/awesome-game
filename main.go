@@ -50,6 +50,14 @@ func main() {
 		}
 		return filepath.Join(*dataDir, name)
 	}
+	if *dataDir != "" {
+		if err := checkWritable(*dataDir); err != nil {
+			// Keep serving: the games work without the server, only scores and cloud saves need the disk.
+			log.Printf("ВНИМАНИЕ: каталог данных %s недоступен на запись: %v", *dataDir, err)
+			log.Printf("рекорды и облачные сохранения не будут записываться; процесс работает как uid %d gid %d", os.Getuid(), os.Getgid())
+			log.Printf("выдайте права на каталог (chown -R %d:%d <папка>) или запустите контейнер от владельца папки (user: \"UID:GID\")", os.Getuid(), os.Getgid())
+		}
+	}
 	boards, err := newBoards(inData)
 	if err != nil {
 		log.Fatalf("load leaderboards: %v", err)
@@ -79,6 +87,20 @@ func main() {
 }
 
 // probe returns 0 when the server on addr answers /healthz, 1 otherwise.
+// checkWritable makes sure dir exists and files can be created in it, the same way the stores write.
+func checkWritable(dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(dir, ".write-check-*")
+	if err != nil {
+		return err
+	}
+	name := f.Name()
+	f.Close()
+	return os.Remove(name)
+}
+
 func probe(addr string) int {
 	_, port, err := net.SplitHostPort(addr)
 	if err != nil {
