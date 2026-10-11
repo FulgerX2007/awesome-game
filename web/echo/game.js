@@ -1077,7 +1077,7 @@
   for (const li of document.querySelectorAll('.rules li')) li.innerHTML = tr(li.innerHTML.trim());
   const metaDesc = document.querySelector('meta[name="description"]');
   if (metaDesc) metaDesc.content = tr(metaDesc.content);
-  for (const slot of document.querySelectorAll('.lang-slot')) slot.appendChild(I18n.toggle('lang-toggle'));
+  for (const slot of document.querySelectorAll('.lang-slot')) slot.append(GameNav.home('lang-toggle'), I18n.toggle('lang-toggle'));
 
   $('btn-start').onclick = startGame;
   $('btn-next').onclick = () => loadLevel(L.num + 1);

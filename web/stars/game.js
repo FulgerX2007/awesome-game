@@ -374,7 +374,7 @@
   canvas.addEventListener('pointerleave', () => { fx.hover = null; });
 
   // ───────────── Panel ─────────────
-  $('lang-slot').append(I18n.toggle('lang-toggle'));
+  $('lang-slot').append(GameNav.home('lang-toggle'), I18n.toggle('lang-toggle'));
   let buyMode = '1';
   for (const b of document.querySelectorAll('.seg button')) {
     b.addEventListener('click', () => {

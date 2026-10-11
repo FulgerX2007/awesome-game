@@ -635,7 +635,7 @@
   window.addEventListener('pagehide', save);
 
   // ───────────── Boot ─────────────
-  $('lang-slot').replaceWith(I18n.toggle('lang-toggle'));
+  $('lang-slot').replaceWith(GameNav.home('lang-toggle'), I18n.toggle('lang-toggle'));
   const meta = document.querySelector('meta[name=description]');
   if (meta) meta.content = t(meta.content);
   resize();
