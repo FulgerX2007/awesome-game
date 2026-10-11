@@ -308,10 +308,10 @@
     nextProblem();
   }
 
-  function say(text) { $('bubble').textContent = T(text); }
+  function say(text) { $('bubble').textContent = text; }
   function foeSay(text) {
     const el = $('foe-say');
-    el.textContent = T(text); el.classList.add('on');
+    el.textContent = text; el.classList.add('on');
     later(() => el.classList.remove('on'), 1100);
   }
   function anim(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
@@ -416,9 +416,9 @@
       anim($('card'), 'wrong');
       dragon.innerHTML = dragonSVG({ mood: 'sad' });
       anim(dragon, 'sad');
-      say(res.reveal ? 'Ничего страшного! Посмотри ответ и набери его.' : pick(OOPS));
+      say(T(res.reveal ? 'Ничего страшного! Посмотри ответ и набери его.' : pick(OOPS)));
       showHint(p, res.reveal);
-      if (run.boss) foeSay(pick(FOE_LAUGH));
+      if (run.boss) foeSay(T(pick(FOE_LAUGH)));
       typed = '';
       later(() => { refreshSlot(); dragon.innerHTML = dragonSVG({ mood: 'happy' }); }, 450);
       renderTrack();
@@ -430,7 +430,7 @@
     anim($('card'), 'good');
     dragon.innerHTML = dragonSVG({ mood: res.combo ? 'wow' : 'happy' });
     anim(dragon, 'hop');
-    if (res.combo) { sfx.combo(); say(T('Огненная серия! {n} подряд! +3 💎', { n: run.streak })); } else { sfx.good(); say(res.first ? pick(PRAISE) : pick(AFTER_FIX)); }
+    if (res.combo) { sfx.combo(); say(T('Огненная серия! {n} подряд! +3 💎', { n: run.streak })); } else { sfx.good(); say(T(res.first ? pick(PRAISE) : pick(AFTER_FIX))); }
     floatText(`+${res.gain} 💎`, $('run-crystals'));
     renderTrack();
     let wait = 650;
@@ -442,7 +442,7 @@
       later(() => {
         sfx.hit(); anim(foe, 'hit');
         $('hp-bar').style.width = `${(run.hp / run.original) * 100}%`;
-        foeSay(run.hp ? pick(FOE_OUCH) : 'Сдаюсь!');
+        foeSay(T(run.hp ? pick(FOE_OUCH) : 'Сдаюсь!'));
       }, 480);
       wait = 900;
     }

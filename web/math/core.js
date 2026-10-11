@@ -41,7 +41,7 @@
     let answer;
     if (form === 'missA') answer = a;
     else if (form === 'missB') answer = b;
-    else answer = op === '+' ? a + b : a * b;
+    else answer = op === '+' && form !== 'repeat' ? a + b : a * b;
     return { op, a, b, form, lv, answer, key: `${a}${op}${b}${form}` };
   }
   const add = (a, b, lv) => mk('+', a, b, 'sum', lv);
