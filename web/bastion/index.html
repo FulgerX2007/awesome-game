@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Бастион</title>
+<meta name="description" content="Защита крепости: ставь башни у дороги и выстой 30 волн врагов.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Бастион</h1>
+    <div class="top-actions" id="top-actions">
+      <button class="chip" id="btn-sound" aria-pressed="true">Звук: вкл</button>
+    </div>
+  </header>
+
+  <section class="menu" id="menu">
+    <p class="lead">Враги идут по дороге к замку. Ставь башни у обочины, улучшай их и выстой 30 волн. Каждый, кто дошёл до ворот, отнимает жизни.</p>
+    <div class="resume" id="resume" hidden>
+      <span id="resume-text"></span>
+      <button class="btn primary" id="btn-resume">Продолжить</button>
+    </div>
+    <div class="maps" id="maps"></div>
+    <details class="rules">
+      <summary>Как играть</summary>
+      <ul>
+        <li>Выбери башню внизу и нажми на свободную клетку травы. На телефоне первое касание показывает радиус, второе ставит башню.</li>
+        <li>Нажми на башню, чтобы улучшить её (до 3 уровня) или продать за 70% вложенного.</li>
+        <li><b>Лучники</b> быстро стреляют по одной цели. <b>Пушка</b> бьёт по площади, но не достаёт летунов. <b>Мороз</b> замедляет. <b>Молния</b> перескакивает между врагами и пробивает броню.</li>
+        <li>Рыцари в броне: слабые удары по ним почти не проходят. Нетопыри летят над дорогой. Каждая десятая волна ведёт огра, он отнимает 5 жизней.</li>
+        <li>Когда волна вышла целиком, следующую можно вызвать раньше и получить бонус золотом.</li>
+        <li>Клавиши: <kbd>1</kbd>–<kbd>4</kbd> башни, <kbd>U</kbd> улучшить, <kbd>S</kbd> продать, <kbd>Пробел</kbd> волна, <kbd>F</kbd> скорость, <kbd>P</kbd> пауза, <kbd>Esc</kbd> отмена.</li>
+        <li>Прогресс сохраняется перед каждой волной.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="game" id="game" hidden>
+    <div class="hud">
+      <span class="stat" title="Волна"><i class="ico wave"></i><b id="hud-wave">0/30</b></span>
+      <span class="stat" title="Золото"><i class="ico gold"></i><b id="hud-gold">0</b></span>
+      <span class="stat" title="Жизни"><i class="ico heart"></i><b id="hud-lives">20</b></span>
+      <span class="stat" title="Очки"><i class="ico star"></i><b id="hud-score">0</b></span>
+      <span class="spacer"></span>
+      <button class="btn small" id="btn-pause" title="P">Пауза</button>
+      <button class="btn small" id="btn-speed" title="F">×1</button>
+      <button class="link" id="btn-menu">К картам</button>
+    </div>
+    <div class="field" id="field">
+      <canvas id="board" aria-label="Поле боя"></canvas>
+      <div class="banner" id="banner" hidden></div>
+    </div>
+    <div class="bar">
+      <div class="palette" id="palette" role="toolbar" aria-label="Башни"></div>
+      <div class="info" id="info" aria-live="polite"></div>
+      <button class="btn primary big" id="btn-wave" title="Пробел">Начать волну</button>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="end-title">
+    <h2 id="end-title"></h2>
+    <div class="stars" id="end-stars" aria-hidden="true"></div>
+    <dl class="end-stats" id="end-stats"></dl>
+    <form class="submit" id="submit-form">
+      <label>Имя <input id="name" maxlength="16" placeholder="Аноним" autocomplete="off"></label>
+      <button class="btn" type="submit" id="btn-submit">В рекорды</button>
+    </form>
+    <p class="card-sub" id="end-board"></p>
+    <div class="row">
+      <button class="btn" id="btn-end-menu">К картам</button>
+      <button class="btn primary" id="btn-again">Ещё раз</button>
+    </div>
+  </div>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

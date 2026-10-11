@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Поле чудес</title>
+<meta name="description" content="Игра для троих: крутите барабан, называйте буквы и угадайте слово раньше соперников.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="studio" aria-hidden="true"></div>
+<div class="app">
+  <header class="top">
+    <h1>Поле чудес</h1>
+    <div class="top-actions" id="top-actions">
+      <button class="chip" id="btn-sound" aria-pressed="true">Звук: вкл</button>
+    </div>
+  </header>
+
+  <section class="setup" id="setup">
+    <h2>Три игрока у барабана</h2>
+    <p class="lead">Крутите барабан, называйте буквы и угадайте слово раньше соперников. Очки раунда забирает тот, кто откроет слово. Лучший игрок выходит в суперигру.</p>
+    <div class="seats" id="seats"></div>
+    <div class="opt">
+      <span id="rounds-label">Раундов:</span>
+      <div class="seg" id="rounds" role="radiogroup" aria-labelledby="rounds-label">
+        <button role="radio" data-n="1" aria-checked="false">1</button>
+        <button role="radio" data-n="3" aria-checked="true">3</button>
+        <button role="radio" data-n="5" aria-checked="false">5</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" id="btn-continue" hidden>Продолжить игру</button>
+      <button class="btn primary" id="btn-start">Начать игру</button>
+    </div>
+    <details class="rules">
+      <summary>Правила</summary>
+      <ul>
+        <li>Игроки ходят по очереди. В свой ход крутите барабан и называйте букву. Если буква есть в слове, очки сектора умножаются на число открытых букв, а ход остаётся за вами.</li>
+        <li>Нет такой буквы или её уже называли — ход переходит к следующему.</li>
+        <li>«Б» — банкрот: очки раунда сгорают. «0» — ход переходит. «×2» — угадали букву, и очки раунда удваиваются. «+» — откройте любую букву, нажав на клетку табло.</li>
+        <li>Три верные буквы подряд — шкатулки: в одной из двух лежит 1000 очков.</li>
+        <li>Вместо вращения можно назвать слово целиком. Угадали — раунд ваш. Ошиблись — выбываете из раунда, а очки раунда сгорают.</li>
+        <li>Очки раунда идут в банк только тому, кто открыл слово.</li>
+        <li>После последнего раунда игрок с самым большим банком играет суперигру: называет три буквы, и у него 60 секунд на слово. Победа удваивает банк, минимум +2000.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section class="game" id="game" hidden>
+    <div class="round-line">
+      <span id="round-label">Раунд 1 из 3</span>
+      <span class="timer" id="timer" hidden>1:00</span>
+      <button class="link" id="btn-quit">В меню</button>
+    </div>
+    <div class="task"><span class="task-label" id="task-label">Задание</span><p id="task"></p></div>
+    <div class="board" id="board" role="group" aria-label="Табло"></div>
+    <p class="host" id="host" aria-live="polite"></p>
+    <div class="players" id="players"></div>
+    <div class="play">
+      <div class="wheel-wrap" id="wheel-wrap">
+        <canvas id="wheel" aria-label="Барабан"></canvas>
+        <div class="pointer" aria-hidden="true"></div>
+      </div>
+      <div class="side">
+        <div class="actions">
+          <button class="btn primary big" id="btn-spin" title="Пробел">Крутить барабан</button>
+          <button class="btn" id="btn-word">Назвать слово</button>
+        </div>
+        <div class="keys" id="keys" role="group" aria-label="Буквы"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="overlay" id="word-dlg" hidden>
+  <form class="card" id="word-form" role="dialog" aria-modal="true" aria-labelledby="word-title">
+    <h2 id="word-title">Назовите слово</h2>
+    <p class="card-sub" id="word-sub"></p>
+    <input id="word-input" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="24" aria-label="Слово">
+    <div class="row">
+      <button type="button" class="btn" id="word-cancel">Отмена</button>
+      <button type="submit" class="btn primary">Ответить</button>
+    </div>
+  </form>
+</div>
+
+<div class="overlay" id="boxes-dlg" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="boxes-title">
+    <h2 id="boxes-title">Шкатулки!</h2>
+    <p class="card-sub" id="boxes-sub">Три буквы подряд. В одной из шкатулок 1000 очков.</p>
+    <div class="boxes">
+      <button class="box" data-i="0" aria-label="Левая шкатулка"><span class="lid"></span><span class="body"></span></button>
+      <button class="box" data-i="1" aria-label="Правая шкатулка"><span class="lid"></span><span class="body"></span></button>
+    </div>
+    <p class="card-sub" id="boxes-result" aria-live="polite"></p>
+  </div>
+</div>
+
+<div class="overlay" id="end-dlg" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="end-title">
+    <h2 id="end-title"></h2>
+    <p class="end-word" id="end-word"></p>
+    <p class="card-sub" id="end-text"></p>
+    <ol class="table" id="end-table"></ol>
+    <p class="card-sub" id="end-board"></p>
+    <div class="row" id="end-row"></div>
+  </div>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

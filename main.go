@@ -122,7 +122,7 @@ func probe(addr string) int {
 }
 
 // Games with a leaderboard; anything else under /api/boards/ is a 404.
-var boardGames = []string{"echo", "valley"}
+var boardGames = []string{"echo", "valley", "wonders", "bastion"}
 
 func newBoards(path func(string) string) (map[string]*leaderboard.Board, error) {
 	boards := make(map[string]*leaderboard.Board, len(boardGames))
