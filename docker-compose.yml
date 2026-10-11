@@ -1,0 +1,12 @@
+services:
+  games:
+    build: .
+    image: awesome-game:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - games-data:/data   # leaderboards and cloud saves survive restarts
+    restart: unless-stopped
+
+volumes:
+  games-data:

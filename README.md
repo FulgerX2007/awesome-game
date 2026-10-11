@@ -96,6 +96,28 @@ go run . -addr :3000 -data ""   # другой порт, рекорды и со�
 go test ./...
 ```
 
+### В Docker
+
+```sh
+docker compose up -d --build      # http://localhost:8080
+docker compose logs -f            # логи
+docker compose down               # остановить (данные останутся в томе)
+```
+
+Или без compose:
+
+```sh
+docker build -t awesome-game .
+docker run -d --name games -p 8080:8080 -v games-data:/data awesome-game
+```
+
+- Образ около 16 МБ: статический Go-бинарник с встроенными играми на базе `distroless/static`, без shell,
+  запускается не от root (uid 65532).
+- Рекорды и облачные сохранения лежат в томе `/data` и переживают пересоздание контейнера.
+- Проверка здоровья встроена в образ: `/awesome-game -healthcheck` опрашивает `/healthz`.
+  По `docker stop` сервер останавливается корректно и дожидается текущих запросов.
+
+
 ### Устройство
 
 - `web/echo/` — игра: Canvas 2D + WebAudio, без зависимостей и ассетов. Пещеры строит клеточный автомат,

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -9,8 +10,12 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/fulgerx2007/awesome-game/internal/leaderboard"
@@ -23,7 +28,12 @@ var webFS embed.FS
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	dataDir := flag.String("data", "data", "directory for leaderboards and saves (empty = in-memory)")
+	healthcheck := flag.Bool("healthcheck", false, "probe /healthz of a server on -addr and exit (for container health checks)")
 	flag.Parse()
+
+	if *healthcheck {
+		os.Exit(probe(*addr))
+	}
 
 	inData := func(name string) string {
 		if *dataDir == "" {
@@ -41,8 +51,40 @@ func main() {
 		Handler:           newMux(boards, saves.New(inData("saves"))),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+
+	// Stop cleanly on Ctrl+C or `docker stop` so in-flight writes finish.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		<-ctx.Done()
+		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		srv.Shutdown(shutdown)
+	}()
+
 	log.Printf("игры: http://localhost%s", *addr)
-	log.Fatal(srv.ListenAndServe())
+	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err)
+	}
+	log.Print("остановлен")
+}
+
+// probe returns 0 when the server on addr answers /healthz, 1 otherwise.
+func probe(addr string) int {
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 1
+	}
+	client := http.Client{Timeout: 2 * time.Second}
+	res, err := client.Get("http://127.0.0.1:" + port + "/healthz")
+	if err != nil {
+		return 1
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return 1
+	}
+	return 0
 }
 
 // Games with a leaderboard; anything else under /api/boards/ is a 404.

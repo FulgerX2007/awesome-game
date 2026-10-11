@@ -1,0 +1,6 @@
+.git
+data
+awesome-game
+*.png
+Dockerfile
+docker-compose.yml
