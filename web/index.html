@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Awesome Game</title>
 <style>
-  :root { --bg: #120f1c; --fg: #efe6dc; --dim: #9d92ad; --line: #352b47; --echo: #5ee1ff; --rust: #e2733d; --oasis: #9be4f5; --valley: #f2c66d; --stars: #f5c96a; --deep: #ffd98a; --math: #ff9b6a; --ants: #e0a85a; color-scheme: dark; }
+  :root { --bg: #120f1c; --fg: #efe6dc; --dim: #9d92ad; --line: #352b47; --echo: #5ee1ff; --rust: #e2733d; --oasis: #9be4f5; --valley: #f2c66d; --stars: #f5c96a; --deep: #ffd98a; --math: #ff9b6a; --ants: #e0a85a; --neon: #ff2bd6; color-scheme: dark; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding-inline: 16px; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
   main { max-width: 720px; width: 100%; padding-block: 32px; }
   h1 { font-weight: 300; letter-spacing: .1em; margin: 0 0 20px; }
@@ -39,6 +39,7 @@
 <main>
   <div class="head"><h1>Игры</h1></div>
   <div class="games">
+    <a href="neon/" style="--c: var(--neon)"><b>Неон</b><span>Киберпанк-кликер: взламывай мегакорпорации ночного города, держи след в красной зоне и не попадись ЛЬДУ.</span></a>
     <a href="ants/" style="--c: var(--ants)"><b>Муравейник</b><span>Спокойная игра про муравьёв: из запаха сами собой складываются тропы, колония растёт до брачного полёта.</span></a>
     <a href="math/" style="--c: var(--math)"><b>Искорка</b><span>Математический поход для детей: сложение и умножение, награды и дракончик, который растёт.</span></a>
     <a href="echo/" style="--c: var(--echo)"><b>ЭХО</b><span>Стелс-хоррор на эхолокации: каждый звук показывает путь и выдаёт тебя.</span></a>
@@ -57,6 +58,8 @@
 <script>
 I18n.add({ ro: {
   'Игры': 'Jocuri',
+  'Неон': 'Neon',
+  'Киберпанк-кликер: взламывай мегакорпорации ночного города, держи след в красной зоне и не попадись ЛЬДУ.': 'Clicker cyberpunk: spargi megacorporațiile orașului nocturn, ții urma în zona roșie și nu te lași prins de GHEAȚĂ.',
   'Муравейник': 'Mușuroiul',
   'Спокойная игра про муравьёв: из запаха сами собой складываются тропы, колония растёт до брачного полёта.': 'Un joc liniștit despre furnici: din miros se formează singure cărări, iar colonia crește până la zborul nupțial.',
   'Искорка': 'Scânteia',
