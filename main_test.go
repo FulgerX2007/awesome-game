@@ -18,7 +18,7 @@ func TestServer(t *testing.T) {
 	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
 	defer srv.Close()
 
-	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js", "/stars/", "/stars/core.js", "/deep/", "/deep/core.js", "/deep/models.js", "/math/", "/math/core.js", "/i18n.js", "/nav.js", "/math/lang.js", "/ants/", "/ants/core.js", "/ants/sim.js", "/neon/", "/neon/core.js", "/neon/lang.js", "/wonders/", "/wonders/core.js", "/wonders/game.js", "/wonders/lang.js"} {
+	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js", "/stars/", "/stars/core.js", "/deep/", "/deep/core.js", "/deep/models.js", "/math/", "/math/core.js", "/i18n.js", "/nav.js", "/math/lang.js", "/ants/", "/ants/core.js", "/ants/sim.js", "/neon/", "/neon/core.js", "/neon/lang.js", "/wonders/", "/wonders/core.js", "/wonders/game.js", "/wonders/lang.js", "/bastion/", "/bastion/core.js", "/bastion/game.js", "/bastion/lang.js"} {
 		res, err := http.Get(srv.URL + path)
 		if err != nil || res.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s: %v %v", path, res.StatusCode, err)
