@@ -45,6 +45,8 @@
       const a = Math.pow(Math.max(u, 0.02), c.k ?? 0.7);
       let p = Math.pow(Math.sin(Math.PI * a), 0.8) * (1 - 0.3 * u);
       if (c.blunt) p = Math.max(p, c.blunt * Math.sqrt(clamp(1 - Math.pow((u - 0.18) / 0.2, 2), 0, 1)));
+      // round: an egg-shaped body, thickest at u = round (globular deep-sea fish)
+      if (c.round) p = Math.sqrt(clamp(1 - Math.pow((u - c.round) / (u < c.round ? c.round + 0.04 : 1.05 - c.round), 2), 0, 1));
       p = Math.max(p, (c.ped ?? 0.1) * u);
       if (u < 0.03) p *= c.nose ?? 0.6;
       pts.push({ u, x: L * (0.5 - u), y: sw * Math.sin(ph * 3 - u * 4.2) * u * u, t: H * p });
@@ -66,8 +68,8 @@
     const end = pts[pts.length - 1], prev = pts[pts.length - 3];
     const ang = Math.atan2(end.y - prev.y, end.x - prev.x);
     const H = c.H * s, size = (c.tailSize ?? 1) * H;
-    ctx.save(); ctx.translate(end.x, end.y); ctx.rotate(ang - Math.PI);
-    // drawn pointing +x from the tail base
+    // ang points from the body towards the tail tip, so local +x runs backwards, away from the body
+    ctx.save(); ctx.translate(end.x, end.y); ctx.rotate(ang);
     ctx.fillStyle = c.finColor;
     switch (c.tail) {
       case 'fork':
@@ -206,7 +208,7 @@
       eye: { u: 0.1, r: 0.19, up: 0.15, iris: '#8fb8d0' },
     }, bellyRow(8, 0.15, 0.8, '120,230,255', 0.06, 0.7)),
     hatchetfish: Object.assign({
-      L: 1.7, H: 0.95, k: 0.42, top: '#5e7890', mid: '#c9d8e4', belly: '#eef4f8', finColor: 'rgba(170,190,205,0.7)', tail: 'fork', tailSize: 0.45, ped: 0.15, botK: 1.1,
+      L: 1.7, H: 0.9, round: 0.35, top: '#5e7890', mid: '#c9d8e4', belly: '#eef4f8', finColor: 'rgba(170,190,205,0.7)', tail: 'fork', tailSize: 0.45, ped: 0.15, botK: 1.1,
       fins: [{ u: 0.45, len: 0.12, h: 0.25 }, { u: 0.2, len: 0.15, h: 0.3, front: true }],
       eye: { u: 0.12, r: 0.2, up: 0.45, iris: '#b8d4ff' },
     }, bellyRow(9, 0.12, 0.7, '120,200,255', 0.055, 1.0)),
@@ -231,8 +233,8 @@
       },
     }, bellyRow(12, 0.12, 0.85, '100,190,255', 0.045, 0.8)),
     angler: {
-      L: 1.8, H: 0.8, k: 0.3, blunt: 0.95, top: '#2b211f', mid: '#3b2e2a', belly: '#4a3a34', finColor: 'rgba(55,40,36,0.9)', tail: 'round', tailSize: 0.75, ped: 0.2, nose: 1.5, swim: 0.1, botK: 1.05,
-      fins: [{ u: 0.55, len: 0.15, h: 0.35, soft: true }, { u: 0.58, len: 0.12, h: 0.3, soft: true, side: 'bottom' }, { u: 0.35, len: 0.12, h: 0.4, front: true }],
+      L: 1.8, H: 0.8, round: 0.4, top: '#2b211f', mid: '#3b2e2a', belly: '#4a3a34', finColor: 'rgba(55,40,36,0.9)', tail: 'round', tailSize: 0.75, ped: 0.2, nose: 1.5, swim: 0.1, botK: 1.05,
+      fins: [{ u: 0.6, len: 0.14, h: 0.18, soft: true, sweep: 0.2 }, { u: 0.62, len: 0.12, h: 0.15, soft: true, side: 'bottom', sweep: 0.2 }, { u: 0.35, len: 0.1, h: 0.4, front: true }],
       eye: { u: 0.18, r: 0.07, up: 0.55, iris: '#999' }, edge: 'rgba(0,0,0,0.5)',
       head(ctx, pts, s, ph) {
         const p = pts.at(0.03);

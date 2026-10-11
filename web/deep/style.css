@@ -27,6 +27,11 @@ button { font: inherit; color: inherit; }
 .ladder i { width: 22px; height: 5px; border-radius: 3px; background: rgba(143,179,181,.25); position: relative; overflow: hidden; }
 .ladder i.done { background: var(--glow); }
 .ladder i b { position: absolute; inset: 0 auto 0 0; background: var(--glow); }
+.next { margin-top: 8px; width: 190px; font-size: 13px; color: var(--fg); font-variant-numeric: tabular-nums; }
+.next-bar { height: 8px; margin-top: 4px; border-radius: 4px; background: rgba(143,179,181,.22); overflow: hidden; }
+.next-bar b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #f0b85a, var(--glow)); border-radius: 4px; transition: width .25s ease-out; }
+.next.lost .next-bar b { background: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .next-bar b { transition: none; } }
 
 @media (max-width: 520px) { #best { display: none; } }
 .corner { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 16px; display: flex; gap: 10px; align-items: center; color: var(--dim); font-size: 13px; }
