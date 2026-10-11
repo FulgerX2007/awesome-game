@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ржавый рассвет</title>
+<meta name="description" content="Спокойная инкрементальная игра: чини роботов на свалке и автоматизируй всё до запуска ковчега.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Ржавый рассвет</h1>
+      <span class="run" id="run-label">День первый</span>
+    </div>
+    <dl class="res">
+      <div class="chip"><dt><i class="ico scrap"></i>Хлам</dt><dd><b id="r-scrap">0</b><small id="r-scrap-rate"></small></dd></div>
+      <div class="chip"><dt><i class="ico parts"></i>Детали</dt><dd><b id="r-parts">0</b><small id="r-parts-rate"></small></dd></div>
+      <div class="chip" id="chip-cores" hidden><dt><i class="ico core"></i>Ядра</dt><dd><b id="r-cores">0</b><small id="r-cores-rate"></small></dd></div>
+      <div class="chip" id="chip-robots" hidden><dt><i class="ico bot"></i>Роботы</dt><dd><b id="r-robots">0</b></dd></div>
+      <div class="chip" id="chip-bp" hidden><dt><i class="ico bp"></i>Чертежи</dt><dd><b id="r-bp">0</b><small id="r-bp-bonus"></small></dd></div>
+    </dl>
+  </header>
+
+  <main class="layout">
+    <section class="yard">
+      <div class="scene-wrap"><canvas id="scene" aria-label="Свалка на закате"></canvas></div>
+      <div class="actions">
+        <button class="act dig" id="act-dig">
+          <span class="act-name">Копать</span>
+          <span class="act-sub" id="dig-sub">+1 хлам</span>
+          <kbd>Q</kbd>
+        </button>
+        <button class="act sort" id="act-sort">
+          <span class="act-name">Разобрать</span>
+          <span class="act-sub" id="sort-sub">5 хлама → 1 деталь</span>
+          <kbd>W</kbd>
+        </button>
+        <button class="act repair" id="act-repair">
+          <span class="act-name" id="repair-name">Чинить робота</span>
+          <span class="act-sub" id="repair-sub">10 деталей</span>
+          <span class="bar"><i id="repair-bar"></i></span>
+          <kbd>E</kbd>
+        </button>
+      </div>
+      <ol class="log" id="log" aria-live="polite"></ol>
+    </section>
+
+    <aside class="side">
+      <section class="card" id="sec-robots" hidden>
+        <header class="card-head"><h2>Бригада</h2><span class="muted" id="idle-label"></span></header>
+        <div class="roles" id="roles"></div>
+        <label class="toggle" id="auto-wrap" hidden><input type="checkbox" id="auto-repair" checked> Механики сами берутся за следующего робота</label>
+      </section>
+
+      <section class="card" id="sec-upgrades">
+        <header class="card-head"><h2>Мастерская</h2></header>
+        <div class="upgrades" id="upgrades"></div>
+        <p class="muted small" id="up-hint">Новые чертежи откроются, когда свалка оживёт.</p>
+      </section>
+
+      <section class="card ark" id="sec-ark" hidden>
+        <header class="card-head"><h2>Ковчег</h2><span class="muted" id="ark-label"></span></header>
+        <ol class="stages" id="stages"></ol>
+        <div id="ark-done" hidden>
+          <p>Ковчег ушёл в небо. Свалка затихла, но в тетради остались чертежи.</p>
+          <button class="btn primary" id="btn-prestige">Новый рассвет</button>
+        </div>
+      </section>
+
+      <section class="card" id="sec-save">
+        <header class="card-head"><h2>Сохранение</h2><span class="muted small" id="save-status">сохраняется само</span></header>
+        <div id="cloud" hidden>
+          <p class="small muted">Код облачного сохранения переносит прогресс на другое устройство.</p>
+          <div class="row">
+            <button class="btn" id="btn-cloud-save">Сохранить в облако</button>
+            <code id="cloud-code"></code>
+          </div>
+          <form class="row" id="cloud-load">
+            <input id="cloud-input" placeholder="код сохранения" autocomplete="off" spellcheck="false">
+            <button class="btn" type="submit">Загрузить</button>
+          </form>
+          <p class="small" id="cloud-msg"></p>
+        </div>
+        <div class="row">
+          <button class="btn danger" id="btn-reset">Начать с нуля</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title"></h2>
+    <div id="modal-body"></div>
+    <div class="row end" id="modal-actions"></div>
+  </div>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

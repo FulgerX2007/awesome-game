@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Оазис</title>
+<meta name="description" content="Спокойная головоломка: поворачивай каналы, чтобы вода из родника дошла до каждого сада.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&family=Nunito:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="sky" aria-hidden="true"></div>
+<div class="app">
+  <header class="top">
+    <h1>Оазис</h1>
+    <div class="top-actions" id="top-actions">
+      <nav class="tabs" role="tablist">
+        <button role="tab" id="tab-path" aria-selected="true">Путь</button>
+        <button role="tab" id="tab-daily" aria-selected="false">Задача дня</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="meta">
+      <span id="title-label">Колодец 1</span>
+      <span class="sep">·</span>
+      <span id="moves-label">ходов: 0</span>
+      <span class="sep">·</span>
+      <span id="time-label">0:00</span>
+      <span class="sep">·</span>
+      <span id="gardens-label">сады: 0/0</span>
+    </div>
+
+    <div class="board-wrap" id="board-wrap">
+      <canvas id="board" aria-label="Игровое поле: плитки с каналами"></canvas>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="btn-undo" title="Z">Отменить</button>
+      <button class="btn" id="btn-hint" title="H">Подсказка</button>
+      <button class="btn" id="btn-restart">Заново</button>
+      <button class="btn icon" id="btn-sound" aria-pressed="true" title="Звук">Звук: вкл</button>
+    </div>
+    <p class="help">Нажми на плитку, чтобы повернуть её. <span class="desk">Shift + клик — в другую сторону, правый клик — закрепить.</span><span class="touch">Долгое нажатие — закрепить.</span> Вода должна дойти до каждой плитки, и ни один канал не должен уходить в песок.</p>
+  </main>
+</div>
+
+<div class="win" id="win" hidden>
+  <div class="win-card" role="dialog" aria-modal="true" aria-labelledby="win-title">
+    <h2 id="win-title">Оазис ожил</h2>
+    <p id="win-text"></p>
+    <dl class="win-stats" id="win-stats"></dl>
+    <div class="row">
+      <button class="btn" id="btn-stay">Полюбоваться</button>
+      <button class="btn primary" id="btn-next">Дальше</button>
+    </div>
+  </div>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Муравейник</title>
+<meta name="description" content="Спокойная игра про муравьёв: живые тропы из запаха, растущая колония и брачный полёт королевы.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,700;1,500&family=Nunito+Sans:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <div class="field" id="field">
+    <canvas id="world" aria-label="Земля вокруг муравейника"></canvas>
+    <div class="hud">
+      <div class="hud-food"><b id="food">0</b> <span>еды</span></div>
+      <div class="hud-sub"><span id="rate">0</span> · <span id="ant-count">5</span></div>
+    </div>
+    <div class="views" role="group" aria-label="Вид">
+      <button type="button" data-view="surface" class="on">Наверху</button>
+      <button type="button" data-view="nest">Гнездо</button>
+    </div>
+    <div class="hint" id="hint">Нажми на землю — положишь крошку. Проведи пальцем — проложишь тропу.</div>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+  <aside class="panel">
+    <header class="panel-head">
+      <h1>Муравейник</h1>
+      <div class="tools">
+        <button type="button" class="tool" id="btn-trails" aria-pressed="true" title="Показывать тропы">≋</button>
+        <button type="button" class="tool" id="btn-sound" title="Звук">♪</button>
+        <span id="lang-slot"></span>
+      </div>
+    </header>
+    <section class="colony">
+      <div class="breed">
+        <div>
+          <div class="breed-title">Вывести муравья</div>
+          <div class="breed-sub" id="breed-sub"></div>
+        </div>
+        <div class="seg" role="group" aria-label="Сколько выводить">
+          <button type="button" data-n="1" class="on">×1</button>
+          <button type="button" data-n="10">×10</button>
+          <button type="button" data-n="max">Макс</button>
+        </div>
+        <button type="button" class="buy big" id="btn-ant"></button>
+      </div>
+    </section>
+    <section class="ups" id="ups"></section>
+    <section class="finds" id="finds" hidden>
+      <h2>Находки</h2>
+      <p class="finds-sub" id="finds-sub"></p>
+      <div class="finds-grid" id="finds-grid"></div>
+    </section>
+    <section class="flight" id="flight" hidden></section>
+    <footer class="foot">
+      <div id="stats"></div>
+      <details id="cloud" hidden>
+        <summary>Облачное сохранение</summary>
+        <p>Код: <b id="cloud-code">ещё нет</b></p>
+        <button type="button" class="buy" id="btn-cloud-save">Сохранить в облако</button>
+        <form id="cloud-load" class="row"><input id="cloud-input" placeholder="xxxx-xxxx-xxxx-xxxx" autocomplete="off"><button class="buy">Загрузить</button></form>
+        <p class="muted" id="cloud-msg"></p>
+      </details>
+      <button type="button" class="link" id="btn-reset">Начать с нуля</button>
+    </footer>
+  </aside>
+</div>
+<script src="../i18n.js"></script>
+<script src="lang.js"></script>
+<script src="sim.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Звездочёт</title>
+<meta name="description" content="Кликер о ночном небе: собирай звёздный свет, строй телескопы и находи настоящие созвездия.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=PT+Sans:wght@400;700&family=PT+Mono&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <section class="sky-wrap">
+    <canvas id="sky" aria-label="Ночное небо. Клик — наблюдать"></canvas>
+    <div class="sky-hud">
+      <div class="light"><b id="light">0</b> <span>звёздного света</span></div>
+      <div class="rate" id="rate">0 в секунду</div>
+      <div class="frenzy" id="frenzy" hidden></div>
+    </div>
+    <p class="sky-hint" id="sky-hint">Кликай по небу, чтобы наблюдать</p>
+  </section>
+
+  <aside class="panel">
+    <header class="panel-head">
+      <h1>Звездочёт</h1>
+      <div class="head-side"><span class="muted" id="novae"></span><span id="lang-slot"></span></div>
+    </header>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Инструменты</h2>
+        <div class="seg" role="group" aria-label="Сколько покупать">
+          <button data-n="1" aria-pressed="true">×1</button>
+          <button data-n="10" aria-pressed="false">×10</button>
+          <button data-n="max" aria-pressed="false">макс</button>
+        </div>
+      </div>
+      <div class="instruments" id="instruments"></div>
+    </section>
+
+    <section class="block" id="sec-upgrades" hidden>
+      <div class="block-head"><h2>Улучшения</h2></div>
+      <div class="upgrades" id="upgrades"></div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Атлас созвездий</h2><span class="muted small" id="atlas-count"></span></div>
+      <ol class="atlas" id="atlas"></ol>
+    </section>
+
+    <section class="block" id="sec-nova" hidden>
+      <div class="block-head"><h2>Сверхновая</h2></div>
+      <p class="small">Взорви свою звезду: всё начнётся заново, но звёздная пыль останется навсегда. Каждая пылинка даёт +10% к свету и клику.</p>
+      <button class="btn nova" id="btn-nova"></button>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Сохранение</h2><span class="muted small" id="save-status">сохраняется само</span></div>
+      <div id="cloud" hidden>
+        <div class="row"><button class="btn" id="btn-cloud-save">Сохранить в облако</button><code id="cloud-code"></code></div>
+        <form class="row" id="cloud-load"><input id="cloud-input" placeholder="код сохранения" autocomplete="off" spellcheck="false"><button class="btn" type="submit">Загрузить</button></form>
+        <p class="small" id="cloud-msg"></p>
+      </div>
+      <div class="row"><button class="btn danger" id="btn-reset">Начать с нуля</button></div>
+    </section>
+  </aside>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="../i18n.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
