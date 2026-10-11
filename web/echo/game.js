@@ -11,6 +11,7 @@
   const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 
   const $ = (id) => document.getElementById(id);
+  const tr = (key, vars) => I18n.t(key, vars);
   const canvas = $('game');
   const ctx = canvas.getContext('2d');
   let W = 0, H = 0, DPR = 1, ZOOM = 1;
@@ -341,7 +342,7 @@
     $('touch').classList.toggle('hidden', !input.touchMode);
     // A free, silent pulse so the player isn't dropped into total darkness.
     emitPulse(G.player.x, G.player.y, TILE * 6, { noise: 0, hue: 190 });
-    showMessage(`Уровень ${num} · кристаллов: ${L.crystals.length}`, 2.6);
+    showMessage(tr('Уровень {n} · кристаллов: {c}', { n: num, c: L.crystals.length }), 2.6);
     Sound.drone(0.05);
   }
 
@@ -399,8 +400,9 @@
     Sound.win();
     Sound.drone(0.0001);
     $('level-stats').innerHTML =
-      `Уровень ${L.num} за ${formatTime(G.levelTime)}<br>` +
-      `Бонус уровня: +${bonus} · за скорость: +${timeBonus}<br>Счёт: <b>${G.score}</b>`;
+      tr('Уровень {n} за {time}', { n: L.num, time: formatTime(G.levelTime) }) + '<br>' +
+      tr('Бонус уровня: +{bonus} · за скорость: +{speed}', { bonus, speed: timeBonus }) + '<br>' +
+      tr('Счёт: <b>{score}</b>', { score: G.score });
     showPanel('panel-level');
   }
 
@@ -502,7 +504,7 @@
         if (left === 0) {
           L.exit.open = true; L.exit.known = true;
           Sound.portal();
-          showMessage('Портал открыт — найди выход', 3);
+          showMessage(tr('Портал открыт — найди выход'), 3);
         } else {
           showMessage(`◆ ${p.crystals}/${L.crystals.length}`, 1.4);
         }
@@ -916,7 +918,7 @@
   }
   function updateHud() {
     if (!G.player || G.state === 'menu') return;
-    setText('hud-level', `Уровень ${L.num}`);
+    setText('hud-level', tr('Уровень {n}', { n: L.num }));
     setText('hud-lives', '♥'.repeat(Math.max(G.lives, 0)) + '♡'.repeat(Math.max(0, 3 - G.lives)));
     setText('hud-crystals', `◆ ${G.player.crystals}/${L.crystals.length}`);
     setText('hud-stones', `● ${G.player.stones}`);
@@ -935,7 +937,7 @@
   function showPanel(id) {
     $('overlay').classList.remove('hidden');
     for (const p of document.querySelectorAll('.panel')) p.classList.toggle('hidden', p.id !== id);
-    const btn = document.querySelector(`#${id} button`);
+    const btn = document.querySelector(`#${id} button:not(.lang-toggle)`);
     if (btn) setTimeout(() => btn.focus(), 50);
   }
   function hideOverlay() { $('overlay').classList.add('hidden'); }
@@ -943,10 +945,10 @@
   function onDeathScreen() {
     G.state = 'between';
     if (G.lives > 0) {
-      $('dead-stats').innerHTML = `Осталось жизней: ${G.lives}<br>Уровень будет перестроен заново.`;
+      $('dead-stats').innerHTML = tr('Осталось жизней: {n}', { n: G.lives }) + '<br>' + tr('Уровень будет перестроен заново.');
       showPanel('panel-dead');
     } else {
-      $('over-stats').innerHTML = `Счёт: <b>${G.score}</b> · достигнут уровень ${L.num}`;
+      $('over-stats').innerHTML = tr('Счёт: <b>{score}</b> · достигнут уровень {n}', { score: G.score, n: L.num });
       showPanel('panel-over');
       submitScore();
     }
@@ -962,19 +964,19 @@
   }
 
   // ───────────────────────── Leaderboard ─────────────────────────
-  const playerName = () => ($('name').value.trim() || 'Аноним').slice(0, 16);
+  const playerName = () => ($('name').value.trim() || tr('Аноним')).slice(0, 16);
 
   function renderBoard(el, entries, myRank) {
     if (!entries || !entries.length) { el.innerHTML = ''; return; }
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-    el.innerHTML = '<table><caption>ЛУЧШИЕ</caption>' + entries.map((e, i) =>
-      `<tr class="${i + 1 === myRank ? 'me' : ''}"><td>${i + 1}.</td><td>${esc(e.name)}</td><td>ур. ${e.level}</td><td>${e.score}</td></tr>`,
+    el.innerHTML = '<table><caption>' + tr('ЛУЧШИЕ') + '</caption>' + entries.map((e, i) =>
+      `<tr class="${i + 1 === myRank ? 'me' : ''}"><td>${i + 1}.</td><td>${esc(e.name === 'Аноним' ? tr('Аноним') : e.name)}</td><td>${tr('ур. {n}', { n: e.level })}</td><td>${e.score}</td></tr>`,
     ).join('') + '</table>';
   }
 
   function renderLocalBest(el) {
     const best = Number(store.get('echo.best', 0));
-    el.innerHTML = best ? `<p>Твой рекорд: <b>${best}</b></p>` : '';
+    el.innerHTML = best ? `<p>${tr('Твой рекорд: <b>{n}</b>', { n: best })}</p>` : '';
   }
 
   async function loadBoard() {
@@ -1069,6 +1071,13 @@
     const p = G.player;
     throwStone(p.x + p.fx * TILE * 6, p.y + p.fy * TILE * 6);
   }, { passive: false });
+
+  // ───────────────────────── Language ─────────────────────────
+  // Rules contain inline <kbd> markup, so they are translated as whole HTML sentences.
+  for (const li of document.querySelectorAll('.rules li')) li.innerHTML = tr(li.innerHTML.trim());
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.content = tr(metaDesc.content);
+  for (const slot of document.querySelectorAll('.lang-slot')) slot.appendChild(I18n.toggle('lang-toggle'));
 
   $('btn-start').onclick = startGame;
   $('btn-next').onclick = () => loadLevel(L.num + 1);

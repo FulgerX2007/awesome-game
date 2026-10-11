@@ -44,7 +44,14 @@ button { font: inherit; color: inherit; }
 
 .panel { background: var(--ink); border-left: 1px solid var(--line); overflow-y: auto; padding-inline: 16px; padding-block: 14px 28px; display: grid; gap: 18px; align-content: start; }
 @media (max-width: 860px) { .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; } }
-.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.head-side { display: flex; align-items: center; gap: 10px; min-width: 0; text-align: right; }
+#novae { white-space: nowrap; }
+.lang-toggle {
+  flex: none; padding: 3px 9px; border-radius: 8px; cursor: pointer; background: transparent;
+  border: 1px solid var(--line); color: var(--dim); font: 13px var(--font-mono); letter-spacing: .05em;
+}
+.lang-toggle:hover { color: var(--fg); border-color: var(--gold); }
 h1 { margin: 0; font: 700 28px/1.1 var(--font-display); letter-spacing: .02em; }
 h2 { margin: 0; font: 400 19px/1.2 var(--font-display); color: var(--gold); }
 .muted { color: var(--dim); }

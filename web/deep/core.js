@@ -2,6 +2,7 @@
 // Everything is in world units; the camera zooms out as the player grows.
 (function (root) {
   'use strict';
+  const I18n = typeof module === 'object' && module.exports ? require('../i18n.js') : root.I18n;
 
   // Creature kinds by absolute radius. speed is relative to the player's speed at the same size.
   const KINDS = [
@@ -56,10 +57,10 @@
   function lengthText(r) {
     const m = lengthMeters(r);
     const f = (v) => (v < 10 ? v.toFixed(1) : Math.round(v)).toString().replace('.', ',');
-    if (m < 1e-3) return `${f(m * 1e6)} мкм`;
-    if (m < 1e-2) return `${f(m * 1e3)} мм`;
-    if (m < 1) return `${f(m * 1e2)} см`;
-    return `${f(m)} м`;
+    if (m < 1e-3) return I18n.t('{n} мкм', { n: f(m * 1e6) });
+    if (m < 1e-2) return I18n.t('{n} мм', { n: f(m * 1e3) });
+    if (m < 1) return I18n.t('{n} см', { n: f(m * 1e2) });
+    return I18n.t('{n} м', { n: f(m) });
   }
 
   function createWorld(seed, r0 = START_R) {

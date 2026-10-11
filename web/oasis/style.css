@@ -54,6 +54,13 @@ h1 {
   padding: 6px 14px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; color: var(--dim);
 }
 .tabs button[aria-selected="true"] { background: var(--sand); color: var(--night); font-weight: 700; }
+.top-actions { display: flex; align-items: center; gap: 8px; }
+.lang-toggle {
+  min-width: 40px; height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--dim); font-weight: 700; font-size: 13px; letter-spacing: .06em; cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.lang-toggle:hover { border-color: var(--sand); color: var(--sand); }
 
 .stage { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 14px; }
 .meta {

@@ -2,6 +2,7 @@
 // Ржавый рассвет — UI, scene and persistence. Rules live in core.js (window.RustCore).
 (() => {
   const C = window.RustCore;
+  const { t, p } = window.I18n;
   const SAVE_KEY = 'rust-dawn.save';
   const CLOUD_KEY = 'rust-dawn.cloud';
   const $ = (id) => document.getElementById(id);
@@ -21,25 +22,21 @@
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
   // ───────────── Number formatting ─────────────
-  const compact = new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 });
-  const fixed1 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
+  const compact = new Intl.NumberFormat(I18n.locale, { notation: 'compact', maximumFractionDigits: 1 });
+  const fixed1 = new Intl.NumberFormat(I18n.locale, { maximumFractionDigits: 1 });
   const fmt = (n) => (n < 10000 ? String(Math.floor(n)) : compact.format(n));
   function rateText(n) {
     if (Math.abs(n) < 0.05) return '';
     const v = Math.abs(n) < 10 ? fixed1.format(Math.abs(n)) : fmt(Math.abs(n));
-    return `${n < 0 ? '−' : '+'}${v}/с`;
+    return t('{s}{v}/с', { s: n < 0 ? '−' : '+', v });
   }
-  function plural(n, one, few, many) {
-    const m10 = n % 10, m100 = n % 100;
-    if (m10 === 1 && m100 !== 11) return one;
-    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-    return many;
-  }
+  // Extra {pl} var: Romanian templates need a plural word where Russian uses a fixed abbreviation.
+  const partsPl = (n) => p(n, 'деталь|детали|деталей');
   function duration(sec) {
     const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
-    if (h) return `${h} ч ${m} мин`;
-    if (m) return `${m} мин`;
-    return `${Math.floor(sec)} с`;
+    if (h) return t('{h} ч {m} мин', { h, m });
+    if (m) return t('{m} мин', { m });
+    return t('{s} с', { s: Math.floor(sec) });
   }
 
   // ───────────── State & persistence ─────────────
@@ -49,7 +46,7 @@
   function save() {
     const ok = store.set(SAVE_KEY, JSON.stringify({ state: S, savedAt: Date.now() }));
     lastSave = performance.now();
-    $('save-status').textContent = ok ? 'сохранено' : 'браузер не даёт сохранять';
+    $('save-status').textContent = ok ? t('сохранено') : t('браузер не даёт сохранять');
   }
 
   function load() {
@@ -90,14 +87,14 @@
     for (const st of STORY) {
       if (!S.seen[st.id] && st.when(S)) {
         S.seen[st.id] = true;
-        if (!silent) addLog(st.text);
+        if (!silent) addLog(t(st.text));
       }
     }
   }
 
   function rebuildLog() {
     $('log').innerHTML = '';
-    for (const st of STORY) if (S.seen[st.id]) addLog(st.text);
+    for (const st of STORY) if (S.seen[st.id]) addLog(t(st.text));
   }
 
   // ───────────── Scene ─────────────
@@ -543,17 +540,17 @@
   function doSort() {
     const before = Math.floor(S.cores);
     const n = C.disassemble(S);
-    if (!n) { floater(X.bench(), sc.ground - 40, 'мало хлама', css('--dim')); return; }
-    floater(X.bench(), sc.ground - 40 * unit(), `+${fmt(n)} дет.`, css('--verdigris'));
-    if (Math.floor(S.cores) > before) floater(X.bench(), sc.ground - 64 * unit(), '+ядро', css('--core'));
+    if (!n) { floater(X.bench(), sc.ground - 40, t('мало хлама'), css('--dim')); return; }
+    floater(X.bench(), sc.ground - 40 * unit(), t('+{n} дет.', { n: fmt(n), pl: partsPl(n) }), css('--verdigris'));
+    if (Math.floor(S.cores) > before) floater(X.bench(), sc.ground - 64 * unit(), t('+ядро'), css('--core'));
     afterAction();
   }
   function doRepair() {
     const built = S.built;
     const n = C.repairClick(S);
-    if (!n) { floater(X.bay(), sc.ground - 60 * unit(), `нужно ${fmt(C.derived(S).robotCost)} дет.`, css('--dim')); return; }
+    if (!n) { floater(X.bay(), sc.ground - 60 * unit(), t('нужно {n} дет.', { n: fmt(C.derived(S).robotCost), pl: partsPl(C.derived(S).robotCost) }), css('--dim')); return; }
     burst(X.bay(), sc.ground - 20 * unit(), '#f3c24f', 4, 60);
-    if (S.built > built) floater(X.bay(), sc.ground - 70 * unit(), 'робот готов!', css('--lamp'));
+    if (S.built > built) floater(X.bay(), sc.ground - 70 * unit(), t('робот готов!'), css('--lamp'));
     afterAction();
   }
   function afterAction() { checkStory(false); renderUI(true); }
@@ -589,12 +586,12 @@
     el.className = 'role';
     el.style.setProperty('--c', `var(${m.color})`);
     el.innerHTML = `
-      <span class="role-name">${m.name}</span>
+      <span class="role-name">${t(m.name)}</span>
       <span class="role-ctl">
-        <button class="mini" data-d="-1" aria-label="Снять одного">−</button>
+        <button class="mini" data-d="-1" aria-label="${t('Снять одного')}">−</button>
         <span class="role-count">0</span>
-        <button class="mini" data-d="1" aria-label="Назначить одного">+</button>
-        <button class="mini wide" data-d="all" aria-label="Назначить всех свободных">все</button>
+        <button class="mini" data-d="1" aria-label="${t('Назначить одного')}">+</button>
+        <button class="mini wide" data-d="all" aria-label="${t('Назначить всех свободных')}">${t('все')}</button>
       </span>
       <span class="role-desc"></span>`;
     el.addEventListener('click', (e) => {
@@ -622,7 +619,7 @@
   for (const u of C.UPGRADES) {
     const b = document.createElement('button');
     b.className = 'up'; b.hidden = true;
-    b.innerHTML = `<span class="up-name">${u.name}</span><span class="up-lvl"></span><span class="up-desc">${u.desc}</span><span class="up-cost"></span>`;
+    b.innerHTML = `<span class="up-name">${t(u.name)}</span><span class="up-lvl"></span><span class="up-desc">${t(u.desc)}</span><span class="up-cost"></span>`;
     b.addEventListener('click', () => {
       if (C.buy(S, u.id)) { burst(X.bench(), sc.ground - 30, '#f3c24f', 8); renderUI(true); }
     });
@@ -633,7 +630,7 @@
   const stageEls = C.ARK.map((st, i) => {
     const li = document.createElement('li');
     li.className = 'stage';
-    li.innerHTML = `<span class="num">${i + 1}/${C.ARK.length}</span><span><span class="stage-name">${st.name}</span><span class="stage-cost"></span></span><button class="btn primary">Построить</button>`;
+    li.innerHTML = `<span class="num">${i + 1}/${C.ARK.length}</span><span><span class="stage-name">${t(st.name)}</span><span class="stage-cost"></span></span><button class="btn primary">${t('Построить')}</button>`;
     li.querySelector('button').addEventListener('click', () => {
       if (C.buildArk(S)) {
         burst(X.ark(), sc.ground - 60, '#f3c24f', 20, 100);
@@ -662,38 +659,38 @@
     setText($('r-scrap-rate'), rateText(r.scrap));
     $('r-scrap-rate').classList.toggle('neg', r.scrap < 0);
     setText($('r-parts-rate'), rateText(r.parts));
-    setText($('r-cores-rate'), r.cores >= 0.01 ? `+${fixed1.format(r.cores * 60)}/мин` : '');
+    setText($('r-cores-rate'), r.cores >= 0.01 ? t('+{v}/мин', { v: fixed1.format(r.cores * 60) }) : '');
     $('chip-cores').hidden = S.stats.cores < 1;
     $('chip-robots').hidden = S.built < 1;
     $('chip-bp').hidden = S.blueprints < 1;
     setText($('r-bp'), fmt(S.blueprints));
     setText($('r-bp-bonus'), `+${S.blueprints * 10}%`);
-    setText($('run-label'), S.runs ? `Рассвет №${S.runs + 1}` : 'День первый');
+    setText($('run-label'), S.runs ? t('Рассвет №{n}', { n: S.runs + 1 }) : t('День первый'));
 
-    setText($('dig-sub'), `+${fmt(d.click)} хлам`);
-    setText($('sort-sub'), `${d.ratio * d.batch} хлама → ${d.batch} дет.`);
+    setText($('dig-sub'), t('+{n} хлам', { n: fmt(d.click) }));
+    setText($('sort-sub'), t('{a} хлама → {b} дет.', { a: d.ratio * d.batch, b: d.batch, pl: partsPl(d.batch) }));
     $('act-sort').disabled = S.scrap < d.ratio;
     if (S.repair) {
-      setText($('repair-name'), 'Чинить робота');
-      setText($('repair-sub'), `+${d.wrench} к ремонту · ${fmt(S.repair.progress)}/${S.repair.need}`);
+      setText($('repair-name'), t('Чинить робота'));
+      setText($('repair-sub'), t('+{w} к ремонту · {p}/{n}', { w: d.wrench, p: fmt(S.repair.progress), n: S.repair.need }));
       $('repair-bar').style.width = `${(S.repair.progress / S.repair.need) * 100}%`;
       $('act-repair').disabled = false;
     } else {
-      setText($('repair-name'), S.built ? 'Чинить следующего' : 'Чинить робота');
-      setText($('repair-sub'), `нужно ${fmt(d.robotCost)} деталей`);
+      setText($('repair-name'), S.built ? t('Чинить следующего') : t('Чинить робота'));
+      setText($('repair-sub'), t('нужно {n} деталей', { n: fmt(d.robotCost), pl: partsPl(d.robotCost) }));
       $('repair-bar').style.width = '0%';
       $('act-repair').disabled = S.parts < d.robotCost;
     }
 
     // Crew
     $('sec-robots').hidden = S.built < 1;
-    setText($('idle-label'), S.robots.idle ? `свободны: ${S.robots.idle}` : 'все при деле');
+    setText($('idle-label'), S.robots.idle ? t('свободны: {n}', { n: S.robots.idle }) : t('все при деле'));
     const per = { digger: d.digger, sorter: d.sorter, mechanic: d.mechanic };
     for (const role of C.ROLES) {
       const e = roleEls[role];
       setText(e.count, String(S.robots[role]));
-      const extra = role === 'sorter' ? ` · ${d.ratio} хлама → 1` : '';
-      setText(e.desc, `${fixed1.format(per[role])} ${ROLE_META[role].unit} каждый${extra}`);
+      const extra = role === 'sorter' ? t(' · {r} хлама → 1', { r: d.ratio }) : '';
+      setText(e.desc, t('{v} {unit} каждый', { v: fixed1.format(per[role]), unit: t(ROLE_META[role].unit) }) + extra);
       e.minus.disabled = S.robots[role] === 0;
       e.plus.disabled = e.all.disabled = S.robots.idle === 0;
     }
@@ -711,8 +708,8 @@
       }
       if (hide) continue;
       shown++;
-      setText(e.lvl, u.max === 1 ? (st.maxed ? 'есть' : '') : `${st.level}/${u.max}`);
-      const ch = st.maxed ? '<span class="muted">готово</span>' : costHtml(st.cost);
+      setText(e.lvl, u.max === 1 ? (st.maxed ? t('есть') : '') : `${st.level}/${u.max}`);
+      const ch = st.maxed ? `<span class="muted">${t('готово')}</span>` : costHtml(st.cost);
       if (e.cost._h !== ch) { e.cost.innerHTML = ch; e.cost._h = ch; }
       const poor = !st.maxed && !C.canAfford(S, st.cost);
       e.b.classList.toggle('poor', poor);
@@ -723,10 +720,10 @@
 
     // Ark
     $('sec-ark').hidden = !C.arkUnlocked(S);
-    setText($('ark-label'), S.launched ? 'улетел' : `${S.ark}/${C.ARK.length}`);
+    setText($('ark-label'), S.launched ? t('улетел') : `${S.ark}/${C.ARK.length}`);
     $('stages').hidden = S.launched;
     $('ark-done').hidden = !S.launched;
-    if (S.launched) setText($('btn-prestige'), `Новый рассвет: +${C.blueprintGain(S)} ${plural(C.blueprintGain(S), 'чертёж', 'чертежа', 'чертежей')}`);
+    if (S.launched) setText($('btn-prestige'), t('Новый рассвет: +{n} {bp}', { n: C.blueprintGain(S), bp: p(C.blueprintGain(S), 'чертёж|чертежа|чертежей') }));
     stageEls.forEach((e, i) => {
       const st = C.ARK[i];
       e.li.classList.toggle('done', i < S.ark);
@@ -759,11 +756,11 @@
     sc.launch = sc.t;
     save();
     const gain = C.blueprintGain(S);
-    setTimeout(() => modal('Ковчег взлетел',
-      `<p>Свалка провожает его щелчками сотен роботов. Ты остаёшься на земле, но небо уже светлеет.</p>
-       <p>За ${duration(S.time)} ты собрал ${fmt(S.stats.parts)} деталей и починил ${S.built} ${plural(S.built, 'робота', 'роботов', 'роботов')}.</p>
-       <p>«Новый рассвет» начнёт всё сначала, но даст <b>${gain} ${plural(gain, 'чертёж', 'чертежа', 'чертежей')}</b>: каждый навсегда ускоряет всю работу на 10%.</p>`,
-      [{ label: 'Посмотреть ещё' }, { label: 'Новый рассвет', primary: true, run: doPrestige }]), reduceMotion ? 0 : 3500);
+    setTimeout(() => modal(t('Ковчег взлетел'),
+      `<p>${t('Свалка провожает его щелчками сотен роботов. Ты остаёшься на земле, но небо уже светлеет.')}</p>
+       <p>${t('За {time} ты собрал {parts} деталей и починил {n} {robots}.', { time: duration(S.time), parts: fmt(S.stats.parts), pl: partsPl(S.stats.parts), n: S.built, robots: p(S.built, 'робота|роботов|роботов') })}</p>
+       <p>${t('«Новый рассвет» начнёт всё сначала, но даст <b>{n} {bp}</b>: каждый навсегда ускоряет всю работу на 10%.', { n: gain, bp: p(gain, 'чертёж|чертежа|чертежей') })}</p>`,
+      [{ label: t('Посмотреть ещё') }, { label: t('Новый рассвет'), primary: true, run: doPrestige }]), reduceMotion ? 0 : 3500);
   }
 
   function doPrestige() {
@@ -772,7 +769,7 @@
     sc.bots = []; sc.launch = null;
     $('log').innerHTML = '';
     checkStory(false);
-    addLog(`Новый рассвет. В тетради ${S.blueprints} ${plural(S.blueprints, 'чертёж', 'чертежа', 'чертежей')}, руки помнят больше.`);
+    addLog(t('Новый рассвет. В тетради {n} {bp}, руки помнят больше.', { n: S.blueprints, bp: p(S.blueprints, 'чертёж|чертежа|чертежей') }));
     save();
     renderUI(true);
   }
@@ -782,12 +779,12 @@
   $('btn-reset').addEventListener('click', () => {
     const b = $('btn-reset');
     if (!resetArmed) {
-      b.textContent = 'Точно? Нажми ещё раз';
-      resetArmed = setTimeout(() => { b.textContent = 'Начать с нуля'; resetArmed = null; }, 3000);
+      b.textContent = t('Точно? Нажми ещё раз');
+      resetArmed = setTimeout(() => { b.textContent = t('Начать с нуля'); resetArmed = null; }, 3000);
       return;
     }
     clearTimeout(resetArmed); resetArmed = null;
-    b.textContent = 'Начать с нуля';
+    b.textContent = t('Начать с нуля');
     S = C.newState();
     sc.bots = []; sc.launch = null;
     $('log').innerHTML = '';
@@ -828,25 +825,25 @@
         await cloudPut(code);
         store.set(CLOUD_KEY, code);
         $('cloud-code').textContent = pretty(code);
-        $('cloud-msg').textContent = 'Сохранено. Введи этот код на другом устройстве.';
-      } catch (err) { $('cloud-msg').textContent = `Не удалось сохранить: ${err.message}`; }
+        $('cloud-msg').textContent = t('Сохранено. Введи этот код на другом устройстве.');
+      } catch (err) { $('cloud-msg').textContent = t('Не удалось сохранить: {e}', { e: err.message }); }
     });
 
     $('cloud-load').addEventListener('submit', async (e) => {
       e.preventDefault();
       const c = cleanCode($('cloud-input').value);
-      if (c.length !== 16) { $('cloud-msg').textContent = 'Код состоит из 16 букв и цифр.'; return; }
+      if (c.length !== 16) { $('cloud-msg').textContent = t('Код состоит из 16 букв и цифр.'); return; }
       try {
         const res = await fetch(`/api/saves/${c}`);
-        if (res.status === 404) { $('cloud-msg').textContent = 'Сохранения с таким кодом нет.'; return; }
+        if (res.status === 404) { $('cloud-msg').textContent = t('Сохранения с таким кодом нет.'); return; }
         if (!res.ok) throw new Error(await res.text());
         S = C.migrate(await res.json());
         code = c; store.set(CLOUD_KEY, c);
         $('cloud-code').textContent = pretty(c);
         sc.bots = []; sc.launch = null;
         rebuildLog(); save(); renderUI(true);
-        $('cloud-msg').textContent = 'Загружено.';
-      } catch (err) { $('cloud-msg').textContent = `Не удалось загрузить: ${err.message}`; }
+        $('cloud-msg').textContent = t('Загружено.');
+      } catch (err) { $('cloud-msg').textContent = t('Не удалось загрузить: {e}', { e: err.message }); }
     });
 
     // Quietly keep the cloud copy fresh once the player has a code.
@@ -855,6 +852,11 @@
 
   // ───────────── Boot ─────────────
   function boot() {
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.content = t(meta.content);
+    // Added after I18n.translateDOM has run, so the button's own labels stay as they are.
+    const addToggle = () => document.querySelector('.brand').append(I18n.toggle('lang-btn'));
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addToggle); else addToggle();
     resizeScene();
     const savedAt = load();
     rebuildLog();
@@ -866,12 +868,13 @@
         if (g.scrap >= 1 || g.parts >= 1) {
           checkStory(false);
           const items = [];
-          if (g.scrap >= 1) items.push(`<li>+${fmt(g.scrap)} хлама</li>`);
-          if (g.parts >= 1) items.push(`<li>+${fmt(g.parts)} деталей</li>`);
-          if (g.cores >= 1) items.push(`<li>+${fmt(g.cores)} ${plural(Math.floor(g.cores), 'ядро', 'ядра', 'ядер')}</li>`);
-          if (g.robots) items.push(`<li>+${g.robots} ${plural(g.robots, 'робот', 'робота', 'роботов')} в строю</li>`);
-          modal('Пока тебя не было', `<p>Бригада работала ${duration(Math.min(away, 8 * 3600))}${away > 8 * 3600 ? ' (больше восьми часов роботы без присмотра не работают)' : ''}:</p><ul>${items.join('')}</ul>`,
-            [{ label: 'Отлично', primary: true }]);
+          if (g.scrap >= 1) items.push(`<li>${t('+{n} хлама', { n: fmt(g.scrap) })}</li>`);
+          if (g.parts >= 1) items.push(`<li>${t('+{n} деталей', { n: fmt(g.parts), pl: partsPl(g.parts) })}</li>`);
+          if (g.cores >= 1) items.push(`<li>+${fmt(g.cores)} ${p(Math.floor(g.cores), 'ядро|ядра|ядер')}</li>`);
+          if (g.robots) items.push(`<li>${t('+{n} {robots} в строю', { n: g.robots, robots: p(g.robots, 'робот|робота|роботов') })}</li>`);
+          const note = away > 8 * 3600 ? t(' (больше восьми часов роботы без присмотра не работают)') : '';
+          modal(t('Пока тебя не было'), `<p>${t('Бригада работала {time}{note}:', { time: duration(Math.min(away, 8 * 3600)), note })}</p><ul>${items.join('')}</ul>`,
+            [{ label: t('Отлично'), primary: true }]);
         }
       }
     }

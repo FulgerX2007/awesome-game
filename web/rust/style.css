@@ -40,6 +40,12 @@ h1 {
   text-shadow: 0 2px 0 var(--rust-deep);
 }
 .run { color: var(--dim); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.lang-btn {
+  align-self: center; padding: 2px 8px; border-radius: 6px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+  font: 500 12px/1.4 var(--font-mono); letter-spacing: .08em;
+}
+.lang-btn:hover { border-color: var(--rust); color: var(--fg); }
 .res { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 .chip {
   display: flex; flex-direction: column; min-width: 104px; padding: 6px 12px;

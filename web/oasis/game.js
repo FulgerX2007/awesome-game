@@ -2,6 +2,7 @@
 // Оазис — rendering, input and persistence. Rules live in core.js (window.OasisCore).
 (() => {
   const C = window.OasisCore;
+  const { t, p: plural } = window.I18n;
   const SAVE_KEY = 'oasis.v1';
   const $ = (id) => document.getElementById(id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -193,24 +194,26 @@
     if (!G.solved || G.winShown) return;
     G.winShown = true;
     const g = gardens();
-    $('win-title').textContent = G.kind === 'daily' ? 'Задача дня решена' : 'Оазис ожил';
+    $('win-title').textContent = G.kind === 'daily' ? t('Задача дня решена') : t('Оазис ожил');
     $('win-text').textContent = G.kind === 'daily'
-      ? `Вода дошла до всех ${g} садов. Новая задача появится завтра.`
-      : `Вода дошла до всех ${g} садов. ${nextSizeText()}`;
-    const extra = G.moves <= G.minMoves ? 'безупречно' : `минимум ${G.minMoves}`;
+      ? `${reached(g)} ${t('Новая задача появится завтра.')}`
+      : `${reached(g)} ${nextSizeText()}`;
+    const extra = G.moves <= G.minMoves ? t('безупречно') : t('минимум {n}', { n: G.minMoves });
     $('win-stats').innerHTML =
-      `<div><dt>Ходы</dt><dd>${G.moves}</dd><dt>${extra}</dt></div>` +
-      `<div><dt>Время</dt><dd>${clock(G.time)}</dd></div>` +
-      `<div><dt>Подсказки</dt><dd>${G.hints}</dd></div>`;
-    $('btn-next').textContent = G.kind === 'daily' ? 'К колодцам' : 'Дальше';
+      `<div><dt>${t('Ходы')}</dt><dd>${G.moves}</dd><dt>${extra}</dt></div>` +
+      `<div><dt>${t('Время')}</dt><dd>${clock(G.time)}</dd></div>` +
+      `<div><dt>${t('Подсказки')}</dt><dd>${G.hints}</dd></div>`;
+    $('btn-next').textContent = G.kind === 'daily' ? t('К колодцам') : t('Дальше');
     $('win').hidden = false;
     $('btn-next').focus();
   }
 
   function nextSizeText() {
     const n = C.sizeForLevel(G.level + 1);
-    return n > G.p.size ? `Следующий колодец больше: ${n}×${n}.` : 'Следующий колодец того же размера, но запутаннее.';
+    return n > G.p.size ? t('Следующий колодец больше: {n}×{n}.', { n }) : t('Следующий колодец того же размера, но запутаннее.');
   }
+  // Russian keeps «садов» for every count (genitive after «всех»); Romanian needs a plural form.
+  const reached = (g) => t('Вода дошла до всех {n} садов.', { n: g, w: plural(g, 'сад|сада|садов') });
 
   function next() {
     $('win').hidden = true;
@@ -239,13 +242,13 @@
     const total = gardens();
     let watered = 0;
     for (let i = 0; i < state.dist.length; i++) if (isEnd(i) && state.dist[i] >= 0) watered++;
-    $('title-label').textContent = G.kind === 'daily' ? `Задача дня · ${G.date.split('-').reverse().slice(0, 2).join('.')}` : `Колодец ${G.level}`;
-    $('moves-label').textContent = `ходов: ${G.moves}`;
+    $('title-label').textContent = G.kind === 'daily' ? `${t('Задача дня')} · ${G.date.split('-').reverse().slice(0, 2).join('.')}` : t('Колодец {n}', { n: G.level });
+    $('moves-label').textContent = t('ходов: {n}', { n: G.moves });
     $('time-label').textContent = clock(G.time);
-    $('gardens-label').textContent = `сады: ${watered}/${total}`;
+    $('gardens-label').textContent = t('сады: {a}/{b}', { a: watered, b: total });
     $('btn-undo').disabled = !G.history.length || G.solved;
     $('btn-hint').disabled = G.solved;
-    $('btn-sound').textContent = Sound.muted ? 'Звук: выкл' : 'Звук: вкл';
+    $('btn-sound').textContent = Sound.muted ? t('Звук: выкл') : t('Звук: вкл');
     $('btn-sound').setAttribute('aria-pressed', String(!Sound.muted));
   }
 
@@ -558,6 +561,11 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && G) persist(); });
 
   // ───────────── Boot ─────────────
+  // Added after I18n.translateDOM() has run, so the toggle's own language name is left as is.
+  const addToggle = () => $('top-actions').append(window.I18n.toggle('lang-toggle'));
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addToggle); else addToggle();
+  const desc = document.querySelector('meta[name="description"]');
+  if (desc) desc.content = t(desc.content);
   const start = mode;
   mode = null;
   switchMode(start);

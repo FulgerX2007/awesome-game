@@ -2,6 +2,8 @@
 // Глубина — rendering, input, sound. The simulation lives in core.js (window.DeepCore).
 (() => {
   const C = window.DeepCore;
+  const { t: tr } = window.I18n;
+  const stageName = (i) => tr(C.STAGES[i].name);
   const SAVE_KEY = 'deep.save';
   const $ = (id) => document.getElementById(id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -356,8 +358,8 @@
   }
   function updateHud() {
     const p = W.player;
-    $('stage-name').textContent = C.STAGES[p.stage].name;
-    $('length').textContent = `длина ${C.lengthText(p.r)}`;
+    $('stage-name').textContent = stageName(p.stage);
+    $('length').textContent = tr('длина {len}', { len: C.lengthText(p.r) });
     const bars = $('ladder').children;
     for (let i = 0; i < bars.length; i++) {
       const st = C.STAGES[i + 1], prev = C.STAGES[i];
@@ -365,9 +367,9 @@
       bars[i].className = k >= 1 ? 'done' : '';
       bars[i].firstChild.style.width = `${(k < 1 ? k : 0) * 100}%`;
     }
-    $('best').textContent = best ? `рекорд: ${C.lengthText(best)}` : '';
+    $('best').textContent = best ? tr('рекорд: {len}', { len: C.lengthText(best) }) : '';
     $('btn-dash').style.setProperty('--cd', String(1 - p.dashCD / C.DASH_COOLDOWN));
-    $('btn-sound').textContent = Sound.muted ? 'Звук: выкл' : 'Звук: вкл';
+    $('btn-sound').textContent = tr(Sound.muted ? 'Звук: выкл' : 'Звук: вкл');
   }
 
   const KILLER = { fish: 'Тебя съела хищная рыба', squid: 'Тебя съел кальмар', shark: 'Тебя съела акула' };
@@ -387,12 +389,12 @@
       if (e.type === 'stage') {
         Sound.stage();
         if (e.stage === 6) Sound.whale();
-        toast(`${C.STAGES[e.stage].name}<small>${STAGE_TEXT[e.stage]}</small>`, 5);
+        toast(`${stageName(e.stage)}<small>${tr(STAGE_TEXT[e.stage])}</small>`, 5);
         save();
       }
       if (e.type === 'death') {
         Sound.eaten(); fx.flash = 1;
-        toast(`${KILLER[e.by] || 'Тебя съели'}<small>Ты потерял половину размера, но плывёшь дальше.</small>`, 4);
+        toast(`${tr(KILLER[e.by] || 'Тебя съели')}<small>${tr('Ты потерял половину размера, но плывёшь дальше.')}</small>`, 4);
         save();
       }
     }
@@ -446,11 +448,16 @@
     $('overlay').hidden = true;
     $('hud').hidden = false;
     $('btn-dash').hidden = !window.matchMedia('(hover: none)').matches;
-    toast(`${C.STAGES[W.player.stage].name}<small>Ешь тех, кто меньше. Красное свечение — опасность.</small>`, 4);
+    toast(`${stageName(W.player.stage)}<small>${tr('Ешь тех, кто меньше. Красное свечение — опасность.')}</small>`, 4);
   }
   $('btn-start').addEventListener('click', start);
   $('btn-restart').addEventListener('click', () => { startWorld(C.START_R); start(); });
   $('btn-sound').addEventListener('click', () => { Sound.init(); Sound.toggle(); updateHud(); });
+
+  // Language switch lives in the menu (the page reloads, the save is kept).
+  $('menu-row').prepend(window.I18n.toggle('chip lang'));
+  const meta = document.querySelector('meta[name="description"]');
+  if (meta) meta.content = tr(meta.content);
 
   // Continue at the size you reached last time, in a fresh stretch of ocean.
   resize();
@@ -459,7 +466,7 @@
     if (saved && saved.r > C.START_R + 0.5) {
       startWorld(saved.r);
       W.player.peak = saved.peak || saved.r;
-      $('btn-start').textContent = `Продолжить: ${C.STAGES[W.player.stage].name.toLowerCase()}, ${C.lengthText(saved.r)}`;
+      $('btn-start').textContent = tr('Продолжить: {stage}, {len}', { stage: stageName(W.player.stage).toLocaleLowerCase(window.I18n.locale), len: C.lengthText(saved.r) });
       $('btn-restart').hidden = false;
     }
   } catch { /* no save */ }

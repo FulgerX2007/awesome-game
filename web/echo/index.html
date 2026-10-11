@@ -28,6 +28,7 @@
 
 <div id="overlay">
   <div class="panel" id="panel-menu">
+    <div class="lang-slot"></div>
     <h1>ЭХО</h1>
     <p class="lead">Ты слеп. Пещера — сплошная тьма.<br>Каждый звук, который ты издаёшь, показывает тебе путь…<br><b>и выдаёт тебя тем, кто живёт во тьме.</b></p>
     <ul class="rules">
@@ -62,6 +63,7 @@
     <p id="over-stats"></p>
     <div id="board-over" class="board"></div>
     <button id="btn-restart">Новая игра</button>
+    <div class="lang-slot center"></div>
     <p class="hint">Enter — начать заново</p>
   </div>
 
@@ -73,9 +75,11 @@
 </div>
 
 <div id="touch" class="hidden">
-  <button id="touch-stone">●</button>
+  <button id="touch-stone" aria-label="Бросить камень">●</button>
 </div>
 
+<script src="../i18n.js"></script>
+<script src="lang.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

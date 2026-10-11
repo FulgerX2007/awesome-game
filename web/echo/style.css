@@ -86,3 +86,10 @@ button:hover, button:focus-visible { background: rgba(94,225,255,.12); box-shado
 button { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { h1 { animation: none; } #message { transition: none; } }
 @media (max-width: 480px) { .rules { font-size: 14px; } h2 { font-size: 28px; } }
+.lang-slot { display: flex; justify-content: flex-end; }
+.lang-slot.center { justify-content: center; }
+button.lang-toggle {
+  margin: 0; padding: 4px 12px; font-size: 13px; letter-spacing: .14em;
+  color: var(--dim); border-color: var(--line);
+}
+button.lang-toggle:hover, button.lang-toggle:focus-visible { color: var(--accent); border-color: var(--accent); }

@@ -1,6 +1,17 @@
 // Звездочёт — incremental rules. No DOM, so the balance can be simulated in Node.
 (function (root) {
   'use strict';
+  // Russian text is the i18n key; names are translated on read, so state only ever holds ids.
+  const I18n = typeof module === 'object' && module.exports ? require('../i18n.js') : root.I18n;
+  const t = (key, vars) => (I18n ? I18n.t(key, vars) : key);
+  // Replaces fixed Russian fields with getters that translate on every read.
+  function localize(o, keys) {
+    for (const k of keys) {
+      const raw = o[k];
+      Object.defineProperty(o, k, { get: () => t(raw), enumerable: true, configurable: true });
+    }
+    return o;
+  }
 
   const INSTRUMENTS = [
     { id: 'spyglass', name: 'Подзорная труба', base: 15, rate: 0.1, note: 'Видно Луну и пару планет.' },
@@ -12,6 +23,9 @@
     { id: 'interferometer', name: 'Интерферометр', base: 2e7, rate: 7800, note: 'Несколько антенн работают как одна размером с планету.' },
     { id: 'gw', name: 'Гравитационно-волновая обсерватория', base: 3.3e8, rate: 44000, note: 'Ловит рябь пространства от слияния чёрных дыр.' },
   ];
+  // Lower-case Russian names are keys of their own (used inside upgrade names).
+  const RU_NAMES = Object.fromEntries(INSTRUMENTS.map((x) => [x.id, x.name]));
+  for (const inst of INSTRUMENTS) localize(inst, ['name', 'note']);
   const INSTRUMENT = Object.fromEntries(INSTRUMENTS.map((x) => [x.id, x]));
   const COST_GROWTH = 1.15;
 
@@ -22,7 +36,9 @@
   const UPGRADES = [];
   for (const inst of INSTRUMENTS) {
     TIERS.forEach(([need, mult], k) => UPGRADES.push({
-      id: `${inst.id}-${k}`, name: `${TIER_NAMES[k]}: ${inst.name.toLowerCase()}`, desc: `${inst.name} даёт вдвое больше света`,
+      id: `${inst.id}-${k}`,
+      get name() { return `${t(TIER_NAMES[k])}: ${t(RU_NAMES[inst.id].toLowerCase())}`; },
+      get desc() { return t('{inst} даёт вдвое больше света', { inst: inst.name }); },
       cost: inst.base * mult, kind: 'inst', inst: inst.id, unlock: (s) => (s.owned[inst.id] || 0) >= need,
     }));
   }
@@ -34,6 +50,7 @@
     { id: 'meteor-1', name: 'Каталог метеорных потоков', desc: 'Метеоры появляются вдвое чаще', cost: 7.7e5, kind: 'meteorFreq', unlock: (s) => s.stats.meteors >= 1 },
     { id: 'meteor-2', name: 'Длинная выдержка', desc: 'Эффекты метеоров длятся вдвое дольше', cost: 7.7e7, kind: 'meteorDur', unlock: (s) => s.stats.meteors >= 3 },
   );
+  for (const u of UPGRADES) if (u.kind !== 'inst') localize(u, ['name', 'desc']);
   const UPGRADE = Object.fromEntries(UPGRADES.map((u) => [u.id, u]));
 
   // Real asterisms with approximate shapes (x right, y down, unit ≈ 10° of sky).
@@ -63,6 +80,8 @@
       stars: [['Альферац', 0, 0.6], ['Мирах', 1.0, 0.35], ['Аламак', 1.9, 0.05], ['Дельта', 0.5, 0.5], ['Туманность М31', 1.15, -0.2]],
       lines: [[0, 3], [3, 1], [1, 2], [1, 4]] },
   ];
+
+  for (const c of CONSTELLATIONS) localize(c, ['name', 'bonusText']);
 
   const SUPERNOVA_AT = 1e8;
   const DUST_BONUS = 0.1;

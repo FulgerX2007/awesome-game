@@ -58,5 +58,7 @@ h1 { margin: 0; font: 400 clamp(54px, 13vw, 84px)/1 var(--font-display); color: 
 .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .btn { padding: 12px 28px; border-radius: 999px; border: 0; background: var(--glow); color: var(--abyss); font: 400 18px var(--font-display); cursor: pointer; }
 .btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); font-family: var(--font-body); font-size: 15px; }
+/* Language switch: a quiet chip on the left of the menu buttons. */
+.chip.lang { margin-right: auto; align-self: center; font-size: 13px; letter-spacing: .04em; }
 .btn:hover { filter: brightness(1.08); }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }

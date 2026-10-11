@@ -2,6 +2,7 @@
 // Звездочёт — sky rendering, panel UI and persistence. Rules live in core.js (window.StarsCore).
 (() => {
   const C = window.StarsCore;
+  const { t } = I18n;
   const SAVE_KEY = 'stars.save';
   const CLOUD_KEY = 'stars.cloud';
   const $ = (id) => document.getElementById(id);
@@ -14,19 +15,13 @@
   };
 
   // ───────────── Numbers ─────────────
-  const compact = new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 2 });
-  const plain = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
+  const compact = new Intl.NumberFormat(I18n.locale, { notation: 'compact', maximumFractionDigits: 2 });
+  const plain = new Intl.NumberFormat(I18n.locale, { maximumFractionDigits: 1 });
   function fmt(n) {
     if (n < 1000) return plain.format(n < 10 ? Math.floor(n * 10) / 10 : Math.floor(n));
     if (n < 1e15) return compact.format(n);
     return n.toExponential(2).replace('e+', '·10^');
   }
-  const plural = (n, one, few, many) => {
-    const m10 = n % 10, m100 = n % 100;
-    if (m10 === 1 && m100 !== 11) return one;
-    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-    return many;
-  };
 
   // ───────────── State ─────────────
   let S = C.newState();
@@ -36,7 +31,7 @@
   function save() {
     const ok = store.set(SAVE_KEY, JSON.stringify({ state: S, savedAt: Date.now() }));
     lastSave = performance.now();
-    $('save-status').textContent = ok ? 'сохранено' : 'браузер не даёт сохранять';
+    $('save-status').textContent = t(ok ? 'сохранено' : 'браузер не даёт сохранять');
   }
 
   function load() {
@@ -134,7 +129,7 @@
     const [ax, ay] = ANCHORS[c.id];
     return c.stars.map(([name, x, y], i) => {
       const p = project(ax + ((x - cx) * u) / W, ay + ((y - cy) * u) / H, t);
-      return { name, i, x: p.x, y: p.y };
+      return { name: I18n.t(name), i, x: p.x, y: p.y };
     });
   }
 
@@ -346,7 +341,7 @@
       S.meteorIn = C.nextMeteorDelay(S, Math.random());
       Sound.meteor();
       fx.sparks.push({ x, y, t: 0, life: 0.9, r: 60, color: '255,217,160' });
-      toast(res.kind === 'burst' ? `Метеор! +${fmt(res.amount)} света` : `Звездопад! Весь свет ×7 на ${Math.round(res.seconds)} с`);
+      toast(res.kind === 'burst' ? t('Метеор! +{n} света', { n: fmt(res.amount) }) : t('Звездопад! Весь свет ×7 на {s} с', { s: Math.round(res.seconds) }));
       render(true);
       return;
     }
@@ -358,7 +353,7 @@
         fx.sparks.push({ x: hit.p.x, y: hit.p.y, t: 0, life: 0.7, r: 26, color: '143,182,255' });
         if (r === 'complete') {
           Sound.constellation();
-          toast(`${hit.c.name} собрана: ${hit.c.bonusText}`);
+          toast(t('{name} собрана: {bonus}', { name: hit.c.name, bonus: hit.c.bonusText }));
         }
         render(true);
         return;
@@ -379,6 +374,7 @@
   canvas.addEventListener('pointerleave', () => { fx.hover = null; });
 
   // ───────────── Panel ─────────────
+  $('lang-slot').append(I18n.toggle('lang-toggle'));
   let buyMode = '1';
   for (const b of document.querySelectorAll('.seg button')) {
     b.addEventListener('click', () => {
@@ -421,10 +417,10 @@
   function render(force) {
     const d = C.derived(S);
     set($('light'), 'textContent', fmt(S.light));
-    set($('rate'), 'textContent', `${fmt(d.rate)} в секунду · клик ${fmt(d.click)}`);
+    set($('rate'), 'textContent', t('{rate} в секунду · клик {click}', { rate: fmt(d.rate), click: fmt(d.click) }));
     $('frenzy').hidden = !(S.frenzy > 0);
-    if (S.frenzy > 0) set($('frenzy'), 'textContent', `Звездопад ×7 · ${Math.ceil(S.frenzy)} с`);
-    set($('novae'), 'textContent', S.dust ? `пыль: ${S.dust} (+${S.dust * 10}%)` : '');
+    if (S.frenzy > 0) set($('frenzy'), 'textContent', t('Звездопад ×7 · {s} с', { s: Math.ceil(S.frenzy) }));
+    set($('novae'), 'textContent', S.dust ? t('пыль: {n} (+{pct}%)', { n: S.dust, pct: S.dust * 10 }) : '');
 
     // Instruments: show owned ones, the next affordable-ish one, and one mystery row.
     let mysteryShown = false;
@@ -436,7 +432,7 @@
         e.b.hidden = mysteryShown; mysteryShown = true;
         e.b.disabled = true; e.b.className = 'inst mystery';
         set(e.name, 'textContent', '???'); set(e.count, 'textContent', '');
-        set(e.meta, 'innerHTML', `откроется ближе к ${fmt(inst.base)} света`);
+        set(e.meta, 'innerHTML', t('откроется ближе к {n} света', { n: fmt(inst.base) }));
         continue;
       }
       e.b.hidden = false;
@@ -448,7 +444,7 @@
       set(e.name, 'textContent', inst.name);
       set(e.count, 'textContent', String(owned));
       const total = d.per[inst.id] * owned;
-      const meta = `<span class="cost">${n > 1 ? `×${n} · ` : ''}${fmt(price)}</span> · ${fmt(d.per[inst.id])}/с каждый${owned ? ` · всего ${fmt(total)}/с` : ''}`;
+      const meta = `<span class="cost">${n > 1 ? `×${n} · ` : ''}${fmt(price)}</span> · ${t('{n}/с каждый', { n: fmt(d.per[inst.id]) })}${owned ? ` · ${t('всего {n}/с', { n: fmt(total) })}` : ''}`;
       set(e.meta, 'innerHTML', meta);
     }
 
@@ -479,14 +475,14 @@
       if (isDone) done++;
       e.li.className = isDone ? 'done' : open ? 'open' : 'hidden-c';
       set(e.mark, 'textContent', isDone ? '✦' : open ? `${(S.found[c.id] || []).length}/${c.stars.length}` : '·');
-      set(e.name, 'textContent', open ? c.name : 'Не открыто');
-      set(e.bonus, 'textContent', isDone ? c.bonusText : open ? 'найди звёзды на небе' : `при ${fmt(c.need)} света`);
+      set(e.name, 'textContent', open ? c.name : t('Не открыто'));
+      set(e.bonus, 'textContent', isDone ? c.bonusText : open ? t('найди звёзды на небе') : t('при {n} света', { n: fmt(c.need) }));
     });
-    set($('atlas-count'), 'textContent', `${done} из ${C.CONSTELLATIONS.length}`);
+    set($('atlas-count'), 'textContent', t('{done} из {total}', { done, total: C.CONSTELLATIONS.length }));
 
     const gain = C.dustGain(S);
     $('sec-nova').hidden = gain < 1;
-    if (gain >= 1 && !novaArmed) set($('btn-nova'), 'textContent', `Взорвать: +${gain} ${plural(gain, 'пылинка', 'пылинки', 'пылинок')}`);
+    if (gain >= 1 && !novaArmed) set($('btn-nova'), 'textContent', t('Взорвать: +{n} {dust}', { n: gain, dust: I18n.p(gain, 'пылинка|пылинки|пылинок') }));
   }
 
   // Story-ish notices when constellations appear.
@@ -494,7 +490,7 @@
     for (const c of C.CONSTELLATIONS) {
       if (C.revealed(S, c) && !S.seen[c.id]) {
         S.seen[c.id] = true;
-        toast(`На небе проступило созвездие «${c.name}». Найди его звёзды и кликни по каждой.`, 5);
+        toast(t('На небе проступило созвездие «{name}». Найди его звёзды и кликни по каждой.', { name: c.name }), 5);
       }
     }
   }
@@ -502,7 +498,7 @@
   let novaArmed = null;
   $('btn-nova').addEventListener('click', () => {
     if (!novaArmed) {
-      $('btn-nova').textContent = 'Точно? Всё, кроме пыли, начнётся заново';
+      $('btn-nova').textContent = t('Точно? Всё, кроме пыли, начнётся заново');
       novaArmed = setTimeout(() => { novaArmed = null; render(true); }, 3500);
       return;
     }
@@ -512,7 +508,7 @@
     meteor = null; upKey = '';
     fx.hintFaded = false; $('sky-hint').style.opacity = 1;
     save();
-    toast(`Сверхновая! Звёздная пыль: ${S.dust} (+${gain}). Небо снова тёмное.`, 5);
+    toast(t('Сверхновая! Звёздная пыль: {dust} (+{gain}). Небо снова тёмное.', { dust: S.dust, gain }), 5);
     render(true);
   });
 
@@ -520,12 +516,12 @@
   $('btn-reset').addEventListener('click', () => {
     const b = $('btn-reset');
     if (!resetArmed) {
-      b.textContent = 'Точно? Нажми ещё раз';
-      resetArmed = setTimeout(() => { b.textContent = 'Начать с нуля'; resetArmed = null; }, 3000);
+      b.textContent = t('Точно? Нажми ещё раз');
+      resetArmed = setTimeout(() => { b.textContent = t('Начать с нуля'); resetArmed = null; }, 3000);
       return;
     }
     clearTimeout(resetArmed); resetArmed = null;
-    b.textContent = 'Начать с нуля';
+    b.textContent = t('Начать с нуля');
     S = C.newState(); meteor = null; upKey = '';
     save(); render(true);
   });
@@ -554,22 +550,22 @@
         await put();
         store.set(CLOUD_KEY, code);
         $('cloud-code').textContent = pretty(code);
-        $('cloud-msg').textContent = 'Сохранено. Введи этот код на другом устройстве.';
-      } catch (err) { $('cloud-msg').textContent = `Не удалось сохранить: ${err.message}`; }
+        $('cloud-msg').textContent = t('Сохранено. Введи этот код на другом устройстве.');
+      } catch (err) { $('cloud-msg').textContent = t('Не удалось сохранить: {err}', { err: err.message }); }
     });
     $('cloud-load').addEventListener('submit', async (e) => {
       e.preventDefault();
       const c = $('cloud-input').value.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (c.length !== 16) { $('cloud-msg').textContent = 'Код состоит из 16 букв и цифр.'; return; }
+      if (c.length !== 16) { $('cloud-msg').textContent = t('Код состоит из 16 букв и цифр.'); return; }
       try {
         const res = await fetch(`/api/saves/${c}`);
-        if (res.status === 404) { $('cloud-msg').textContent = 'Сохранения с таким кодом нет.'; return; }
+        if (res.status === 404) { $('cloud-msg').textContent = t('Сохранения с таким кодом нет.'); return; }
         if (!res.ok) throw new Error(await res.text());
         S = C.migrate(await res.json());
         code = c; store.set(CLOUD_KEY, c); $('cloud-code').textContent = pretty(c);
         upKey = ''; save(); render(true);
-        $('cloud-msg').textContent = 'Загружено.';
-      } catch (err) { $('cloud-msg').textContent = `Не удалось загрузить: ${err.message}`; }
+        $('cloud-msg').textContent = t('Загружено.');
+      } catch (err) { $('cloud-msg').textContent = t('Не удалось загрузить: {err}', { err: err.message }); }
     });
     setInterval(() => { if (code) put().catch(() => {}); }, 60000);
   }
@@ -581,7 +577,7 @@
     const away = (Date.now() - savedAt) / 1000;
     if (away > 30) {
       const got = C.offline(S, away);
-      if (got >= 1) toast(`Пока тебя не было, инструменты собрали ${fmt(got)} света.`, 5);
+      if (got >= 1) toast(t('Пока тебя не было, инструменты собрали {n} света.', { n: fmt(got) }), 5);
     }
   }
   if (S.stats.clicks > 5) { fx.hintFaded = true; $('sky-hint').style.opacity = 0; }

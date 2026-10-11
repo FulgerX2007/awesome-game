@@ -4,6 +4,15 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.MathCore = factory();
 })(typeof self !== 'undefined' ? self : this, () => {
+  // Text goes through the shared I18n (web/i18n.js); level, stage and item names stay Russian keys
+  // in data and are translated where they are shown.
+  const I18n = typeof module === 'object' && module.exports ? require('../i18n.js') : self.I18n;
+  const T = (s, v) => I18n.t(s, v);
+  const P = (n, forms) => I18n.p(n, forms);
+  const TENS = 'десяток|десятка|десятков';
+  // "4 раза по 3": a plural phrase with placeholders, so each language can order it its own way.
+  const timesBy = (a, b) => P(a, '{a} раз по {b}|{a} раза по {b}|{a} раз по {b}').replace('{a}', a).replace('{b}', b);
+
   // ───────────── Randomness ─────────────
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -381,13 +390,13 @@
     const lines = [];
     if (p.form === 'missA' || p.form === 'missB') {
       const known = p.form === 'missA' ? p.b : p.a, total = p.a + p.b;
-      lines.push(`Сколько не хватает от ${known} до ${total}?`, 'Посчитай пустые клеточки.');
+      lines.push(T('Сколько не хватает от {k} до {n}?', { k: known, n: total }), T('Посчитай пустые клеточки.'));
       return { lines, visual: { type: 'frame', filled: known, total } };
     }
     if (p.form === 'repeat') {
       const seq = [];
       for (let i = 1; i < p.a; i++) seq.push(p.b * i);
-      lines.push(`Считай по ${p.b}: ${seq.join(', ')}, …`);
+      lines.push(T('Считай по {b}: {seq}, …', { b: p.b, seq: seq.join(', ') }));
       return { lines, visual: { type: 'grid', rows: p.a, cols: p.b } };
     }
     if (p.op === '+') {
@@ -395,47 +404,48 @@
       if (sum <= 20) {
         if (a < 10 && b < 10 && sum > 10) {
           const big = Math.max(a, b), small = Math.min(a, b), need = 10 - big;
-          lines.push(`Сначала до десяти: ${big} + ${need} = 10.`, `От ${small} осталось ${small - need}. Сколько будет 10 + ${small - need}?`);
+          lines.push(T('Сначала до десяти: {big} + {need} = 10.', { big, need }), T('От {small} осталось {rest}. Сколько будет 10 + {rest}?', { small, rest: small - need }));
         } else if (a >= 10 || b >= 10) {
           const t = a >= 10 ? a : b, o = a >= 10 ? b : a;
-          lines.push(`В ${t} — один десяток и ${t - 10}.`, `Сложи единицы: ${t - 10} + ${o} = ${t - 10 + o}. И добавь десяток.`);
+          lines.push(T('В {t} — один десяток и {o}.', { t, o: t - 10 }), T('Сложи единицы: {x} + {y} = {z}. И добавь десяток.', { x: t - 10, y: o, z: t - 10 + o }));
         } else {
-          lines.push(`Посчитай все точки: ${a} и ещё ${b}.`);
+          lines.push(T('Посчитай все точки: {a} и ещё {b}.', { a, b }));
         }
         return { lines, visual: { type: 'dots', parts: [a, b] } };
       }
       const ta = a - (a % 10), tb = b - (b % 10), oa = a % 10, ob = b % 10;
       if (!oa && !ob) {
-        lines.push(`${a} — это ${a / 10} десятков, ${b} — это ${b / 10} десятков.`, `Сложи десятки: ${a / 10} + ${b / 10} = ${a / 10 + b / 10}. Сколько это?`);
+        lines.push(T('{a} — это {x} {tensA}, {b} — это {y} {tensB}.', { a, b, x: a / 10, y: b / 10, tensA: P(a / 10, TENS), tensB: P(b / 10, TENS) }),
+          T('Сложи десятки: {x} + {y} = {z}. Сколько это?', { x: a / 10, y: b / 10, z: a / 10 + b / 10 }));
         return { lines, visual: { type: 'blocks', parts: [a, b] } };
       }
       if (!ta || !tb) {
         const t = ta ? a : b, o = ta ? b : a;
         if (t % 10 === 0) {
-          lines.push(`В ${t} — ${t / 10} десятков и ни одной единицы.`, `Добавь ${o} единиц: десятки остаются, единицы становятся ${o}.`);
+          lines.push(T('В {t} — {n} {tens} и ни одной единицы.', { t, n: t / 10, tens: P(t / 10, TENS) }), T('Добавь {o}: десятки остаются, а единиц становится {o}.', { o }));
           return { lines, visual: { type: 'blocks', parts: [a, b] } };
         }
       }
-      if (ta && tb) lines.push(`Десятки: ${ta} + ${tb} = ${ta + tb}.`);
-      if (oa && ob) lines.push(`Единицы: ${oa} + ${ob} = ${oa + ob}.`);
-      lines.push(`Теперь сложи: ${ta + tb} + ${oa + ob} = ?`);
+      if (ta && tb) lines.push(T('Десятки: {x} + {y} = {z}.', { x: ta, y: tb, z: ta + tb }));
+      if (oa && ob) lines.push(T('Единицы: {x} + {y} = {z}.', { x: oa, y: ob, z: oa + ob }));
+      lines.push(T('Теперь сложи: {x} + {y} = ?', { x: ta + tb, y: oa + ob }));
       return { lines, visual: { type: 'blocks', parts: [a, b] } };
     }
     const { a, b } = p;
     const small = Math.min(a, b), big = Math.max(a, b);
-    if (small === 1) lines.push('Умножить на 1 — число остаётся тем же.');
-    else if (big === 10) lines.push(`Умножить на 10 — припиши к ${small} ноль.`);
+    if (small === 1) lines.push(T('Умножить на 1 — число остаётся тем же.'));
+    else if (big === 10) lines.push(T('Умножить на 10 — припиши к {n} ноль.', { n: small }));
     else {
-      lines.push(`${a} × ${b} — это ${a} раз по ${b}.`);
+      lines.push(T('{a} × {b} — это {times}.', { a, b, times: timesBy(a, b) }));
       const seq = [];
       for (let i = 1; i < a; i++) seq.push(b * i);
-      lines.push(`Считай по ${b}: ${seq.join(', ')}, …`);
-      if (small === 9 || big === 9) { const n = a === 9 ? b : a; lines.push(`Хитрость: ${n} × 10 = ${n * 10}, отними ${n}.`); }
-      else if (a === 5 || b === 5) { const n = a === 5 ? b : a; lines.push(`Хитрость: ${n} × 10 = ${n * 10}, а ответ — половина от этого.`); }
+      lines.push(T('Считай по {b}: {seq}, …', { b, seq: seq.join(', ') }));
+      if (small === 9 || big === 9) { const n = a === 9 ? b : a; lines.push(T('Хитрость: {n} × 10 = {m}, отними {n}.', { n, m: n * 10 })); }
+      else if (a === 5 || b === 5) { const n = a === 5 ? b : a; lines.push(T('Хитрость: {n} × 10 = {m}, а ответ — половина от этого.', { n, m: n * 10 })); }
     }
     return { lines, visual: { type: 'grid', rows: a, cols: b } };
   }
-  const reveal = (p) => `Ответ: ${p.answer}. Набери его — и запомним!`;
+  const reveal = (p) => T('Ответ: {n}. Набери его — и запомним!', { n: p.answer });
 
   // Parents see the facts that were missed most often.
   function hardest(S, n = 8) {
@@ -445,6 +455,6 @@
   return {
     mulberry32, REGIONS, LEVELS, LEVEL, BOSSES, STICKERS, RARITY, STAGES, COLORS, ITEMS, ROUND, BOSS_ROUND,
     newState, migrate, totalStars, maxStars, isUnlocked, regionUnlocked, currentLevel,
-    makeRound, makePractice, newRun, current, answer, starsFor, finish, stage, buy, use, hint, reveal, hardest, factKey,
+    makeRound, makePractice, newRun, current, answer, starsFor, finish, stage, buy, use, hint, reveal, hardest, factKey, timesBy,
   };
 });

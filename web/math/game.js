@@ -7,16 +7,14 @@
   const $ = (id) => document.getElementById(id);
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const T = (k, v) => I18n.t(k, v);
+  const P = (n, forms) => I18n.p(n, forms);
+  // The default name is stored as the Russian key, so it shows up translated in either language.
+  const dragonName = () => (S.name === 'Искорка' ? T('Искорка') : S.name);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
-  };
-  const plural = (n, one, few, many) => {
-    const m10 = n % 10, m100 = n % 100;
-    if (m10 === 1 && m100 !== 11) return one;
-    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-    return many;
   };
 
   let S = C.newState();
@@ -60,7 +58,7 @@
     const mood = opts.mood || 'happy';
     const ink = '#2b2340';
     if (stage === 0) {
-      return `<svg viewBox="0 -20 200 220" role="img" aria-label="Яйцо дракончика"><g class="egg">
+      return `<svg viewBox="0 -20 200 220" role="img" aria-label="${T('Яйцо дракончика')}"><g class="egg">
         <ellipse cx="100" cy="190" rx="50" ry="8" fill="rgba(43,35,64,.12)"/>
         <ellipse cx="100" cy="124" rx="52" ry="66" fill="${col.belly}" stroke="${col.dark}" stroke-width="4"/>
         <ellipse cx="78" cy="98" rx="12" ry="9" fill="${col.main}"/><ellipse cx="122" cy="132" rx="15" ry="11" fill="${col.main}"/>
@@ -88,7 +86,7 @@
     if (eq.head === 'crown') head = `<path d="M70 52 L70 26 L84 40 L100 18 L116 40 L130 26 L130 52 Z" fill="#ffd23f" stroke="#c9921c" stroke-width="3" stroke-linejoin="round"/><circle cx="100" cy="40" r="5" fill="#ff5d73"/><circle cx="82" cy="46" r="3.5" fill="#4aa8ff"/><circle cx="118" cy="46" r="3.5" fill="#4aa8ff"/>`;
     if (eq.face === 'glasses') face = `<g fill="rgba(255,255,255,.18)" stroke="${ink}" stroke-width="3.5"><circle cx="84" cy="80" r="15"/><circle cx="116" cy="80" r="15"/></g><path d="M99 80 Q100 76 101 80" stroke="${ink}" stroke-width="3.5" fill="none"/>`;
     if (eq.neck === 'scarf') neck = `<rect x="64" y="113" width="72" height="15" rx="7.5" fill="#e8463c"/><rect x="112" y="118" width="13" height="28" rx="5" fill="#d23a31" transform="rotate(-12 118 118)"/><path d="M70 120 H130" stroke="#ff8a7f" stroke-width="3" stroke-dasharray="6 6"/>`;
-    return `<svg viewBox="0 -20 200 220" role="img" aria-label="Дракончик"><g class="breathe"><g transform="translate(100 190) scale(${s}) translate(-100 -190)">
+    return `<svg viewBox="0 -20 200 220" role="img" aria-label="${T('Дракончик')}"><g class="breathe"><g transform="translate(100 190) scale(${s}) translate(-100 -190)">
       <ellipse cx="100" cy="190" rx="52" ry="8" fill="rgba(43,35,64,.12)"/>
       <path d="M132 160 Q176 168 172 132 Q170 118 180 112" stroke="${col.main}" stroke-width="15" fill="none" stroke-linecap="round"/>
       <path d="M174 102 L194 106 L182 122 Z" fill="${col.dark}"/>
@@ -128,7 +126,7 @@
       ? `<path d="M60 44 L50 14 L76 36 Z M140 44 L150 14 L124 36 Z" fill="#e9dcc0" stroke="#b9a57e" stroke-width="3" stroke-linejoin="round"/><path d="M92 30 Q100 6 108 30" stroke="${c.dark}" stroke-width="6" fill="none" stroke-linecap="round"/>`
       : `<path d="M44 58 Q60 18 100 20 Q140 18 156 58 Q140 46 126 54 Q112 40 100 52 Q86 40 74 54 Q60 46 44 58 Z" fill="#fff"/><path d="M62 160 L66 176 L72 160 M96 166 L100 184 L104 166 M128 160 L134 176 L138 160" fill="#fff" stroke="#cfeaff" stroke-width="2"/>`;
     const cheeks = happy ? `<ellipse cx="64" cy="104" rx="10" ry="6" fill="#ff9fb0" opacity=".8"/><ellipse cx="136" cy="104" rx="10" ry="6" fill="#ff9fb0" opacity=".8"/>` : '';
-    return `<svg viewBox="0 0 200 200" role="img" aria-label="${esc(C.BOSSES[kind].name)}">
+    return `<svg viewBox="0 0 200 200" role="img" aria-label="${esc(T(C.BOSSES[kind].name))}">
       <ellipse cx="100" cy="190" rx="60" ry="8" fill="rgba(43,35,64,.12)"/>
       <ellipse cx="34" cy="120" rx="16" ry="26" fill="${c.dark}" transform="rotate(-20 34 120)"/>
       <ellipse cx="166" cy="120" rx="16" ry="26" fill="${c.dark}" transform="rotate(20 166 120)"/>
@@ -172,6 +170,7 @@
     $('top-crystals').textContent = S.crystals;
     $('btn-sound').textContent = S.sound ? '🔊' : '🔈';
     $('btn-sound').setAttribute('aria-pressed', String(S.sound));
+    $('btn-sound').setAttribute('aria-label', T('Звук'));
   }
 
   // ───────────── Map ─────────────
@@ -180,18 +179,18 @@
   function renderHome() {
     const st = C.stage(S), t = C.totalStars(S);
     $('home-dragon').innerHTML = dragonSVG();
-    $('home-name').textContent = S.name;
-    $('home-stage').textContent = C.STAGES[st].name;
+    $('home-name').textContent = dragonName();
+    $('home-stage').textContent = T(C.STAGES[st].name);
     const next = C.STAGES[st + 1];
     if (next) {
       const from = C.STAGES[st].at, need = next.at - t;
       $('grow-bar').style.width = `${Math.round(((t - from) / (next.at - from)) * 100)}%`;
       $('home-next').textContent = st === 0
-        ? 'Пройди первый уровень, и дракончик вылупится!'
-        : `Ещё ${need} ${plural(need, 'звезда', 'звезды', 'звёзд')} — и станет «${next.name}»`;
+        ? T('Пройди первый уровень, и дракончик вылупится!')
+        : T('Ещё {n} {stars} — и станет «{stage}»', { n: need, stars: P(need, 'звезда|звезды|звёзд'), stage: T(next.name) });
     } else {
       $('grow-bar').style.width = '100%';
-      $('home-next').textContent = 'Твой дракон вырос самым большим!';
+      $('home-next').textContent = T('Твой дракон вырос самым большим!');
     }
     const have = Object.keys(S.stickers).length;
     $('album-count').textContent = `${have}/${C.STICKERS.length}`;
@@ -212,7 +211,7 @@
       const sec = document.createElement('section');
       sec.className = `region ${r.id}`;
       const got = r.levels.reduce((a, l) => a + (S.stars[l.id] || 0), 0);
-      sec.innerHTML = `<h2>${r.name}</h2><p class="sub">⭐ ${got} из ${r.levels.length * 3}</p>`;
+      sec.innerHTML = `<h2>${esc(T(r.name))}</h2><p class="sub">⭐ ${esc(T('{n} из {m}', { n: got, m: r.levels.length * 3 }))}</p>`;
       const path = document.createElement('div');
       path.className = 'path';
       path.style.height = `${r.levels.length * ROW + 40}px`;
@@ -244,10 +243,10 @@
         const st = [1, 2, 3].map((n) => `<span class="${n <= stars ? '' : 'off'}">⭐</span>`).join('');
         b.innerHTML = `<span class="disc">${unlocked ? l.icon : '🔒'}${l.boss ? '' : `<span class="num">${i + 1}</span>`}</span>
           <span class="st">${unlocked && !l.boss || stars ? st : ''}</span>
-          <span class="lbl">${esc(l.name)}<small>${esc(l.skill)}</small></span>`;
-        b.setAttribute('aria-label', `${l.name}: ${l.skill}. ${unlocked ? `${stars} из 3 звёзд` : 'закрыто'}`);
+          <span class="lbl">${esc(T(l.name))}<small>${esc(T(l.skill))}</small></span>`;
+        b.setAttribute('aria-label', `${T(l.name)}: ${T(l.skill)}. ${unlocked ? T('{n} из 3 звёзд', { n: stars }) : T('закрыто')}`);
         b.addEventListener('click', () => {
-          if (!C.isUnlocked(S, l.id)) { toast(l.index === 0 ? r.unlockText : 'Сначала пройди предыдущий уровень'); return; }
+          if (!C.isUnlocked(S, l.id)) { toast(l.index === 0 ? T(r.unlockText) : T('Сначала пройди предыдущий уровень')); return; }
           startLevel(l.id);
         });
         path.appendChild(b);
@@ -255,7 +254,7 @@
       if (!open && r.unlockText) {
         const wall = document.createElement('div');
         wall.className = 'lockwall';
-        wall.textContent = `🔒 ${r.unlockText}`;
+        wall.textContent = `🔒 ${T(r.unlockText)}`;
         path.appendChild(wall);
       }
       sec.appendChild(path);
@@ -290,7 +289,7 @@
     stopRun();
     level = id === 'practice' ? null : C.LEVEL[id];
     const problems = id === 'practice' ? C.makePractice(S) : C.makeRound(S, id);
-    if (!problems.length) { toast('Сначала пройди хотя бы один уровень'); return; }
+    if (!problems.length) { toast(T('Сначала пройди хотя бы один уровень')); return; }
     run = C.newRun(id, problems);
     show('scr-play');
     renderTop();
@@ -303,16 +302,16 @@
     }
     $('play-dragon').innerHTML = dragonSVG({ mood: 'happy' });
     say(run.boss
-      ? (run.boss === 'troll' ? 'Тролль не пускает нас! Решай примеры — и он подобреет.' : 'Великан замёрз и сердится. Согреем его огоньком!')
-      : id === 'practice' ? 'Повторим трудные примеры!' : `Идём: ${level.name}!`);
+      ? T(run.boss === 'troll' ? 'Тролль не пускает нас! Решай примеры — и он подобреет.' : 'Великан замёрз и сердится. Согреем его огоньком!')
+      : id === 'practice' ? T('Повторим трудные примеры!') : T('Идём: {name}!', { name: T(level.name) }));
     resetQuit();
     nextProblem();
   }
 
-  function say(text) { $('bubble').textContent = text; }
+  function say(text) { $('bubble').textContent = T(text); }
   function foeSay(text) {
     const el = $('foe-say');
-    el.textContent = text; el.classList.add('on');
+    el.textContent = T(text); el.classList.add('on');
     later(() => el.classList.remove('on'), 1100);
   }
   function anim(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
@@ -337,17 +336,17 @@
     return `${n(p.a)}${n(p.op)}${n(p.b)}${n('=')}${slot}`;
   }
   function captionFor(p) {
-    if (p.form === 'repeat') return `${p.a} ${plural(p.a, 'раз', 'раза', 'раз')} по ${p.b}`;
-    if (p.op === '×' && run.id === 'm1') return `${p.a} × ${p.b} — это ${p.a} ${plural(p.a, 'раз', 'раза', 'раз')} по ${p.b}`;
-    if (p.form === 'missA' || p.form === 'missB') return 'Какое число спряталось?';
-    if (p.again) return 'Этот пример уже был. Теперь получится!';
+    if (p.form === 'repeat') return C.timesBy(p.a, p.b);
+    if (p.op === '×' && run.id === 'm1') return T('{a} × {b} — это {times}', { a: p.a, b: p.b, times: C.timesBy(p.a, p.b) });
+    if (p.form === 'missA' || p.form === 'missB') return T('Какое число спряталось?');
+    if (p.again) return T('Этот пример уже был. Теперь получится!');
     return '';
   }
   function nextProblem() {
     const p = C.current(run);
     typed = '';
     locked = false;
-    $('level-name').textContent = level ? `${level.name} · ${level.skill}` : 'Тренировка';
+    $('level-name').textContent = level ? `${T(level.name)} · ${T(level.skill)}` : T('Тренировка');
     $('expr').innerHTML = exprHTML(p);
     $('caption').textContent = captionFor(p);
     $('hint').hidden = true;
@@ -431,7 +430,7 @@
     anim($('card'), 'good');
     dragon.innerHTML = dragonSVG({ mood: res.combo ? 'wow' : 'happy' });
     anim(dragon, 'hop');
-    if (res.combo) { sfx.combo(); say(`Огненная серия! ${run.streak} подряд! +3 💎`); } else { sfx.good(); say(res.first ? pick(PRAISE) : pick(AFTER_FIX)); }
+    if (res.combo) { sfx.combo(); say(T('Огненная серия! {n} подряд! +3 💎', { n: run.streak })); } else { sfx.good(); say(res.first ? pick(PRAISE) : pick(AFTER_FIX)); }
     floatText(`+${res.gain} 💎`, $('run-crystals'));
     renderTrack();
     let wait = 650;
@@ -464,16 +463,16 @@
     stopRun();
     show('scr-result');
     renderTop();
-    $('res-title').textContent = id === 'practice' ? 'Тренировка окончена!' : C.LEVEL[id].boss ? 'Победа дружбой!' : 'Уровень пройден!';
+    $('res-title').textContent = T(id === 'practice' ? 'Тренировка окончена!' : C.LEVEL[id].boss ? 'Победа дружбой!' : 'Уровень пройден!');
     const fr = $('res-friend');
     if (C.LEVEL[id] && C.LEVEL[id].boss) {
       fr.hidden = false;
-      fr.innerHTML = `${monsterSVG(C.LEVEL[id].boss, 'happy')}<p>${esc(r.friend || 'Вы снова встретились — и снова друзья!')}</p>`;
+      fr.innerHTML = `${monsterSVG(C.LEVEL[id].boss, 'happy')}<p>${esc(T(r.friend || 'Вы снова встретились — и снова друзья!'))}</p>`;
     } else fr.hidden = true;
     const starsEl = $('res-stars');
     if (id === 'practice') {
       starsEl.innerHTML = '🎯';
-      $('res-note').textContent = `Трудных примеров осталось: ${Object.keys(S.review).length}`;
+      $('res-note').textContent = T('Трудных примеров осталось: {n}', { n: Object.keys(S.review).length });
     } else {
       starsEl.innerHTML = [1, 2, 3].map(() => '<span>⭐</span>').join('');
       [...starsEl.children].forEach((s, i) => later(() => {
@@ -481,7 +480,7 @@
         if (i < r.stars) sfx.star(i);
       }, 300 + i * 350));
       const missed = r.stars === 3 ? 'Почти без ошибок!' : r.stars === 2 ? 'Хорошо! Ещё чуть-чуть — и будет три звезды.' : 'Пройдено! Сыграй ещё раз, чтобы получить больше звёзд.';
-      $('res-note').textContent = r.newBest && !r.firstClear ? `Новый рекорд! ${missed}` : missed;
+      $('res-note').textContent = r.newBest && !r.firstClear ? `${T('Новый рекорд!')} ${T(missed)}` : T(missed);
     }
     $('res-crystals').textContent = r.crystals;
     $('chest').hidden = false;
@@ -490,7 +489,7 @@
     $('grew').hidden = true;
     const nxt = nextAfter(id);
     $('btn-next').hidden = !nxt;
-    $('btn-next').textContent = nxt && C.LEVEL[nxt].index === 0 ? 'В горы!' : 'Дальше';
+    $('btn-next').textContent = T(nxt && C.LEVEL[nxt].index === 0 ? 'В горы!' : 'Дальше');
     $('btn-again').hidden = id === 'practice' && Object.keys(S.review).length === 0;
   }
   function nextAfter(id) {
@@ -507,17 +506,17 @@
     const p = $('prize'), c = result.chest;
     if (c.kind === 'sticker') {
       p.className = `prize r-${c.rarity}`;
-      p.innerHTML = `<span class="e">${c.e}</span><span class="r">${C.RARITY[c.rarity]} наклейка!</span><small>Она уже в альбоме</small>`;
+      p.innerHTML = `<span class="e">${c.e}</span><span class="r">${T(C.RARITY[c.rarity] + ' наклейка!')}</span><small>${T('Она уже в альбоме')}</small>`;
     } else {
       p.className = 'prize';
-      p.innerHTML = `<span class="e">💎</span><span class="r">+${c.n} кристаллов</span><small>Все наклейки уже собраны!</small>`;
+      p.innerHTML = `<span class="e">💎</span><span class="r">+${c.n} ${P(c.n, 'кристалл|кристалла|кристаллов')}</span><small>${T('Все наклейки уже собраны!')}</small>`;
     }
     p.hidden = false;
     if (result.stageAfter !== result.stageBefore) {
       later(() => {
         sfx.grow();
         const g = $('grew');
-        g.innerHTML = `${dragonSVG({ mood: 'wow' })}${result.stageBefore === 0 ? `Из яйца вылупился дракончик! Его зовут ${esc(S.name)}.` : `${esc(S.name)} подрос! Теперь это «${C.STAGES[result.stageAfter].name}».`}`;
+        g.innerHTML = `${dragonSVG({ mood: 'wow' })}${esc(result.stageBefore === 0 ? T('Из яйца вылупился дракончик! Его зовут {name}.', { name: dragonName() }) : T('{name} подрос! Теперь это «{stage}».', { name: dragonName(), stage: T(C.STAGES[result.stageAfter].name) }))}`;
         g.hidden = false;
         g.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
       }, 700);
@@ -532,13 +531,13 @@
     $('shop-crystals').textContent = S.crystals;
     $('swatches').innerHTML = Object.entries(C.COLORS).map(([id, c]) => {
       const own = id === 'green' || S.owned.includes(id);
-      const lbl = own ? c.name : `💎 ${c.price}`;
-      return `<button type="button" class="swatch${S.color === id ? ' on' : ''}${!own && S.crystals < c.price ? ' cant' : ''}" data-buy="${id}" aria-label="${c.name}${own ? '' : `, ${c.price} кристаллов`}"><span class="dot" style="background:${c.main}"></span>${lbl}</button>`;
+      const lbl = own ? T(c.name) : `💎 ${c.price}`;
+      return `<button type="button" class="swatch${S.color === id ? ' on' : ''}${!own && S.crystals < c.price ? ' cant' : ''}" data-buy="${id}" aria-label="${T(c.name)}${own ? '' : `, ${c.price} ${P(c.price, 'кристалл|кристалла|кристаллов')}`}"><span class="dot" style="background:${c.main}"></span>${lbl}</button>`;
     }).join('');
     $('items').innerHTML = Object.entries(C.ITEMS).map(([id, it]) => {
       const own = S.owned.includes(id), on = S.equip[it.slot] === id;
-      const sub = own ? (on ? 'Надето · снять' : 'Надеть') : `💎 ${it.price}`;
-      return `<button type="button" class="item${on ? ' on' : ''}${!own && S.crystals < it.price ? ' cant' : ''}" data-buy="${id}"><span class="ic">${ITEM_ICON[id]}</span><span>${it.name}<small>${sub}</small></span></button>`;
+      const sub = own ? T(on ? 'Надето · снять' : 'Надеть') : `💎 ${it.price}`;
+      return `<button type="button" class="item${on ? ' on' : ''}${!own && S.crystals < it.price ? ' cant' : ''}" data-buy="${id}"><span class="ic">${ITEM_ICON[id]}</span><span>${T(it.name)}<small>${sub}</small></span></button>`;
     }).join('');
   }
   function shopClick(e) {
@@ -547,10 +546,10 @@
     const id = b.dataset.buy;
     const owned = id === 'green' || S.owned.includes(id);
     if (owned) { C.use(S, id); sfx.tap(); }
-    else if (C.buy(S, id)) { sfx.chest(); toast('Куплено!'); }
+    else if (C.buy(S, id)) { sfx.chest(); toast(T('Куплено!')); }
     else {
       const price = (C.COLORS[id] || C.ITEMS[id]).price;
-      toast(`Нужно ещё ${price - S.crystals} 💎 — решай примеры!`);
+      toast(T('Нужно ещё {n} 💎 — решай примеры!', { n: price - S.crystals }));
       return;
     }
     save(); renderShop(); renderTop(); renderHome();
@@ -559,10 +558,10 @@
   // ───────────── Album ─────────────
   function renderAlbum() {
     const have = Object.keys(S.stickers).length;
-    $('album-sub').textContent = `Собрано ${have} из ${C.STICKERS.length}. Наклейки лежат в сундуках за каждый пройденный уровень.`;
+    $('album-sub').textContent = T('Собрано {n} из {m}. Наклейки лежат в сундуках за каждый пройденный уровень.', { n: have, m: C.STICKERS.length });
     $('album').innerHTML = C.STICKERS.map((s) => (S.stickers[s.e]
-      ? `<div class="r-${s.rarity}" title="${C.RARITY[s.rarity]}">${s.e}</div>`
-      : `<div class="no r-${s.rarity}" title="${C.RARITY[s.rarity]}">?</div>`)).join('');
+      ? `<div class="r-${s.rarity}" title="${T(C.RARITY[s.rarity])}">${s.e}</div>`
+      : `<div class="no r-${s.rarity}" title="${T(C.RARITY[s.rarity])}">?</div>`)).join('');
   }
 
   // ───────────── Parents ─────────────
@@ -570,7 +569,7 @@
   function openParents() {
     const a = 6 + Math.floor(Math.random() * 4), b = 6 + Math.floor(Math.random() * 4);
     gateAnswer = a * b;
-    $('gate-q').textContent = `Сколько будет ${a} × ${b}?`;
+    $('gate-q').textContent = T('Сколько будет {a} × {b}?', { a, b });
     $('gate-a').value = '';
     $('gate').hidden = false;
     $('parents').hidden = true;
@@ -582,10 +581,10 @@
     $('stats').innerHTML = [
       [t.solved, 'примеров решено'], [`${acc}%`, 'с первой попытки'], [t.bestStreak, 'лучшая серия'],
       [`${C.totalStars(S)}/${C.maxStars()}`, 'звёзд'], [t.rounds, 'раундов'], [Object.keys(S.review).length, 'на повторении'],
-    ].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+    ].map(([v, l]) => `<div><b>${v}</b><span>${T(l)}</span></div>`).join('');
     const hard = C.hardest(S);
-    $('hard').textContent = hard.length ? hard.map((h) => `${h.fact.replace('+', ' + ').replace('×', ' × ')} (${h.count})`).join(', ') : 'Пока ошибок нет.';
-    $('levels').innerHTML = C.LEVELS.map((l) => `<tr><td>${l.icon} ${esc(l.name)} <span class="muted">· ${esc(l.skill)}</span></td><td>${'⭐'.repeat(S.stars[l.id] || 0) || '—'}</td><td>${S.plays[l.id] || 0} ${plural(S.plays[l.id] || 0, 'раз', 'раза', 'раз')}</td></tr>`).join('');
+    $('hard').textContent = hard.length ? hard.map((h) => `${h.fact.replace('+', ' + ').replace('×', ' × ')} (${h.count})`).join(', ') : T('Пока ошибок нет.');
+    $('levels').innerHTML = C.LEVELS.map((l) => `<tr><td>${l.icon} ${esc(T(l.name))} <span class="muted">· ${esc(T(l.skill))}</span></td><td>${'⭐'.repeat(S.stars[l.id] || 0) || '—'}</td><td>${S.plays[l.id] || 0} ${P(S.plays[l.id] || 0, 'раз|раза|раз')}</td></tr>`).join('');
     $('opt-unlock').checked = S.unlockAll;
   }
 
@@ -595,17 +594,17 @@
     $('gate').addEventListener('submit', (e) => {
       e.preventDefault();
       if (Number($('gate-a').value) === gateAnswer) { $('gate').hidden = true; $('parents').hidden = false; renderParents(); }
-      else { $('gate-a').value = ''; $('gate-q').textContent += ' Попробуйте ещё раз.'; }
+      else { $('gate-a').value = ''; $('gate-q').textContent += ` ${T('Попробуйте ещё раз.')}`; }
     });
     $('opt-unlock').addEventListener('change', (e) => { S.unlockAll = e.target.checked; save(); renderMap(); });
     $('btn-reset').addEventListener('click', () => {
       const b = $('btn-reset');
       if (!resetArmed) {
-        b.textContent = 'Точно? Нажмите ещё раз';
-        resetArmed = setTimeout(() => { resetArmed = 0; b.textContent = 'Начать заново'; }, 4000);
+        b.textContent = T('Точно? Нажмите ещё раз');
+        resetArmed = setTimeout(() => { resetArmed = 0; b.textContent = T('Начать заново'); }, 4000);
         return;
       }
-      clearTimeout(resetArmed); resetArmed = 0; b.textContent = 'Начать заново';
+      clearTimeout(resetArmed); resetArmed = 0; b.textContent = T('Начать заново');
       const sound = S.sound;
       S = C.newState(); S.sound = sound; save();
       $('dlg-parents').close();
@@ -637,22 +636,22 @@
         await put();
         store.set(CLOUD_KEY, code);
         $('cloud-code').textContent = pretty(code);
-        $('cloud-msg').textContent = 'Сохранено. Введите этот код на другом устройстве.';
-      } catch (err) { $('cloud-msg').textContent = `Не удалось сохранить: ${err.message}`; }
+        $('cloud-msg').textContent = T('Сохранено. Введите этот код на другом устройстве.');
+      } catch (err) { $('cloud-msg').textContent = T('Не удалось сохранить: {e}', { e: err.message }); }
     });
     $('cloud-load').addEventListener('submit', async (e) => {
       e.preventDefault();
       const c = $('cloud-input').value.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (c.length !== 16) { $('cloud-msg').textContent = 'Код состоит из 16 букв и цифр.'; return; }
+      if (c.length !== 16) { $('cloud-msg').textContent = T('Код состоит из 16 букв и цифр.'); return; }
       try {
         const res = await fetch(`/api/saves/${c}`);
-        if (res.status === 404) { $('cloud-msg').textContent = 'Сохранения с таким кодом нет.'; return; }
+        if (res.status === 404) { $('cloud-msg').textContent = T('Сохранения с таким кодом нет.'); return; }
         if (!res.ok) throw new Error(await res.text());
         S = C.migrate(await res.json());
         code = c; store.set(CLOUD_KEY, c); $('cloud-code').textContent = pretty(c);
         save(); renderParents(); renderMap();
-        $('cloud-msg').textContent = 'Загружено.';
-      } catch (err) { $('cloud-msg').textContent = `Не удалось загрузить: ${err.message}`; }
+        $('cloud-msg').textContent = T('Загружено.');
+      } catch (err) { $('cloud-msg').textContent = T('Не удалось загрузить: {e}', { e: err.message }); }
     });
     setInterval(() => { if (code) put().catch(() => {}); }, 60000);
   }
@@ -661,7 +660,7 @@
   function resetQuit() { quitArmed = 0; $('btn-quit').textContent = '✕'; $('btn-quit').classList.remove('armed'); }
   $('btn-quit').addEventListener('click', () => {
     if (!quitArmed) {
-      $('btn-quit').textContent = 'Выйти?';
+      $('btn-quit').textContent = T('Выйти?');
       $('btn-quit').classList.add('armed');
       quitArmed = setTimeout(resetQuit, 3000);
       return;
@@ -693,12 +692,12 @@
   $('btn-next').addEventListener('click', () => { const n = nextAfter(lastId); if (n) startLevel(n); });
   $('btn-again').addEventListener('click', () => startLevel(lastId));
   $('btn-map').addEventListener('click', () => showMap(true));
-  $('btn-shop').addEventListener('click', () => { renderShop(); $('name-input').value = S.name; $('dlg-shop').showModal(); });
+  $('btn-shop').addEventListener('click', () => { renderShop(); $('name-input').value = dragonName(); $('dlg-shop').showModal(); });
   $('dlg-shop').addEventListener('click', shopClick);
   $('dlg-shop').addEventListener('close', () => renderMap());
   $('name-input').addEventListener('input', (e) => {
     const v = e.target.value.trim();
-    S.name = v || 'Искорка';
+    S.name = v && v !== T('Искорка') ? v : 'Искорка';
     save();
   });
   $('btn-album').addEventListener('click', () => { renderAlbum(); $('dlg-album').showModal(); });
@@ -712,6 +711,7 @@
   window.addEventListener('pagehide', save);
 
   load();
+  document.querySelector('.chips').appendChild(I18n.toggle('chip icon lang'));
   bindParents();
   showMap(true);
   initCloud();
