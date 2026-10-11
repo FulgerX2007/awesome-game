@@ -752,7 +752,7 @@
   // ───────────── Boot & loop ─────────────
   const meta = document.querySelector('meta[name="description"]');
   if (meta) meta.content = T(meta.content);
-  document.addEventListener('DOMContentLoaded', () => $('lang-slot').appendChild(I18n.toggle('lang-toggle')));
+  document.addEventListener('DOMContentLoaded', () => { $('lang-slot').before(GameNav.home('tool')); $('lang-slot').appendChild(I18n.toggle('lang-toggle')); });
   const savedAt = load();
   setup();
   if (savedAt) {

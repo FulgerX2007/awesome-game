@@ -86,10 +86,11 @@ button:hover, button:focus-visible { background: rgba(94,225,255,.12); box-shado
 button { font-family: var(--font-body); }
 @media (prefers-reduced-motion: reduce) { h1 { animation: none; } #message { transition: none; } }
 @media (max-width: 480px) { .rules { font-size: 14px; } h2 { font-size: 28px; } }
-.lang-slot { display: flex; justify-content: flex-end; }
+.lang-slot { display: flex; justify-content: flex-end; gap: 6px; }
 .lang-slot.center { justify-content: center; }
-button.lang-toggle {
+a.lang-toggle { border: 1px solid; border-radius: 999px; font-family: var(--font-body); transition: color .2s, border-color .2s; }
+button.lang-toggle, a.lang-toggle {
   margin: 0; padding: 4px 12px; font-size: 13px; letter-spacing: .14em;
   color: var(--dim); border-color: var(--line);
 }
-button.lang-toggle:hover, button.lang-toggle:focus-visible { color: var(--accent); border-color: var(--accent); }
+button.lang-toggle:hover, a.lang-toggle:hover, button.lang-toggle:focus-visible, a.lang-toggle:focus-visible { color: var(--accent); border-color: var(--accent); }

@@ -562,7 +562,7 @@
 
   // ───────────── Boot ─────────────
   // Added after I18n.translateDOM() has run, so the toggle's own language name is left as is.
-  const addToggle = () => $('top-actions').append(window.I18n.toggle('lang-toggle'));
+  const addToggle = () => $('top-actions').append(window.GameNav.home('lang-toggle home'), window.I18n.toggle('lang-toggle'));
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addToggle); else addToggle();
   const desc = document.querySelector('meta[name="description"]');
   if (desc) desc.content = t(desc.content);

@@ -712,6 +712,8 @@
 
   load();
   document.querySelector('.chips').appendChild(I18n.toggle('chip icon lang'));
+  // Leaving for the other games is a grown-up's move, so the link sits next to "Для взрослых".
+  $('btn-parents').before(GameNav.home('parents-link'));
   bindParents();
   showMap(true);
   initCloud();

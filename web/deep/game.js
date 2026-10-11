@@ -456,6 +456,7 @@
 
   // Language switch lives in the menu (the page reloads, the save is kept).
   $('menu-row').prepend(window.I18n.toggle('chip lang'));
+  $('menu-row').prepend(window.GameNav.home('chip lang'));
   const meta = document.querySelector('meta[name="description"]');
   if (meta) meta.content = tr(meta.content);
 

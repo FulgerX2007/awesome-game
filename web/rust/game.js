@@ -855,7 +855,7 @@
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.content = t(meta.content);
     // Added after I18n.translateDOM has run, so the button's own labels stay as they are.
-    const addToggle = () => document.querySelector('.brand').append(I18n.toggle('lang-btn'));
+    const addToggle = () => document.querySelector('.brand').append(GameNav.home('lang-btn'), I18n.toggle('lang-btn'));
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addToggle); else addToggle();
     resizeScene();
     const savedAt = load();

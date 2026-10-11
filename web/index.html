@@ -18,6 +18,21 @@
   .head h1 { margin: 0; }
   .lang-toggle { border: 1px solid var(--line); background: none; color: var(--fg); border-radius: 10px; padding: 6px 12px; font: 600 14px/1 system-ui, sans-serif; cursor: pointer; }
   .lang-toggle:hover, .lang-toggle:focus-visible { border-color: var(--dim); outline: none; }
+  .boards { margin-top: 32px; }
+  .boards h2 { font-weight: 300; letter-spacing: .08em; margin: 0 0 14px; font-size: 22px; }
+  .boards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .board { border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .board h3 { margin: 0 0 8px; font-size: 18px; color: var(--c); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .board h3 a { display: inline; padding: 0; border: 0; font-size: 13px; color: var(--dim); font-weight: 400; }
+  .board h3 a:hover, .board h3 a:focus-visible { color: var(--c); }
+  .board ol { margin: 0; padding: 0; list-style: none; counter-reset: r; }
+  .board li { display: grid; grid-template-columns: 1.6em 1fr auto; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 15px; counter-increment: r; }
+  .board li:first-child { border-top: 0; }
+  .board li::before { content: counter(r) "."; color: var(--dim); }
+  .board li .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .board li .who small { color: var(--dim); margin-left: 6px; }
+  .board li b { font-variant-numeric: tabular-nums; }
+  .board .empty { color: var(--dim); font-size: 14px; margin: 4px 0 0; }
 </style>
 </head>
 <body>
@@ -33,6 +48,10 @@
     <a href="oasis/" style="--c: var(--oasis)"><b>Оазис</b><span>Тихая головоломка: поворачивай каналы, чтобы вода дошла до каждого сада.</span></a>
     <a href="rust/" style="--c: var(--rust)"><b>Ржавый рассвет</b><span>Спокойная инкрементальная игра: чини роботов на свалке, пока всё не заработает само.</span></a>
   </div>
+  <section class="boards" id="boards" hidden>
+    <h2>Рекорды</h2>
+    <div class="boards-grid" id="boards-grid"></div>
+  </section>
 </main>
 <script src="i18n.js"></script>
 <script>
@@ -55,7 +74,30 @@ I18n.add({ ro: {
   'Ржавый рассвет': 'Zori ruginite',
   'Спокойная инкрементальная игра: чини роботов на свалке, пока всё не заработает само.': 'Un joc incremental liniștit: repari roboți la groapa de fier vechi până când totul merge de la sine.',
 } });
+I18n.add({ ro: {
+  'Рекорды': 'Recorduri', 'Играть': 'Joacă', 'Пока пусто — будь первым.': 'Încă nimic — fii primul.',
+  'Аноним': 'Anonim', 'ур. {n}': 'niv. {n}', 'плитка|плитки|плиток': 'placă|plăci|de plăci',
+} });
 document.querySelector('.head').appendChild(I18n.toggle());
+
+// Top scores of the games that have a leaderboard. Shown only when the Go server is behind the page.
+(async () => {
+  const games = [
+    { id: 'echo', href: 'echo/', name: 'ЭХО', color: 'var(--echo)', detail: (e) => I18n.t('ур. {n}', { n: e.level }) },
+    { id: 'valley', href: 'valley/', name: 'Долина', color: 'var(--valley)', detail: (e) => `${e.level} ${I18n.p(e.level, 'плитка|плитки|плиток')}` },
+  ];
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const fmt = new Intl.NumberFormat(I18n.locale);
+  const lists = await Promise.all(games.map((g) => fetch(`api/boards/${g.id}/scores`, { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null)));
+  if (lists.every((l) => !Array.isArray(l))) return;
+  document.getElementById('boards-grid').innerHTML = games.map((g, i) => {
+    const top = Array.isArray(lists[i]) ? lists[i].slice(0, 5) : [];
+    const rows = top.map((e) => `<li><span class="who">${esc(e.name === 'Аноним' ? I18n.t('Аноним') : e.name)}<small>${esc(g.detail(e))}</small></span><b>${fmt.format(e.score)}</b></li>`).join('');
+    return `<div class="board" style="--c: ${g.color}"><h3>${esc(I18n.t(g.name))} <a href="${g.href}">${esc(I18n.t('Играть'))} →</a></h3>${rows ? `<ol>${rows}</ol>` : `<p class="empty">${esc(I18n.t('Пока пусто — будь первым.'))}</p>`}</div>`;
+  }).join('');
+  document.getElementById('boards').hidden = false;
+})();
 </script>
 </body>
 </html>
