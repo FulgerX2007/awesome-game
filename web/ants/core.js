@@ -95,9 +95,11 @@
     };
   }
 
-  // Food the ants carried home (in units) becomes currency.
+  // Food the ants carried home (in units) becomes currency. Ants no longer waste trips walking in
+  // loops, so a piece is worth less than it used to: the first flight still comes at about 25-30 minutes.
+  const PIECE = 0.6;
   function deliver(S, units) {
-    const got = units * mult(S) * scale(S);
+    const got = units * PIECE * mult(S) * scale(S);
     S.food += got; S.total += got;
     return got;
   }
