@@ -10,6 +10,8 @@
   const SENSE_ANGLE = 0.6;
   const NEST_R = 12;
   const MAX_AGENTS = 360;  // above this, each visible ant stands for several
+  const TURN = 3.2;        // fastest turn toward a scent, rad/s
+  const SPIN_LIMIT = Math.PI * 2; // a full circle in a few seconds means the ant is going round
 
   function mulberry32(seed) {
     let a = seed >>> 0;
@@ -45,9 +47,16 @@
     const i = cell(s, x, y);
     return i < 0 ? -1 : field[i];
   }
+  // A sensor reads two points along its ray, so a single strong cell beside the ant cannot capture it.
+  function sense(s, field, a, off) {
+    const dx = Math.cos(a.a + off), dy = Math.sin(a.a + off);
+    const far = smell(s, field, a.x + dx * SENSE, a.y + dy * SENSE);
+    const near = smell(s, field, a.x + dx * SENSE * 0.55, a.y + dy * SENSE * 0.55);
+    return far < 0 || near < 0 ? -1 : (far + near) * 0.5;
+  }
   function addAnt(s) {
     const a = s.R() * Math.PI * 2;
-    s.ants.push({ x: s.nest.x + Math.cos(a) * 4, y: s.nest.y + Math.sin(a) * 4, a, carry: 0, since: 0, legs: s.R() * 10 });
+    s.ants.push({ x: s.nest.x + Math.cos(a) * 4, y: s.nest.y + Math.sin(a) * 4, a, carry: 0, since: 0, legs: s.R() * 10, spin: 0, lost: 0 });
   }
   // Keeps the number of agents in step with the colony (capped for speed).
   function syncAnts(s, n) {
@@ -119,24 +128,40 @@
       a.legs += dt * p.speed * 0.6;
       const returning = a.carry > 0;
       const field = returning ? s.home : s.food;
-      // Three sensors ahead: steer toward the strongest scent, with a little wandering.
-      const l = smell(s, field, a.x + Math.cos(a.a - SENSE_ANGLE) * SENSE, a.y + Math.sin(a.a - SENSE_ANGLE) * SENSE);
-      const c = smell(s, field, a.x + Math.cos(a.a) * SENSE, a.y + Math.sin(a.a) * SENSE);
-      const r = smell(s, field, a.x + Math.cos(a.a + SENSE_ANGLE) * SENSE, a.y + Math.sin(a.a + SENSE_ANGLE) * SENSE);
-      if (c > l && c > r) { /* keep going */ }
-      else if (l > r) a.a -= 3.2 * dt;
-      else if (r > l) a.a += 3.2 * dt;
-      a.a += (s.R() - 0.5) * 2.4 * dt * (c > 0.05 ? 0.5 : 1.6);
+      const before = a.a;
+      const toNest = Math.atan2(s.nest.y - a.y, s.nest.x - a.x), nestD = Math.hypot(s.nest.x - a.x, s.nest.y - a.y);
+      if (a.lost > 0) {
+        // Breaking out of a loop: ignore scent for a moment and walk straight, outward or home.
+        a.lost -= dt;
+        a.a = turnTo(a.a, returning ? toNest : toNest + Math.PI, 0.8 * dt);
+      } else if (!returning && nestD < NEST_R * 2.2) {
+        // Every trail ends at the nest, so its scent is useless right there: just head out.
+        a.a = turnTo(a.a, toNest + Math.PI, 2 * dt);
+      } else {
+        // Three sensors ahead. The turn grows with the difference between the sides, so ants
+        // ease onto a trail instead of spinning around the strongest cell.
+        const l = sense(s, field, a, -SENSE_ANGLE), c = sense(s, field, a, 0), r = sense(s, field, a, SENSE_ANGLE);
+        const top = Math.max(l, c, r);
+        if (top > 0.02) {
+          const side = (r - l) / (top + 0.5);
+          a.a += Math.max(-1, Math.min(1, side * (c >= top ? 0.4 : 1.6))) * TURN * dt;
+        }
+        a.a += (s.R() - 0.5) * 2.4 * dt * (c > 0.05 ? 0.5 : 1.6);
+      }
       // Close to home or food, ants see it and head straight in.
       if (returning) {
-        const dx = s.nest.x - a.x, dy = s.nest.y - a.y, d = Math.hypot(dx, dy);
-        if (d < NEST_R * 3.5) a.a = turnTo(a.a, Math.atan2(dy, dx), 4 * dt);
+        const d = nestD;
+        // Ants remember roughly where home is: a carrier leans toward the nest, harder the longer it
+        // walks, so a ring of home scent cannot hold it.
+        a.a = turnTo(a.a, toNest, (d < NEST_R * 3.5 ? 4 : Math.min(2.5, 1.4 + a.since * 0.2)) * dt);
         if (d < NEST_R) {
           s.delivered += a.carry;
           a.carry = 0; a.since = 0; a.a += Math.PI;
         }
       } else {
         for (const b of s.bigs) {
+          // A find that already has a full team does not draw more ants to circle around it.
+          if (b.carriers >= b.need * 2) continue;
           const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), br = bigR(b);
           if (d < br + 24) a.a = turnTo(a.a, Math.atan2(dy, dx), 5 * dt);
           if (d < br + 1.5 && b.carriers < b.need * 2) {
@@ -150,18 +175,30 @@
           if (d < pr + 14) a.a = turnTo(a.a, Math.atan2(dy, dx), 5 * dt);
           if (d < pr + 1.5) {
             const take = Math.min(p.carry, q.amount);
-            q.amount -= take; a.carry = take; a.since = 0; a.a += Math.PI;
+            q.amount -= take; a.carry = take; a.load = q.kind; a.since = 0; a.a += Math.PI;
             break;
           }
         }
       }
+      // Walls: ants feel the edge ahead and turn back inside, so they never slide along it laying a
+      // scent road that loops around the whole field.
+      const m = 10;
+      if (a.x < m || a.y < m || a.x > s.w - m || a.y > s.h - m) {
+        const inward = Math.atan2(s.h / 2 - a.y, s.w / 2 - a.x);
+        a.a = turnTo(a.a, inward, 3 * dt);
+      }
+      // Count how far the ant has turned lately; a full circle sends it off the scent for a while.
+      let turn = a.a - before;
+      if (turn > Math.PI) turn -= Math.PI * 2; else if (turn < -Math.PI) turn += Math.PI * 2;
+      a.spin = (a.spin || 0) * Math.exp(-dt / 2.5) + turn;
+      if (Math.abs(a.spin) > SPIN_LIMIT && !(a.lost > 0)) { a.lost = 1 + s.R() * 0.8; a.spin = 0; }
       a.x += Math.cos(a.a) * speed;
       a.y += Math.sin(a.a) * speed;
       if (a.x < 2 || a.x > s.w - 2) { a.a = Math.PI - a.a; a.x = Math.max(2, Math.min(s.w - 2, a.x)); }
       if (a.y < 2 || a.y > s.h - 2) { a.a = -a.a; a.y = Math.max(2, Math.min(s.h - 2, a.y)); }
       // The fresher the trip, the stronger the scent: short paths win.
       const v = Math.exp(-a.since / 25) * 6 * dt * 4;
-      lay(s, returning ? s.food : s.home, a.x, a.y, v);
+      if (a.x > m && a.y > m && a.x < s.w - m && a.y < s.h - m) lay(s, returning ? s.food : s.home, a.x, a.y, v);
       // Lost ants give up after a long walk and wander home by memory.
       if (!returning && a.since > 60) { a.a = turnTo(a.a, Math.atan2(s.nest.y - a.y, s.nest.x - a.x), 1.5 * dt); }
     }
