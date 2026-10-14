@@ -197,6 +197,24 @@ async function roPhoneChecks() {
 
   await page.tap('#btn-play');
   check((await page.textContent('#hud-level')).trim() === 'Nivelul 1', 'the HUD is in RO');
+
+  // The HUD must not change height while a level is played (the scene would jump): from the first to the
+  // longest realistic values of the last level it keeps its height, and at 360 px that is one line.
+  const hudLines = await page.evaluate(() => {
+    const hud = document.getElementById('hud');
+    const saved = [];
+    const set = (id, v) => { const e = document.getElementById(id); saved.push([e, e.textContent]); e.textContent = v; };
+    set('hud-level', 'Nivelul 30');
+    set('hud-count', '1');
+    set('hud-power', '1');
+    const h0 = hud.offsetHeight;
+    set('hud-count', '99999');
+    set('hud-power', '99');
+    const h1 = hud.offsetHeight;
+    for (const [e, v] of saved.reverse()) e.textContent = v;
+    return { h0, h1 };
+  });
+  check(hudLines.h1 === hudLines.h0 && hudLines.h0 < 50, 'the HUD keeps one line from the first to the longest values at 360 px', JSON.stringify(hudLines));
   await hold(page, 'ArrowRight', 3000);
   const title = await waitFor(() => resultShown(page), 60000, 250);
   check(title === 'Victorie!' || title === 'Înfrângere', 'the result is in RO', JSON.stringify(title));

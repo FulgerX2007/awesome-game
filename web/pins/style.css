@@ -50,6 +50,8 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 .hud-level { font-weight: 800; white-space: nowrap; }
 .hud-gold { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; padding: 3px 9px; border-radius: 999px; background: rgba(0, 0, 0, .25); border: 1px solid var(--line); }
 .hud-gold.full { border-color: var(--good); color: var(--good); }
+/* Room for the widest count ("160/80") from the start, so the HUD never re-wraps while the gold falls. */
+.hud-gold b { display: inline-block; min-width: 6ch; text-align: center; }
 .coin { width: 16px; height: 16px; border-radius: 50%; display: inline-block; background: radial-gradient(circle at 35% 35%, #fff6c4, #ffd34d 45%, #c98a12); box-shadow: inset 0 0 0 1px #8a5a08; }
 .spacer { flex: 1; }
 .sound { width: 38px; padding: 0; display: inline-grid; place-items: center; }
@@ -144,11 +146,13 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 
 @media (max-width: 420px) {
   .app { padding-left: 6px; padding-right: 6px; }
-  .chip { padding: 4px 8px; font-size: 13px; }
-  .hud { gap: 5px; }
+  .chip { padding: 4px 6px; font-size: 13px; }
+  .hud { gap: 3px; }
   .hud-level { font-size: 14px; }
-  .hud-gold { padding: 2px 7px; font-size: 14px; }
-  .sound { width: 34px; }
+  .hud-gold { padding: 2px 5px; gap: 3px; font-size: 14px; }
+  .hud-gold .coin { width: 14px; height: 14px; }
+  .hud .chip { padding: 4px 5px; }
+  .sound { width: 31px; }
   .tip { font-size: 13px; padding: 5px 12px; top: 14px; }
   .level-grid { gap: 6px; }
   .panel { padding: 16px 12px; }

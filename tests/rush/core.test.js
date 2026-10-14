@@ -361,3 +361,58 @@ test('parseLevel keeps the level number, 1 by default', () => {
   assert.equal(run.level.num, 6);
   assert.equal(run.result, null);
 });
+
+test('obstacleLoss: the overlapped share of the crowd times the kind rate and the shield, rounded up', () => {
+  const run = runAt(level(), 0, 20);
+  assert.equal(R.obstacleLoss(run, { kind: 'wall', x0: -1, x1: 1 }), 20, 'a wall across the track takes everyone');
+  assert.equal(R.obstacleLoss(run, { kind: 'saw', x0: -1, x1: 1 }), 10, 'a saw takes half');
+  assert.equal(R.obstacleLoss(run, { kind: 'wall', x0: 0.8, x1: 1 }) + 0, 0, 'an obstacle off the crowd takes nobody');
+  const half = R.obstacleLoss(run, { kind: 'wall', x0: 0, x1: 1 });
+  assert.ok(half >= 9 && half <= 11, `half the span takes about half (${half})`);
+  const shielded = R.newRun(level(), { shield: 5 });
+  shielded.count = 20;
+  assert.ok(R.obstacleLoss(shielded, { kind: 'wall', x0: -1, x1: 1 }) < 20, 'the shield upgrade softens the hit');
+});
+
+test('rng is a seeded deterministic stream in [0, 1)', () => {
+  const a = R.rng(7919);
+  const b = R.rng(7919);
+  const xs = Array.from({ length: 200 }, () => a());
+  assert.deepEqual(xs, Array.from({ length: 200 }, () => b()));
+  assert.ok(xs.every((x) => x >= 0 && x < 1));
+  assert.notDeepEqual(xs.slice(0, 5), Array.from({ length: 5 }, R.rng(7920)));
+  assert.ok(new Set(xs).size > 190, 'no short cycles');
+});
+
+test('pilotTarget: the better (or worse) gate side, around obstacles, onto platforms', () => {
+  const pair = { left: { op: 'add', n: 5 }, right: { op: 'mul', n: 3 } };
+  assert.equal(R.pilotTarget(runAt(gateLevel(pair)), 'best'), 1, '×3 beats +5 for 10 soldiers');
+  assert.equal(R.pilotTarget(runAt(gateLevel(pair)), 'worst'), -1);
+  const pow = { left: { op: 'pow' }, right: { op: 'sub', n: 2 } };
+  assert.equal(R.pilotTarget(runAt(gateLevel(pow)), 'best'), -1, 'weapon +1 doubles the strength of 10 soldiers');
+
+  const free = runAt(level(), 0.3);
+  assert.equal(R.pilotTarget(free, 'best'), 0.3, 'nothing ahead: keep the current target');
+
+  const blockLeft = level({ obstacles: [{ z: 10, kind: 'wall', x0: -1, x1: 0 }] });
+  assert.ok(R.pilotTarget(runAt(blockLeft), 'best') > 0, 'dodges a wall on the left to the right');
+  const blockRight = level({ obstacles: [{ z: 10, kind: 'wall', x0: 0, x1: 1 }] });
+  assert.ok(R.pilotTarget(runAt(blockRight), 'best') < 0, 'and a wall on the right to the left');
+
+  const plat = { z0: 20, z1: 40, w: 0.8, A: 0.6, omega: 1, phi: 0.5 };
+  const on = runAt(level({ platforms: [plat] }));
+  const before = R.pilotTarget(on, 'best');
+  const meet = plat.A * Math.sin(plat.omega * (on.ticks / HZ + (plat.z0 - on.z) / SPEED) + plat.phi);
+  assert.ok(Math.abs(before - meet) < 1e-12, 'heads to where the platform will be when the crowd gets there');
+  on.z = 30;
+  const want = plat.A * Math.sin(plat.omega * (on.ticks / HZ + TICK) + plat.phi);
+  assert.ok(Math.abs(R.pilotTarget(on, 'best') - want) < 1e-12, 'rides the platform where it will be next tick');
+});
+
+test('enemyPower grows 8% a level from 1 and is capped at 9.9; levels use it', () => {
+  assert.equal(R.enemyPower(1), 1);
+  assert.equal(R.enemyPower(6), 1.4);
+  assert.equal(R.enemyPower(500), 9.9);
+  for (let n = 2; n < 120; n++) assert.ok(R.enemyPower(n) >= R.enemyPower(n - 1));
+  assert.equal(R.levelDef(3).enemy.power, R.enemyPower(3));
+});

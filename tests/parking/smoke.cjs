@@ -229,6 +229,22 @@ async function roPhoneChecks() {
 
   await page.tap('#btn-play');
   check(await text(page, '#hud-level') === 'Nivelul 1', 'the HUD is in RO');
+
+  // The HUD must not change height while a level is played (the lot would jump): from the first to the
+  // longest realistic values of the last level it keeps its height, and at 360 px that is one line.
+  const hudLines = await page.evaluate(() => {
+    const hud = document.getElementById('hud');
+    const saved = [];
+    const set = (id, v) => { const e = document.getElementById(id); saved.push([e, e.textContent]); e.textContent = v; };
+    set('hud-level', 'Nivelul 40');
+    set('hud-moves', 'Mutări: 0/38');
+    const h0 = hud.offsetHeight;
+    set('hud-moves', 'Mutări: 38/38');
+    const h1 = hud.offsetHeight;
+    for (const [e, v] of saved.reverse()) e.textContent = v;
+    return { h0, h1 };
+  });
+  check(hudLines.h1 === hudLines.h0 && hudLines.h0 < 50, 'the HUD keeps one line from the first to the longest values at 360 px', JSON.stringify(hudLines));
   check(await text(page, '#btn-undo') === 'Anulează', 'the controls are in RO', await text(page, '#btn-undo'));
   await solveLevel1(page, RO);
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no horizontal scroll on the result screen');

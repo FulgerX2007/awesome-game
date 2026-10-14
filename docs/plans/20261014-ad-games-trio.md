@@ -481,11 +481,12 @@ Cell types in a `Uint8Array`:
 - [x] run `node --test`, `go test ./...`, the smoke — must pass before next task
 
 ### Task 14: Verify acceptance criteria
-- [ ] verify all requirements from Overview are implemented in all three games: menu, levels, progress saving, sound toggle, RU/RO, phone control, no external resources
-- [ ] verify edge cases: broken `localStorage`, a reload in the middle of a level, a narrow screen of 360 px, switching language on any screen
-- [ ] run full test suite: `node --test 'tests/**/*.test.js'` and `go vet ./... && go test ./...`
-- [ ] run the e2e smoke of all three games: `NODE_PATH=/opt/node22/lib/node_modules node tests/{pins,rush,parking}/smoke.cjs`
-- [ ] verify that every `core.js`/`view.js`/`audio.js` of the new games is covered by tests (every exported function is called in some test)
+- [x] verify all requirements from Overview are implemented in all three games: menu, levels, progress saving, sound toggle, RU/RO, phone control, no external resources
+- [x] verify edge cases: broken `localStorage`, a reload in the middle of a level, a narrow screen of 360 px, switching language on any screen
+- [x] run full test suite: `node --test 'tests/**/*.test.js'` and `go vet ./... && go test ./...`
+- [x] run the e2e smoke of all three games: `NODE_PATH=/opt/node22/lib/node_modules node tests/{pins,rush,parking}/smoke.cjs`
+- [x] verify that every `core.js`/`view.js`/`audio.js` of the new games is covered by tests (every exported function is called in some test)
+- ⚠️ found at 360 px: the pins HUD wrapped to two lines once the gold reached 3 digits (and the rush HUD with a 4-digit crowd), so the board/scene jumped mid-level; fixed by tightening the narrow HUD CSS (pins also reserves room for the widest gold count); each smoke now checks that the HUD keeps one line from the first to the longest values at 360 px
 
 ### Task 15: [Final] Update documentation
 - [ ] `README.md`: the first line «Пятнадцать браузерных игр…»; a short intro about «Игры из рекламы» and three sections (`/pins/`, `/rush/`, `/parking/`) in the style of the existing ones: rules, controls, saving, where the rules live, how the levels are verified

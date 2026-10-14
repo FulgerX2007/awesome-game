@@ -203,3 +203,12 @@ test('every level: dragging along the solution path wins with 3 stars', () => {
     assert.equal(P.stars(s.moves, s.optimal), 3);
   }
 });
+
+test('covers: the cells a vehicle takes along its axis', () => {
+  const h = { x: 1, y: 2, len: 3, dir: 'h' };
+  assert.ok(V.covers(h, 1, 2) && V.covers(h, 3, 2));
+  assert.ok(!V.covers(h, 0, 2) && !V.covers(h, 4, 2) && !V.covers(h, 2, 3));
+  const v = { x: 4, y: 0, len: 2, dir: 'v' };
+  assert.ok(V.covers(v, 4, 0) && V.covers(v, 4, 1));
+  assert.ok(!V.covers(v, 4, 2) && !V.covers(v, 5, 0));
+});

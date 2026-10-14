@@ -207,6 +207,22 @@ async function roPhoneChecks() {
 
   await page.tap('#btn-play');
   check((await page.textContent('#hud-level')).trim() === 'Nivelul 1', 'the HUD is in RO');
+
+  // The HUD must not change height while a level is played (the board would jump): from the first to the
+  // longest realistic values of the last level it keeps its height, and at 360 px that is one line.
+  const hudLines = await page.evaluate(() => {
+    const hud = document.getElementById('hud');
+    const saved = [];
+    const set = (id, v) => { const e = document.getElementById(id); saved.push([e, e.textContent]); e.textContent = v; };
+    set('hud-level', 'Nivelul 30');
+    set('hud-gold', '0/80');
+    const h0 = hud.offsetHeight;
+    set('hud-gold', '160/80');
+    const h1 = hud.offsetHeight;
+    for (const [e, v] of saved.reverse()) e.textContent = v;
+    return { h0, h1 };
+  });
+  check(hudLines.h1 === hudLines.h0 && hudLines.h0 < 50, 'the HUD keeps one line from the first to the longest values at 360 px', JSON.stringify(hudLines));
   const order = await page.evaluate(() => window.PinsCore.solve(window.PinsLevels.LEVELS[0]).wins[0]);
   for (const id of order) await page.keyboard.press(`Digit${id}`);
   const title = await waitFor(() => resultShown(page), 20000, 200);

@@ -194,3 +194,19 @@ test('hash2 is stable and in [0, 1)', () => {
   }
   assert.notEqual(V.hash2(1, 2, 0), V.hash2(2, 1, 0));
 });
+
+test('clamp keeps a value inside [a, b]', () => {
+  assert.equal(V.clamp(5, 0, 10), 5);
+  assert.equal(V.clamp(-3, 0, 10), 0);
+  assert.equal(V.clamp(12, 0, 10), 10);
+});
+
+test('rectDist is the Chebyshev distance in cells from a cell to a rect (0 inside)', () => {
+  const r = { x: 4, y: 10, w: 6, h: 1 }; // cells x 4..9, y 10
+  assert.equal(V.rectDist(4, 10, r), 0);
+  assert.equal(V.rectDist(9, 10, r), 0);
+  assert.equal(V.rectDist(10, 10, r), 1);
+  assert.equal(V.rectDist(2, 10, r), 2);
+  assert.equal(V.rectDist(6, 7, r), 3);
+  assert.equal(V.rectDist(12, 12, r), 3, 'the larger of the two axis gaps');
+});

@@ -217,3 +217,24 @@ test('battle timeline: a boss level walks on to the boss and melts its HP', () =
   assert.equal(e2.boss, 30, 'HP 50 − the rest 20');
   assert.ok(lost.plan.total > settled({ count: 10, power: 1 }, null, 30, 1).plan.total, 'the boss takes longer');
 });
+
+test('clamp keeps a value inside [lo, hi]', () => {
+  assert.equal(V.clamp(0.5, -1, 1), 0.5);
+  assert.equal(V.clamp(-2, -1, 1), -1);
+  assert.equal(V.clamp(2, -1, 1), 1);
+});
+
+test('viewport: a usable size, 360×640 for a missing or broken one', () => {
+  assert.deepEqual(V.viewport({ w: 800, h: 600 }), { w: 800, h: 600 });
+  assert.deepEqual(V.viewport(), { w: 360, h: 640 });
+  assert.deepEqual(V.viewport({ w: 0, h: NaN }), { w: 360, h: 640 });
+  assert.deepEqual(V.viewport({ w: -5, h: 300 }), { w: 360, h: 300 });
+});
+
+test('focal: px per metre at 1 m, so the track half is trackHalf px at the crowd (CAM_BACK away)', () => {
+  for (const vp of [VP, { w: 1280, h: 720 }, { w: 320, h: 568 }]) {
+    assert.ok(near((V.focal(vp) / V.CAM_BACK) * V.HALF_M, V.trackHalf(vp)));
+    assert.ok(near(V.project(0, V.CAM_BACK, 0, vp).scale, V.focal(vp) / V.CAM_BACK), 'project scales by focal / distance');
+  }
+  assert.ok(V.focal({ w: 1280, h: 720 }) > V.focal(VP), 'a bigger screen has a longer focal length');
+});
