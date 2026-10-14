@@ -426,12 +426,12 @@ Cell types in a `Uint8Array`:
 - Create: `tests/parking/core.test.js`
 - Create: `tests/parking/solver.test.js`
 
-- [ ] UMD `root.ParkingCore`: `parseLevel(def)` with validation, `newGame(level)`, `canMove(state, id, delta)`, `move(state, id, delta)` (barriers by move parity, `tow` by 1 cell, bollards), the exit and `status`
-- [ ] `undo(state)` restores the full state; move limit and `stars(moves, optimal)` by the rules in Technical Details
-- [ ] `solve(level|state)`: BFS over (positions, parity), returns `{moves, path}` or `null`, cap of 200k states
-- [ ] write tests: moving only along the axis, blocking by vehicles/bollards/walls, a barrier closed/open by parity, a tow truck by 1 cell, exiting through the exit, undo, the limit runs out → `lost`, stars at the boundaries
-- [ ] write tests for `solve`: a trivial board (1 move), a known board with a hand-checked optimum, a board where the optimum needs to wait for the barrier, an unsolvable board → `null`, invalid levels → `parseLevel` throws
-- [ ] run tests — must pass before next task
+- [x] UMD `root.ParkingCore`: `parseLevel(def)` with validation, `newGame(level)`, `canMove(state, id, delta)`, `move(state, id, delta)` (barriers by move parity, `tow` by 1 cell, bollards), the exit and `status`
+- [x] `undo(state)` restores the full state; move limit and `stars(moves, optimal)` by the rules in Technical Details
+- [x] `solve(level|state)`: BFS over (positions, parity), returns `{moves, path}` or `null`, cap of 200k states
+- [x] write tests: moving only along the axis, blocking by vehicles/bollards/walls, a barrier closed/open by parity, a tow truck by 1 cell, exiting through the exit, undo, the limit runs out → `lost`, stars at the boundaries
+- [x] write tests for `solve`: a trivial board (1 move), a known board with a hand-checked optimum, a board where the optimum needs to wait for the barrier, an unsolvable board → `null`, invalid levels → `parseLevel` throws
+- [x] run tests — must pass before next task
 
 ### Task 11: «Тесная парковка» — level generator and 40 levels
 
