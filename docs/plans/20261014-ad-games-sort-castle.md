@@ -730,17 +730,17 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
   Tests were added for `sort.pathOf` and `castle.clamp` / `rand` / `status`.
 
 ### Task 11: [Final] Update documentation
-- [ ] `README.md`:
+- [x] `README.md`:
   - first line «Семнадцать браузерных игр…»;
   - two new subsections in «## Игры из рекламы» describing what was actually built: rules, controls, stars and economy, storage keys, how levels and balance are verified;
   - the sort generator command;
   - `castle` in the README list of leaderboards (the line that names `echo`, `valley`, `wonders` и `bastion`)
-- [ ] `docs/roadmap.md`:
+- [x] `docs/roadmap.md`:
   - update the line «Последними вышли…» to name the two new games, and remove them from the list;
   - restore the original concepts for Save the Survivor (winter survival: wood, food, fire, house, animals, rescuing survivors) and Hero Evolution (RPG arcade: weapons, armour and magic picked along the way, enemies with different defence types, bosses, permanent progression);
   - keep Build & Defend
-- [ ] update CLAUDE.md if new patterns were found (there is no file — don't create one unless needed)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update CLAUDE.md if new patterns were found (there is no file — not needed: the patterns are the ones the README already describes)
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 *Items requiring manual intervention or external systems — no checkboxes, informational only*
