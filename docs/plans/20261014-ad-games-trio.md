@@ -152,6 +152,11 @@ Cell types in a `Uint8Array`:
   (`lava` if lava blocks the way, else `nogold`). "Touching" an enemy box means inside or 4-adjacent (corners don't count).
   With no enemies, "all enemies dead" holds. `solve(def)` returns `{wins, losses, wonWithoutPull, nodes}`: a won prefix
   ends the order (the game ends there), a lost prefix is a losing order.
+- ➕ **Level sources (added in Task 3).** `levels.js` writes each level compactly: the chambers carved out of solid
+  rock (`open`), pins `[id, x, y, w, h, handle]` numbered 1..n, fills, hero/enemy/exit corners; `make(src)` turns it into
+  the `buildLevel` format with the walls as the complement rectangles. A pin's handle sits in `handleCell(pin)` (in
+  `core.js`: the cell just past the handle end), carved as a small pocket in the rock. Every chamber is closed, rooms are
+  free of rock and pins, and every level has a 3★ solution (checked in `levels.test.js`).
 - **30 levels**, difficulty rising:
   - 1–5: one or two pins, teach the basics (gold, water, lava, enemy, water+lava);
   - 6–20: 3–4 pins;
@@ -289,11 +294,11 @@ Cell types in a `Uint8Array`:
 - Create: `web/pins/levels.js`
 - Create: `tests/pins/levels.test.js`
 
-- [ ] create `web/pins/levels.js` (UMD, `root.PinsLevels`) with 30 levels by the difficulty curve from Technical Details: teaching levels 1–5 (gold, water, lava, enemy, water+lava → stone), then 6–20 with 3–4 pins, 21–30 with 4–5 pins
-- [ ] make every level fit the grid, with the hero, `room`, `exit` and the pin handles not overlapping walls
-- [ ] write `tests/pins/levels.test.js`: every level builds, has ≥1 winning order from `solve`, isn't won without pulling, has ≥1 losing order (order matters); ≥10 levels have ≥2 distinct winning orders; the pin count follows the difficulty curve
-- [ ] keep the full check of 30 levels in `node --test` under ~60 s (if slower, speed up `step` instead of cutting the checks)
-- [ ] run tests — must pass before next task
+- [x] create `web/pins/levels.js` (UMD, `root.PinsLevels`) with 30 levels by the difficulty curve from Technical Details: teaching levels 1–5 (gold, water, lava, enemy, water+lava → stone), then 6–20 with 3–4 pins, 21–30 with 4–5 pins
+- [x] make every level fit the grid, with the hero, `room`, `exit` and the pin handles not overlapping walls
+- [x] write `tests/pins/levels.test.js`: every level builds, has ≥1 winning order from `solve`, isn't won without pulling, has ≥1 losing order (order matters); ≥10 levels have ≥2 distinct winning orders; the pin count follows the difficulty curve
+- [x] keep the full check of 30 levels in `node --test` under ~60 s (if slower, speed up `step` instead of cutting the checks)
+- [x] run tests — must pass before next task
 
 ### Task 4: «Тяни штифт» — page, rendering, input, screens and saving
 

@@ -39,6 +39,14 @@
 
   const box = (r) => ({ x: r.x, y: r.y, w: r.w, h: r.h });
 
+  // The cell where a pin's handle (the ring the player grabs) sits: just past the pin's end on the handle side,
+  // in the middle of that end. Levels keep it free of rock.
+  function handleCell(p) {
+    if (p.handle === 'left') return { x: p.x - 1, y: p.y + ((p.h - 1) >> 1) };
+    if (p.handle === 'right') return { x: p.x + p.w, y: p.y + ((p.h - 1) >> 1) };
+    return { x: p.x + ((p.w - 1) >> 1), y: p.y - 1 };
+  }
+
   // Rasterizes a level definition onto a fresh grid. Walls may overlap each other (they are a union);
   // pins, fills, the hero and enemies must not overlap anything. Throws on invalid input.
   function buildLevel(def) {
@@ -422,7 +430,7 @@
 
   const api = {
     W, H, EMPTY, WALL, PIN, WATER, LAVA, STONE, GOLD, FILL_TYPES, HANDLES, SETTLE_TICKS, MAX_TICKS, FLOW, KILL_LAVA,
-    idx, buildLevel, clone, pull, step, settled, settle, count, cellAt,
+    idx, handleCell, buildLevel, clone, pull, step, settled, settle, count, cellAt,
     goldInRoom, liveEnemies, status, stars, solve,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
