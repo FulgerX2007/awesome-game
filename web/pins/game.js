@@ -6,7 +6,7 @@
   const V = window.PinsView;
   const LEVELS = window.PinsLevels.LEVELS;
   const { t } = window.I18n;
-  const { W, H, WALL, PIN, WATER, LAVA, STONE, GOLD } = C;
+  const { W, H, EMPTY, WALL, WATER, LAVA, STONE, GOLD, NEIGHBOURS } = C;
   const { CELL, LW, LH, hash2, clamp } = V;
   const $ = (id) => document.getElementById(id);
   // A rounded rectangle path; older browsers without roundRect get a plain one.
@@ -19,6 +19,11 @@
   // Sound comes from audio.js (index.html loads it first); its play() is silent while the sound is off.
   const Sound = window.PinsAudio;
   const sfx = (name) => Sound.play(name);
+
+  // The win walk: the hero cheers, walks to the exit (V.walkTime), fades through the door, then the result shows.
+  const CHEER_T = 0.5;   // seconds of cheering before the walk
+  const DOOR_T = 0.5;    // seconds to open the door / fade through it
+  const WALK_TAIL = 0.6; // seconds after reaching the door before the result screen
 
   // One-line lessons for the teaching levels, shown until the first pull.
   const TIPS = [
@@ -294,7 +299,7 @@
     for (let i = 0; i < W * H; i++) {
       if (g[i] !== WATER || depth[i] !== 0) continue;
       const x = i % W, y = (i - x) / W;
-      if (C.cellAt(s, x, y - 1) !== 0) continue;
+      if (C.cellAt(s, x, y - 1) !== EMPTY) continue;
       const wave = Math.sin(time * 3 + x * 0.9) * 0.9;
       ctx.fillStyle = 'rgba(225, 245, 255, .85)';
       ctx.fillRect(x * CELL, y * CELL + 1 + wave, CELL, 1.5);
@@ -317,7 +322,7 @@
     for (let i = 0; i < W * H; i++) {
       if (g[i] !== LAVA || depth[i] !== 0) continue;
       const x = i % W, y = (i - x) / W;
-      if (C.cellAt(s, x, y - 1) !== 0) continue;
+      if (C.cellAt(s, x, y - 1) !== EMPTY) continue;
       const b = (time * 0.9 + hash2(x, y, 5) * 3) % 1;
       if (hash2(x, Math.floor(time * 0.9 + hash2(x, y, 5) * 3), 6) < 0.18) {
         ctx.fillStyle = `rgba(255, 220, 120, ${1 - b})`;
@@ -331,7 +336,7 @@
     for (let i = 0; i < W * H; i++) {
       if (g[i] !== LAVA) continue;
       const x = i % W, y = (i - x) / W;
-      if (C.cellAt(s, x, y - 1) !== 0 && C.cellAt(s, x - 1, y) !== 0 && C.cellAt(s, x + 1, y) !== 0) continue;
+      if (C.cellAt(s, x, y - 1) !== EMPTY && C.cellAt(s, x - 1, y) !== EMPTY && C.cellAt(s, x + 1, y) !== EMPTY) continue;
       ctx.drawImage(sprites.lavaGlow, x * CELL - 12, y * CELL - 14, 34, 34);
     }
     ctx.globalAlpha = 1;
@@ -633,14 +638,9 @@
   }
 
   function drawEntities(dt) {
-    s.enemies.forEach((e, n) => {
+    for (const e of s.enemies) {
       if (!e.dead) drawFigure(e.x * CELL, e.y * CELL, { look: ENEMY_LOOK, enemy: true, face: s.hero && s.hero.x < e.x ? -1 : 1, mood: 'idle' });
-      else if (!deadSeen[n]) {
-        deadSeen[n] = true;
-        burning.push({ e, t: 0 });
-        sfx('burn');
-      }
-    });
+    }
     burning = burning.filter((b) => (b.t += dt) < 1);
     for (const b of burning) {
       const f = b.t;
@@ -651,12 +651,11 @@
     if (!h) return;
     if (phase === 'end' && outcome && outcome.won) return; // gone through the door
     if (phase === 'walk') {
-      const cheer = 0.5, door = 0.5;
-      const tw = Math.max(0, phaseT - cheer);
+      const tw = Math.max(0, phaseT - CHEER_T);
       const p = V.walkPos(h, s.exit, tw);
-      const into = p.done ? clamp((tw - V.walkTime(h, s.exit)) / door, 0, 1) : 0;
-      const hop = phaseT < cheer ? -Math.abs(Math.sin(phaseT * Math.PI * 2 / cheer)) * 5 : 0;
-      drawFigure(p.x * CELL, p.y * CELL + hop, { look: HERO_LOOK, face: p.face, walk: phaseT < cheer || p.done ? null : tw * 14, mood: phaseT < cheer ? 'cheer' : 'idle', alpha: 1 - into });
+      const into = p.done ? clamp((tw - V.walkTime(h, s.exit)) / DOOR_T, 0, 1) : 0;
+      const hop = phaseT < CHEER_T ? -Math.abs(Math.sin(phaseT * Math.PI * 2 / CHEER_T)) * 5 : 0;
+      drawFigure(p.x * CELL, p.y * CELL + hop, { look: HERO_LOOK, face: p.face, walk: phaseT < CHEER_T || p.done ? null : tw * 14, mood: phaseT < CHEER_T ? 'cheer' : 'idle', alpha: 1 - into });
       return;
     }
     const lostTo = s.lost || (outcome && !outcome.won && outcome.reason);
@@ -700,8 +699,14 @@
 
   const FLOW_CELLS = 6; // liquid cells that moved into empty space in one frame to count as pouring
   // Changes since the last frame: new stone hisses with steam, burnt gold sparks, gold reaching the room clinks,
-  // pouring water gurgles and pouring lava bubbles.
+  // pouring water gurgles and pouring lava bubbles, a freshly dead enemy starts burning up.
   function watchChanges() {
+    s.enemies.forEach((e, n) => {
+      if (!e.dead || deadSeen[n]) return;
+      deadSeen[n] = true;
+      burning.push({ e, t: 0 });
+      sfx('burn');
+    });
     const g = s.grid;
     if (!prevGrid) { prevGrid = g.slice(); prevGold = C.goldInRoom(s); return; }
     let hiss = false, burn = false, water = 0, lava = 0;
@@ -709,13 +714,13 @@
       const was = prevGrid[i], now = g[i];
       if (was === now) continue;
       const x = i % W, y = (i - x) / W;
-      if (was === 0 && now === WATER) water++;
-      else if (was === 0 && now === LAVA) lava++;
+      if (was === EMPTY && now === WATER) water++;
+      else if (was === EMPTY && now === LAVA) lava++;
       if (now === STONE && was !== STONE) {
         hiss = true;
         puff(x * CELL + 5, y * CELL + 2, 'steam');
-      } else if (was === GOLD && now === 0) {
-        const nearLava = [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => C.cellAt(s, x + dx, y + dy) === LAVA);
+      } else if (was === GOLD && now === EMPTY) {
+        const nearLava = NEIGHBOURS.some(([dx, dy]) => C.cellAt(s, x + dx, y + dy) === LAVA);
         if (nearLava) {
           burn = true;
           for (let n = 0; n < 2; n++) puff(x * CELL + 5, y * CELL + 5, 'spark');
@@ -742,7 +747,7 @@
     drawTorches();
     // The door opens as the hero comes close and stays open once the hero is through.
     let open = 0;
-    if (phase === 'walk') open = clamp((phaseT - V.walkTime(s.hero, s.exit)) / 0.5, 0, 1);
+    if (phase === 'walk') open = clamp((phaseT - V.walkTime(s.hero, s.exit)) / DOOR_T, 0, 1);
     else if (outcome && outcome.won && phase === 'end') open = 1;
     drawSolids();
     drawDoor(open);
@@ -785,7 +790,7 @@
       }
     }
     if (phase === 'play' || phase === 'lose' || phase === 'walk') renderHUD();
-    if (phase === 'walk' && phaseT > 0.5 + V.walkTime(s.hero, s.exit) + 0.6) {
+    if (phase === 'walk' && phaseT > CHEER_T + V.walkTime(s.hero, s.exit) + WALK_TAIL) {
       finish();
     } else if (phase === 'lose' && phaseT > 1.3) {
       finish();
@@ -878,7 +883,7 @@
     $('res-gold').textContent = t('Золото: {n} из {target}', { n: o.gold, target: s.goldTarget });
     const goals = $('res-goals');
     goals.innerHTML = '';
-    const rich = o.gold * 2 >= s.goldTarget * 3;
+    const rich = C.richEnough(o.gold, s.goldTarget);
     for (const [ok, text] of [[o.won, 'Герой дошёл до выхода'], [o.won && o.allDead, s.enemies.length ? 'Все враги повержены' : 'Врагов нет'],
       [o.won && rich, 'Золота в полтора раза больше нужного']]) {
       const li = document.createElement('li');
@@ -900,8 +905,11 @@
     stage.classList.toggle('dim', !!name);
   }
 
+  // The first level without stars (the last one once all are done).
+  const nextLevel = () => Math.min(C.firstUnfinished(progress, LEVELS.length), LEVELS.length - 1);
+
   function showMenu() {
-    const next = Math.min(C.firstUnfinished(progress, LEVELS.length), LEVELS.length - 1);
+    const next = nextLevel();
     loadLevel(next);
     setPhase('menu');
     $('hud').hidden = true;
@@ -934,7 +942,7 @@
     $('hud').hidden = true;
     $('tip').hidden = true;
     show('levels');
-    const cur = grid.children[Math.min(C.firstUnfinished(progress, LEVELS.length), LEVELS.length - 1)];
+    const cur = grid.children[nextLevel()];
     if (cur) cur.focus({ preventScroll: true });
   }
 
@@ -1024,7 +1032,7 @@
     }
   });
 
-  $('btn-play').addEventListener('click', () => startLevel(Math.min(C.firstUnfinished(progress, LEVELS.length), LEVELS.length - 1)));
+  $('btn-play').addEventListener('click', () => startLevel(nextLevel()));
   $('btn-levels-menu').addEventListener('click', showLevels);
   $('btn-sound-menu').addEventListener('click', toggleSound);
   $('btn-levels-back').addEventListener('click', showMenu);

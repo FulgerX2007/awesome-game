@@ -23,6 +23,9 @@
   const ARENA = 34;         // metres of track past the finish line
   const ARMY_Z = 12;        // the enemy's front rank, metres past the finish
   const BOSS_Z = 24;        // the boss, metres past the finish
+  const ARMY_STEP = 3;      // the army steps this far forward during the charge
+  const MEET_GAP = 2.5;     // the crowd stops this far short of the army's (stepped) front
+  const BOSS_GAP = 4.5;     // the crowd stops this far short of the boss
   const START_Z = -30;      // the track starts this far behind the start line
   const GATE_H = 2.6;       // metres
   const WALL_H = 1.5;
@@ -40,11 +43,12 @@
   const mix = (a, b, f) => [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * f));
   const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
+  // Shop cards; n fills the {n} of the description from core's tuning.
   const UPG = {
-    start: { name: 'Старт', desc: '+3 бойца в начале забега' },
-    weapon: { name: 'Оружие', desc: '+0.2 к оружию в начале забега' },
-    shield: { name: 'Щит', desc: '−6% потерь от пил, стен и падений' },
-    income: { name: 'Доход', desc: '+10% монет за забег' },
+    start: { name: 'Старт', desc: '+{n} бойца в начале забега', n: C.START_PER_LEVEL },
+    weapon: { name: 'Оружие', desc: '+{n} к оружию в начале забега', n: C.WEAPON_PER_LEVEL },
+    shield: { name: 'Щит', desc: '−{n}% потерь от пил, стен и падений', n: Math.round(C.SHIELD_PER_LEVEL * 100) },
+    income: { name: 'Доход', desc: '+{n}% монет за забег', n: Math.round(C.INCOME_PER_LEVEL * 100) },
   };
   const TIPS = [
     'Веди толпу пальцем или ←/→ через ворота с большим числом',
@@ -71,7 +75,7 @@
   let keys = { left: false, right: false };
   let keySteer = false;
   let drag = null;
-  let battle = null;        // { plan, coins, view }
+  let battle = null;        // { plan, view }: the battle timeline and what it shows now
   let coinsWon = 0;
   let particles = [];
   let floats = [];
@@ -500,7 +504,7 @@
     enemy: { body: '#e43f3a', head: '#ffad9c', legs: '#9c1f1b' },
   };
 
-  // A little soldier standing at a projected ground point p. run: running animation phase, or null for idle.
+  // A little soldier standing at a projected ground point p. phase: running animation phase, or null for idle.
   function drawSoldier(p, team, phase, power) {
     const s = p.scale * SOLDIER;
     const c = TEAM[team];
@@ -617,8 +621,8 @@
     let z = L.length + ARMY_Z;
     if (battle) {
       const b = battle.view;
-      if (b.phase === 'charge') z -= b.k * 3;
-      else z -= 3;
+      if (b.phase === 'charge') z -= b.k * ARMY_STEP;
+      else z -= ARMY_STEP;
     }
     return z;
   }
@@ -774,8 +778,9 @@
     particles = keep;
   }
 
-  function addFloat(text, good) {
-    floats.push({ text, good, t: 0, dx: (Math.random() - 0.5) * 40 });
+  // A number floating up from the crowd; extra adds fields (fall: a platform-fall counter, n: soldiers in it).
+  function addFloat(text, good, extra) {
+    floats.push({ text, good, t: 0, dx: (Math.random() - 0.5) * 40, ...extra });
     if (floats.length > 6) floats.shift();
   }
 
@@ -868,14 +873,12 @@
         burst(run.x, run.z, Math.min(30, e.lost), 'man', { spread: C.radius(run.count + e.lost) * 2, vh: 6, vz: 3 });
         burst(run.x, run.z, 8, 'spark', { color: '#ffd34d', vh: 5, spread: 0.6, life: 0.5 });
       } else if (e.type === 'fall') {
-        const last = floats[floats.length - 1];
-        if (last && last.fall && last.t < 0.5) {
-          last.n += e.lost;
-          last.text = `−${last.n}`;
+        const prevFloat = floats[floats.length - 1];
+        if (prevFloat && prevFloat.fall && prevFloat.t < 0.5) {
+          prevFloat.n += e.lost;
+          prevFloat.text = `−${prevFloat.n}`;
         } else {
-          addFloat(`−${e.lost}`, false);
-          floats[floats.length - 1].fall = true;
-          floats[floats.length - 1].n = e.lost;
+          addFloat(`−${e.lost}`, false, { fall: true, n: e.lost });
           sfx('fall');
         }
         const r = C.radius(run.count + e.lost);
@@ -911,11 +914,10 @@
   }
 
   function startBattle() {
-    const start = { count: run.count, power: run.power };
     C.finishBattle(run);
     coinsWon = demo ? 0 : C.bank(storage, save, run);
-    const plan = V.battlePlan(run, start);
-    battle = { plan, view: V.battleAt(plan, 0), done: false };
+    const plan = V.battlePlan(run);
+    battle = { plan, view: V.battleAt(plan, 0) };
     mode = 'battle';
     modeT = 0;
     sfx('battle');
@@ -940,6 +942,47 @@
   }
 
   let clashT = 0;
+  // The battle plays out core's result: the crowd charges, the sides melt, then the walk to the boss.
+  function updateBattle(dt, L) {
+    const b = V.battleAt(battle.plan, modeT);
+    const prev = battle.view;
+    battle.view = b;
+    shownCount = b.ours;
+    enemyShown = b.enemy;
+    bossShown = b.boss;
+    crowdX += (0 - crowdX) * Math.min(1, dt * 3);
+    const meet = ARMY_Z - ARMY_STEP - MEET_GAP;
+    const atBoss = BOSS_Z - BOSS_GAP;
+    if (b.phase === 'charge') crowdZ = L.length + meet * b.k;
+    else if (b.phase === 'army') crowdZ = L.length + meet;
+    else if (b.phase === 'walk') crowdZ = L.length + meet + (atBoss - meet) * b.k;
+    else if (b.phase === 'boss') crowdZ = L.length + atBoss;
+    if (b.phase === 'army' || b.phase === 'boss') {
+      clashT -= dt;
+      if (clashT <= 0) {
+        clashT = 0.13;
+        // Sparks fly halfway between the crowd and whom it fights.
+        const z = L.length + (b.phase === 'army' ? meet + MEET_GAP / 2 : atBoss + BOSS_GAP / 2);
+        burst((Math.random() - 0.5) * 1.2, z, 4, 'spark', { color: Math.random() < 0.5 ? '#ffd34d' : '#ffffff', vh: 5, h: 1, spread: 0.3, life: 0.5 });
+        if (prev.ours > b.ours) burst(crowdX, crowdZ + 1, Math.min(4, prev.ours - b.ours), 'man', { vh: 5, spread: 0.6, life: 0.9 });
+        if (prev.enemy > b.enemy) burst(0, enemyFront(L), Math.min(4, prev.enemy - b.enemy), 'man', { vh: 5, spread: 0.8, life: 0.9, color: TEAM.enemy.body, vz: -2 });
+        sfx('clash');
+      }
+    }
+    if (b.phase === 'done' && prev.phase !== 'done') {
+      if (battle.plan.won) {
+        sfx('win');
+        burst(crowdX, crowdZ + 2, 40, 'spark', { color: '#ffd34d', vh: 9, h: 1, spread: 1.4, life: 1.4, size: 0.8 });
+        burst(crowdX, crowdZ + 2, 30, 'spark', { color: '#7dff9f', vh: 8, h: 1, spread: 1.4, life: 1.4, size: 0.8 });
+        if (coinsWon > 0) sfx('coin');
+      } else {
+        sfx('lose');
+      }
+    }
+    if (b.phase === 'done' && battle.plan.won && L.boss) bossFall += dt * 1.6;
+    if (b.phase === 'done' && b.k >= 1) finish();
+  }
+
   function update(dt) {
     modeT += dt;
     shake = Math.max(0, shake - dt);
@@ -955,41 +998,7 @@
       if (run.status === 'battle') startBattle();
       else if (run.status === 'lost') loseOnTrack();
     } else if (mode === 'battle') {
-      const b = V.battleAt(battle.plan, modeT);
-      const prev = battle.view;
-      battle.view = b;
-      shownCount = b.ours;
-      enemyShown = b.enemy;
-      bossShown = b.boss;
-      crowdX += (0 - crowdX) * Math.min(1, dt * 3);
-      const meet = ARMY_Z - 3 - 2.5;
-      if (b.phase === 'charge') crowdZ = L.length + meet * b.k;
-      else if (b.phase === 'army') crowdZ = L.length + meet;
-      else if (b.phase === 'walk') crowdZ = L.length + meet + (BOSS_Z - 4.5 - meet) * b.k;
-      else if (b.phase === 'boss') crowdZ = L.length + BOSS_Z - 4.5;
-      if (b.phase === 'army' || b.phase === 'boss') {
-        clashT -= dt;
-        if (clashT <= 0) {
-          clashT = 0.13;
-          const z = b.phase === 'army' ? L.length + ARMY_Z - 4 : L.length + BOSS_Z - 1.5;
-          burst((Math.random() - 0.5) * 1.2, z, 4, 'spark', { color: Math.random() < 0.5 ? '#ffd34d' : '#ffffff', vh: 5, h: 1, spread: 0.3, life: 0.5 });
-          if (prev.ours > b.ours) burst(crowdX, crowdZ + 1, Math.min(4, prev.ours - b.ours), 'man', { vh: 5, spread: 0.6, life: 0.9 });
-          if (prev.enemy > b.enemy) burst(0, enemyFront(L), Math.min(4, prev.enemy - b.enemy), 'man', { vh: 5, spread: 0.8, life: 0.9, color: TEAM.enemy.body, vz: -2 });
-          sfx('clash');
-        }
-      }
-      if (b.phase === 'done' && prev.phase !== 'done') {
-        if (battle.plan.won) {
-          sfx('win');
-          burst(crowdX, crowdZ + 2, 40, 'spark', { color: '#ffd34d', vh: 9, h: 1, spread: 1.4, life: 1.4, size: 0.8 });
-          burst(crowdX, crowdZ + 2, 30, 'spark', { color: '#7dff9f', vh: 8, h: 1, spread: 1.4, life: 1.4, size: 0.8 });
-          if (coinsWon > 0) sfx('coin');
-        } else {
-          sfx('lose');
-        }
-      }
-      if (b.phase === 'done' && battle.plan.won && L.boss) bossFall += dt * 1.6;
-      if (b.phase === 'done' && b.k >= 1) finish();
+      updateBattle(dt, L);
     } else if (mode === 'lost') {
       if (modeT > 1.3) finish();
     }
@@ -1044,9 +1053,10 @@
     canvas.focus({ preventScroll: true });
   }
 
-  // Back to the menu with the autopilot running the next level behind it.
-  function showMenu() {
-    if (mode !== 'menu' || !demo) {
+  // Back to the menu with the autopilot running the next level behind it. A demo already running behind the menu
+  // keeps going unless force (boot: there is no run yet).
+  function showMenu(force) {
+    if (force === true || mode !== 'menu' || !demo) {
       newRun(save.level, true);
       mode = 'menu';
     }
@@ -1072,7 +1082,7 @@
       const h = document.createElement('h3');
       h.textContent = t(UPG[id].name);
       const p = document.createElement('p');
-      p.textContent = t(UPG[id].desc);
+      p.textContent = t(UPG[id].desc, { n: UPG[id].n });
       const pips = document.createElement('div');
       pips.className = 'pips';
       pips.setAttribute('role', 'img');
@@ -1262,10 +1272,10 @@
   $('btn-shop-menu').addEventListener('click', () => showShop('menu'));
   $('btn-levels-menu').addEventListener('click', showLevels);
   $('btn-sound-menu').addEventListener('click', toggleSound);
-  $('btn-levels-back').addEventListener('click', showMenu);
+  $('btn-levels-back').addEventListener('click', () => showMenu());
   $('btn-shop-back').addEventListener('click', () => (shopFrom === 'result' && mode === 'end' ? showResult() : showMenu()));
   $('btn-shop-play').addEventListener('click', () => startLevel(shopLevel()));
-  $('btn-menu').addEventListener('click', showMenu);
+  $('btn-menu').addEventListener('click', () => showMenu());
   $('btn-sound').addEventListener('click', toggleSound);
   $('btn-next').addEventListener('click', () => startLevel(levelNum + 1));
   $('btn-again').addEventListener('click', () => startLevel(levelNum));
@@ -1280,7 +1290,6 @@
   actions.append(window.I18n.toggle('chip'));
   if (window.GameNav) actions.append(window.GameNav.home('chip'));
   resize();
-  mode = 'none';
-  showMenu();
+  showMenu(true);
   requestAnimationFrame(frame);
 })();

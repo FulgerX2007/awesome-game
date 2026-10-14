@@ -397,7 +397,7 @@ Cell types in a `Uint8Array`:
 - [x] `lang.js` with RO strings; `index.html` with no external URLs
 - [x] write `view.test.js`: projection (near is larger and lower, horizon, symmetry in x), `unproject` is the inverse of `project`, soldier layout fits in the radius
 - [x] run tests — must pass before next task
-- ➕ `view.js` also has `armyLayout`, `fmtPower`, `opLabel`/`goodOp` and the battle timeline `battlePlan(run, start)`/`battleAt(plan, t)`
+- ➕ `view.js` also has `armyLayout`, `fmtPower`, `opLabel`/`goodOp` and the battle timeline `battlePlan(run)`/`battleAt(plan, t)`
   (charge → army → walk → boss → done, numbers melt to what `finishBattle` decided); a «Уровни» screen (levels 1…max(30, best+1),
   locks past best+1, boss levels marked) mirrors the other games; an autopilot demo of the next level runs behind the menu;
   touch drags steer relative to the start point, the mouse steers to the point under the cursor; sounds are requested

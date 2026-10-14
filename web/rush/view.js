@@ -6,6 +6,9 @@
 (function (root) {
   'use strict';
 
+  const Core = typeof module !== 'undefined' && module.exports ? require('./core.js') : root.RushCore;
+  const { EPS } = Core;
+
   const CAM_BACK = 6;      // metres between the camera and the crowd
   const HORIZON = 0.3;     // horizon line, share of the canvas height
   const GROUND = 0.8;      // where the ground under the crowd is drawn, share of the height
@@ -38,7 +41,7 @@
   // y follows 1/d, so the ground recedes to the horizon; near things are larger and lower.
   function project(x, z, camZ, v, h) {
     const d = z - camZ;
-    if (!(d >= NEAR - 1e-9)) return null;
+    if (!(d >= NEAR - EPS)) return null;
     const scale = focal(v) / d;
     const hy = horizonY(v);
     return {
@@ -56,7 +59,7 @@
     const y = isNum(sy) ? sy : groundY(v);
     if (!(y > hy)) return null;
     const d = ((groundY(v) - hy) * CAM_BACK) / (y - hy);
-    if (d < NEAR - 1e-9) return null;
+    if (d < NEAR - EPS) return null;
     return { x: ((sx - v.w / 2) * d) / (HALF_M * focal(v)), z: camZ + d };
   }
 
@@ -123,24 +126,21 @@
   // the boss's HP melts. Durations in seconds.
   const BATTLE = { charge: 0.6, army: 1.6, walk: 0.5, boss: 1.3, tail: 0.7 };
 
-  // run: the settled run (finishBattle done); start: { count, power } at the finish line.
-  function battlePlan(run, start) {
+  // run: the settled run (finishBattle done; it leaves run.count and run.power as they were at the finish line).
+  // The plan only splits core's result (strength, enemy, rest) into what each phase shows.
+  function battlePlan(run) {
     const res = run.result;
     const L = run.level;
-    const power = start.power;
-    const pe = L.enemy.power;
-    const S = start.count * power;
-    const Se = L.enemy.count * pe;
-    const armyBeaten = S > Se + 1e-9;
+    const armyBeaten = res.won || res.reason === 'boss';
     const hasBoss = !!L.boss && armyBeaten;
     const plan = {
-      ours0: start.count,
+      ours0: run.count,
       enemy0: L.enemy.count,
-      boss0: L.boss ? L.boss.hp : 0,
-      oursMid: armyBeaten ? Math.max(res.won ? res.survivors : 0, Math.ceil((S - Se) / power - 1e-9)) : 0,
-      enemyEnd: armyBeaten ? 0 : Math.ceil((Se - S) / pe - 1e-9),
+      boss0: res.boss,
+      oursMid: armyBeaten ? Math.max(res.won ? res.survivors : 0, Math.ceil(res.rest / run.power - EPS)) : 0,
+      enemyEnd: armyBeaten ? 0 : Math.ceil((res.enemy - res.strength) / L.enemy.power - EPS),
       oursEnd: res.won ? res.survivors : 0,
-      bossEnd: L.boss ? (res.won ? 0 : hasBoss ? Math.max(1, Math.ceil(L.boss.hp - (S - Se) - 1e-9)) : L.boss.hp) : 0,
+      bossEnd: L.boss ? (res.won ? 0 : hasBoss ? Math.max(1, Math.ceil(res.boss - res.rest - EPS)) : res.boss) : 0,
       hasBoss,
       won: res.won,
     };

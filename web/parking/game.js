@@ -1159,7 +1159,7 @@
       let next = pending + step;
       if (r.exit && step > 0 && next > r.max) next = exitAt;
       else if (pending > r.max && step < 0) next = r.max;
-      if (next < r.min || (next > r.max && !(r.exit && next === exitAt))) { bump(sel, step); return; }
+      if (!C.allowed(r, next)) { bump(sel, step); return; } // an exit is always exactly exitAt here
       pending = next;
       pendingT = 0;
       if (pending > r.max) commitPending(); // straight out through the exit

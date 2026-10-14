@@ -329,3 +329,10 @@ test('buildLevel throws on malformed definitions', () => {
   ];
   for (const def of bad) assert.throws(() => P.buildLevel(def), undefined, JSON.stringify(def));
 });
+
+test('richEnough is the gold star rule: at least 1.5× the target', () => {
+  assert.equal(P.richEnough(15, 10), true);
+  assert.equal(P.richEnough(14, 10), false);
+  assert.equal(P.richEnough(3, 2), true);
+  assert.deepEqual(P.NEIGHBOURS, [[0, -1], [0, 1], [-1, 0], [1, 0]]);
+});

@@ -222,3 +222,13 @@ test('the state is plain data: a JSON round trip keeps playing', () => {
   assert.equal(P.move(r, 'X', 9), true);
   assert.equal(r.status, 'won');
 });
+
+test('allowed accepts slides inside the range and, with an open exit, past its end', () => {
+  const r = { min: -2, max: 3, exit: false };
+  assert.equal(P.allowed(r, -2), true);
+  assert.equal(P.allowed(r, 3), true);
+  assert.equal(P.allowed(r, -3), false);
+  assert.equal(P.allowed(r, 4), false);
+  assert.equal(P.allowed({ ...r, exit: true }, 4), true, 'out through the exit');
+  assert.equal(P.allowed({ ...r, exit: true }, -3), false);
+});

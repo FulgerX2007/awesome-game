@@ -183,11 +183,13 @@
     return span(state.level, occupancy(state.level, pos), pos, i, gateClosed(state.moves));
   }
 
+  // Whether a slide by delta fits the range r from moveRange: inside it, or past its end through an open exit.
+  const allowed = (r, delta) => (delta >= r.min && delta <= r.max) || (r.exit && delta > r.max);
+
   function canMove(state, id, delta) {
     if (!isInt(delta) || delta === 0) return false;
     const r = moveRange(state, id);
-    if (!r) return false;
-    return (delta >= r.min && delta <= r.max) || (r.exit && delta > r.max);
+    return !!r && allowed(r, delta);
   }
 
   // Slides a vehicle by delta cells along its axis. A slide of the player past the free road to the edge leaves
@@ -195,7 +197,7 @@
   function move(state, id, delta) {
     if (!isInt(delta) || delta === 0) return false;
     const r = moveRange(state, id);
-    if (!r || !((delta >= r.min && delta <= r.max) || (r.exit && delta > r.max))) return false;
+    if (!r || !allowed(r, delta)) return false;
     const v = state.vehicles[indexOf(state, id)];
     const exits = delta > r.max;
     // an exit is stored as the slide to the edge (w − x), whatever overshoot the player gave
@@ -230,9 +232,8 @@
   // Board as rows of text: a parsed level's static cells with `vehicles` (its own by default) on top; the player
   // is left out once it exited. For a game: toRows(state.level, state.vehicles).
   function toRows(L, vehicles = L.vehicles) {
-    const vs = vehicles;
     const g = L.cells.slice();
-    for (const v of vs) {
+    for (const v of vehicles) {
       for (let k = 0; k < v.len; k++) {
         const x = v.dir === 'h' ? v.x + k : v.x;
         const y = v.dir === 'v' ? v.y + k : v.y;
@@ -447,7 +448,7 @@
 
   const api = {
     MIN_SIZE, MAX_SIZE, MAX_STATES, PLAYER, EMPTY, BOLLARD, GATE, KINDS, LENGTHS, TOW_STEP,
-    parseLevel, limitFor, stars, gateClosed, gateOpen, newGame, status, moveRange, canMove, move, undo, restart,
+    parseLevel, limitFor, stars, gateClosed, gateOpen, newGame, status, moveRange, allowed, canMove, move, undo, restart,
     toRows, solve, solveState, solverFor,
     PROGRESS_KEY, MAX_HINTS, newProgress, parseProgress, loadProgress, saveProgress, starsOf, recordStars,
     firstUnfinished, unlocked, pathOf, replay, currentOf, resume, hintOf, followRoute,

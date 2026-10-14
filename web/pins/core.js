@@ -391,11 +391,14 @@
     return { status: 'lost', reason: blocked ? 'lava' : 'nogold' };
   }
 
+  // The gold star: at least 1.5× the target in the room.
+  const richEnough = (gold, target) => gold * 2 >= target * 3;
+
   // 0 unless won; 3 with every enemy dead and ≥1.5× goldTarget gold, 2 when either holds, otherwise 1.
   function stars(s) {
     if (status(s).status !== 'won') return 0;
     const allDead = liveEnemies(s) === 0;
-    const rich = goldInRoom(s) * 2 >= s.goldTarget * 3;
+    const rich = richEnough(goldInRoom(s), s.goldTarget);
     return 1 + (allDead ? 1 : 0) + (rich ? 1 : 0);
   }
 
@@ -500,8 +503,8 @@
 
   const api = {
     W, H, EMPTY, WALL, PIN, WATER, LAVA, STONE, GOLD, FILL_TYPES, HANDLES, SETTLE_TICKS, MAX_TICKS, FLOW, KILL_LAVA,
-    idx, handleCell, buildLevel, clone, pull, step, settled, settle, count, cellAt,
-    goldInRoom, liveEnemies, status, stars, solve,
+    NEIGHBOURS, idx, handleCell, buildLevel, clone, pull, step, settled, settle, count, cellAt,
+    goldInRoom, liveEnemies, status, richEnough, stars, solve,
     PROGRESS_KEY, newProgress, parseProgress, loadProgress, saveProgress, starsOf, recordStars, recordWin, firstUnfinished,
     unlocked,
   };

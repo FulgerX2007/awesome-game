@@ -149,9 +149,8 @@ function settled(enemy, boss, count, power = 1) {
   while (run.status === 'running') R.step(run, R.TICK, 0);
   run.count = count;
   run.power = power;
-  const start = { count, power };
   R.finishBattle(run);
-  return { run, plan: V.battlePlan(run, start) };
+  return { run, plan: V.battlePlan(run) };
 }
 
 // Samples the timeline and checks that the shown numbers only go down.

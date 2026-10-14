@@ -129,12 +129,6 @@
     return Math.abs(target - next) < 0.002 ? target : next;
   }
 
-  const easeInQuad = (t) => clamp(t, 0, 1) ** 2;
-  const easeOutBack = (t) => {
-    const u = clamp(t, 0, 1) - 1;
-    return 1 + 2.2 * u ** 3 + 1.2 * u ** 2;
-  };
-
   // Stable pseudo-random value in [0, 1) for two integers and a salt: the same art every frame.
   function hash2(x, y, salt = 0) {
     let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(salt | 0, 2246822519);
@@ -146,7 +140,7 @@
   const api = {
     PAD, ROAD, MAX_CELL, MAX_DPR, DRAG_START, OVERDRAG,
     clamp, worldSize, fitBoard, cellAt, covers, vehicleAt, along, dragTarget, dropDelta, give,
-    cycle, neighbor, approach, easeInQuad, easeOutBack, hash2,
+    cycle, neighbor, approach, hash2,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ParkingView = api;

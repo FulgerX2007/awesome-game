@@ -175,10 +175,6 @@ test('approach eases towards the target and settles exactly', () => {
   for (let i = 0; i < 120; i++) v = V.approach(v, 1, 1 / 60);
   assert.equal(v, 1);
   assert.equal(V.approach(0.5, 1, -1), 0.5, 'no time, no change');
-  assert.equal(V.easeInQuad(0.5), 0.25);
-  assert.equal(V.easeInQuad(2), 1);
-  assert.ok(Math.abs(V.easeOutBack(1) - 1) < 1e-9);
-  assert.ok(Math.abs(V.easeOutBack(0)) < 1e-9);
   assert.equal(V.clamp(5, 0, 3), 3);
 });
 

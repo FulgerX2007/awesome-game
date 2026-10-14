@@ -97,12 +97,12 @@
   // ── Fixed step ──
   // Adds dt seconds to the accumulator (in ticks) and returns how many ticks to run now and what is left.
   // Junk or negative dt adds nothing; a backlog over MAX_TICKS_PER_FRAME is dropped.
-  function fixedSteps(acc, dt, max = MAX_TICKS_PER_FRAME) {
+  function fixedSteps(acc, dt) {
     const add = Number.isFinite(dt) && dt > 0 ? dt * TICK_RATE : 0;
     let a = (Number.isFinite(acc) && acc > 0 ? acc : 0) + add;
     let n = Math.floor(a);
     a -= n;
-    if (n > max) { n = max; a = 0; }
+    if (n > MAX_TICKS_PER_FRAME) { n = MAX_TICKS_PER_FRAME; a = 0; }
     return { n, acc: a };
   }
 

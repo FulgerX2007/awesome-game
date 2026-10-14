@@ -13,6 +13,7 @@
   const BASE_POWER = 1;     // weapon level at the start before upgrades
   const MAX_COUNT = 99999;
   const FALL_RATE = 4;      // share of the uncovered soldiers that fall off a platform per second
+  const EPS = 1e-9;         // float tolerance for ceil/floor/compare on soldier counts and strengths
 
   const UPGRADES = ['start', 'weapon', 'shield', 'income'];
   const MAX_UPGRADE = 10;
@@ -203,7 +204,7 @@
 
   function obstacleLoss(run, o) {
     const share = spanOverlap(run.x, run.count, o.x0, o.x1);
-    return Math.min(run.count, Math.ceil(run.count * share * KIND_RATE[o.kind] * run.shield - 1e-9));
+    return Math.min(run.count, Math.ceil(run.count * share * KIND_RATE[o.kind] * run.shield - EPS));
   }
 
   function crossObstacle(run, o) {
@@ -253,7 +254,7 @@
     const p = platformAt(L, run.z);
     if (p) {
       run.fallAcc += run.count * uncovered(run.x, run.count, p, t) * FALL_RATE * TICK * run.shield;
-      const lost = Math.min(run.count, Math.floor(run.fallAcc + 1e-9));
+      const lost = Math.min(run.count, Math.floor(run.fallAcc + EPS));
       if (lost > 0) {
         run.fallAcc -= lost;
         run.count -= lost;
@@ -273,7 +274,7 @@
     if (!run || run.status !== 'running' || !isNum(dt) || dt <= 0) return run;
     if (isNum(targetX)) run.target = clamp(targetX, -1, 1);
     run.acc += Math.min(dt, MAX_DT);
-    while (run.acc >= TICK - 1e-9 && run.status === 'running') {
+    while (run.acc >= TICK - EPS && run.status === 'running') {
       run.acc -= TICK;
       tick(run);
     }
@@ -288,7 +289,6 @@
   // ── Battle ──
   // At the finish line the crowd (strength count·power) fights the enemy army (E·p_e): ours must be greater.
   // On a boss level the rest of the strength (ours − the army's) must then reach the boss's HP.
-  const EPS = 1e-9;
 
   // Settles a run that has stopped: 'battle' becomes 'won' or 'lost' (reason 'army' or 'boss'); a run lost on the
   // track stays lost. Returns run.result { won, reason, survivors, strength, enemy, boss, rest }, or null while the
@@ -734,7 +734,7 @@
   }
 
   const api = {
-    HZ, TICK, MAX_DT, SPEED, STEER, BASE_COUNT, BASE_POWER, MAX_COUNT, FALL_RATE,
+    HZ, TICK, MAX_DT, SPEED, STEER, BASE_COUNT, BASE_POWER, MAX_COUNT, FALL_RATE, EPS,
     UPGRADES, MAX_UPGRADE, START_PER_LEVEL, WEAPON_PER_LEVEL, SHIELD_PER_LEVEL, OPS, KINDS, KIND_RATE,
     radius, overlap, spanOverlap, parseLevel, cleanUpgrades, shieldMul, newRun, applyOp, gateSide,
     obstacleLoss, platformX, platformAt, uncovered, step, progress, strength,
