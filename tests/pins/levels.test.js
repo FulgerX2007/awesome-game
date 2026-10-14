@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../../web/pins/core.js');
-const { LEVELS, SRC, make, rock } = require('../../web/pins/levels.js');
+const { LEVELS, SRC, CHAPTERS, make, rock } = require('../../web/pins/levels.js');
 
 const { W, H, WALL, PIN, GOLD } = P;
 
@@ -27,9 +27,14 @@ function play(def, order) {
   return s;
 }
 
-test('there are 30 levels, all made from the compact sources', () => {
-  assert.equal(LEVELS.length, 30);
-  assert.equal(SRC.length, 30);
+test('there are 42 levels, all made from the compact sources', () => {
+  assert.equal(LEVELS.length, 42);
+  assert.equal(SRC.length, 42);
+});
+
+test('chapters start at 1, 31 and 37, in order and inside the level list', () => {
+  assert.deepEqual(CHAPTERS.map((c) => c.from), [0, 30, 36]);
+  for (const c of CHAPTERS) assert.ok(typeof c.title === 'string' && c.title.length > 0);
 });
 
 test('rock() covers exactly the cells that are not carved, without overlaps', () => {
@@ -99,7 +104,9 @@ test('pins are numbered 1..n and their count follows the difficulty curve', () =
     const ids = def.pins.map((p) => p.id).sort((a, b) => a - b);
     assert.deepEqual(ids, ids.map((_, k) => k + 1), `level ${level}: pin ids`);
     const n = def.pins.length;
-    const [lo, hi] = level <= 5 ? [1, 2] : level <= 20 ? [3, 4] : [4, 5];
+    // Each new chapter opens with a 2-pin teaching level.
+    const teaching = level <= 5 || level === 31 || level === 37;
+    const [lo, hi] = teaching ? [1, 2] : level <= 20 ? [3, 4] : level <= 30 ? [4, 5] : [3, 5];
     assert.ok(n >= lo && n <= hi, `level ${level}: ${n} pins, expected ${lo}–${hi}`);
   });
 });
@@ -111,6 +118,16 @@ test('the teaching levels 1–5 introduce gold, water, lava, an enemy and water 
   assert.ok(has(2, 'lava') && !has(2, 'water') && LEVELS[2].enemies.length === 0);
   assert.ok(LEVELS[3].enemies.length > 0 && !has(3, 'water'));
   assert.ok(has(4, 'water') && has(4, 'lava'));
+});
+
+test('the gas chapter has gas in every level and no kegs; the keg chapter has kegs in every level', () => {
+  const has = (i, type) => LEVELS[i].fills.some((f) => f.type === type);
+  for (let i = 0; i < 30; i++) assert.ok(!has(i, 'gas') && !has(i, 'bomb'), `level ${i + 1}: new matter in chapter 1`);
+  for (let i = 30; i < 36; i++) assert.ok(has(i, 'gas') && !has(i, 'bomb'), `level ${i + 1}`);
+  for (let i = 36; i < 42; i++) assert.ok(has(i, 'bomb'), `level ${i + 1}`);
+  // The teaching levels: 31 kills an enemy with gas alone, 37 opens the gold with a keg alone.
+  assert.ok(LEVELS[30].enemies.length === 1 && !has(30, 'lava') && !has(30, 'water'));
+  assert.ok(LEVELS[36].enemies.length === 0 && has(36, 'lava') && !has(36, 'gas'));
 });
 
 test('every level is solvable, not won without pulling, and some pull order loses', () => {

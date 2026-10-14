@@ -4,9 +4,9 @@
 (() => {
   const C = window.PinsCore;
   const V = window.PinsView;
-  const LEVELS = window.PinsLevels.LEVELS;
+  const { LEVELS, CHAPTERS } = window.PinsLevels;
   const { t } = window.I18n;
-  const { W, H, EMPTY, WALL, WATER, LAVA, STONE, GOLD, NEIGHBOURS } = C;
+  const { W, H, EMPTY, WALL, WATER, LAVA, STONE, GOLD, GAS, BOMB, NEIGHBOURS } = C;
   const { CELL, LW, LH, hash2, clamp } = V;
   const $ = (id) => document.getElementById(id);
   // A rounded rectangle path; older browsers without roundRect get a plain one.
@@ -25,14 +25,16 @@
   const DOOR_T = 0.5;    // seconds to open the door / fade through it
   const WALK_TAIL = 0.6; // seconds after reaching the door before the result screen
 
-  // One-line lessons for the teaching levels, shown until the first pull.
-  const TIPS = [
-    'Потяни штифт, чтобы золото упало к герою',
-    'Вода не опасна: золото тонет в ней',
-    'Лава сжигает золото. Успей уронить его раньше',
-    'Сожги врага лавой, пока он не добрался до героя',
-    'Вода и лава вместе дают камень',
-  ];
+  // One-line lessons for the teaching levels (by 0-based level), shown until the first pull.
+  const TIPS = {
+    0: 'Потяни штифт, чтобы золото упало к герою',
+    1: 'Вода не опасна: золото тонет в ней',
+    2: 'Лава сжигает золото. Успей уронить его раньше',
+    3: 'Сожги врага лавой, пока он не добрался до героя',
+    4: 'Вода и лава вместе дают камень',
+    30: 'Газ поднимается вверх и душит врагов',
+    36: 'Лава взрывает бочку, а взрыв пробивает камень',
+  };
 
   const canvas = $('board');
   const ctx = canvas.getContext('2d');
@@ -52,8 +54,10 @@
   let prevGold = 0;
   let deadSeen = [];
   let outcome = null;      // { won, reason, stars, gold }
-  let hint = null;         // pin id to point at on level 1
-  let anyPull = false;
+  let hint = null;         // pin id to point at: on level 1 and after the hint button, until the next pull
+  let speed = 1;           // 1 or 2: the fast-forward button runs the automaton twice as fast
+  let flashes = [];        // keg blasts: { x, y, t } in logical px
+  let shake = 0;           // seconds of screen shake left
   let time = 0;
   let last = 0;
 
@@ -111,9 +115,11 @@
       g.beginPath(); g.ellipse(-1.8, -2, 1.3, 0.8, -0.6, 0, Math.PI * 2); g.fill();
       sprites[name] = cv;
     }
-    // Soft glow for lava edges and torches (drawn with 'lighter').
+    // Soft glow for lava edges and torches (drawn with 'lighter'), a puff of gas, the flash of a blast.
     for (const [name, inner, outer] of [['lavaGlow', 'rgba(255, 150, 40, .55)', 'rgba(255, 80, 0, 0)'],
-      ['torchGlow', 'rgba(255, 190, 90, .32)', 'rgba(255, 140, 40, 0)']]) {
+      ['torchGlow', 'rgba(255, 190, 90, .32)', 'rgba(255, 140, 40, 0)'],
+      ['gasPuff', 'rgba(170, 230, 90, .55)', 'rgba(120, 190, 60, 0)'],
+      ['blastGlow', 'rgba(255, 240, 190, .95)', 'rgba(255, 120, 20, 0)']]) {
       const { cv, g } = offscreen(40, 40);
       const grd = g.createRadialGradient(20, 20, 0, 20, 20, 20);
       grd.addColorStop(0, inner);
@@ -343,6 +349,99 @@
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  // Gas: a dense green haze per cell and soft puffs drifting over it.
+  function drawGas() {
+    const g = s.grid;
+    ctx.fillStyle = 'rgba(110, 170, 60, .28)';
+    for (let i = 0; i < W * H; i++) if (g[i] === GAS) ctx.fillRect((i % W) * CELL, Math.floor(i / W) * CELL, CELL, CELL);
+    ctx.globalAlpha = 0.6;
+    for (let i = 0; i < W * H; i++) {
+      if (g[i] !== GAS) continue;
+      const x = i % W, y = (i - x) / W, v = hash2(x, y, 31);
+      const dx = Math.sin(time * 1.3 + v * 7) * 2.5, dy = Math.cos(time * 1.1 + v * 5) * 2;
+      ctx.drawImage(sprites.gasPuff, x * CELL - 6 + dx, y * CELL - 6 + dy, 22, 22);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Powder kegs: every group of touching keg cells is one barrel with hoops and a warning sign.
+  const kegSeen = new Uint8Array(W * H);
+  function drawKegs() {
+    const g = s.grid;
+    kegSeen.fill(0);
+    for (let i0 = 0; i0 < W * H; i0++) {
+      if (g[i0] !== BOMB || kegSeen[i0]) continue;
+      let x0 = W, y0 = H, x1 = 0, y1 = 0;
+      const stack = [i0];
+      kegSeen[i0] = 1;
+      while (stack.length) {
+        const i = stack.pop(), x = i % W, y = (i - x) / W;
+        x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+        for (const [dx, dy] of NEIGHBOURS) {
+          const nx = x + dx, ny = y + dy, j = ny * W + nx;
+          if (nx >= 0 && nx < W && ny >= 0 && ny < H && g[j] === BOMB && !kegSeen[j]) { kegSeen[j] = 1; stack.push(j); }
+        }
+      }
+      drawKeg(x0 * CELL, y0 * CELL, (x1 + 1 - x0) * CELL, (y1 + 1 - y0) * CELL);
+    }
+  }
+
+  function drawKeg(px, py, w, h) {
+    const bulge = Math.min(2, w * 0.1);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(px + bulge, py + 0.5);
+    ctx.quadraticCurveTo(px - bulge, py + h / 2, px + bulge, py + h - 0.5);
+    ctx.lineTo(px + w - bulge, py + h - 0.5);
+    ctx.quadraticCurveTo(px + w + bulge, py + h / 2, px + w - bulge, py + 0.5);
+    ctx.closePath();
+    const wood = ctx.createLinearGradient(px, 0, px + w, 0);
+    wood.addColorStop(0, '#5e2f12');
+    wood.addColorStop(0.35, '#a65a26');
+    wood.addColorStop(1, '#4a240e');
+    ctx.fillStyle = wood;
+    ctx.fill();
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(0, 0, 0, .35)';
+    ctx.lineWidth = 0.7;
+    for (let x = px + w / 4; x < px + w; x += w / 4) { ctx.beginPath(); ctx.moveTo(x, py); ctx.lineTo(x, py + h); ctx.stroke(); }
+    ctx.fillStyle = '#3b3f46';
+    for (const f of [0.18, 0.82]) ctx.fillRect(px - 2, py + h * f - 1.2, w + 4, 2.4);
+    ctx.fillStyle = 'rgba(255, 255, 255, .25)';
+    for (const f of [0.18, 0.82]) ctx.fillRect(px - 2, py + h * f - 1.2, w + 4, 0.7);
+    ctx.restore();
+    // A warning sign: a yellow triangle with "!".
+    const cx = px + w / 2, cy = py + h / 2 + 0.5, r = Math.min(w, h) * 0.26;
+    ctx.fillStyle = '#ffd34d';
+    ctx.strokeStyle = '#2a1a08';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r * 1.1, cy + r * 0.8); ctx.lineTo(cx - r * 1.1, cy + r * 0.8); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2a1a08';
+    ctx.fillRect(cx - 0.6, cy - r * 0.45, 1.2, r * 0.75);
+    ctx.fillRect(cx - 0.6, cy + r * 0.45, 1.2, 1.2);
+    // A short fuse on top with a glowing tip.
+    ctx.strokeStyle = '#2b2620';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(cx, py + 0.5); ctx.quadraticCurveTo(cx + 3, py - 3, cx + 5, py - 4); ctx.stroke();
+    ctx.fillStyle = `rgba(255, ${170 + Math.sin(time * 9) * 40 | 0}, 60, .9)`;
+    ctx.beginPath(); ctx.arc(cx + 5, py - 4, 1.2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Blasts: a white-hot flash that turns into an orange glow.
+  function drawFlashes(dt) {
+    flashes = flashes.filter((f) => (f.t += dt) < 0.5);
+    if (!flashes.length) return;
+    ctx.globalCompositeOperation = 'lighter';
+    for (const f of flashes) {
+      const p = f.t / 0.5, r = (C.BLAST_R + 1) * CELL * (0.6 + p * 0.9);
+      ctx.globalAlpha = (1 - p) * 0.9;
+      ctx.drawImage(sprites.blastGlow, f.x - r, f.y - r, r * 2, r * 2);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
   // ───────────── Pins ─────────────
   function drawPin(p, off, alpha) {
     const { dx, dy } = V.pullDir(p);
@@ -418,9 +517,9 @@
     }
   }
 
-  // Level 1: a pulsing ring and an arrow on the pin to pull, until the first pull.
+  // A pulsing ring and an arrow on the pin to pull (level 1, the hint button), until the next pull.
   function drawHint() {
-    if (hint == null || anyPull || phase !== 'play') return;
+    if (hint == null || phase !== 'play') return;
     const p = s.pins.find((q) => q.id === hint);
     if (!p || p.pulled) return;
     const h = C.handleCell(p);
@@ -449,6 +548,7 @@
   const HERO_LOOK = { skin: '#f5c9a0', hair: '#6b3f1f', body: ['#5b9bff', '#2b5fb8'], cape: '#c8324a', belt: '#5b3a1e', legs: '#3b3550', boots: '#2a1d14' };
   const ENEMY_LOOK = { skin: '#7cc04f', hair: '#8a8f98', body: ['#8a5a34', '#5a3a20'], cape: null, belt: '#2f2018', legs: '#4a3a2a', boots: '#21170f' };
   const BURNT = { skin: '#3a302b', hair: '#1d1714', body: ['#2e2622', '#1d1714'], cape: '#2a1f1c', belt: '#151010', legs: '#1d1714', boots: '#120d0b' };
+  const POISONED = { skin: '#a8c98a', hair: '#55603f', body: ['#6f8a5a', '#465a38'], cape: '#6a7a4a', belt: '#3a4030', legs: '#4a5540', boots: '#2c3326' };
 
   // A figure in a 3×5-cell box at logical (bx, by). o: { look, face, walk (phase or null), mood, enemy, alpha }.
   function drawFigure(bx, by, o) {
@@ -643,9 +743,11 @@
     }
     burning = burning.filter((b) => (b.t += dt) < 1);
     for (const b of burning) {
-      const f = b.t;
-      drawFigure(b.e.x * CELL, b.e.y * CELL - f * 4, { look: f < 0.25 ? ENEMY_LOOK : BURNT, enemy: true, mood: 'burnt', alpha: 1 - f });
-      if (Math.random() < 0.5) puff(b.e.x * CELL + 5 + Math.random() * 20, b.e.y * CELL + 10 + Math.random() * 35, 'smoke');
+      const f = b.t, cause = b.e.cause;
+      const look = f < 0.25 ? ENEMY_LOOK : cause === 'gas' ? POISONED : BURNT;
+      const lift = cause === 'blast' ? f * 30 : f * 4; // a blast flings the enemy up
+      drawFigure(b.e.x * CELL, b.e.y * CELL - lift, { look, enemy: true, mood: 'burnt', alpha: 1 - f });
+      if (cause !== 'gas' && Math.random() < 0.5) puff(b.e.x * CELL + 5 + Math.random() * 20, b.e.y * CELL + 10 + Math.random() * 35, 'smoke');
     }
     const h = s.hero;
     if (!h) return;
@@ -659,23 +761,26 @@
       return;
     }
     const lostTo = s.lost || (outcome && !outcome.won && outcome.reason);
-    const mood = lostTo === 'lava' && s.lost ? 'burnt' : lostTo ? 'scared' : 'idle';
-    const shake = mood === 'scared' && phase === 'lose' ? Math.sin(time * 40) * 0.8 : 0;
+    const mood = s.lost && s.lost !== 'enemy' ? 'burnt' : lostTo ? 'scared' : 'idle';
+    const tremble = mood === 'scared' && phase === 'lose' ? Math.sin(time * 40) * 0.8 : 0;
     const face = s.exit && s.exit.x < h.x ? -1 : 1;
-    drawFigure(h.x * CELL + shake, h.y * CELL, { look: mood === 'burnt' ? BURNT : HERO_LOOK, face, mood });
+    const look = mood !== 'burnt' ? HERO_LOOK : s.lost === 'gas' ? POISONED : BURNT;
+    drawFigure(h.x * CELL + tremble, h.y * CELL, { look, face, mood });
   }
 
   // ───────────── Particles ─────────────
+  // Kinds: steam and smoke drift up and grow; sparks, flames and rock debris fly and fall.
   function puff(x, y, kind) {
-    if (particles.length > 260) return;
+    if (particles.length > 320) return;
     const steam = kind === 'steam' || kind === 'smoke';
+    const debris = kind === 'debris';
     particles.push({
       x, y, kind,
-      vx: (Math.random() - 0.5) * (steam ? 14 : 60),
-      vy: steam ? -18 - Math.random() * 16 : -40 - Math.random() * 50,
+      vx: (Math.random() - 0.5) * (steam ? 14 : debris ? 220 : 60),
+      vy: steam ? -18 - Math.random() * 16 : debris ? -60 - Math.random() * 140 : -40 - Math.random() * 50,
       life: 0,
-      max: steam ? 0.9 + Math.random() * 0.6 : 0.5 + Math.random() * 0.3,
-      r: steam ? 2.5 + Math.random() * 2.5 : 1 + Math.random(),
+      max: steam ? 0.9 + Math.random() * 0.6 : debris ? 0.7 + Math.random() * 0.5 : 0.5 + Math.random() * 0.3,
+      r: steam ? 2.5 + Math.random() * 2.5 : debris ? 1.5 + Math.random() * 2 : 1 + Math.random(),
     });
   }
 
@@ -689,6 +794,14 @@
         p.vy += 160 * dt;
         ctx.fillStyle = `rgba(255, ${180 - f * 120 | 0}, 60, ${1 - f})`;
         ctx.fillRect(p.x - p.r / 2, p.y - p.r / 2, p.r, p.r);
+      } else if (p.kind === 'flame') {
+        p.vy -= 60 * dt;
+        ctx.fillStyle = `rgba(255, ${220 - f * 150 | 0}, ${80 - f * 60 | 0}, ${(1 - f) * 0.9})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1.6 - f), 0, Math.PI * 2); ctx.fill();
+      } else if (p.kind === 'debris') {
+        p.vy += 420 * dt;
+        ctx.fillStyle = `rgba(${p.r > 2.5 ? '120, 98, 80' : '74, 60, 52'}, ${1 - f * f})`;
+        ctx.fillRect(p.x - p.r / 2, p.y - p.r / 2, p.r, p.r);
       } else {
         const c = p.kind === 'steam' ? '230, 236, 245' : '60, 52, 50';
         ctx.fillStyle = `rgba(${c}, ${(1 - f) * 0.55})`;
@@ -700,16 +813,26 @@
   const FLOW_CELLS = 6; // liquid cells that moved into empty space in one frame to count as pouring
   // Changes since the last frame: new stone hisses with steam, burnt gold sparks, gold reaching the room clinks,
   // pouring water gurgles and pouring lava bubbles, a freshly dead enemy starts burning up.
+  // Gas burnt by lava flares up; a keg blast flashes, throws rock and shakes the board.
   function watchChanges() {
+    for (const b of s.blasts.splice(0)) {
+      const x = b.x * CELL + 5, y = b.y * CELL + 5;
+      flashes.push({ x, y, t: 0 });
+      for (let n = 0; n < 7; n++) puff(x, y, 'debris');
+      for (let n = 0; n < 3; n++) puff(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 30, 'smoke');
+      shake = 0.45;
+      sfx('boom');
+    }
     s.enemies.forEach((e, n) => {
       if (!e.dead || deadSeen[n]) return;
       deadSeen[n] = true;
       burning.push({ e, t: 0 });
-      sfx('burn');
+      if (e.cause === 'gas') sfx('choke');
+      else if (e.cause === 'lava') sfx('burn');
     });
     const g = s.grid;
     if (!prevGrid) { prevGrid = g.slice(); prevGold = C.goldInRoom(s); return; }
-    let hiss = false, burn = false, water = 0, lava = 0;
+    let hiss = false, burn = false, flare = false, water = 0, lava = 0;
     for (let i = 0; i < W * H; i++) {
       const was = prevGrid[i], now = g[i];
       if (was === now) continue;
@@ -719,17 +842,21 @@
       if (now === STONE && was !== STONE) {
         hiss = true;
         puff(x * CELL + 5, y * CELL + 2, 'steam');
-      } else if (was === GOLD && now === EMPTY) {
+      } else if ((was === GOLD || was === GAS) && now === EMPTY) {
         const nearLava = NEIGHBOURS.some(([dx, dy]) => C.cellAt(s, x + dx, y + dy) === LAVA);
-        if (nearLava) {
+        if (nearLava && was === GOLD) {
           burn = true;
           for (let n = 0; n < 2; n++) puff(x * CELL + 5, y * CELL + 5, 'spark');
+        } else if (nearLava) {
+          flare = true;
+          puff(x * CELL + 5, y * CELL + 5, 'flame');
         }
       }
     }
     prevGrid.set(g);
     if (hiss) sfx('hiss');
     if (burn) sfx('sizzle');
+    if (flare) sfx('poof');
     if (water >= FLOW_CELLS) sfx('gurgle');
     if (lava >= FLOW_CELLS) sfx('bubble');
     const gold = C.goldInRoom(s);
@@ -741,7 +868,12 @@
   function draw(dt) {
     ctx.setTransform(k, 0, 0, k, 0, 0);
     if (!s) return;
-    const key = String(level); // resize() clears staticKey
+    if (shake > 0) {
+      shake = Math.max(0, shake - dt);
+      const a = shake * 9;
+      ctx.translate((Math.random() - 0.5) * a, (Math.random() - 0.5) * a);
+    }
+    const key = `${level}:${s.rock}`; // a blast that broke rock redraws it; resize() clears staticKey
     if (key !== staticKey) { staticLayer = buildStatic(); staticKey = key; }
     ctx.drawImage(staticLayer, 0, 0, LW, LH);
     drawTorches();
@@ -750,10 +882,13 @@
     if (phase === 'walk') open = clamp((phaseT - V.walkTime(s.hero, s.exit)) / DOOR_T, 0, 1);
     else if (outcome && outcome.won && phase === 'end') open = 1;
     drawSolids();
+    drawKegs();
     drawDoor(open);
     drawLiquids(liquidDepth());
     drawEntities(dt);
+    drawGas();
     drawPins(dt);
+    drawFlashes(dt);
     drawParticles(dt);
     drawHint();
     if (phase === 'lose' || (phase === 'end' && outcome && !outcome.won)) {
@@ -769,7 +904,7 @@
   function update(dt) {
     phaseT += dt;
     if (phase === 'play' || phase === 'lose' || phase === 'walk') {
-      const r = V.fixedSteps(acc, dt);
+      const r = V.fixedSteps(acc, phase === 'play' ? dt * speed : dt);
       acc = r.acc;
       for (let i = 0; i < r.n; i++) C.step(s);
       watchChanges();
@@ -783,7 +918,7 @@
         setPhase('walk');
         sfx('win');
       } else if (st.status === 'lost') {
-        outcome = { won: false, reason: st.reason, burnt: s.lost === 'lava', stars: 0, gold: C.goldInRoom(s), allDead: C.liveEnemies(s) === 0 };
+        outcome = { won: false, reason: st.reason, instant: s.lost, stars: 0, gold: C.goldInRoom(s), allDead: C.liveEnemies(s) === 0 };
         drag = null;
         setPhase('lose');
         sfx('lose');
@@ -820,10 +955,11 @@
     pulled = [];
     burning = [];
     particles = [];
+    flashes = [];
+    shake = 0;
     prevGrid = null;
     deadSeen = s.enemies.map((e) => e.dead);
     outcome = null;
-    anyPull = false;
     hint = null;
     if (level === 0) {
       const sol = C.solve(LEVELS[0]);
@@ -838,6 +974,7 @@
     show(null);
     $('hud').hidden = false;
     const tip = TIPS[level];
+    clearTimeout(tipTimer);
     $('tip').textContent = tip ? t(tip) : '';
     $('tip').hidden = !tip;
     renderHUD();
@@ -848,7 +985,7 @@
     const pin = s.pins.find((p) => p.id === id);
     if (!C.pull(s, id)) return false;
     pulled.push({ pin: { ...pin }, t: 0 });
-    anyPull = true;
+    hint = null;
     $('tip').hidden = true;
     sfx('pin');
     return true;
@@ -860,10 +997,16 @@
     showResult();
   }
 
-  const REASONS = {
-    burnt: 'Лава добралась до героя',
-    lava: 'Лава преградила путь к выходу',
+  // Why a level was lost: an instant loss (what reached the hero) or a settled one (what is left in the way).
+  const INSTANT = {
+    lava: 'Лава добралась до героя',
+    gas: 'Газ отравил героя',
+    blast: 'Героя задело взрывом',
     enemy: 'Враг добрался до героя',
+  };
+  const REASONS = {
+    lava: 'Лава преградила путь к выходу',
+    gas: 'Газ преградил путь к выходу',
     nogold: 'Золота не хватило',
   };
 
@@ -876,7 +1019,7 @@
   function showResult() {
     const o = outcome;
     $('res-title').textContent = o.won ? t('Уровень пройден!') : t('Неудача');
-    $('res-reason').textContent = o.won ? '' : t(REASONS[o.burnt ? 'burnt' : o.reason] || REASONS.nogold);
+    $('res-reason').textContent = o.won ? '' : t(INSTANT[o.instant] || REASONS[o.reason] || REASONS.nogold);
     $('res-reason').hidden = o.won;
     $('res-stars').innerHTML = starsHTML(o.stars);
     $('res-stars').setAttribute('aria-label', t('Звёзды: {n} из 3', { n: o.stars }));
@@ -926,6 +1069,19 @@
     grid.innerHTML = '';
     let total = 0;
     LEVELS.forEach((_, i) => {
+      const chapter = CHAPTERS.findIndex((c) => c.from === i);
+      if (chapter >= 0) {
+        const c = CHAPTERS[chapter];
+        const end = chapter + 1 < CHAPTERS.length ? CHAPTERS[chapter + 1].from : LEVELS.length;
+        let got = 0;
+        for (let j = c.from; j < end; j++) got += C.starsOf(progress, j);
+        const head = document.createElement('h3');
+        head.className = 'chapter';
+        head.innerHTML = '<span></span><small></small>';
+        head.firstChild.textContent = t(c.title);
+        head.lastChild.textContent = `★ ${got}/${(end - c.from) * 3}`;
+        grid.append(head);
+      }
       const n = C.starsOf(progress, i);
       total += n;
       const open = C.unlocked(progress, i, LEVELS.length);
@@ -942,8 +1098,11 @@
     $('hud').hidden = true;
     $('tip').hidden = true;
     show('levels');
-    const cur = grid.children[nextLevel()];
-    if (cur) cur.focus({ preventScroll: true });
+    const cur = grid.querySelectorAll('.lvl-btn')[nextLevel()];
+    if (cur) {
+      cur.focus({ preventScroll: true });
+      grid.scrollTop = Math.max(0, cur.offsetTop - grid.offsetTop - grid.clientHeight / 2 + cur.offsetHeight / 2);
+    }
   }
 
   let hudKey = '';
@@ -974,6 +1133,39 @@
     Sound.setEnabled(!Sound.enabled);
     Sound.unlock();
     renderSound();
+  }
+
+  // The hint: the planner looks for the best way on from the current state and points at its next pin.
+  let tipTimer = 0;
+  function flashTip(text) {
+    $('tip').textContent = t(text);
+    $('tip').hidden = false;
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => { $('tip').hidden = true; }, 2600);
+  }
+
+  function showHint() {
+    if (phase !== 'play' || !s) return;
+    Sound.unlock();
+    const plan = C.bestPlan(s);
+    if (!plan) flashTip('Так уже не выйти. Начни заново');
+    else if (!plan.order.length) flashTip('Всё получится, просто подожди');
+    else {
+      hint = plan.order[0];
+      $('tip').hidden = true;
+    }
+    sfx('hint');
+  }
+
+  function renderSpeed() {
+    const b = $('btn-speed');
+    b.setAttribute('aria-pressed', String(speed > 1));
+    b.classList.toggle('on', speed > 1);
+  }
+
+  function toggleSpeed() {
+    speed = speed > 1 ? 1 : 2;
+    renderSpeed();
   }
 
   // ───────────── Input ─────────────
@@ -1027,6 +1219,12 @@
     } else if (e.code === 'KeyR' && s && phase !== 'menu') {
       startLevel(level);
       e.preventDefault();
+    } else if (e.code === 'KeyH' && phase === 'play') {
+      showHint();
+      e.preventDefault();
+    } else if (e.code === 'KeyF' && phase === 'play') {
+      toggleSpeed();
+      e.preventDefault();
     } else if (e.code === 'Escape' && !$('levels').hidden) {
       showMenu();
     }
@@ -1039,6 +1237,8 @@
   $('btn-restart').addEventListener('click', () => startLevel(level));
   $('btn-levels').addEventListener('click', showLevels);
   $('btn-sound').addEventListener('click', toggleSound);
+  $('btn-hint').addEventListener('click', showHint);
+  $('btn-speed').addEventListener('click', toggleSpeed);
   $('btn-next').addEventListener('click', () => startLevel(level + 1));
   $('btn-again').addEventListener('click', () => startLevel(level));
   $('btn-res-levels').addEventListener('click', showLevels);
@@ -1052,6 +1252,7 @@
   actions.append(window.I18n.toggle('chip'));
   if (window.GameNav) actions.append(window.GameNav.home('chip'));
   resize();
+  renderSpeed();
   showMenu();
   requestAnimationFrame(frame);
 })();

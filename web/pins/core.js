@@ -1,12 +1,14 @@
 // Тяни штифт — pure rules for the pin-pull puzzle. No DOM, so the same file runs in the browser and in Node
 // (tests and the level solver). The world is a W×H grid of cells handled by a deterministic cellular automaton:
 // cells are processed bottom to top, sideways/diagonal choices follow the parity of (x + y + tick), no rng.
+// Matter: water and lava flow down, gas flows up, gold falls like sand, stone and powder kegs stay put.
 (function (root) {
   'use strict';
 
   const W = 36, H = 54;
-  const EMPTY = 0, WALL = 1, PIN = 2, WATER = 3, LAVA = 4, STONE = 5, GOLD = 6;
-  const FILL_TYPES = { water: WATER, lava: LAVA, gold: GOLD };
+  const EMPTY = 0, WALL = 1, PIN = 2, WATER = 3, LAVA = 4, STONE = 5, GOLD = 6, GAS = 7, BOMB = 8;
+  const FILL_TYPES = { water: WATER, lava: LAVA, gold: GOLD, gas: GAS, bomb: BOMB };
+  const FLUIDS = [WATER, LAVA, GAS]; // cells with a sideways flow budget
   const HANDLES = ['left', 'right', 'top'];
 
   const SETTLE_TICKS = 20;  // no cell changed for this many ticks → settled
@@ -15,13 +17,17 @@
   // Without it a thin puddle on a flat floor would wander forever and the level would never settle.
   const FLOW = 24;
 
-  const KILL_LAVA = 3;      // an enemy dies when this many lava cells touch its box
+  const KILL_LAVA = 3;      // an enemy dies when this many lava (or gas) cells touch its box
+  // A powder keg goes off when lava touches it: every cell within BLAST_R of a keg cell is wiped out —
+  // rock, stone, gold, liquids, gas, other kegs (they go off too) and anyone standing there. Pins and the
+  // outer frame of the board survive.
+  const BLAST_R = 4;
   // Not a grid code: what the automaton sees in a cell covered by a live hero or enemy box (solid).
-  const BODY = 7;
+  const BODY = 9;
 
   const idx = (x, y) => y * W + x;
   const inside = (x, y) => x >= 0 && x < W && y >= 0 && y < H;
-  const isSolid = (c) => c === WALL || c === PIN || c === STONE || c === BODY;
+  const isSolid = (c) => c === WALL || c === PIN || c === STONE || c === BOMB || c === BODY;
 
   // ── Level building ──
   function checkRect(r, what) {
@@ -86,7 +92,7 @@
       eachCell(f, (i) => {
         if (grid[i] !== EMPTY) throw new Error(`fill ${n}: overlaps`);
         grid[i] = type;
-        if (type !== GOLD) flow[i] = FLOW;
+        if (FLUIDS.includes(type)) flow[i] = FLOW;
       });
     });
 
@@ -99,12 +105,14 @@
       return box(r);
     };
     const hero = def.hero ? claim(def.hero, 'hero', 1) : null;
-    const enemies = (def.enemies || []).map((e, n) => ({ ...claim(e, `enemy ${n}`, 2 + n), dead: false }));
+    const enemies = (def.enemies || []).map((e, n) => ({ ...claim(e, `enemy ${n}`, 2 + n), dead: false, cause: null }));
     if (def.room) checkRect(def.room, 'room');
     if (def.exit) checkRect(def.exit, 'exit');
 
     const s = {
       tick: 0,
+      rock: 0,       // bumped whenever a blast changes the rock (the client caches its art)
+      blasts: [],    // keg cells that went off, { x, y, tick }; the client takes them for its effects
       quiet: 0,      // ticks in a row with no change
       sincePull: 0,  // ticks since the last pull (or the start)
       lost: null,    // latched instant loss: 'lava' | 'enemy'
@@ -119,7 +127,7 @@
 
   function clone(s) {
     return {
-      tick: s.tick, quiet: s.quiet, sincePull: s.sincePull, lost: s.lost,
+      tick: s.tick, quiet: s.quiet, sincePull: s.sincePull, lost: s.lost, rock: s.rock, blasts: s.blasts.slice(),
       grid: s.grid.slice(), pinId: s.pinId.slice(), flow: s.flow.slice(), body: s.body.slice(),
       pins: s.pins.map((p) => ({ ...p })),
       hero: s.hero ? box(s.hero) : null,
@@ -196,7 +204,7 @@
 
   // Gold is like sand: down, then diagonally down, never sideways. It sinks through liquids by swapping
   // places with them; the displaced liquid gets a fresh flow budget.
-  const sinkable = (c) => c === EMPTY || c === WATER || c === LAVA;
+  const sinkable = (c) => c === EMPTY || c === WATER || c === LAVA || c === GAS;
   function moveGold(s, x, y, d) {
     const i = idx(x, y);
     const tryTo = (tx, ty) => {
@@ -213,15 +221,95 @@
     return false;
   }
 
+  // Gas is water upside down: up → diagonally up → one cell sideways while the flow budget lasts. It bubbles
+  // up through water by swapping places with it (both get a fresh budget).
+  const risable = (c) => c === EMPTY || c === WATER;
+  function moveGas(s, x, y, d) {
+    const i = idx(x, y);
+    const rise = (tx, ty) => {
+      const j = idx(tx, ty);
+      swap(s, i, j);
+      s.flow[j] = FLOW;
+      if (s.grid[i] === WATER) s.flow[i] = FLOW;
+      return true;
+    };
+    if (risable(cell(s, x, y - 1))) return rise(x, y - 1);
+    for (const dd of [d, -d]) {
+      if (risable(cell(s, x + dd, y - 1)) && !isSolid(cell(s, x + dd, y))) return rise(x + dd, y - 1);
+    }
+    if (s.flow[i] > 0 && cell(s, x + d, y) === EMPTY) {
+      const j = idx(x + d, y);
+      swap(s, i, j);
+      s.flow[j]--;
+      return true;
+    }
+    return false;
+  }
+
   const NEIGHBOURS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
-  // Lava destroys every gold cell it touches; touching water turns the lava cell into stone and
-  // the (first) water cell into empty. Returns true if anything changed.
+  // A keg goes off: the keg cell at i and every keg cell its blast reaches (a chain) wipe out the cells within
+  // BLAST_R of them, pins aside. Enemies in the blast die, the hero in the blast is lost.
+  const BLAST_DISC = [];
+  for (let dy = -BLAST_R; dy <= BLAST_R; dy++) {
+    for (let dx = -BLAST_R; dx <= BLAST_R; dx++) {
+      if (dx * dx + dy * dy <= BLAST_R * BLAST_R + 1) BLAST_DISC.push([dx, dy]);
+    }
+  }
+  const hit = new Uint8Array(W * H);
+  function explode(s, i0) {
+    hit.fill(0);
+    const kegs = [i0];
+    s.grid[i0] = EMPTY;
+    let rock = false;
+    while (kegs.length) {
+      const i = kegs.pop();
+      const x = i % W, y = (i - x) / W;
+      s.blasts.push({ x, y, tick: s.tick });
+      for (const [dx, dy] of BLAST_DISC) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 1 || ny < 1 || nx >= W - 1 || ny >= H - 1) continue; // the board's frame holds
+        const j = idx(nx, ny);
+        hit[j] = 1;
+        const c = s.grid[j];
+        if (c === PIN || c === EMPTY) continue;
+        if (c === BOMB) kegs.push(j);
+        if (c === WALL) rock = true;
+        s.grid[j] = EMPTY;
+        s.flow[j] = 0;
+        moved[j] = 1;
+      }
+    }
+    if (rock) s.rock++;
+    const inBlast = (r) => {
+      for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (hit[idx(x, y)]) return true;
+      return false;
+    };
+    s.enemies.forEach((e, k) => {
+      if (e.dead || !inBlast(e)) return;
+      e.dead = true;
+      e.cause = 'blast';
+      eachCell(e, (i) => { if (s.body[i] === 2 + k) s.body[i] = 0; });
+    });
+    if (!s.lost && s.hero && inBlast(s.hero)) s.lost = 'blast';
+  }
+
+  // Lava sets off a keg it touches; it destroys every gold and gas cell it touches; touching water turns
+  // the lava cell into stone and the (first) water cell into empty. Returns true if anything changed.
   function react(s, x, y) {
+    for (const [dx, dy] of NEIGHBOURS) {
+      if (cell(s, x + dx, y + dy) === BOMB) {
+        explode(s, idx(x + dx, y + dy));
+        return true;
+      }
+    }
     let changed = false;
     for (const [dx, dy] of NEIGHBOURS) {
-      if (cell(s, x + dx, y + dy) === GOLD) {
-        s.grid[idx(x + dx, y + dy)] = EMPTY;
+      const c = cell(s, x + dx, y + dy);
+      if (c === GOLD || c === GAS) {
+        const j = idx(x + dx, y + dy);
+        s.grid[j] = EMPTY;
+        s.flow[j] = 0;
         changed = true;
       }
     }
@@ -258,10 +346,12 @@
         const i = idx(x, y);
         if (moved[i]) continue;
         const c = g[i];
-        if (c !== WATER && c !== LAVA && c !== GOLD) continue;
+        if (c !== WATER && c !== LAVA && c !== GOLD && c !== GAS) continue;
         const d = (x + y + t) & 1 ? 1 : -1;
         if (c === WATER) {
           if (moveLiquid(s, x, y, d)) changed = true;
+        } else if (c === GAS) {
+          if (moveGas(s, x, y, d)) changed = true;
         } else if (c === LAVA) {
           if (react(s, x, y)) changed = true;
           if (g[i] === LAVA && !moved[i] && t % 2 === 0 && moveLiquid(s, x, y, d)) changed = true;
@@ -271,29 +361,30 @@
       }
     }
     if (changed && checkEntities(s)) changed = true;
+    if (s.blasts.length > 64) s.blasts.splice(0, s.blasts.length - 64);
     s.quiet = changed ? 0 : s.quiet + 1;
     return changed;
   }
 
   // ── Entities ──
-  // Lava cells touching a box: inside it or 4-adjacent to it (the box's ring without the corners).
-  function lavaTouching(s, r) {
+  // Cells of a type touching a box: inside it or 4-adjacent to it (the box's ring without the corners).
+  function touching(s, r, type) {
     let n = 0;
     for (let y = r.y - 1; y <= r.y + r.h; y++) {
       for (let x = r.x - 1; x <= r.x + r.w; x++) {
         const outX = x < r.x || x >= r.x + r.w, outY = y < r.y || y >= r.y + r.h;
         if (outX && outY) continue; // corner: touches diagonally only
-        if (inside(x, y) && s.grid[idx(x, y)] === LAVA) n++;
+        if (inside(x, y) && s.grid[idx(x, y)] === type) n++;
       }
     }
     return n;
   }
 
-  const passable = (c) => c === EMPTY || c === WATER || c === GOLD;
+  const passable = (c) => c === EMPTY || c === WATER || c === GOLD || c === GAS;
   const queue = new Int16Array(W * H);
   const seen = new Uint8Array(W * H);
 
-  // Flood fill over passable cells (empty, water, gold) from every live enemy's box: true if it reaches the hero.
+  // Flood fill over passable cells (empty, water, gold, gas) from every live enemy's box: true if it reaches the hero.
   // Entity boxes are empty in the grid, so they are passable too.
   function enemyReachesHero(s) {
     const live = s.enemies.filter((e) => !e.dead);
@@ -317,19 +408,24 @@
     return false;
   }
 
-  // Kills enemies burnt by lava (their boxes become free) and latches an instant loss: lava touching
-  // the hero, or a live enemy connected to the hero. Returns true if an enemy died (the grid's solids changed).
+  // Kills enemies burnt by lava or choked by gas (their boxes become free) and latches an instant loss: lava
+  // or gas touching the hero, or a live enemy connected to the hero. Returns true if an enemy died (the grid's
+  // solids changed).
   function checkEntities(s) {
     let died = false;
     s.enemies.forEach((e, k) => {
-      if (e.dead || lavaTouching(s, e) < KILL_LAVA) return;
+      if (e.dead) return;
+      const cause = touching(s, e, LAVA) >= KILL_LAVA ? 'lava' : touching(s, e, GAS) >= KILL_LAVA ? 'gas' : null;
+      if (!cause) return;
       e.dead = true;
+      e.cause = cause;
       died = true;
       eachCell(e, (i) => { if (s.body[i] === 2 + k) s.body[i] = 0; });
     });
     if (died) s.quiet = 0;
     if (!s.lost && s.hero) {
-      if (lavaTouching(s, s.hero) > 0) s.lost = 'lava';
+      if (touching(s, s.hero, LAVA) > 0) s.lost = 'lava';
+      else if (touching(s, s.hero, GAS) > 0) s.lost = 'gas';
       else if (enemyReachesHero(s)) s.lost = 'enemy';
     }
     return died;
@@ -361,34 +457,39 @@
   const goldInRoom = (s) => (s.room ? count(s, GOLD, s.room) : 0);
   const liveEnemies = (s) => s.enemies.filter((e) => !e.dead).length;
 
-  // Lava in the room on the hero's way to the exit: the rows of the hero's box between the hero and the door.
-  function lavaOnWay(s) {
-    if (!s.hero || !s.exit) return false;
+  // Lava or gas in the room on the hero's way to the exit: the rows of the hero's box between the hero and
+  // the door. Returns LAVA, GAS (lava first) or 0.
+  function hazardOnWay(s) {
+    if (!s.hero || !s.exit) return 0;
     const h = s.hero, e = s.exit;
     const x0 = Math.min(h.x, e.x), x1 = Math.max(h.x + h.w, e.x + e.w);
+    let found = 0;
     for (let y = h.y; y < h.y + h.h; y++) {
       for (let x = x0; x < x1; x++) {
         if (s.room && (x < s.room.x || x >= s.room.x + s.room.w || y < s.room.y || y >= s.room.y + s.room.h)) continue;
-        if (inside(x, y) && s.grid[idx(x, y)] === LAVA) return true;
+        const c = inside(x, y) ? s.grid[idx(x, y)] : EMPTY;
+        if (c === LAVA) return LAVA;
+        if (c === GAS) found = GAS;
       }
     }
-    return false;
+    return found;
   }
 
-  // { status: 'playing' | 'won' | 'lost', reason: null | 'lava' | 'enemy' | 'nogold' }.
-  // Lava on the hero and an enemy reaching the hero lose at once. Otherwise nothing is decided until the
-  // automaton settles: then enough gold in the room and a lava-free way to the exit win; short of that the
-  // player may still pull a pin, and with no pins left it's a loss ('lava' if lava blocks the way, else 'nogold').
+  // { status: 'playing' | 'won' | 'lost', reason: null | 'lava' | 'gas' | 'blast' | 'enemy' | 'nogold' }.
+  // Lava or gas on the hero, a blast reaching the hero and an enemy reaching the hero lose at once. Otherwise
+  // nothing is decided until the automaton settles: then enough gold in the room and a way to the exit free of
+  // lava and gas win; short of that the player may still pull a pin, and with no pins left it's a loss ('lava'
+  // or 'gas' if that blocks the way, else 'nogold').
   // A win needs a truly quiet world, not just the tick cap: while cells still move it stays 'playing'.
   function status(s) {
     if (s.lost) return { status: 'lost', reason: s.lost };
     if (!settled(s)) return { status: 'playing', reason: null };
-    const blocked = lavaOnWay(s);
+    const blocked = hazardOnWay(s);
     if (!blocked && goldInRoom(s) >= s.goldTarget) {
       return { status: s.quiet >= SETTLE_TICKS ? 'won' : 'playing', reason: null };
     }
     if (s.pins.some((p) => !p.pulled)) return { status: 'playing', reason: null };
-    return { status: 'lost', reason: blocked ? 'lava' : 'nogold' };
+    return { status: 'lost', reason: blocked === LAVA ? 'lava' : blocked === GAS ? 'gas' : 'nogold' };
   }
 
   // The gold star: at least 1.5× the target in the room.
@@ -428,6 +529,39 @@
       }
     })(start, []);
     return res;
+  }
+
+  // The best way to finish from where the player is now (pins pulled so far stay pulled), for the hint button.
+  // The world runs to rest first, then pull orders of the remaining pins are tried like in solve().
+  // Returns { order, stars }: the most stars, the shortest order on a tie; it stops at the first 3-star
+  // order. An empty order means the level wins by itself; null means it can't be won any more.
+  function bestPlan(s0) {
+    const start = clone(s0);
+    settle(start);
+    const st = status(start).status;
+    if (st === 'won') return { order: [], stars: stars(start) };
+    if (st === 'lost') return null;
+    let best = null;
+    (function dfs(s, order) {
+      for (const p of s.pins) {
+        if (p.pulled) continue;
+        const next = clone(s);
+        pull(next, p.id);
+        settle(next);
+        const seq = [...order, p.id];
+        const r = status(next).status;
+        if (r === 'won') {
+          const n = stars(next);
+          const better = !best || n > best.stars || (n === best.stars && seq.length < best.order.length);
+          if (better) best = { order: seq, stars: n };
+          if (n === 3) return true;
+        } else if (r === 'playing' && dfs(next, seq)) {
+          return true;
+        }
+      }
+      return false;
+    })(start, []);
+    return best;
   }
 
   // ── Progress ──
@@ -502,9 +636,9 @@
   }
 
   const api = {
-    W, H, EMPTY, WALL, PIN, WATER, LAVA, STONE, GOLD, FILL_TYPES, HANDLES, SETTLE_TICKS, MAX_TICKS, FLOW, KILL_LAVA,
-    NEIGHBOURS, idx, handleCell, buildLevel, clone, pull, step, settled, settle, count, cellAt,
-    goldInRoom, liveEnemies, status, richEnough, stars, solve,
+    W, H, EMPTY, WALL, PIN, WATER, LAVA, STONE, GOLD, GAS, BOMB, FILL_TYPES, HANDLES, SETTLE_TICKS, MAX_TICKS, FLOW,
+    KILL_LAVA, BLAST_R, NEIGHBOURS, idx, handleCell, buildLevel, clone, pull, step, settled, settle, count, cellAt,
+    goldInRoom, liveEnemies, status, richEnough, stars, solve, bestPlan,
     PROGRESS_KEY, newProgress, parseProgress, loadProgress, saveProgress, starsOf, recordStars, recordWin, firstUnfinished,
     unlocked,
   };

@@ -140,6 +140,23 @@
       noise({ d: 0.5, vol: 0.25, f: 400, q: 0.9, attack: 0.05, sweep: 2600 });
       tone(vary(220), { d: 0.45, vol: 0.07, type: 'sawtooth', to: 70 });
     },
+    boom() { // a powder keg: a thump, a low rumble and a crackle of falling rock
+      tone(vary(90, 0.08), { d: 0.5, vol: 0.22, type: 'sine', to: 32, attack: 0.002 });
+      noise({ d: 0.9, vol: 0.4, f: 900, q: 0.7, type: 'lowpass', attack: 0.003, sweep: 120 });
+      for (let i = 0; i < 5; i++) noise({ at: 0.12 + i * 0.07 + Math.random() * 0.04, d: 0.04, vol: 0.12, f: vary(2200, 0.3), q: 2 });
+    },
+    poof() { // gas catching fire on lava: a soft whoomp
+      noise({ d: 0.3, vol: 0.2, f: 300, q: 0.8, attack: 0.02, sweep: 1400 });
+      tone(vary(140), { d: 0.2, vol: 0.05, type: 'triangle', to: 260 });
+    },
+    choke() { // an enemy choking on gas: a falling cough
+      for (let i = 0; i < 2; i++) noise({ at: i * 0.16, d: 0.1, vol: 0.18, f: vary(700, 0.1), q: 2.5, sweep: 350 });
+      tone(vary(240), { d: 0.5, vol: 0.06, type: 'sawtooth', to: 80 });
+    },
+    hint() { // a soft chime for the hint
+      tone(freq(79), { d: 0.25, vol: 0.05, type: 'triangle' });
+      tone(freq(86), { at: 0.08, d: 0.35, vol: 0.04, type: 'triangle' });
+    },
     coin() { // gold landing in the hero's room
       const f = vary(1760, 0.03);
       tone(f, { d: 0.12, vol: 0.06, type: 'square' });
@@ -155,7 +172,7 @@
       tone(freq(43), { at: 0.6, d: 0.8, vol: 0.06, type: 'sawtooth', to: freq(38) });
     },
   };
-  const GAPS = { pin: 60, gurgle: 380, bubble: 450, hiss: 300, sizzle: 220, coin: 90 };
+  const GAPS = { pin: 60, gurgle: 380, bubble: 450, hiss: 300, sizzle: 220, coin: 90, boom: 120, poof: 350, choke: 300 };
 
   function play(name) {
     if (!state.enabled || !Object.prototype.hasOwnProperty.call(SOUNDS, name) || !ensure()) return;
