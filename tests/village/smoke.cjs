@@ -487,6 +487,40 @@ async function edgeChecks() {
     check(errors.length === 0, 'no console errors (reset with cloud code)', errors.join('\n'));
     await ctx.close();
   }
+  {
+    // "Сохранить в облако" on a slow network, then "Начать заново" before the PUT returns: the late reply
+    // must not bring the old code back, so the sped-up autosave never sends the new village to it.
+    const X = 'mnpqrstuvwxyz234';
+    const { ctx, page, errors } = await preparedPage((code) => {
+      const si = window.setInterval;
+      window.setInterval = (fn, ms, ...rest) => si(fn, Math.max(10, (ms || 0) / 100), ...rest);
+      window.__puts = [];
+      const f = window.fetch;
+      window.fetch = (url, opts) => { if (opts && opts.method === 'PUT') window.__puts.push(String(url)); return f(url, opts); };
+      localStorage.setItem('village.cloud', code);
+    }, X);
+    await ctx.route('**/api/saves/*', async (route) => {
+      if (route.request().method() === 'PUT') await sleep(1500);
+      await route.continue().catch(() => {});
+    });
+    await page.click('#btn-settings');
+    await page.click('#btn-cloud-save');
+    await page.click('#btn-reset');
+    await page.click('#modal-actions .danger');
+    const mark = await page.evaluate(() => window.__puts.length);
+    await sleep(2500);
+    const r = await page.evaluate((mark) => ({
+      puts: window.__puts.slice(mark),
+      shown: document.getElementById('cloud-code').textContent,
+      stored: localStorage.getItem('village.cloud'),
+      msg: document.getElementById('cloud-msg').textContent,
+    }), mark);
+    check(!r.stored && r.shown === '', 'a cloud save that returns after a reset keeps the code cleared', JSON.stringify(r));
+    check(r.puts.length === 0, 'after a reset during a cloud save no PUTs go to the old code', JSON.stringify(r));
+    check(r.msg === '', 'a stale cloud save reply leaves no message after a reset', JSON.stringify(r));
+    check(errors.length === 0, 'no console errors (reset during cloud save)', errors.join('\n'));
+    await ctx.close();
+  }
 }
 
 async function main() {

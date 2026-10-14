@@ -1882,8 +1882,11 @@
     return { s, savedAt: Number(data.savedAt) || null, writtenAt: Number(data.writtenAt) || 0, broken: false };
   }
 
-  // Swap the whole state (reset, cloud load): cosmetic followers start over, the rest is drawn from S.
+  // Swap the whole state (reset, cloud load, another tab's save): cosmetic followers start over, the rest is
+  // drawn from S. stateGen counts swaps so an async cloud reply that started before one can tell it is stale.
+  let stateGen = 0;
   function replaceState(s) {
+    stateGen++;
     S = s;
     prev = { x: S.player.x, y: S.player.y };
     P.x = S.player.x; P.y = S.player.y; P.swing = -1;
@@ -1964,26 +1967,33 @@
     $('cloud').hidden = false;
     syncCloudCode();
 
+    // A reset, cloud load or adopted tab save while the request is in flight makes its reply stale:
+    // keeping the code then would hand the new village to the old village's cloud copy.
     $('btn-cloud-save').addEventListener('click', async () => {
       const code = cloudCode || newCode();
+      const gen = stateGen;
       try {
         await cloudPut(code);
+        if (gen !== stateGen) return;
         cloudCode = code;
         store.set(CLOUD_KEY, code);
         $('cloud-code').textContent = pretty(code);
         $('cloud-msg').textContent = t('Сохранено. Введи этот код на другом устройстве.');
-      } catch (err) { $('cloud-msg').textContent = t('Не удалось сохранить: {e}', { e: err.message }); }
+      } catch (err) { if (gen === stateGen) $('cloud-msg').textContent = t('Не удалось сохранить: {e}', { e: err.message }); }
     });
 
     $('cloud-load').addEventListener('submit', async (e) => {
       e.preventDefault();
       const c = cleanCode($('cloud-input').value);
       if (c.length !== 16) { $('cloud-msg').textContent = t('Код состоит из 16 букв и цифр.'); return; }
+      const gen = stateGen;
       try {
         const res = await fetch(`/api/saves/${c}`);
+        if (gen !== stateGen) return;
         if (res.status === 404) { $('cloud-msg').textContent = t('Сохранения с таким кодом нет.'); return; }
         if (!res.ok) throw new Error(await res.text());
         const s = V.load(await res.json());
+        if (gen !== stateGen) return;
         if (s.recovered) { $('cloud-msg').textContent = t('Это сохранение не подходит к игре.'); return; }
         cloudCode = c; store.set(CLOUD_KEY, c);
         replaceState(s);
@@ -1992,7 +2002,7 @@
         $('cloud-code').textContent = pretty(c);
         $('cloud-input').value = '';
         $('cloud-msg').textContent = t('Загружено.');
-      } catch (err) { $('cloud-msg').textContent = t('Не удалось загрузить: {e}', { e: err.message }); }
+      } catch (err) { if (gen === stateGen) $('cloud-msg').textContent = t('Не удалось загрузить: {e}', { e: err.message }); }
     });
 
     // Quietly keep the cloud copy fresh once the player has a code.
