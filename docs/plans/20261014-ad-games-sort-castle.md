@@ -234,7 +234,7 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - The archer stands at `(2, 9.5)`. Enemies spawn at `x = 60` and walk left.
 
 **Arrows**
-- Ballistic: `v0` from aim power (max `V_MAX`, upgradable), angle −30°…+80°, gravity is a tunable constant `G` (start at 9.8 m/s², tune for feel). No wind.
+- Ballistic: `v0` from aim power (max `V_MAX`, upgradable), angle −85°…+80° (➕ was −30°: Task 7 showed enemies at the wall's foot could not be hit at all), gravity is a tunable constant `G` (start at 9.8 m/s², tune for feel). No wind.
 - An arrow hits the first enemy box it crosses (swept segment-vs-box per tick), or the ground (it sticks, then fades).
 - Pierce upgrade: the arrow passes through N enemies.
 - Multishot upgrade: extra arrows at ±4° per extra arrow.
@@ -353,6 +353,18 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - **Casual:** aim noise ±6°, power noise ±10%, 0.3 s reaction lag, random upgrade picks, repairs below 25%.
 - **No-upgrades:** competent aim, but always skips upgrades and the shop.
 - Bots re-plan every ~6 ticks, not every tick, to keep the balance tests fast.
+- ➕ Measured after tuning (Task 7, 5 seeds):
+  - competent clears the campaign 5/5;
+  - casual clears it 5/5;
+  - no-upgrades falls at waves 17–18;
+  - endless (competent) ends at waves 55–56.
+
+  Changes that got there:
+  - the competent bot shoots whoever reaches the wall first (heavy hitters count double) instead of rams first;
+  - the aim goes down to −85°;
+  - past wave 30 the budget grows by 1.16 a wave instead of 1.12.
+
+  The enemy and upgrade numbers stayed at their start values. The two balance files run in ~10 s.
 
 **Balance targets** (the bot tunes the numbers):
 - the competent bot clears the 30-wave campaign on all 5 seeds;
@@ -591,18 +603,18 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - Create: `tests/castle/balance-campaign.test.js`
 - Create: `tests/castle/balance-endless.test.js`
 
-- [ ] `tests/castle/bot.js`:
+- [x] `tests/castle/bot.js`:
   - competent, casual and no-upgrades bots that only use the core API;
   - they re-plan every ~6 ticks;
   - the competent bot solves the ballistic equation with lead and lobs at shield enemies.
-- [ ] `balance-campaign.test.js` (5 seeds):
+- [x] `balance-campaign.test.js` (5 seeds):
   - competent bot clears the campaign on 5/5;
   - casual clears it on ≥ 3/5 and otherwise reaches wave ≥ 20;
   - no-upgrades falls at waves 12–18.
-- [ ] `balance-endless.test.js`: endless always ends by wave 60 for the competent bot on 5 seeds. The test files are split so `node --test` runs them in parallel; keep each under ~60 s.
-- [ ] tune enemy, wave and upgrade numbers until the targets hold, and update the tables in this plan.
+- [x] `balance-endless.test.js`: endless always ends by wave 60 for the competent bot on 5 seeds. The test files are split so `node --test` runs them in parallel; keep each under ~60 s.
+- [x] tune enemy, wave and upgrade numbers until the targets hold, and update the tables in this plan.
   If a target is still unreachable, follow the fallback rule in Technical Details: ⚠️ note with measured numbers, loosen by at most one step.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 8: «Последняя крепость» — rendering, aiming, screens and saving
 

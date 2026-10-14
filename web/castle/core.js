@@ -13,7 +13,9 @@
   const G = 9.8;                    // gravity, m/s²
   const V_BASE = 30;                // arrow speed at full power before upgrades, m/s
   const MIN_POWER = 0.2;
-  const ANGLE_MIN = -30 * Math.PI / 180, ANGLE_MAX = 80 * Math.PI / 180;
+  // Down to −85°: the archer stands above the wall and must be able to shoot almost straight down at enemies at
+  // its foot (at −30° nothing closer than ~15 m could be hit).
+  const ANGLE_MIN = -85 * Math.PI / 180, ANGLE_MAX = 80 * Math.PI / 180;
   const RELOAD_BASE = 0.6;          // seconds between shots
   const RELOAD_FLOOR = 0.4;         // reload never drops under 40 % of the base
   const DAMAGE_BASE = 1;
@@ -78,7 +80,7 @@
     };
   }
 
-  // Aim: angle in radians (clamped to −30°…80°), power 0.2…1 of the max speed. Bad numbers are ignored.
+  // Aim: angle in radians (clamped to −85°…80°), power 0.2…1 of the max speed. Bad numbers are ignored.
   function aim(run, angle, power) {
     if (finite(angle)) run.aim.angle = clamp(angle, ANGLE_MIN, ANGLE_MAX);
     if (finite(power)) run.aim.power = clamp(power, MIN_POWER, 1);
@@ -342,10 +344,12 @@
   // ── Waves ──
   // waveDef(n, seed) → { spawns: [{ kind, at }], hpMul, speedMul }. Waves 1–3 teach (grunts, then shields, then
   // flyers); after that a budget grows by BUDGET_GROWTH per wave and buys the enemy types unlocked so far. At most
-  // MAX_ENEMIES per wave: budget beyond that makes the wave's enemies tougher and faster instead. Every 10th wave
+  // MAX_ENEMIES per wave: budget beyond that makes the wave's enemies tougher and faster instead. Past wave 30 the
+  // budget grows by ENDLESS_GROWTH. Every 10th wave
   // brings the boss with an escort. Deterministic in (n, seed); the endless mode uses the same waves past 30.
   const MAX_ENEMIES = 40;
   const BUDGET_START = 9, BUDGET_GROWTH = 1.12;
+  const ENDLESS_GROWTH = 1.16;      // past the campaign's 30 waves the budget grows faster, so endless always ends
   const COST = { grunt: 1, shield: 1.5, flyer: 1.4, ram: 5 };
   const UNLOCK = { grunt: 1, shield: 2, flyer: 3, ram: 5 };
   const WEIGHT = { grunt: 5, shield: 3, flyer: 2.5, ram: 1.2 };
@@ -355,7 +359,8 @@
     return () => rand(r);
   }
 
-  const budgetOf = (n) => BUDGET_START * BUDGET_GROWTH ** (n - 1);
+  const budgetOf = (n) => BUDGET_START * BUDGET_GROWTH ** (Math.min(n, CAMPAIGN_WAVES) - 1) *
+    ENDLESS_GROWTH ** Math.max(0, n - CAMPAIGN_WAVES);
 
   function waveDef(n, seed = 1) {
     if (!Number.isInteger(n) || n < 1) throw new Error(`bad wave ${n}`);
@@ -529,7 +534,7 @@
   const api = {
     TICK, MAX_DT, WALL_X, WALL_TOP, ARCHER, SPAWN_X, G, V_BASE, MIN_POWER, ANGLE_MIN, ANGLE_MAX, RELOAD_BASE,
     RELOAD_FLOOR, DAMAGE_BASE, SPREAD, SHIELD_ANGLE, SHIELD_FACTOR, BURN_TIME, BURN_DPS, WALL_HP, WARD_START, KINDS,
-    BOSS_HP_STEP, BOSS_SUMMON, CAMPAIGN_WAVES, NO_DAMAGE_BONUS, MAX_ENEMIES, BUDGET_START, BUDGET_GROWTH, COST, UNLOCK,
+    BOSS_HP_STEP, BOSS_SUMMON, CAMPAIGN_WAVES, NO_DAMAGE_BONUS, MAX_ENEMIES, BUDGET_START, BUDGET_GROWTH, ENDLESS_GROWTH, COST, UNLOCK,
     UPGRADES, UP_CAP, PRICE, REPAIR_SHARE, FORTIFY_SHARE, SAVE_KEY,
     clamp, rand, newRun, stats, aim, setFiring, spawn, startWave, step, drain, status, flight, segmentBox, descent,
     waveDef, budgetOf, offerUpgrades, chooseUpgrade, prices, buy, score, snapshot, restore,
