@@ -1933,6 +1933,14 @@
   const pretty = (code) => code.match(/.{1,4}/g).join('-');
   const cleanCode = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+  // The cloud code lives in localStorage next to the save; a tab that adopts another tab's save
+  // re-reads it, so its autosave never sends that village to the code it had before.
+  let cloudCode = '';
+  function syncCloudCode() {
+    cloudCode = store.get(CLOUD_KEY) || '';
+    $('cloud-code').textContent = cloudCode ? pretty(cloudCode) : '';
+  }
+
   async function cloudPut(code) {
     const res = await fetch(`/api/saves/${code}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(V.save(S)),
@@ -1946,13 +1954,13 @@
       if (!res.ok || (await res.text()).trim() !== 'ok') return;
     } catch { return; }
     $('cloud').hidden = false;
-    let code = store.get(CLOUD_KEY);
-    if (code) $('cloud-code').textContent = pretty(code);
+    syncCloudCode();
 
     $('btn-cloud-save').addEventListener('click', async () => {
-      code = code || newCode();
+      const code = cloudCode || newCode();
       try {
         await cloudPut(code);
+        cloudCode = code;
         store.set(CLOUD_KEY, code);
         $('cloud-code').textContent = pretty(code);
         $('cloud-msg').textContent = t('Сохранено. Введи этот код на другом устройстве.');
@@ -1969,7 +1977,7 @@
         if (!res.ok) throw new Error(await res.text());
         const s = V.load(await res.json());
         if (s.recovered) { $('cloud-msg').textContent = t('Это сохранение не подходит к игре.'); return; }
-        code = c; store.set(CLOUD_KEY, c);
+        cloudCode = c; store.set(CLOUD_KEY, c);
         replaceState(s);
         save();
         openPanel('panel-settings');
@@ -1981,7 +1989,7 @@
 
     // Quietly keep the cloud copy fresh once the player has a code.
     // A hidden tab's world is frozen: skip it, or it would overwrite progress made on another device.
-    setInterval(() => { if (code && !hiddenAt) cloudPut(code).catch(() => {}); }, 60000);
+    setInterval(() => { if (cloudCode && !hiddenAt) cloudPut(cloudCode).catch(() => {}); }, 60000);
   }
 
   // ───────────── Boot ─────────────
@@ -2033,7 +2041,7 @@
         // Another tab saved after this one went quiet: carry on from that save, not the stale state here.
         const saved = loadSaved();
         const newer = saved.s && saved.writtenAt > wroteAt;
-        if (newer) replaceState(saved.s);
+        if (newer) { replaceState(saved.s); syncCloudCode(); }
         const away = Date.now() - (newer ? saved.savedAt || Date.now() : hiddenAt);
         hiddenAt = 0;
         catchUp(away / 1000, away > 60000);

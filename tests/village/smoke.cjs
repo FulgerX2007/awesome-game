@@ -378,6 +378,42 @@ async function edgeChecks() {
     await ctx.close();
   }
   {
+    // Tab A has cloud code X and goes to the background; another tab loads cloud code Y and saves.
+    // A adopts that save, so it must take code Y too: no PUT of village Y to code X, panel shows Y.
+    const X = 'abcdefghjkmnpqrs';
+    const Y = 'zyxwvutsrqpnmkjh';
+    const { ctx, page, errors } = await preparedPage((code) => {
+      const si = window.setInterval;
+      window.setInterval = (fn, ms, ...rest) => si(fn, Math.max(10, (ms || 0) / 100), ...rest);
+      window.__puts = [];
+      const f = window.fetch;
+      window.fetch = (url, opts) => { if (opts && opts.method === 'PUT') window.__puts.push(String(url)); return f(url, opts); };
+      localStorage.setItem('village.cloud', code);
+    }, X);
+    await waitFor(() => page.evaluate(() => window.__puts.length > 0), 5000);
+    const r = await page.evaluate(async ({ key, Y }) => {
+      let state = 'hidden';
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const other = JSON.parse(localStorage.getItem(key));
+      other.res.wood = 66;
+      other.savedAt = Date.now();
+      other.writtenAt = Date.now() + 1;
+      localStorage.setItem(key, JSON.stringify(other));
+      localStorage.setItem('village.cloud', Y);
+      const mark = window.__puts.length;
+      state = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise((res) => setTimeout(res, 1500));
+      return { puts: window.__puts.slice(mark), shown: document.getElementById('cloud-code').textContent };
+    }, { key: SAVE_KEY, Y });
+    check(r.puts.length > 0 && r.puts.every((u) => u.endsWith(`/api/saves/${Y}`)),
+      'a tab adopting another tab\'s save PUTs only to that tab\'s cloud code', JSON.stringify(r));
+    check(r.shown.replace(/-/g, '') === Y, 'the settings panel shows the adopted cloud code', JSON.stringify(r));
+    check(errors.length === 0, 'no console errors (adopted cloud code)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
     // Without another tab's save in between, a returning tab carries on with its own state.
     const { ctx, page, errors } = await preparedPage(() => {});
     const r = await page.evaluate(async (key) => {
