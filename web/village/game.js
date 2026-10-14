@@ -1373,12 +1373,14 @@
   }
 
   // ───────────── Events from core.js ─────────────
-  // The list is read and cleared once per frame. Later tasks hang floats, toasts and sounds on the same events.
+  // The list is read and cleared once per frame; drawing effects, UI and sounds all hang on the same events.
   function handleEvents() {
     if (!S.events.length) return;
     const evs = S.events.splice(0);
     for (const e of evs) {
       uiEvent(e);
+      const snd = VV.soundFor(e);
+      if (snd) A.play(snd);
       if (e.type === 'hit') {
         P.swing = 0;
         P.tool = TOOL_OF[e.kind];

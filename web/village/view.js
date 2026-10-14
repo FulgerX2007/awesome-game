@@ -170,9 +170,23 @@
     return best;
   }
 
+  // The sound name (VillageAudio) for a core event, or null. The chapel's 'built' stays quiet:
+  // the 'festival' event right after it plays the bigger tune.
+  const HIT_SOUND = { tree: 'axe', rock: 'pick', clay: 'shovel', bush: 'berries' };
+  function soundFor(e) {
+    switch (e && e.type) {
+      case 'hit': return HIT_SOUND[e.kind] || null;
+      case 'contribute': case 'decor': return 'contribute';
+      case 'built': return e.effect === 'festival' ? null : 'built';
+      case 'tool': return 'tool';
+      case 'festival': return 'festival';
+      default: return null;
+    }
+  }
+
   const api = {
     TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
-    fmt, fmtRate, splitDuration, income, buildingAt, tapAction, frontTiles, pickFront, footprintDist,
+    fmt, fmtRate, splitDuration, income, buildingAt, tapAction, frontTiles, pickFront, footprintDist, soundFor,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VillageView = api;

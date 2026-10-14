@@ -327,14 +327,15 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 **Files:**
 - Modify: `web/village/audio.js`
 - Modify: `web/village/game.js`
+- Modify: `web/village/view.js` (`soundFor`: core event → sound name, tested in Node)
 - Create: `tests/village/audio.test.js`
 
-- [ ] `audio.js`: lazy `AudioContext` on the first gesture; sounds for the axe, pickaxe, shovel, berries, adding resources, finishing a building, tool upgrade, festival — all synthesized (oscillators + noise + envelopes)
-- [ ] a quiet ambient melody: generated phrases on a pentatonic scale with soft pads and long pauses, volume ~0.15, a day birdsong layer
-- [ ] separate "Музыка" and "Звуки" toggles, saved in `localStorage` (`village.audio`), the `M` key mutes everything, no autoplay before a gesture
-- [ ] connect the sounds to the existing `s.events` (from Tasks 2–3); the client reads and clears the list once per frame
-- [ ] write tests: `audio.js` loads in Node without `AudioContext` and doesn't throw (no-op mode); the music phrase generator (a pure function from a seed) only gives notes from the pentatonic scale
-- [ ] run `node --test 'tests/**/*.test.js'` — must pass before task 9
+- [x] `audio.js`: lazy `AudioContext` on the first gesture; sounds for the axe, pickaxe, shovel, berries, adding resources, finishing a building, tool upgrade, festival — all synthesized (oscillators + noise + envelopes)
+- [x] a quiet ambient melody: generated phrases on a pentatonic scale with soft pads and long pauses, volume ~0.15, a day birdsong layer
+- [x] separate "Музыка" and "Звуки" toggles, saved in `localStorage` (`village.audio`), the `M` key mutes everything, no autoplay before a gesture
+- [x] connect the sounds to the existing `s.events` (from Tasks 2–3); the client reads and clears the list once per frame
+- [x] write tests: `audio.js` loads in Node without `AudioContext` and doesn't throw (no-op mode); the music phrase generator (a pure function from a seed) only gives notes from the pentatonic scale
+- [x] run `node --test 'tests/**/*.test.js'` — must pass before task 9
 
 ### Task 9: E2E smoke test in the browser
 
