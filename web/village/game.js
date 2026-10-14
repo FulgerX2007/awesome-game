@@ -1857,12 +1857,17 @@
   // localStorage keeps core's save plus savedAt (load ignores unknown fields); the cloud gets core's save.
   // While the tab is hidden the world stands still (no rAF), so savedAt stays at the moment it was hidden:
   // a tab closed or discarded without coming back still gets its time away on the next boot.
+  // A hidden tab writes once (on hiding) and then stays quiet, so its frozen state cannot clobber
+  // progress made meanwhile in another tab; writtenAt tells such a newer save apart on return.
   let hiddenAt = 0;
+  let wroteAt = 0; // writtenAt of this tab's last write
   function save() {
-    const ok = store.set(SAVE_KEY, JSON.stringify({ ...V.save(S), savedAt: hiddenAt || Date.now() }));
+    wroteAt = Math.max(Date.now(), wroteAt + 1);
+    const ok = store.set(SAVE_KEY, JSON.stringify({ ...V.save(S), savedAt: hiddenAt || Date.now(), writtenAt: wroteAt }));
     $('save-status').textContent = ok ? t('сохранено') : t('браузер не даёт сохранять');
     return ok;
   }
+  const saveIfVisible = () => { if (!hiddenAt) save(); };
 
   function loadSaved() {
     const raw = store.get(SAVE_KEY);
@@ -1874,7 +1879,7 @@
       store.set(`${SAVE_KEY}.broken`, raw); // keep the unreadable copy aside instead of losing it silently
       return { s: null, savedAt: null, broken: true };
     }
-    return { s, savedAt: Number(data.savedAt) || null, broken: false };
+    return { s, savedAt: Number(data.savedAt) || null, writtenAt: Number(data.writtenAt) || 0, broken: false };
   }
 
   // Swap the whole state (reset, cloud load): cosmetic followers start over, the rest is drawn from S.
@@ -1975,7 +1980,8 @@
     });
 
     // Quietly keep the cloud copy fresh once the player has a code.
-    setInterval(() => { if (code) cloudPut(code).catch(() => {}); }, 60000);
+    // A hidden tab's world is frozen: skip it, or it would overwrite progress made on another device.
+    setInterval(() => { if (code && !hiddenAt) cloudPut(code).catch(() => {}); }, 60000);
   }
 
   // ───────────── Boot ─────────────
@@ -2024,15 +2030,21 @@
         releaseKeys();
         save();
       } else if (hiddenAt) {
-        const away = Date.now() - hiddenAt;
+        // Another tab saved after this one went quiet: carry on from that save, not the stale state here.
+        const saved = loadSaved();
+        const newer = saved.s && saved.writtenAt > wroteAt;
+        if (newer) replaceState(saved.s);
+        const away = Date.now() - (newer ? saved.savedAt || Date.now() : hiddenAt);
         hiddenAt = 0;
         catchUp(away / 1000, away > 60000);
+        if (newer) toast(t('Подхвачено сохранение из другой вкладки'), 3000);
         save();
         renderHUD();
       }
     });
-    window.addEventListener('pagehide', save);
-    setInterval(save, 10000);
+    // While hidden nothing changes, and the hide-time save is already written.
+    window.addEventListener('pagehide', saveIfVisible);
+    setInterval(saveIfVisible, 10000);
   }
 
   function boot() {

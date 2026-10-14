@@ -314,6 +314,89 @@ async function edgeChecks() {
     check(errors.length === 0, 'no console errors (hidden tab)', errors.join('\n'));
     await ctx.close();
   }
+  {
+    // A hidden tab writes once on hiding and then stays quiet: no autosaves, no pagehide save, no cloud PUTs.
+    // Timers run 100x faster here so the 10 s save and 60 s cloud intervals fire within the test.
+    const { ctx, page, errors } = await preparedPage((cloudKey) => {
+      const si = window.setInterval;
+      window.setInterval = (fn, ms, ...rest) => si(fn, Math.max(10, (ms || 0) / 100), ...rest);
+      window.__writes = 0;
+      window.__puts = 0;
+      const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (k, v) { if (k === 'village.save') window.__writes++; return set.call(this, k, v); };
+      const f = window.fetch;
+      window.fetch = (url, opts) => { if (opts && opts.method === 'PUT') window.__puts++; return f(url, opts); };
+      localStorage.setItem(cloudKey, 'abcdefghjkmnpqrs');
+    }, 'village.cloud');
+    await sleep(1500);
+    const visible = await page.evaluate(() => ({ writes: window.__writes, puts: window.__puts }));
+    check(visible.writes > 2 && visible.puts > 0, 'a visible tab autosaves locally and to the cloud', JSON.stringify(visible));
+    const r = await page.evaluate(async () => {
+      let state = 'hidden';
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const before = { writes: window.__writes, puts: window.__puts };
+      await new Promise((res) => setTimeout(res, 1500));
+      window.dispatchEvent(new Event('pagehide'));
+      const after = { writes: window.__writes, puts: window.__puts };
+      state = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise((res) => setTimeout(res, 1000));
+      return { before, after, back: { writes: window.__writes, puts: window.__puts } };
+    });
+    check(r.after.writes === r.before.writes, 'no localStorage writes while hidden (interval, pagehide)', JSON.stringify(r));
+    check(r.after.puts === r.before.puts, 'no cloud PUTs while hidden', JSON.stringify(r));
+    check(r.back.writes > r.after.writes && r.back.puts > r.after.puts, 'saving resumes once visible again', JSON.stringify(r));
+    check(errors.length === 0, 'no console errors (quiet hidden tab)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    // Tab A goes to the background, the village is played on in another tab; A coming back picks up that
+    // newer save instead of writing its stale state over it.
+    const { ctx, page, errors } = await preparedPage(() => {});
+    const r = await page.evaluate(async (key) => {
+      let state = 'hidden';
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const other = JSON.parse(localStorage.getItem(key));
+      other.res.wood = 77;
+      other.savedAt = Date.now();
+      other.writtenAt = Date.now() + 1;
+      localStorage.setItem(key, JSON.stringify(other));
+      state = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise((res) => setTimeout(res, 300));
+      return {
+        hud: document.getElementById('r-wood').textContent,
+        stored: JSON.parse(localStorage.getItem(key)).res.wood,
+        toast: document.getElementById('toast').textContent,
+      };
+    }, SAVE_KEY);
+    check(r.stored === 77 && Number(r.hud) === 77, 'a returning tab keeps the newer save from another tab', JSON.stringify(r));
+    check(/другой вкладки/.test(r.toast), 'a returning tab says it took the other tab\'s save', JSON.stringify(r));
+    check(errors.length === 0, 'no console errors (stale tab)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    // Without another tab's save in between, a returning tab carries on with its own state.
+    const { ctx, page, errors } = await preparedPage(() => {});
+    const r = await page.evaluate(async (key) => {
+      let state = 'hidden';
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const old = JSON.parse(localStorage.getItem(key));
+      old.res.wood = 55;
+      old.writtenAt -= 5000; // an older save must not win
+      localStorage.setItem(key, JSON.stringify(old));
+      state = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise((res) => setTimeout(res, 300));
+      return { stored: JSON.parse(localStorage.getItem(key)).res.wood };
+    }, SAVE_KEY);
+    check(r.stored !== 55, 'an older save in storage does not replace the returning tab\'s state', JSON.stringify(r));
+    check(errors.length === 0, 'no console errors (own state kept)', errors.join('\n'));
+    await ctx.close();
+  }
 }
 
 async function main() {

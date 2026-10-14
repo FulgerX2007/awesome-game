@@ -163,6 +163,7 @@ I18n.add({ ro: {
   'Сохранения с таким кодом нет.': 'Nu există nicio salvare cu acest cod.',
   'Это сохранение не подходит к игре.': 'Această salvare nu se potrivește jocului.',
   'Загружено.': 'Încărcat.',
+  'Подхвачено сохранение из другой вкладки': 'S-a preluat salvarea din altă filă',
   'Не удалось загрузить: {e}': 'Nu s-a putut încărca: {e}',
 
   // ── Keys hint (split by <kbd> into separate text nodes) ──
