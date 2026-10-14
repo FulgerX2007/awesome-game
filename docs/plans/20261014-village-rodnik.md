@@ -167,7 +167,8 @@
   tools: { axe: 1, pick: 1, shovel: 0, basket: 1 },
   nodes: [{ id, kind, x, y, hp, regrowAt }],
   built: { well: { paid: {...}, done: false }, ... },
-  storage, villagers: [{ role, house }],
+  storage, barnLevel,              // barnLevel 0/1/2 indexes STORAGE; storage is derived from it on load
+  villagers: [{ role, house }],
   decor: [{ kind, x, y }],
   festival: false, stats: { gathered: {...}, playTime }
 }
@@ -209,13 +210,13 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 - Create: `web/village/core.js`
 - Create: `tests/village/core.test.js`
 
-- [ ] create `web/village/core.js` as an IIFE like `web/rust/core.js` (`module.exports` in Node, `root.Village` in the browser)
-- [ ] add mulberry32 with saved state, constants `RESOURCES`, `NODE_KINDS`, `TOOLS`, `BUILDINGS` (the full table: costs, dependencies, effect ids — effects are applied in Task 3), the handmade `MAP` 48×36 (grass, water, path, sand, ruin footprints, bridge site, zones `west`/`east`/`north`)
-- [ ] implement `newGame(seed)`: scatter nodes by seed over allowed tiles in each zone, start position on the square, starting tools, a `built` skeleton for every building, an empty `events`
-- [ ] implement `isWalkable` (water, ruins and nodes block; the bridge site is water until restored) and `save`/`load` with version check, defaults and recovery from a broken save
-- [ ] write tests: same seed gives the same map, different seeds give different ones; node counts per zone; no node on a path/sand/bridge approach/square; the start tile is walkable; save→load round-trip (transient fields dropped, `load` takes a string and an object, save size < 64 KB)
-- [ ] write tests for errors: `load` of garbage/`null`/foreign version gives a new game with `recovered`, missing fields get defaults
-- [ ] run `node --test 'tests/**/*.test.js'` and `go test ./...` — must pass before task 2
+- [x] create `web/village/core.js` as an IIFE like `web/rust/core.js` (`module.exports` in Node, `root.Village` in the browser)
+- [x] add mulberry32 with saved state, constants `RESOURCES`, `NODE_KINDS`, `TOOLS`, `BUILDINGS` (the full table: costs, dependencies, effect ids — effects are applied in Task 3), the handmade `MAP` 48×36 (grass, water, path, sand, ruin footprints, bridge site, zones `west`/`east`/`north`)
+- [x] implement `newGame(seed)`: scatter nodes by seed over allowed tiles in each zone, start position on the square, starting tools, a `built` skeleton for every building, an empty `events`
+- [x] implement `isWalkable` (water, ruins and nodes block; the bridge site is water until restored) and `save`/`load` with version check, defaults and recovery from a broken save
+- [x] write tests: same seed gives the same map, different seeds give different ones; node counts per zone; no node on a path/sand/bridge approach/square; the start tile is walkable; save→load round-trip (transient fields dropped, `load` takes a string and an object, save size < 64 KB)
+- [x] write tests for errors: `load` of garbage/`null`/foreign version gives a new game with `recovered`, missing fields get defaults
+- [x] run `node --test 'tests/**/*.test.js'` and `go test ./...` — must pass before task 2
 
 ### Task 2: Movement, pathfinding and gathering
 
