@@ -1,6 +1,8 @@
 'use strict';
 // E2E smoke test for «Родник» (/village/) in Chromium. Not part of `node --test`:
-//   NODE_PATH=/opt/node22/lib/node_modules node tests/village/smoke.cjs
+//   node tests/village/smoke.cjs
+// Needs Playwright with Chromium (npm i -g playwright && npx playwright install chromium); with a global
+// install, point NODE_PATH at the global modules, e.g. NODE_PATH="$(npm root -g)" node tests/village/smoke.cjs.
 // Starts the Go server on :18080 with in-memory storage, drives the page through real input
 // (keyboard, taps) and reads state only from the DOM and localStorage. Exits non-zero on failure
 // and always stops the server.
@@ -100,6 +102,16 @@ async function canvasFilled(page) {
 }
 
 // The nearest standing tree to the player that is inside the canvas, in page (client) coordinates.
+// A save object built by core.js in a throwaway page; `make` runs in the page and returns it.
+async function coreSave(make) {
+  const { ctx, page } = await newPage({ width: 800, height: 600 });
+  await page.goto(`${BASE}/village/`, { waitUntil: 'load' });
+  await page.waitForFunction(() => window.Village);
+  const save = await page.evaluate(make);
+  await ctx.close();
+  return save;
+}
+
 async function nearestTreePoint(page, save) {
   return page.evaluate((s) => {
     const VV = window.VillageView;
@@ -157,7 +169,19 @@ async function desktopChecks() {
 }
 
 async function roPhoneChecks() {
+  // The phone view shows only a few tiles, so the game starts next to a tree (a save made by core).
+  const near = await coreSave(() => {
+    const V = window.Village;
+    const s = V.newGame(7);
+    const n = s.nodes.find((o) => o.kind === 'tree' && V.isWalkable(s, o.x + 1, o.y));
+    s.player.x = n.x + 1.5;
+    s.player.y = n.y + 0.5;
+    return V.save(s);
+  });
   const { ctx, page, errors } = await newPage({ width: 390, height: 844 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 3 });
+  await ctx.addInitScript(({ key, raw }) => {
+    if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, raw); sessionStorage.setItem('prepared', '1'); }
+  }, { key: SAVE_KEY, raw: JSON.stringify(near) });
   await page.goto(`${BASE}/village/?lang=ro`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.Village && document.getElementById('scene').width > 1);
   await sleep(500);
@@ -190,8 +214,106 @@ async function roPhoneChecks() {
 
   const fill = await canvasFilled(page);
   check(fill.ok, 'canvas is drawn (phone)', JSON.stringify(fill));
+
+  // Touch path: a tap on the nearest tree walks there and gathers; the action button works too.
+  const wood0 = Number(await page.textContent('#r-wood'));
+  const tree = await nearestTreePoint(page, await readSave(page));
+  check(!!tree, 'a tree is on screen (phone)');
+  if (tree) {
+    await page.touchscreen.tap(tree.x, tree.y);
+    const got = await waitFor(async () => Number(await page.textContent('#r-wood')) > wood0, 10000, 200);
+    check(got, 'tapping the nearest tree adds wood (phone)', `tree ${tree.id} at ${tree.d.toFixed(1)} tiles`);
+  }
+  await page.tap('#btn-act');
+  await sleep(300);
   check(errors.length === 0, 'no console errors (phone, RO)', errors.join('\n'));
   await ctx.close();
+}
+
+// A page whose localStorage is prepared before game.js runs. `setup` runs in the page as an init script.
+async function preparedPage(setup, arg) {
+  const p = await newPage({ width: 1280, height: 900 });
+  await p.ctx.addInitScript(setup, arg);
+  await p.page.goto(`${BASE}/village/`, { waitUntil: 'load' });
+  await p.page.waitForFunction(() => window.Village && document.getElementById('scene').width > 1);
+  await sleep(300);
+  return p;
+}
+
+
+const modalText = (page) => page.evaluate(() => {
+  const m = document.getElementById('modal');
+  return m && !m.hidden ? m.textContent : '';
+});
+
+// Error paths and the time-away window: broken save, blocked storage, >30 s and >8 h away, hidden tab.
+async function edgeChecks() {
+  {
+    const { ctx, page, errors } = await preparedPage((key) => {
+      if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, '{oops'); sessionStorage.setItem('prepared', '1'); }
+    }, SAVE_KEY);
+    const kept = await page.evaluate((k) => localStorage.getItem(`${k}.broken`), SAVE_KEY);
+    check(kept === '{oops', 'a broken save is kept aside in village.save.broken', JSON.stringify(kept));
+    const toast = await page.textContent('#toast');
+    check(/повреждено/.test(toast || ''), 'a broken save shows a toast', JSON.stringify(toast));
+    const fresh = await readSave(page);
+    check(fresh && fresh.v === 1, 'a new village is saved over the broken one');
+    check(errors.length === 0, 'no console errors (broken save)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    const { ctx, page, errors } = await preparedPage(() => {
+      Storage.prototype.setItem = function () { throw new DOMException('full', 'QuotaExceededError'); };
+    });
+    const status = await page.textContent('#save-status');
+    check(/браузер не даёт сохранять/.test(status || ''), 'blocked storage is reported in settings', JSON.stringify(status));
+    check(errors.length === 0, 'no console errors (storage full)', errors.join('\n'));
+    await ctx.close();
+  }
+  // A woodcutter at work and nothing in stock.
+  const base = await coreSave(() => {
+    const V = window.Village;
+    const s = V.newGame(7);
+    for (const id of ['home', 'bridge', 'sawmill', 'kiln', 'house1']) s.built[id].done = true;
+    return V.save(V.load(V.save(s)));
+  });
+  for (const [away, note] of [[120, false], [9 * 3600, true]]) {
+    const { ctx, page, errors } = await preparedPage(({ key, raw }) => {
+      if (sessionStorage.getItem('prepared')) return;
+      const data = JSON.parse(raw);
+      data.savedAt = Date.now() - data.away * 1000;
+      delete data.away;
+      localStorage.setItem(key, JSON.stringify(data));
+      sessionStorage.setItem('prepared', '1');
+    }, { key: SAVE_KEY, raw: JSON.stringify({ ...base, away }) });
+    const text = await modalText(page);
+    check(/Пока тебя не было/.test(text), `the time-away window opens after ${away} s`, JSON.stringify(text));
+    check(/Дерево/.test(text), `the window lists the woodcutter's wood (${away} s)`, JSON.stringify(text));
+    check(/дольше восьми часов/.test(text) === note, `the 8 h note is ${note ? 'shown' : 'absent'} (${away} s)`, JSON.stringify(text));
+    check(errors.length === 0, `no console errors (${away} s away)`, errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    // A hidden tab keeps the moment it was hidden as savedAt, so closing it there loses no time away.
+    const { ctx, page, errors } = await preparedPage(() => {});
+    const r = await page.evaluate(async (key) => {
+      let state = 'hidden';
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      const t0 = Date.now();
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise((res) => setTimeout(res, 1500));
+      window.dispatchEvent(new Event('pagehide'));
+      const hidden = JSON.parse(localStorage.getItem(key)).savedAt;
+      state = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+      const shown = JSON.parse(localStorage.getItem(key)).savedAt;
+      return { t0, hidden, shown };
+    }, SAVE_KEY);
+    check(r.hidden >= r.t0 && r.hidden < r.t0 + 500, 'a save while hidden keeps the hide time', JSON.stringify(r));
+    check(r.shown >= r.t0 + 1400, 'back to visible, savedAt is current again', JSON.stringify(r));
+    check(errors.length === 0, 'no console errors (hidden tab)', errors.join('\n'));
+    await ctx.close();
+  }
 }
 
 async function main() {
@@ -202,6 +324,7 @@ async function main() {
   browser = await chromium.launch(fs.existsSync(CHROMIUM) ? { executablePath: CHROMIUM } : {});
   await desktopChecks();
   await roPhoneChecks();
+  await edgeChecks();
 }
 
 async function cleanup() {

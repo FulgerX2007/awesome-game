@@ -142,6 +142,8 @@
 
   const inMap = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
   const tileAt = (x, y) => (inMap(x, y) ? MAP[y][x] : null);
+  // The building whose ruin footprint covers a tile, or null.
+  const ruinAt = (x, y) => RUIN_CH[tileAt(x, y)] || null;
   const idx = (x, y) => y * W + x;
   // Base terrain walkability, ignoring nodes; the bridge site counts only when open.
   const groundWalkable = (c, bridgeOpen) =>
@@ -185,8 +187,8 @@
   }
   const zoneAt = (x, y) => (inMap(x, y) ? ZONES[idx(x, y)] : null);
 
-  // Chebyshev distance from (x, y) to the nearest tile matching pred.
-  function nearDist(x, y, r, pred) {
+  // Whether a tile matching pred lies within Chebyshev distance r of (x, y).
+  function near(x, y, r, pred) {
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       if (inMap(x + dx, y + dy) && pred(MAP[y + dy][x + dx])) return true;
     }
@@ -198,8 +200,8 @@
   const NODE_SITES = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (MAP[y][x] !== '.') continue;
-    if (nearDist(x, y, 2, (c) => c === 'b')) continue;
-    if (nearDist(x, y, 1, (c) => c === '#' || RUIN_CH[c])) continue;
+    if (near(x, y, 2, (c) => c === 'b')) continue;
+    if (near(x, y, 1, (c) => c === '#' || RUIN_CH[c])) continue;
     if (Math.abs(x - START.x) <= 1 && Math.abs(y - START.y) <= 1) continue;
     NODE_SITES.push({ x, y, zone: ZONES[idx(x, y)] });
   }
@@ -443,14 +445,18 @@
     p.dir = dx || dy ? { x: dx, y: dy } : null;
   }
 
+  // A new order replaces key walking and the previous order.
+  function setOrder(p, target, path) {
+    p.dir = null;
+    p.target = target;
+    p.path = path;
+  }
+
   // Walk to a tile along an A* path. Returns false (and keeps the current order) when it can't be reached.
   function goTo(s, x, y) {
-    const p = s.player;
-    const path = findPath(s, p, { x, y });
+    const path = findPath(s, s.player, { x, y });
     if (!path) return false;
-    clearOrder(p);
-    p.dir = null;
-    p.path = path;
+    setOrder(s.player, null, path);
     return true;
   }
 
@@ -464,20 +470,14 @@
       if (!s.tools[NODE_KINDS[n.kind].tool]) return 'tool';
       const path = pathNextTo(s, p, [n]);
       if (!path) return 'none';
-      clearOrder(p);
-      p.dir = null;
-      p.target = { type: 'node', id: n.id };
-      p.path = path;
+      setOrder(p, { type: 'node', id: n.id }, path);
       return 'gather';
     }
-    const ruin = RUIN_CH[tileAt(x, y)];
+    const ruin = ruinAt(x, y);
     if (ruin) {
       const path = pathNextTo(s, p, FOOTPRINTS[ruin]);
       if (!path) return 'none';
-      clearOrder(p);
-      p.dir = null;
-      p.target = { type: 'ruin', id: ruin };
-      p.path = path;
+      setOrder(p, { type: 'ruin', id: ruin }, path);
       return 'ruin';
     }
     return goTo(s, x, y) ? 'walk' : 'none';
@@ -684,9 +684,10 @@
       own.paid[r] += n;
       given[r] = n;
     }
-    if (!Object.keys(given).length) return 'none';
-    s.events.push({ type: 'contribute', id, given, stage: stage(s, id) });
-    if (Object.keys(remaining(s, id)).length) return 'ok';
+    const paidNow = Object.keys(given).length > 0;
+    if (paidNow) s.events.push({ type: 'contribute', id, given, stage: stage(s, id) });
+    // A building may already be fully paid without being done (a loaded save whose dependencies were missing).
+    if (Object.keys(remaining(s, id)).length) return paidNow ? 'ok' : 'none';
     own.done = true;
     applyEffect(s, id);
     s.events.push({ type: 'built', id, effect: b.effect });
@@ -724,26 +725,51 @@
   // A blocked producer keeps at most one unit pending, so it doesn't burst later.
   // EPS absorbs float drift, so many small steps give the same units as one big step (offline).
   const EPS = 1e-6;
+  const villagerRate = (s, role) => role.rate * (s.built.mill.done ? MILL_BONUS : 1);
+  const hasRoom = (s, r) => s.res[r] < s.storage;
+  const hasRaw = (s, w) => s.res[w.from] - w.ratio >= WORKSHOP_RESERVE;
+
   function produce(s, dt) {
-    const bonus = s.built.mill.done ? MILL_BONUS : 1;
     for (const v of s.villagers) {
       const role = VILLAGERS[v.role];
       if (!role) continue;
       const key = v.house;
-      let a = (s.acc[key] || 0) + role.rate * bonus * dt;
-      while (a >= 1 - EPS && s.res[role.res] < s.storage) { s.res[role.res] += 1; a -= 1; }
+      let a = (s.acc[key] || 0) + villagerRate(s, role) * dt;
+      while (a >= 1 - EPS && hasRoom(s, role.res)) { s.res[role.res] += 1; a -= 1; }
       s.acc[key] = Math.min(Math.max(a, 0), 1);
     }
     for (const [id, w] of Object.entries(WORKSHOPS)) {
       if (!s.built[id].done) continue;
       let a = (s.acc[id] || 0) + w.rate * dt;
-      while (a >= 1 - EPS && s.res[w.from] - w.ratio >= WORKSHOP_RESERVE && s.res[w.to] < s.storage) {
+      while (a >= 1 - EPS && hasRaw(s, w) && hasRoom(s, w.to)) {
         s.res[w.from] -= w.ratio;
         s.res[w.to] += 1;
         a -= 1;
       }
       s.acc[id] = Math.min(Math.max(a, 0), 1);
     }
+  }
+
+  // Automatic income right now, per second, by the same rules as produce(). `full` lists resources whose
+  // producers are stopped by the storage limit. Used by the HUD.
+  function rates(s) {
+    const rate = {};
+    const full = new Set();
+    const add = (r, v) => { rate[r] = (rate[r] || 0) + v; };
+    for (const v of s.villagers) {
+      const role = VILLAGERS[v.role];
+      if (!role) continue;
+      if (hasRoom(s, role.res)) add(role.res, villagerRate(s, role));
+      else full.add(role.res);
+    }
+    for (const [id, w] of Object.entries(WORKSHOPS)) {
+      if (!s.built[id].done) continue;
+      if (!hasRoom(s, w.to)) { full.add(w.to); continue; }
+      if (!hasRaw(s, w)) continue;
+      add(w.to, w.rate);
+      add(w.from, -w.rate * w.ratio);
+    }
+    return { rate, full: [...full] };
   }
 
   // Time away from the game: villagers and workshops work in 1 s steps (capped at 8 h), empty nodes regrow.
@@ -827,11 +853,9 @@
   // Accepts an object or a JSON string. Fills missing fields with defaults and drops junk.
   // A broken or foreign save gives a new game with recovered: true; load never throws.
   function load(data) {
-    if (typeof data === 'string') {
-      try { data = JSON.parse(data); } catch (e) { return recovered(); }
-    }
-    if (!isObj(data) || data.v !== VERSION || !Number.isFinite(data.seed)) return recovered();
     try {
+      if (typeof data === 'string') data = JSON.parse(data);
+      if (!isObj(data) || data.v !== VERSION || !Number.isFinite(data.seed)) return recovered();
       return restore(data);
     } catch (e) {
       return recovered();
@@ -842,14 +866,6 @@
     const s = newGame(d.seed);
     s.rng = Number.isFinite(d.rng) ? d.rng >>> 0 : s.rng;
     s.t = num(d.t, 0);
-
-    if (isObj(d.player)) {
-      const px = num(d.player.x, null, 0, W), py = num(d.player.y, null, 0, H);
-      if (px !== null && py !== null) { s.player.x = px; s.player.y = py; }
-      for (const [k, v] of Object.entries(d.player)) {
-        if (!(k in s.player) && !TRANSIENT_PLAYER.includes(k)) s.player[k] = v;
-      }
-    }
 
     if (isObj(d.res)) for (const r of RES_IDS) s.res[r] = num(d.res[r], 0);
 
@@ -867,7 +883,9 @@
         const own = s.nodes[n.id];
         if (!own || own.kind !== n.kind || own.x !== n.x || own.y !== n.y) continue;
         if (Number.isInteger(n.hp) && n.hp >= 0 && n.hp <= NODE_KINDS[own.kind].hp) own.hp = n.hp;
-        own.regrowAt = Number.isFinite(n.regrowAt) ? n.regrowAt : null;
+        // An empty node comes back no later than its longest regrowth from now.
+        const latest = s.t + NODE_KINDS[own.kind].regrow[1];
+        own.regrowAt = Number.isFinite(n.regrowAt) ? Math.min(n.regrowAt, latest) : null;
         if (own.hp > 0) own.regrowAt = null;
         else if (own.regrowAt === null) own.regrowAt = s.t;
       }
@@ -884,16 +902,23 @@
           own.paid[r] = own.done ? need : Math.min(v, need);
         }
       }
+      // A done building needs its dependencies done. BUILDING_IDS lists dependencies first, so one pass is
+      // enough. Such a building stays fully paid and is finished by the next contribute once its needs are met.
+      for (const id of BUILDING_IDS) if (s.built[id].done && !needsMet(s, id)) s.built[id].done = false;
+    }
+
+    // The saved position counts only where the player fits (not water, not a standing node, not off the map).
+    if (isObj(d.player) && Number.isFinite(d.player.x) && Number.isFinite(d.player.y) && fits(s, d.player.x, d.player.y)) {
+      s.player.x = d.player.x;
+      s.player.y = d.player.y;
     }
 
     s.barnLevel = Number.isInteger(d.barnLevel) && d.barnLevel >= 0 && d.barnLevel < STORAGE.length ? d.barnLevel : 0;
     if (s.barnLevel > 0 && !s.built.barn.done) s.barnLevel = 0;
-    s.storage = STORAGE[s.barnLevel];
 
     if (Array.isArray(d.villagers)) {
-      const roles = new Set(BUILDING_IDS.map((id) => BUILDINGS[id].role).filter(Boolean));
       s.villagers = d.villagers
-        .filter((v) => isObj(v) && roles.has(v.role) && BUILDINGS[v.house] && BUILDINGS[v.house].role === v.role)
+        .filter((v) => isObj(v) && BUILDINGS[v.house] && BUILDINGS[v.house].role === v.role && s.built[v.house].done)
         .filter((v, i, all) => all.findIndex((o) => o.house === v.house) === i)
         .map((v) => ({ role: v.role, house: v.house }));
     }
@@ -904,15 +929,15 @@
       }
     }
 
+    // The same rules as placeDecor: square tiles only, one decoration per tile.
     if (Array.isArray(d.decor)) {
       s.decor = d.decor
-        .filter((o) => isObj(o) && DECOR[o.kind] && Number.isInteger(o.x) && Number.isInteger(o.y) && inMap(o.x, o.y))
+        .filter((o) => isObj(o) && DECOR[o.kind] && Number.isInteger(o.x) && Number.isInteger(o.y) && tileAt(o.x, o.y) === '#')
+        .filter((o, i, all) => all.findIndex((q) => q.x === o.x && q.y === o.y) === i)
         .map((o) => ({ kind: o.kind, x: o.x, y: o.y }));
     }
 
-    s.festival = d.festival === true;
-
-    // Effects of done buildings, in case the save lost them.
+    // Effects of done buildings, in case the save lost them. The festival comes from the chapel, not the save.
     for (const id of BUILDING_IDS) if (s.built[id].done) applyEffect(s, id);
     s.storage = STORAGE[s.barnLevel];
 
@@ -928,8 +953,8 @@
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS,
     OFFLINE_MAX, DECOR,
     MAP, W, H, START, FOOTPRINTS, SPEED,
-    rng, rand, tileAt, zoneAt, nodeAt, newGame, isWalkable, canAfford, findPath,
-    step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, stage, nextGoal, offline,
+    rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
+    step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, stage, rates, nextGoal, offline,
     placeDecor, save, load,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

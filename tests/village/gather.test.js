@@ -149,6 +149,8 @@ test('hits follow the tool cooldown', () => {
       V.step(s, DT);
       for (const e of s.events.splice(0)) if (e.type === 'hit') times.push(s.t);
     }
+    assert.equal(times.length, V.NODE_KINDS.tree.hp, `level ${level} hits`);
+    assert.equal(n.hp, 0);
     for (let i = 1; i < times.length; i++) {
       assert.ok(Math.abs(times[i] - times[i - 1] - V.TOOL_CD[level]) < DT + 1e-6, `level ${level} gap`);
     }

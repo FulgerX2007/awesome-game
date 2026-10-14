@@ -232,6 +232,7 @@ go run .                         # http://localhost:8080
 go run . -addr :3000 -data ""   # другой порт, рекорды и сохранения только в памяти
 go test ./...
 node --test 'tests/**/*.test.js'  # JS-тесты правил (Node 22)
+BALANCE=1 node --test tests/village/balance.test.js  # баланс «Родника»: бот на 20 сидах (долго)
 ```
 
 ### В Docker
@@ -300,9 +301,10 @@ docker run -d -p 8080:8080 -v games-data:/data ghcr.io/fulgerx2007/awesome-game:
 - `main.go` — HTTP-сервер: статика через `embed` с `Cache-Control: no-cache` и ETag по содержимому (новая версия видна без жёсткого обновления, неизменённые файлы отдаются как 304), `GET/POST /api/boards/{game}/scores` (доски `echo`, `valley`, `wonders` и `bastion`), `GET/PUT /api/saves/{code}`.
   Флаг `-data` задаёт каталог для рекордов и сохранений, по умолчанию `data`.
 - `internal/leaderboard` — топ-10 с атомарным сохранением в JSON, по файлу на игру.
-- `internal/saves` — облачные сохранения «Ржавого рассвета», по файлу на код.
+- `internal/saves` — облачные сохранения игр («Ржавый рассвет», «Родник» и др.), по файлу на код, лимит 64 КБ.
 - `tests/` — JS-тесты на `node:test`, лежат вне `web/` и в образ не попадают. Браузерный смоук «Родника»:
-  `NODE_PATH=/opt/node22/lib/node_modules node tests/village/smoke.cjs` (нужны Playwright и Chromium).
+  `node tests/village/smoke.cjs`. Нужны Playwright и Chromium: `npm i -g playwright && npx playwright install chromium`;
+  при глобальной установке укажите путь к модулям: `NODE_PATH="$(npm root -g)" node tests/village/smoke.cjs`.
 
 Если API недоступно (например, игра открыта как статический файл), личный рекорд хранится в `localStorage`.
 Счёт присылает клиент, поэтому его можно подделать: для публичного рейтинга нужна проверка на сервере.

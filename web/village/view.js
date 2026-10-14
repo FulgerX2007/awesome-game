@@ -86,36 +86,12 @@
     return { h: Math.floor(s / 3600), m: Math.floor((s % 3600) / 60), s: s % 60 };
   }
 
-  // Automatic income right now, per minute, from the same rules as core's produce(): villagers (with the
-  // mill bonus) while under the storage limit, workshops while raw stock is above the reserve and the
-  // product is under the limit. `full` lists resources whose producers are stopped by the storage limit.
+  // Automatic income right now, per minute, from core's rates() (the same rules as its produce()).
+  // `full` lists resources whose producers are stopped by the storage limit.
   function income(s, core) {
-    const rate = {};
-    const full = new Set();
-    const add = (r, v) => { rate[r] = (rate[r] || 0) + v * 60; };
-    const bonus = s.built.mill && s.built.mill.done ? core.MILL_BONUS : 1;
-    for (const v of s.villagers) {
-      const role = core.VILLAGERS[v.role];
-      if (!role) continue;
-      if (s.res[role.res] < s.storage) add(role.res, role.rate * bonus);
-      else full.add(role.res);
-    }
-    for (const [id, w] of Object.entries(core.WORKSHOPS)) {
-      if (!s.built[id] || !s.built[id].done) continue;
-      if (s.res[w.to] >= s.storage) { full.add(w.to); continue; }
-      if (s.res[w.from] - w.ratio < core.WORKSHOP_RESERVE) continue;
-      add(w.to, w.rate);
-      add(w.from, -w.rate * w.ratio);
-    }
-    return { rate, full: [...full] };
-  }
-
-  // The building whose footprint covers a tile, or null.
-  function buildingAt(core, x, y) {
-    const c = core.tileAt(x, y);
-    if (!c) return null;
-    for (const b of Object.values(core.BUILDINGS)) if (b.ch === c) return b.id;
-    return null;
+    const { rate, full } = core.rates(s);
+    for (const r of Object.keys(rate)) rate[r] *= 60;
+    return { rate, full };
   }
 
   // What a tap (or the action key) on a tile means:
@@ -132,7 +108,7 @@
       const tool = core.NODE_KINDS[n.kind].tool;
       return s.tools[tool] > 0 ? { type: 'gather', node: n.id } : { type: 'tool', tool };
     }
-    const id = buildingAt(core, x, y);
+    const id = core.ruinAt(x, y);
     if (id && !(id === 'bridge' && s.built.bridge.done)) return { type: 'ruin', id };
     return core.isWalkable(s, x, y) ? { type: 'walk' } : { type: 'none' };
   }
@@ -186,7 +162,7 @@
 
   const api = {
     TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
-    fmt, fmtRate, splitDuration, income, buildingAt, tapAction, frontTiles, pickFront, footprintDist, soundFor,
+    fmt, fmtRate, splitDuration, income, tapAction, frontTiles, pickFront, footprintDist, soundFor,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VillageView = api;

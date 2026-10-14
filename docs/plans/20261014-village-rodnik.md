@@ -186,14 +186,32 @@ and fill the mid-game instead of all at once.
   the 64 KB `internal/saves` limit, so it is checked in a test.
 - `load(data)` takes an object or a JSON string (the cloud load gets an object from `res.json()`), checks `v`, fills in
   missing fields with defaults and drops junk without throwing. A broken save gives a new game and a flag `recovered: true`.
-- **Events** `s.events`: `{type:'hit', kind, gain}`, `'deplete'`, `'regrow'` (Task 2); `'contribute'`, `'built'`,
-  `'tool'`, `'festival'`, `'decor'` (Task 3). The client uses them for animations, floating numbers, toasts and sounds.
+- **Events** `s.events`: `{type:'hit', kind, gain}`, `'deplete'`, `'regrow'` (Task 2); `{type:'ruin', id}` when the
+  player arrives at a ruin it was sent to (the client opens its panel); `'contribute'`, `'built'`, `'tool'`, `'festival'`,
+  `'decor'` (Task 3). `upgradeBarn` also emits `{type:'built', id:'barn', effect:'storage', level}`. The client uses
+  them for animations, floating numbers, toasts and sounds.
+- Load also keeps the state consistent: the saved position is kept only where the player fits, a done building with
+  unmet needs is reset to fully paid but not done (the next contribute finishes it), the festival follows the chapel,
+  decorations must stand on free square tiles, and a regrow time is clamped to the longest regrowth from `t`.
 
 ### Public API of `core.js`
-`newGame(seed)`, `step(s, dt)`, `moveDir(s, dx, dy)`, `goTo(s, x, y)`, `interact(s, x, y)` (node → gather,
-ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn(s)`, `placeDecor(s, kind, x, y)`,
-`nextGoal(s)`, `canAfford(s, cost)`, `isWalkable(s, x, y)`, `findPath(s, from, to)`, `offline(s, seconds)`,
-`save(s)`, `load(data)`, constants `MAP`, `BUILDINGS`, `TOOLS`, `NODE_KINDS`, `RESOURCES`.
+`newGame(seed)`, `step(s, dt)`, `moveDir(s, dx, dy)`, `goTo(s, x, y)`, `interact(s, x, y)`, `contribute(s, id)`,
+`upgradeTool(s, tool)`, `upgradeBarn(s)`, `placeDecor(s, kind, x, y)`, `nextGoal(s)`, `canAfford(s, cost)`,
+`isWalkable(s, x, y)`, `findPath(s, from, to)`, `offline(s, seconds)`, `save(s)`, `load(data)`, `stage(s, id)`,
+`share(s, id)` (paid part 0..1), `rates(s)` (automatic income per second, `{ rate, full }`, the same rules as the
+step), `rng(seed)`, `rand(s)`, `tileAt(x, y)`, `zoneAt(x, y)`, `nodeAt(s, x, y)`, `ruinAt(x, y)`; constants `MAP`, `W`,
+`H`, `START`, `FOOTPRINTS`, `SPEED`, `BUILDINGS`, `TOOLS`, `TOOL_NEEDS`, `TOOL_YIELD`, `TOOL_CD`, `MAX_TOOL`,
+`NODE_KINDS`, `RESOURCES`, `ZONE_NODES`, `STORAGE`, `BARN_UPGRADE`, `WORKSHOP_RESERVE`, `WORKSHOPS`, `VILLAGERS`,
+`MILL_BONUS`, `DECOR`, `OFFLINE_MAX`, `VERSION`.
+
+Result codes:
+- `interact`: `'gather'` (walking to a node), `'ruin'` (walking to a ruin), `'walk'`, `'tool'` (no tool for the node),
+  `'none'` (unreachable).
+- `contribute`: `'ok'` (paid in part), `'built'`, `'none'` (nothing to add), `'locked'` (dependencies), `'done'`,
+  `'unknown'`.
+- `upgradeTool`: `'ok'`, `'cost'`, `'locked'` (needs home/forge, or the tool isn't found yet), `'max'`, `'unknown'`.
+- `upgradeBarn`: `'ok'`, `'locked'` (no barn), `'cost'`, `'max'`.
+- `placeDecor`: `'ok'`, `'locked'` (before the festival), `'cost'`, `'occupied'` (not a free square tile), `'unknown'`.
 
 ### Balance targets (checked by the bot)
 - A greedy bot on seed `1` (walks to the nearest node of the needed resource, contributes and upgrades tools

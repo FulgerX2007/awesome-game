@@ -94,15 +94,12 @@
       const AC = root.AudioContext || root.webkitAudioContext;
       if (!AC) return false;
       try { ac = new AC(); } catch { ac = null; return false; }
-      const master = ac.createGain();
-      master.gain.value = 1;
-      master.connect(ac.destination);
       sfxBus = ac.createGain();
       sfxBus.gain.value = state.sounds ? SFX_VOL : 0;
-      sfxBus.connect(master);
+      sfxBus.connect(ac.destination);
       musicBus = ac.createGain();
       musicBus.gain.value = 0;
-      musicBus.connect(master);
+      musicBus.connect(ac.destination);
       // Music goes through a soft lowpass and a quiet echo for space.
       musicIn = ac.createBiquadFilter();
       musicIn.type = 'lowpass';
@@ -124,8 +121,16 @@
       const d = noiseBuf.getChannelData(0);
       for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1;
     }
-    if (ac.state === 'suspended' && !hidden()) { try { ac.resume(); } catch { /* ignore */ } }
+    if (ac.state === 'suspended' && !hidden()) settle(() => ac.resume());
     return true;
+  }
+
+  // resume()/suspend() may throw or return a promise that rejects; neither matters for the game.
+  function settle(call) {
+    try {
+      const p = call();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch { /* ignore */ }
   }
 
   function fade(bus, to, time) {
@@ -350,10 +355,8 @@
   if (typeof document !== 'undefined' && document.addEventListener) {
     document.addEventListener('visibilitychange', () => {
       if (!ac) return;
-      try {
-        if (hidden()) ac.suspend();
-        else if (state.music || state.sounds) ac.resume();
-      } catch { /* ignore */ }
+      if (hidden()) settle(() => ac.suspend());
+      else if (state.music || state.sounds) settle(() => ac.resume());
     });
   }
 

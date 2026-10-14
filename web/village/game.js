@@ -47,15 +47,15 @@
     const y0 = Math.min(...fp.map((p) => p.y)), y1 = Math.max(...fp.map((p) => p.y));
     BOX[id] = { id, x0, y0, w: x1 - x0 + 1, h: y1 - y0 + 1, X: x0 * T, Y: y0 * T, Wp: (x1 - x0 + 1) * T, Hp: (y1 - y0 + 1) * T, cx: (x0 + x1 + 1) / 2 * T, base: (y1 + 1) * T };
   }
-  // The square: festival poles stand in its corners.
-  const SQ = { x0: 12, y0: 20, x1: 19, y1: 25 };
+  // The square ('#' tiles in the map): festival poles stand in its corners.
+  const SQ = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  V.MAP.forEach((row, y) => [...row].forEach((c, x) => {
+    if (c !== '#') return;
+    SQ.x0 = Math.min(SQ.x0, x); SQ.x1 = Math.max(SQ.x1, x);
+    SQ.y0 = Math.min(SQ.y0, y); SQ.y1 = Math.max(SQ.y1, y);
+  }));
 
-  function share(id) {
-    const b = V.BUILDINGS[id], own = S.built[id];
-    let paid = 0, total = 0;
-    for (const [r, n] of Object.entries(b.cost)) { paid += own.paid[r] || 0; total += n; }
-    return total ? paid / total : 1;
-  }
+  const share = (id) => V.share(S, id);
 
   // ───────────── Canvas ─────────────
   function resize() {
@@ -929,7 +929,7 @@
   }
 
   // ───────────── People ─────────────
-  const TOOL_OF = { tree: 'axe', rock: 'pick', clay: 'shovel', bush: 'basket' };
+  const TOOL_OF = Object.fromEntries(Object.entries(V.NODE_KINDS).map(([kind, k]) => [kind, k.tool]));
   const SWING = 0.3;
 
   function drawTool(tool) {
@@ -1063,7 +1063,8 @@
 
   // ───────────── Villagers (cosmetic) ─────────────
   // They walk between their house door and a node of their trade; core.js counts their work on its own.
-  const ROLE_NODE = { woodcutter: 'tree', mason: 'rock', potter: 'clay' };
+  // The node kind that gives each villager's resource.
+  const ROLE_NODE = Object.fromEntries(Object.entries(V.VILLAGERS).map(([role, v]) => [role, Object.keys(V.NODE_KINDS).find((k) => V.NODE_KINDS[k].res === v.res)]));
   const folk = new Map();
 
   function doorOf(house) {
@@ -1398,7 +1399,6 @@
         const b = BOX[e.id];
         if (!b) continue;
         sparkle(b.cx, b.base - b.Hp / 2, e.type === 'built' ? 40 : 10);
-        if (e.type === 'built') syncFolk();
       } else if (e.type === 'festival') {
         festBoost = 25;
         fwNext = 0.5;
@@ -1470,7 +1470,7 @@
     for (const f of folk.values()) items.push([f.y * T + 9, drawFolk, f]);
     if (S.built.barn.done) for (const h of hens) items.push([h.y, drawHen, h]);
     if (S.festival) for (const [x, y] of POLES) items.push([y, () => drawPole(x, y)]);
-    items.push([py * T + 9.5, () => drawPerson(px * T, py * T + 9, { ...LOOKS.player, ...P, holding: P.holding })]);
+    items.push([py * T + 9.5, () => drawPerson(px * T, py * T + 9, { ...LOOKS.player, ...P })]);
     items.sort((p, q) => p[0] - q[0]);
     emitters.length = 0;
     for (const [, fn, arg] of items) fn(arg);
@@ -1855,8 +1855,11 @@
 
   // ───────────── Saving ─────────────
   // localStorage keeps core's save plus savedAt (load ignores unknown fields); the cloud gets core's save.
+  // While the tab is hidden the world stands still (no rAF), so savedAt stays at the moment it was hidden:
+  // a tab closed or discarded without coming back still gets its time away on the next boot.
+  let hiddenAt = 0;
   function save() {
-    const ok = store.set(SAVE_KEY, JSON.stringify({ ...V.save(S), savedAt: Date.now() }));
+    const ok = store.set(SAVE_KEY, JSON.stringify({ ...V.save(S), savedAt: hiddenAt || Date.now() }));
     $('save-status').textContent = ok ? t('сохранено') : t('браузер не даёт сохранять');
     return ok;
   }
@@ -1864,17 +1867,15 @@
   function loadSaved() {
     const raw = store.get(SAVE_KEY);
     if (!raw) return { s: null, savedAt: null, broken: false };
-    const s = V.load(raw);
+    let data = null;
+    try { data = JSON.parse(raw); } catch { /* load reports it as recovered */ }
+    const s = V.load(data);
     if (s.recovered) {
       store.set(`${SAVE_KEY}.broken`, raw); // keep the unreadable copy aside instead of losing it silently
       return { s: null, savedAt: null, broken: true };
     }
-    let savedAt = null;
-    try { savedAt = Number(JSON.parse(raw).savedAt) || null; } catch { /* checked by load */ }
-    return { s, savedAt, broken: false };
+    return { s, savedAt: Number(data.savedAt) || null, broken: false };
   }
-
-  const newGame = () => V.newGame((Math.random() * 0x7fffffff) | 0);
 
   // Swap the whole state (reset, cloud load): cosmetic followers start over, the rest is drawn from S.
   function replaceState(s) {
@@ -1887,7 +1888,6 @@
     placing = null;
     held.clear();
     closePanels();
-    syncFolk();
     renderHUD();
   }
 
@@ -1914,7 +1914,7 @@
   function resetGame() {
     modal(t('Начать заново?'), `<p>${esc(t('Всё восстановленное село пропадёт. Облачная копия по коду останется.'))}</p>`, [
       { label: t('Отмена') },
-      { label: t('Начать заново'), danger: true, run: () => { replaceState(newGame()); save(); toast(t('Новое село ждёт')); } },
+      { label: t('Начать заново'), danger: true, run: () => { replaceState(V.newGame()); save(); toast(t('Новое село ждёт')); } },
     ]);
   }
 
@@ -2014,13 +2014,22 @@
     $('opt-sounds').addEventListener('change', (e) => A.setSounds(e.target.checked));
     $('btn-reset').addEventListener('click', resetGame);
     $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
-    document.addEventListener('pointerdown', () => A.unlock(), { once: true });
+    // iOS Safari unlocks audio only on click/touchend, not on pointerdown; unlock() is cheap once running.
+    for (const type of ['pointerdown', 'touchend', 'click']) document.addEventListener(type, () => A.unlock(), { passive: true });
 
     // rAF stops in a hidden tab, so the time away is caught up through core's offline path on return.
-    let hiddenAt = 0;
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); releaseKeys(); save(); }
-      else if (hiddenAt) { catchUp((Date.now() - hiddenAt) / 1000, (Date.now() - hiddenAt) > 60000); hiddenAt = 0; save(); renderHUD(); }
+      if (document.visibilityState === 'hidden') {
+        if (!hiddenAt) hiddenAt = Date.now();
+        releaseKeys();
+        save();
+      } else if (hiddenAt) {
+        const away = Date.now() - hiddenAt;
+        hiddenAt = 0;
+        catchUp(away / 1000, away > 60000);
+        save();
+        renderHUD();
+      }
     });
     window.addEventListener('pagehide', save);
     setInterval(save, 10000);
@@ -2033,19 +2042,19 @@
     const addToggle = () => document.querySelector('.brand').append(GameNav.home('lang-btn'), I18n.toggle('lang-btn'));
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addToggle); else addToggle();
     const saved = loadSaved();
-    S = saved.s || newGame();
+    S = saved.s || V.newGame();
     prev = { x: S.player.x, y: S.player.y };
     P.x = S.player.x; P.y = S.player.y;
     setAudio(A.state.music, A.state.sounds);
     resize();
     window.addEventListener('resize', resize);
     bindUI();
-    syncFolk();
     if (saved.savedAt) {
       const away = (Date.now() - saved.savedAt) / 1000;
       catchUp(away, away > 30);
     }
     if (saved.broken) toast(t('Сохранение повреждено — начато новое село'), 4000);
+    if (document.visibilityState === 'hidden') hiddenAt = Date.now(); // opened in a background tab
     save();
     renderHUD();
     initCloud();

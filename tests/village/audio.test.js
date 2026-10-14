@@ -12,7 +12,7 @@ const view = require(path.join(__dirname, '..', '..', 'web', 'village', 'view.js
 
 // A minimal fake WebAudio graph: enough surface for audio.js, counting created contexts and sources.
 function fakeWebAudio() {
-  const stats = { contexts: 0, started: 0, resumed: 0 };
+  const stats = { contexts: 0, started: 0, resumed: 0, suspended: 0 };
   const param = () => ({
     value: 0,
     setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, cancelScheduledValues() {},
@@ -31,8 +31,9 @@ function fakeWebAudio() {
     createDelay() { return node(); }
     createStereoPanner() { return node(); }
     createBuffer(ch, len) { return { length: len, getChannelData: () => new Float32Array(len) }; }
-    resume() { stats.resumed++; return Promise.resolve(); }
-    suspend() { return Promise.resolve(); }
+    // Real browsers may reject these promises; audio.js must swallow the rejection.
+    resume() { stats.resumed++; return Promise.reject(new Error('not allowed')); }
+    suspend() { stats.suspended++; return Promise.reject(new Error('not allowed')); }
   }
   return { AudioContext, stats };
 }
@@ -51,7 +52,18 @@ function fakeStorage(init = {}) {
 function browserAudio({ storage = fakeStorage(), withAudio = true } = {}) {
   const fake = fakeWebAudio();
   const timers = [];
+  const listeners = {};
+  const document = {
+    visibilityState: 'visible',
+    addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); },
+  };
+  // Switch the fake tab's visibility and fire visibilitychange.
+  const setVisibility = (v) => {
+    document.visibilityState = v;
+    for (const fn of listeners.visibilitychange || []) fn();
+  };
   const win = {
+    document,
     localStorage: storage,
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
     clearTimeout: () => {},
@@ -60,7 +72,7 @@ function browserAudio({ storage = fakeStorage(), withAudio = true } = {}) {
   win.window = win;
   vm.createContext(win);
   vm.runInContext(SRC, win);
-  return { A: win.VillageAudio, stats: fake.stats, storage, timers };
+  return { A: win.VillageAudio, stats: fake.stats, storage, timers, setVisibility };
 }
 
 test('audio.js loads in Node without AudioContext and every call is a no-op', () => {
@@ -127,6 +139,26 @@ test('no AudioContext before a gesture; one lazy context after unlock', () => {
   assert.ok(stats.started > before);
   for (const t of timers.splice(0)) t.fn();
   assert.ok(stats.started > before);
+});
+
+test('a hidden tab suspends the context and skips music phrases', async () => {
+  const { A, stats, timers, setVisibility } = browserAudio();
+  A.unlock();
+  setVisibility('hidden');
+  assert.equal(stats.suspended, 1);
+  const before = stats.started;
+  for (const t of timers.splice(0)) t.fn();
+  assert.equal(stats.started, before, 'no new sources while hidden');
+  assert.ok(timers.length > 0, 'music keeps its schedule for later');
+  setVisibility('visible');
+  assert.ok(stats.resumed > 0);
+  // Rejected resume()/suspend() promises must not surface as unhandled rejections.
+  let unhandled = 0;
+  const onUnhandled = () => { unhandled++; };
+  process.on('unhandledRejection', onUnhandled);
+  await new Promise((r) => setImmediate(r));
+  process.off('unhandledRejection', onUnhandled);
+  assert.equal(unhandled, 0);
 });
 
 test('with music and sounds off, unlock creates nothing', () => {

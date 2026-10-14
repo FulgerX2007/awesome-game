@@ -198,12 +198,12 @@ test('income agrees with what step() actually produces', () => {
   }
 });
 
-test('buildingAt finds footprints', () => {
+test('ruinAt finds footprints', () => {
   for (const [id, tiles] of Object.entries(V.FOOTPRINTS)) {
-    for (const t of tiles) assert.equal(VV.buildingAt(V, t.x, t.y), id);
+    for (const t of tiles) assert.equal(V.ruinAt(t.x, t.y), id);
   }
-  assert.equal(VV.buildingAt(V, V.START.x, V.START.y), null);
-  assert.equal(VV.buildingAt(V, -1, 0), null);
+  assert.equal(V.ruinAt(V.START.x, V.START.y), null);
+  assert.equal(V.ruinAt(-1, 0), null);
 });
 
 test('tapAction picks gather, tool, ruin, walk and none', () => {
@@ -252,7 +252,7 @@ test('pickFront prefers the faced node, falls back to neighbours, null when noth
   // Next to the well ruin.
   const w = V.FOOTPRINTS.well[0];
   const spot = [[0, 1], [-1, 0], [1, 0], [0, -1]].map(([dx, dy]) => ({ x: w.x + dx, y: w.y + dy }))
-    .find((p) => V.isWalkable(s, p.x, p.y) && !VV.buildingAt(V, p.x, p.y));
+    .find((p) => V.isWalkable(s, p.x, p.y) && !V.ruinAt(p.x, p.y));
   const a = VV.pickFront(s, V, spot.x + 0.5, spot.y + 0.5, 'down');
   assert.equal(a.type, 'ruin');
   assert.equal(a.id, 'well');

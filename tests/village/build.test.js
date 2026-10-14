@@ -240,14 +240,19 @@ test('offline: caps at 8 h, is deterministic and regrows nodes', () => {
 });
 
 test('offline matches step for automatic income', () => {
-  const a = V.newGame(4);
-  finish(a, 'house1', 'house2');
-  a.res.wood = 0; a.res.stone = 0;
-  const b = V.load(V.save(a));
-  V.offline(a, 200);
-  run(b, 200);
-  assert.equal(a.res.wood, b.res.wood);
-  assert.equal(a.res.stone, b.res.stone);
+  // Villagers, both workshops and the upgraded barn; both copies go through load so the effects are applied.
+  const g = V.newGame(4);
+  finish(g, 'house1', 'house2', 'barn');
+  Object.assign(g.res, V.BARN_UPGRADE);
+  assert.equal(V.upgradeBarn(g), 'ok');
+  Object.assign(g.res, { wood: 120, stone: 0, clay: 160, planks: 0, bricks: 0 });
+  const a = V.load(V.save(g));
+  const b = V.load(V.save(g));
+  assert.ok(a.built.sawmill.done && a.built.kiln.done && a.storage === V.STORAGE[2]);
+  V.offline(a, 400);
+  run(b, 400);
+  for (const r of ['wood', 'stone', 'clay', 'planks', 'bricks']) assert.equal(a.res[r], b.res[r], r);
+  assert.ok(a.res.planks > 0 && a.res.bricks > 0, 'the workshops worked');
 });
 
 test('nextGoal skips a building that needs planks or bricks until their workshop works', () => {
