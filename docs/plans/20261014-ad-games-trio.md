@@ -440,10 +440,10 @@ Cell types in a `Uint8Array`:
 - Create: `web/parking/levels.js`
 - Create: `tests/parking/levels.test.js`
 
-- [ ] `tests/parking/generate.js` (run by hand: `node tests/parking/generate.js > web/parking/levels.js`): a seeded generator of random boards, picking by optimum with `solve`, deduplication, writing out the UMD `root.ParkingLevels`
-- [ ] generate 40 levels by the difficulty curve from Technical Details (barriers and tow trucks from level 12, 7×7 from level 26) and commit `levels.js`
-- [ ] write `levels.test.js`: every level parses, the stored `optimal` equals `solve`, the optimum follows the difficulty bands, there are no duplicates, levels with barriers/tow trucks/7×7 are where the curve says
-- [ ] run tests — must pass before next task
+- [x] `tests/parking/generate.js` (run by hand: `node tests/parking/generate.js > web/parking/levels.js`): a seeded generator of random boards, picking by optimum with `solve`, deduplication, writing out the UMD `root.ParkingLevels`
+- [x] generate 40 levels by the difficulty curve from Technical Details (barriers and tow trucks from level 12, 7×7 from level 26) and commit `levels.js`
+- [x] write `levels.test.js`: every level parses, the stored `optimal` equals `solve`, the optimum follows the difficulty bands, there are no duplicates, levels with barriers/tow trucks/7×7 are where the curve says
+- [x] run tests — must pass before next task
 
 ### Task 12: «Тесная парковка» — rendering, dragging, hints, screens and saving
 
