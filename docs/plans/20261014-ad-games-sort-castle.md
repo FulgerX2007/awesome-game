@@ -439,35 +439,35 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - Create: `web/sort/lang.js`
 - Create: `tests/sort/view.test.js`
 
-- [ ] `view.js` (UMD):
+- [x] `view.js` (UMD):
   - `layout(nTubes, cap, viewport)`: one row up to 7 tubes, two rows above that, fits 360 px;
   - `tubeAt(layout, x, y)` with a padded hit area;
   - the pour-animation timeline helper.
-- [ ] `game.js` drawing:
+- [x] `game.js` drawing:
   - glass tubes with highlights;
   - liquid layers with a meniscus and the colour-blind pattern;
   - lift on select;
   - a tilt-and-stream pour animation;
   - a shake on an illegal move;
   - a sparkle when a tube completes.
-- [ ] `game.js` flow:
+- [x] `game.js` flow:
   - stars are recorded the moment the win is detected (`recordStars` + `saveProgress` before the animation);
   - the move in progress is saved after every move;
   - the «stuck» banner offers «Отменить» and «Лишняя колба».
-- [ ] screens:
+- [x] screens:
   - menu;
   - level select (60 levels, stars, locks);
   - HUD: level, «Ходы n», «Пар n», undo, restart, spare tube;
   - result.
-- [ ] `lang.js` with all RO strings; `index.html` with no external URLs. Keyboard:
+- [x] `lang.js` with all RO strings; `index.html` with no external URLs. Keyboard:
   - digits 1–9 and 0 pick tubes 1–10, Q W E R Y pick tubes 11–15;
   - arrows plus Enter also pick tubes;
   - Z undo, Backspace restart, T spare tube, Esc deselect.
-- [ ] write `view.test.js`:
+- [x] write `view.test.js`:
   - the layout fits at 360 / 768 / 1280 px for 5, 9 and 15 tubes (12 colours + 2 empty + the spare);
   - `tubeAt` hits and misses;
   - animation timeline boundaries.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 4: «Цветные колбы» — sound, hub registration, offline check, smoke
 
