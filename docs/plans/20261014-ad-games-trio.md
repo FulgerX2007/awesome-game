@@ -390,12 +390,17 @@ Cell types in a `Uint8Array`:
 - Create: `web/rush/lang.js`
 - Create: `tests/rush/view.test.js`
 
-- [ ] `view.js` (UMD): `project(x, z, camZ, viewport)`, `unproject` for the pointer's X, crowd soldier layout (spiral, up to 150 figures), number formatting
-- [ ] `game.js`: track with perspective (stripes, edges, sky/horizon), gates as translucent panels with large numbers (green for good, red for bad), saws, walls, platforms over a gap, the crowd, the enemy army and the boss, animations of gates/losses/battle
-- [ ] control by drag/mouse/←→; screens: menu, «Магазин» (4 upgrades, prices, coins), run HUD (count, weapon level, track progress), result (coins, «Дальше»/«Ещё раз»/«Магазин»); `rush.save`
-- [ ] `lang.js` with RO strings; `index.html` with no external URLs
-- [ ] write `view.test.js`: projection (near is larger and lower, horizon, symmetry in x), `unproject` is the inverse of `project`, soldier layout fits in the radius
-- [ ] run tests — must pass before next task
+- [x] `view.js` (UMD): `project(x, z, camZ, viewport)`, `unproject` for the pointer's X, crowd soldier layout (spiral, up to 150 figures), number formatting
+- [x] `game.js`: track with perspective (stripes, edges, sky/horizon), gates as translucent panels with large numbers (green for good, red for bad), saws, walls, platforms over a gap, the crowd, the enemy army and the boss, animations of gates/losses/battle
+- [x] control by drag/mouse/←→; screens: menu, «Магазин» (4 upgrades, prices, coins), run HUD (count, weapon level, track progress), result (coins, «Дальше»/«Ещё раз»/«Магазин»); `rush.save`
+- [x] `lang.js` with RO strings; `index.html` with no external URLs
+- [x] write `view.test.js`: projection (near is larger and lower, horizon, symmetry in x), `unproject` is the inverse of `project`, soldier layout fits in the radius
+- [x] run tests — must pass before next task
+- ➕ `view.js` also has `armyLayout`, `fmtPower`, `opLabel`/`goodOp` and the battle timeline `battlePlan(run, start)`/`battleAt(plan, t)`
+  (charge → army → walk → boss → done, numbers melt to what `finishBattle` decided); a «Уровни» screen (levels 1…max(30, best+1),
+  locks past best+1, boss levels marked) mirrors the other games; an autopilot demo of the next level runs behind the menu;
+  touch drags steer relative to the start point, the mouse steers to the point under the cursor; sounds are requested
+  from `window.RushAudio` (Task 9) as `gate` ({good}), `hit`, `fall`, `battle`, `clash`, `coin`, `win`, `lose`
 
 ### Task 9: «Числовой забег» — sound, hub registration, offline check, smoke
 
