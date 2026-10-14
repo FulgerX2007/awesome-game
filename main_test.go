@@ -18,7 +18,7 @@ func TestServer(t *testing.T) {
 	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
 	defer srv.Close()
 
-	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js", "/stars/", "/stars/core.js", "/deep/", "/deep/core.js", "/deep/models.js", "/math/", "/math/core.js", "/i18n.js", "/nav.js", "/math/lang.js", "/ants/", "/ants/core.js", "/ants/sim.js", "/neon/", "/neon/core.js", "/neon/lang.js", "/wonders/", "/wonders/core.js", "/wonders/game.js", "/wonders/lang.js", "/bastion/", "/bastion/core.js", "/bastion/game.js", "/bastion/lang.js", "/village/", "/village/core.js", "/village/view.js", "/village/game.js", "/village/lang.js", "/village/audio.js", "/village/art.js", "/pins/", "/pins/core.js", "/pins/levels.js", "/pins/view.js", "/pins/game.js", "/pins/lang.js", "/pins/audio.js", "/rush/", "/rush/core.js", "/rush/view.js", "/rush/game.js", "/rush/lang.js", "/rush/audio.js", "/parking/", "/parking/core.js", "/parking/levels.js", "/parking/view.js", "/parking/game.js", "/parking/lang.js", "/parking/audio.js", "/sort/", "/sort/core.js", "/sort/levels.js", "/sort/view.js", "/sort/game.js", "/sort/lang.js", "/sort/audio.js"} {
+	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js", "/stars/", "/stars/core.js", "/deep/", "/deep/core.js", "/deep/models.js", "/math/", "/math/core.js", "/i18n.js", "/nav.js", "/math/lang.js", "/ants/", "/ants/core.js", "/ants/sim.js", "/neon/", "/neon/core.js", "/neon/lang.js", "/wonders/", "/wonders/core.js", "/wonders/game.js", "/wonders/lang.js", "/bastion/", "/bastion/core.js", "/bastion/game.js", "/bastion/lang.js", "/village/", "/village/core.js", "/village/view.js", "/village/game.js", "/village/lang.js", "/village/audio.js", "/village/art.js", "/pins/", "/pins/core.js", "/pins/levels.js", "/pins/view.js", "/pins/game.js", "/pins/lang.js", "/pins/audio.js", "/rush/", "/rush/core.js", "/rush/view.js", "/rush/game.js", "/rush/lang.js", "/rush/audio.js", "/parking/", "/parking/core.js", "/parking/levels.js", "/parking/view.js", "/parking/game.js", "/parking/lang.js", "/parking/audio.js", "/sort/", "/sort/core.js", "/sort/levels.js", "/sort/view.js", "/sort/game.js", "/sort/lang.js", "/sort/audio.js", "/castle/", "/castle/core.js", "/castle/view.js", "/castle/game.js", "/castle/lang.js", "/castle/audio.js"} {
 		res, err := http.Get(srv.URL + path)
 		if err != nil || res.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s: %v %v", path, res.StatusCode, err)
@@ -115,6 +115,34 @@ func TestBoardsAreSeparate(t *testing.T) {
 	}
 	if res, _ := http.Get(srv.URL + "/api/boards/nope/scores"); res.StatusCode != http.StatusNotFound {
 		t.Fatalf("unknown board: %d", res.StatusCode)
+	}
+}
+
+// «Последняя крепость» posts its endless-mode scores to its own board.
+func TestCastleBoard(t *testing.T) {
+	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
+	defer srv.Close()
+
+	res, err := http.Post(srv.URL+"/api/boards/castle/scores", "application/json", strings.NewReader(`{"name":"Лучник","score":2310,"level":17}`))
+	if err != nil || res.StatusCode != http.StatusOK {
+		t.Fatalf("post: %v %v", err, res)
+	}
+	var got struct{ Rank int }
+	json.NewDecoder(res.Body).Decode(&got)
+	if got.Rank != 1 {
+		t.Fatalf("rank = %d", got.Rank)
+	}
+	var list []leaderboard.Entry
+	res, _ = http.Get(srv.URL + "/api/boards/castle/scores")
+	json.NewDecoder(res.Body).Decode(&list)
+	if len(list) != 1 || list[0].Name != "Лучник" || list[0].Score != 2310 || list[0].Level != 17 {
+		t.Fatalf("castle board = %+v", list)
+	}
+	var bastion []leaderboard.Entry
+	res, _ = http.Get(srv.URL + "/api/boards/bastion/scores")
+	json.NewDecoder(res.Body).Decode(&bastion)
+	if len(bastion) != 0 {
+		t.Fatalf("the castle score leaked into bastion: %+v", bastion)
 	}
 }
 

@@ -128,6 +128,10 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 .pill.ward { color: #b7e1ff; }
 .pill.ward::before { content: ""; width: 10px; height: 12px; background: #7fc4ff; clip-path: polygon(50% 0, 100% 20%, 90% 70%, 50% 100%, 10% 70%, 0 20%); }
 
+/* the pause button: two bars, and its word where there is room */
+.pause-btn { display: inline-flex; align-items: center; gap: 6px; }
+.pause-ico { width: 10px; height: 12px; display: inline-block; border-left: 3px solid currentColor; border-right: 3px solid currentColor; box-sizing: border-box; }
+
 /* Between waves: upgrade cards and the wall shop */
 .sub { margin: 14px 0 8px; font: 700 15px/1.2 var(--font); color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -169,6 +173,10 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
   .sound { width: 34px; }
   .tip { font-size: 13px; padding: 5px 12px; top: 14px; }
   .hud-wave { min-width: 0; font-size: 14px; }
+  .wall-bar { width: 64px; }
+  .wall-bar b { font-size: 11px; }
+  #pause-label { display: none; }
+  .pause-btn { padding: 4px 9px; }
   .card { padding: 8px 4px; min-height: 96px; }
   .card small { font-size: 11px; }
   .panel { padding: 16px 12px; }

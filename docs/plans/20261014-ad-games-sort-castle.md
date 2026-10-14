@@ -677,29 +677,33 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - Create: `tests/castle/smoke.cjs`
 - Modify: `tests/{rush,parking,sort}/build.test.js`
 
-- [ ] server: add `"castle"` to `boardGames` in `main.go`; Go test that POST and GET `/api/boards/castle/scores` work.
-- [ ] client: at the end of an endless run, show the score and a name field (`castle.name`), then POST it to `const BOARD_URL = '/api/boards/castle/scores'` (root-absolute, as in `web/bastion/game.js:10,749-761`). A network error shows a quiet note and never blocks the game.
-- [ ] hub:
+- [x] server: add `"castle"` to `boardGames` in `main.go`; Go test that POST and GET `/api/boards/castle/scores` work.
+- [x] client: at the end of an endless run, show the score and a name field (`castle.name`), then POST it to `const BOARD_URL = '/api/boards/castle/scores'` (root-absolute, as in `web/bastion/game.js:10,749-761`). A network error shows a quiet note and never blocks the game.
+- [x] hub:
   - castle card (`--castle`, RO string), first among the ad games;
   - castle entry in the hub's list of boards right after bastion, reusing the existing `'волна {n}'` RO key;
   - hub card order becomes `castle, sort, parking, rush, pins`;
   - `/castle/*` paths in `main_test.go`;
   - update the card-order assertions in the other `build.test.js` files.
-- [ ] `audio.js` (`window.CastleAudio`): draw, release, hit, shield, death, wall, horn, upgrade, win, lose; the toggle is in `castle.audio`. Load it before `game.js`.
-- [ ] write `audio.test.js` and `build.test.js`:
+- [x] `audio.js` (`window.CastleAudio`): draw, release, hit, shield, death, wall, horn, upgrade, win, lose; the toggle is in `castle.audio`. Load it before `game.js`.
+- [x] write `audio.test.js` and `build.test.js`:
   - scripts in order;
   - no `http(s)://`; the only `fetch` target is exactly `'/api/boards/castle/scores'`;
   - RO with matching placeholders;
   - hub card and board entry;
   - `main_test.go` paths.
-- [ ] write `tests/castle/smoke.cjs`:
+- [x] write `tests/castle/smoke.cjs`:
   - campaign wave 1 played by real pointer drags aimed with `view.aimFromDrag`/`trajectory` from the page;
   - wave clear, then an upgrade pick;
   - reload restores the run at the wave start;
   - an endless run that ends: before load, seed `localStorage['castle.save']` with an endless `current` snapshot built in the page by `CastleCore` (`newRun('endless', seed)`, wall HP set to 1). Let one grunt reach the wall, check the score screen, then POST;
   - score POST lands in the board (GET shows it);
   - RO on a 360 px phone, no console errors, no external requests.
-- [ ] run `node --test`, `go vet ./... && go test ./...`, the castle smoke, and re-run all ad-game smokes — must pass before next task
+- ➕ Additions made during this task:
+  - `game.js` exposes `window.castleDebugRun()`, a read-only view of the run, so the smoke can aim at real monsters;
+  - on narrow screens the pause button shows only its icon, so the HUD stays on one line;
+  - the touch check sends real touch events through CDP.
+- [x] run `node --test`, `go vet ./... && go test ./...`, the castle smoke, and re-run all ad-game smokes — must pass before next task
 
 ### Task 10: Verify acceptance criteria
 - [ ] verify every requirement from the Overview in both games: menu, levels or modes, progress saving, sound toggle, RU/RO, phone control, offline play, leaderboard best effort

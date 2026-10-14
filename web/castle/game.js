@@ -608,7 +608,9 @@
     $('wall-text').textContent = `${Math.ceil(run.wallHp)}/${Math.round(run.wallMax)}`;
     $('hud-gold').textContent = V.fmt(run.gold);
     $('hud-ward').textContent = String(run.ward);
-    $('btn-pause').textContent = paused ? t('Дальше') : t('Пауза');
+    const label = paused ? t('Дальше') : t('Пауза');
+    $('pause-label').textContent = label;
+    $('btn-pause').setAttribute('aria-label', label);
   }
 
   const SCREENS = ['menu', 'confirm', 'between', 'result', 'pause'];
@@ -847,6 +849,8 @@
   const actions = $('top-actions');
   actions.append(window.I18n.toggle('chip'));
   if (window.GameNav) actions.append(window.GameNav.home('chip'));
+  // The run on screen, for the browser smoke test (it aims at real monsters). Read-only use only.
+  window.castleDebugRun = () => run;
   resize();
   showMenu();
   requestAnimationFrame(frame);
