@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141a24">
+<title>Тесная парковка</title>
+<meta name="description" content="Головоломка на парковке: двигай машины, автобусы и тягач вдоль их оси и выпусти красную машину к выезду за наименьшее число ходов.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Тесная парковка</h1>
+    <div class="top-actions" id="top-actions"></div>
+  </header>
+
+  <div class="hud" id="hud" hidden>
+    <span class="hud-level" id="hud-level">Уровень 1</span>
+    <span class="pill" id="hud-moves-wrap" title="Ходы / лимит"><b id="hud-moves">0/0</b></span>
+    <span class="pill gate" id="hud-gate" hidden><i class="gate-ico" aria-hidden="true"></i><span id="hud-gate-text">Шлагбаум закрыт</span></span>
+    <span class="pill best" id="hud-best" hidden></span>
+    <span class="spacer"></span>
+    <button class="chip" id="btn-levels" type="button">Уровни</button>
+    <button class="chip sound" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук: вкл" title="Звук: вкл"><i class="speaker" aria-hidden="true"></i></button>
+  </div>
+
+  <main class="stage" id="stage">
+    <canvas id="board" tabindex="0" aria-label="Парковка: перетащи машину вдоль её оси"></canvas>
+    <p class="tip" id="tip" hidden></p>
+
+    <section class="screen" id="menu" aria-labelledby="menu-title">
+      <div class="panel">
+        <h2 id="menu-title">Тесная парковка</h2>
+        <p class="lead">Выпусти красную машину к выезду. Машины едут только вперёд и назад, а ходов немного.</p>
+        <div class="stack">
+          <button class="btn primary big" id="btn-play" type="button">Играть</button>
+          <button class="btn" id="btn-levels-menu" type="button">Уровни</button>
+          <button class="btn" id="btn-sound-menu" type="button" aria-pressed="true">Звук: вкл</button>
+        </div>
+        <details class="rules">
+          <summary>Как играть</summary>
+          <ul>
+            <li>Перетащи машину вдоль её оси. Сдвиг на любое число клеток — один ход.</li>
+            <li>Столбики не двигаются. Тягач едет только на одну клетку за ход.</li>
+            <li>Шлагбаум закрыт на нечётных ходах и открыт на чётных.</li>
+            <li>★★★ за решение за оптимальное число ходов, ★★ — до трёх ходов сверху.</li>
+            <li>Три подсказки на уровень, отмена хода не ограничена.</li>
+            <li>Клавиши: <kbd>Tab</kbd> и стрелки выбирают машину, стрелки двигают, <kbd>Enter</kbd> ход, <kbd>Z</kbd> отменить, <kbd>H</kbd> подсказка, <kbd>R</kbd> заново.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section class="screen" id="levels" hidden aria-labelledby="levels-title">
+      <div class="panel wide">
+        <div class="panel-head">
+          <h2 id="levels-title">Уровни</h2>
+          <span class="total" id="levels-total"></span>
+        </div>
+        <div class="level-grid" id="level-grid"></div>
+        <div class="row"><button class="btn" id="btn-levels-back" type="button">Назад</button></div>
+      </div>
+    </section>
+
+    <section class="screen" id="result" hidden aria-labelledby="res-title" aria-live="polite">
+      <div class="panel">
+        <h2 id="res-title"></h2>
+        <div class="stars" id="res-stars" role="img"></div>
+        <p class="res-moves" id="res-moves"></p>
+        <p class="res-note" id="res-note"></p>
+        <p class="final" id="res-final" hidden>Все уровни пройдены!</p>
+        <div class="row">
+          <button class="btn" id="btn-res-levels" type="button">Уровни</button>
+          <button class="btn" id="btn-res-undo" type="button" hidden>Отменить ход</button>
+          <button class="btn" id="btn-again" type="button">Ещё раз</button>
+          <button class="btn primary" id="btn-next" type="button">Дальше</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="controls" id="controls" hidden>
+    <button class="btn ctl" id="btn-undo" type="button" title="Z"><i class="ico undo" aria-hidden="true"></i><span>Отменить</span></button>
+    <button class="btn ctl" id="btn-restart" type="button" title="R"><i class="ico restart" aria-hidden="true"></i><span>Заново</span></button>
+    <button class="btn ctl hint" id="btn-hint" type="button" title="H"><i class="ico bulb" aria-hidden="true"></i><span>Подсказка</span><b class="badge" id="hint-left">3</b></button>
+  </div>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="levels.js"></script>
+<script src="view.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

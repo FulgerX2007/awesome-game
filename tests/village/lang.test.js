@@ -84,10 +84,10 @@ test('view.js and audio.js load in Node without errors', () => {
   assert.equal(audio.state.sounds, false);
 });
 
-test('the hub lists «Родник» first with a RO description', () => {
+test('the hub lists «Родник» with a RO description', () => {
   const hub = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-  const first = hub.match(/<div class="games">\s*<a href="([^"]+)"/);
-  assert.equal(first[1], 'village/');
+  // Newer games go in front of it, so only its card is checked, not its place.
+  assert.match(hub, /<a href="village\/" style="--c: var\(--village\)"><b>Родник<\/b>/);
   assert.match(hub, /--village:/);
   assert.match(hub, /'Родник': 'Izvorul'/);
 });

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#123a5c">
+<title>Числовой забег</title>
+<meta name="description" content="Аркада-забег: веди толпу через ворота с числами, умножай её, обходи пилы и стены и разбей армию врага на финише.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Числовой забег</h1>
+    <div class="top-actions" id="top-actions"></div>
+  </header>
+
+  <div class="hud" id="hud" hidden>
+    <span class="hud-level" id="hud-level">Уровень 1</span>
+    <span class="hud-stat" title="Бойцы"><i class="soldier" aria-hidden="true"></i><b id="hud-count">0</b></span>
+    <span class="hud-stat" title="Оружие"><i class="gun" aria-hidden="true"></i><b id="hud-power">1</b></span>
+    <span class="track-bar" role="progressbar" aria-label="Пройдено" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="hud-bar"><i id="hud-fill"></i></span>
+    <button class="chip" id="btn-menu" type="button">Меню</button>
+    <button class="chip sound" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук: вкл" title="Звук: вкл"><i class="speaker" aria-hidden="true"></i></button>
+  </div>
+
+  <main class="stage" id="stage">
+    <canvas id="scene" tabindex="0" aria-label="Трасса: веди толпу влево и вправо"></canvas>
+    <p class="tip" id="tip" hidden></p>
+
+    <section class="screen" id="menu" aria-labelledby="menu-title">
+      <div class="panel">
+        <h2 id="menu-title">Числовой забег</h2>
+        <p class="lead">Веди толпу через ворота с числами, умножай её, обходи пилы и стены и разбей армию врага на финише.</p>
+        <p class="wallet"><i class="coin" aria-hidden="true"></i><b id="menu-coins">0</b></p>
+        <div class="stack">
+          <button class="btn primary big" id="btn-play" type="button">Играть</button>
+          <button class="btn" id="btn-shop-menu" type="button">Магазин</button>
+          <button class="btn" id="btn-levels-menu" type="button">Уровни</button>
+          <button class="btn" id="btn-sound-menu" type="button" aria-pressed="true">Звук: вкл</button>
+        </div>
+        <details class="rules">
+          <summary>Как играть</summary>
+          <ul>
+            <li>Толпа бежит сама. Веди её пальцем или мышью влево и вправо, на клавиатуре <kbd>←</kbd> <kbd>→</kbd>.</li>
+            <li>Ворота меняют число бойцов: зелёные прибавляют и умножают, красные отнимают и делят.</li>
+            <li>Ворота «Оружие» повышают силу каждого бойца на 1.</li>
+            <li>Пилы и стены отнимают бойцов, с движущейся платформы можно упасть.</li>
+            <li>На финише сила толпы (бойцы × оружие) должна превысить силу армии врага. Каждый 5-й уровень — ещё и босс.</li>
+            <li>Монеты за забег тратятся в магазине на улучшения.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section class="screen" id="shop" hidden aria-labelledby="shop-title">
+      <div class="panel wide">
+        <div class="panel-head">
+          <h2 id="shop-title">Магазин</h2>
+          <span class="wallet"><i class="coin" aria-hidden="true"></i><b id="shop-coins">0</b></span>
+        </div>
+        <div class="upgrades" id="upgrades"></div>
+        <div class="row">
+          <button class="btn" id="btn-shop-back" type="button">Назад</button>
+          <button class="btn primary" id="btn-shop-play" type="button">Играть</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="levels" hidden aria-labelledby="levels-title">
+      <div class="panel wide">
+        <div class="panel-head">
+          <h2 id="levels-title">Уровни</h2>
+          <span class="total" id="levels-total"></span>
+        </div>
+        <div class="level-grid" id="level-grid"></div>
+        <div class="row"><button class="btn" id="btn-levels-back" type="button">Назад</button></div>
+      </div>
+    </section>
+
+    <section class="screen" id="result" hidden aria-labelledby="res-title" aria-live="polite">
+      <div class="panel">
+        <h2 id="res-title"></h2>
+        <p class="reason" id="res-reason" hidden></p>
+        <p class="res-line" id="res-survivors"></p>
+        <p class="res-coins"><i class="coin" aria-hidden="true"></i><b id="res-coins">+0</b></p>
+        <p class="res-line dim" id="res-total"></p>
+        <p class="res-hint" id="res-hint" hidden>В магазине можно купить улучшения</p>
+        <div class="row">
+          <button class="btn" id="btn-res-shop" type="button">Магазин</button>
+          <button class="btn" id="btn-again" type="button">Ещё раз</button>
+          <button class="btn primary" id="btn-next" type="button">Дальше</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="view.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

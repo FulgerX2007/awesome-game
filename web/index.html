@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Awesome Game</title>
 <style>
-  :root { --bg: #120f1c; --fg: #efe6dc; --dim: #9d92ad; --line: #352b47; --echo: #5ee1ff; --rust: #e2733d; --oasis: #9be4f5; --valley: #f2c66d; --stars: #f5c96a; --deep: #ffd98a; --math: #ff9b6a; --ants: #e0a85a; --neon: #ff2bd6; --wonders: #ffc94a; --bastion: #e0533d; --village: #e9b44c; color-scheme: dark; }
+  :root { --bg: #120f1c; --fg: #efe6dc; --dim: #9d92ad; --line: #352b47; --echo: #5ee1ff; --rust: #e2733d; --oasis: #9be4f5; --valley: #f2c66d; --stars: #f5c96a; --deep: #ffd98a; --math: #ff9b6a; --ants: #e0a85a; --neon: #ff2bd6; --wonders: #ffc94a; --bastion: #e0533d; --village: #e9b44c; --pins: #ffb547; --rush: #4fd17a; --parking: #5aa7ff; color-scheme: dark; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding-inline: 16px; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
   main { max-width: 720px; width: 100%; padding-block: 32px; }
   h1 { font-weight: 300; letter-spacing: .1em; margin: 0 0 20px; }
@@ -39,6 +39,9 @@
 <main>
   <div class="head"><h1>Игры</h1></div>
   <div class="games">
+    <a href="parking/" style="--c: var(--parking)"><b>Тесная парковка</b><span>Головоломка на парковке: двигай машины и автобусы вдоль их оси, жди шлагбаум и выпусти красную машину за наименьшее число ходов.</span></a>
+    <a href="rush/" style="--c: var(--rush)"><b>Числовой забег</b><span>Аркада-забег: веди толпу через ворота с числами, умножай её, обходи пилы и стены и разбей армию врага на финише.</span></a>
+    <a href="pins/" style="--c: var(--pins)"><b>Тяни штифт</b><span>Головоломка со штифтами: вытаскивай их в нужном порядке, чтобы золото упало к герою, а лава и враги до него не добрались.</span></a>
     <a href="village/" style="--c: var(--village)"><b>Родник</b><span>Спокойная игра о заброшенном селе: руби лес, бей камень, копай глину и восстанавливай дома до праздника.</span></a>
     <a href="bastion/" style="--c: var(--bastion)"><b>Бастион</b><span>Защита крепости: ставь башни у дороги и выстой 30 волн врагов.</span></a>
     <a href="wonders/" style="--c: var(--wonders)"><b>Поле чудес</b><span>Игра для троих: крутите барабан, называйте буквы и угадайте слово раньше соперников.</span></a>
@@ -61,6 +64,12 @@
 <script>
 I18n.add({ ro: {
   'Игры': 'Jocuri',
+  'Тесная парковка': 'Parcarea strâmtă',
+  'Головоломка на парковке: двигай машины и автобусы вдоль их оси, жди шлагбаум и выпусти красную машину за наименьшее число ходов.': 'Puzzle în parcare: mută mașinile și autobuzele de-a lungul axei lor, așteaptă bariera și scoate mașina roșie din parcare din cât mai puține mutări.',
+  'Числовой забег': 'Cursa numerelor',
+  'Аркада-забег: веди толпу через ворота с числами, умножай её, обходи пилы и стены и разбей армию врага на финише.': 'Arcadă de alergare: condu mulțimea prin porți cu numere, înmulțește-o, ocolește fierăstraiele și zidurile și învinge armata dușmană la final.',
+  'Тяни штифт': 'Trage știftul',
+  'Головоломка со штифтами: вытаскивай их в нужном порядке, чтобы золото упало к герою, а лава и враги до него не добрались.': 'Puzzle cu știfturi: scoate-le în ordinea potrivită, ca aurul să cadă la erou, iar lava și dușmanii să nu ajungă la el.',
   'Родник': 'Izvorul',
   'Спокойная игра о заброшенном селе: руби лес, бей камень, копай глину и восстанавливай дома до праздника.': 'Un joc liniștit despre un sat părăsit: tai lemne, spargi piatră, sapi lut și refaci casele până la sărbătoare.',
   'Бастион': 'Bastionul',
