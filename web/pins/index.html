@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1626">
+<title>Тяни штифт</title>
+<meta name="description" content="Головоломка со штифтами: вытаскивай их в нужном порядке, чтобы золото упало к герою, а лава и враги до него не добрались.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Тяни штифт</h1>
+    <div class="top-actions" id="top-actions"></div>
+  </header>
+
+  <div class="hud" id="hud" hidden>
+    <span class="hud-level" id="hud-level">Уровень 1</span>
+    <span class="hud-gold" id="hud-gold-wrap" title="Золото в комнате героя"><i class="coin" aria-hidden="true"></i><b id="hud-gold">0/0</b></span>
+    <span class="spacer"></span>
+    <button class="chip" id="btn-restart" type="button" title="R">Заново</button>
+    <button class="chip" id="btn-levels" type="button">Уровни</button>
+    <button class="chip sound" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук: вкл" title="Звук: вкл"><i class="speaker" aria-hidden="true"></i></button>
+  </div>
+
+  <main class="stage" id="stage">
+    <canvas id="board" tabindex="0" aria-label="Игровое поле: потяни штифт, чтобы вытащить его"></canvas>
+    <p class="tip" id="tip" hidden></p>
+
+    <section class="screen" id="menu" aria-labelledby="menu-title">
+      <div class="panel">
+        <h2 id="menu-title">Тяни штифт</h2>
+        <p class="lead">Вытаскивай штифты в нужном порядке. Золото должно упасть к герою, а лава и враги не должны до него добраться.</p>
+        <div class="stack">
+          <button class="btn primary big" id="btn-play" type="button">Играть</button>
+          <button class="btn" id="btn-levels-menu" type="button">Уровни</button>
+          <button class="btn" id="btn-sound-menu" type="button" aria-pressed="true">Звук: вкл</button>
+        </div>
+        <details class="rules">
+          <summary>Как играть</summary>
+          <ul>
+            <li>Потяни штифт за кольцо в сторону кольца или просто нажми на него.</li>
+            <li>Золото падает и тонет в воде. Лава сжигает золото и врагов.</li>
+            <li>Вода и лава вместе превращаются в камень.</li>
+            <li>Победа, когда в комнате героя достаточно золота и путь к выходу свободен.</li>
+            <li>★ за победу, ещё ★ если все враги повержены и ★ за полтора запаса золота.</li>
+            <li>Клавиши: <kbd>1</kbd>–<kbd>5</kbd> штифты, <kbd>R</kbd> заново.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section class="screen" id="levels" hidden aria-labelledby="levels-title">
+      <div class="panel wide">
+        <div class="panel-head">
+          <h2 id="levels-title">Уровни</h2>
+          <span class="total" id="levels-total"></span>
+        </div>
+        <div class="level-grid" id="level-grid"></div>
+        <div class="row"><button class="btn" id="btn-levels-back" type="button">Назад</button></div>
+      </div>
+    </section>
+
+    <section class="screen" id="result" hidden aria-labelledby="res-title" aria-live="polite">
+      <div class="panel">
+        <h2 id="res-title"></h2>
+        <p class="reason" id="res-reason" hidden></p>
+        <div class="stars" id="res-stars" role="img"></div>
+        <p class="res-gold" id="res-gold"></p>
+        <ul class="goals" id="res-goals"></ul>
+        <p class="final" id="res-final" hidden>Все уровни пройдены!</p>
+        <div class="row">
+          <button class="btn" id="btn-res-levels" type="button">Уровни</button>
+          <button class="btn" id="btn-again" type="button">Ещё раз</button>
+          <button class="btn primary" id="btn-next" type="button">Дальше</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="levels.js"></script>
+<script src="view.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

@@ -428,10 +428,74 @@
     return res;
   }
 
+  // ── Progress ──
+  // Saved under PROGRESS_KEY as { v: 1, stars: { levelIndex: 1..3 } }. Loading tolerates missing, broken or
+  // foreign data and blocked storage: whatever doesn't look right is dropped, the rest is kept.
+  const PROGRESS_KEY = 'pins.progress';
+  const MAX_LEVELS = 1000;
+
+  const newProgress = () => ({ v: 1, stars: {} });
+
+  // A progress object from a JSON string (or null). Never throws.
+  function parseProgress(raw) {
+    const p = newProgress();
+    if (typeof raw !== 'string') return p;
+    let data;
+    try { data = JSON.parse(raw); } catch { return p; }
+    if (!data || typeof data !== 'object' || data.v !== 1 || !data.stars || typeof data.stars !== 'object') return p;
+    for (const [k, v] of Object.entries(data.stars)) {
+      const i = Number(k);
+      if (!/^\d+$/.test(k) || i >= MAX_LEVELS || !Number.isInteger(v) || v < 1 || v > 3) continue;
+      p.stars[i] = v;
+    }
+    return p;
+  }
+
+  // Reads progress from a Storage-like object ({ getItem }); a missing or throwing storage gives a clean state.
+  function loadProgress(storage) {
+    let raw = null;
+    try { raw = storage ? storage.getItem(PROGRESS_KEY) : null; } catch { raw = null; }
+    return parseProgress(raw);
+  }
+
+  // Writes progress to a Storage-like object ({ setItem }). Returns false when it couldn't be stored.
+  function saveProgress(storage, p) {
+    try {
+      if (!storage) return false;
+      storage.setItem(PROGRESS_KEY, JSON.stringify({ v: 1, stars: p.stars }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const starsOf = (p, level) => (p && p.stars && p.stars[level]) || 0;
+
+  // Keeps the best result of a level. Returns true if it improved.
+  function recordStars(p, level, n) {
+    if (!Number.isInteger(level) || level < 0 || level >= MAX_LEVELS || !Number.isInteger(n) || n < 1 || n > 3) return false;
+    if (starsOf(p, level) >= n) return false;
+    p.stars[level] = n;
+    return true;
+  }
+
+  // The first level (0-based) with no stars; `total` when every level is done.
+  function firstUnfinished(p, total) {
+    for (let i = 0; i < total; i++) if (!starsOf(p, i)) return i;
+    return total;
+  }
+
+  // A level is open when it's finished or none before it is left unfinished.
+  function unlocked(p, level, total) {
+    if (!Number.isInteger(level) || level < 0 || level >= total) return false;
+    return starsOf(p, level) > 0 || level <= firstUnfinished(p, total);
+  }
+
   const api = {
     W, H, EMPTY, WALL, PIN, WATER, LAVA, STONE, GOLD, FILL_TYPES, HANDLES, SETTLE_TICKS, MAX_TICKS, FLOW, KILL_LAVA,
     idx, handleCell, buildLevel, clone, pull, step, settled, settle, count, cellAt,
     goldInRoom, liveEnemies, status, stars, solve,
+    PROGRESS_KEY, newProgress, parseProgress, loadProgress, saveProgress, starsOf, recordStars, firstUnfinished, unlocked,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PinsCore = api;

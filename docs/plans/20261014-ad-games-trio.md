@@ -311,12 +311,13 @@ Cell types in a `Uint8Array`:
 - Create: `tests/pins/view.test.js`
 - Create: `tests/pins/progress.test.js`
 
-- [ ] `view.js` (UMD): `fitCanvas(viewport)`, `screenToCell`, `pinAt(state, cellX, cellY)` with a padded hit area for the handle, `drag` (a pull counts when the handle is dragged ≥ 2 cells along the pin's axis or on a tap)
-- [ ] `game.js`: Canvas 2D (walls as stone masonry, metal pins with a ring, water and lava with a gradient and edge glow, gold coins, hero/enemies as figures, the exit door), animated pin pull-out, fixed step 60/s, hero walking to the exit after a win
-- [ ] DOM screens: menu, level select (stars, locks), HUD (level, «Заново», «Уровни», sound), result screen with stars; progress `pins.progress` with tolerant loading (functions `loadProgress`/`saveProgress`/`unlocked` in `core.js`)
-- [ ] `lang.js` with all RO strings; `index.html` with no external URLs, links to `../i18n.js` and `../nav.js`; keyboard 1–5 pulls pins by number, `R` restarts
-- [ ] write tests: `view.test.js` (scaling, `screenToCell`, `pinAt` on handle and pin, drag threshold), `progress.test.js` (save/load, broken JSON → clean state, unlocking levels, keeping the best stars)
-- [ ] run tests — must pass before next task
+- [x] `view.js` (UMD): `fitCanvas(viewport)`, `screenToCell`, `pinAt(state, cellX, cellY)` with a padded hit area for the handle, `drag` (a pull counts when the handle is dragged ≥ 2 cells along the pin's axis or on a tap)
+- [x] `game.js`: Canvas 2D (walls as stone masonry, metal pins with a ring, water and lava with a gradient and edge glow, gold coins, hero/enemies as figures, the exit door), animated pin pull-out, fixed step 60/s, hero walking to the exit after a win
+- [x] DOM screens: menu, level select (stars, locks), HUD (level, «Заново», «Уровни», sound), result screen with stars; progress `pins.progress` with tolerant loading (functions `loadProgress`/`saveProgress`/`unlocked` in `core.js`)
+- [x] `lang.js` with all RO strings; `index.html` with no external URLs, links to `../i18n.js` and `../nav.js`; keyboard 1–5 pulls pins by number, `R` restarts
+- [x] write tests: `view.test.js` (scaling, `screenToCell`, `pinAt` on handle and pin, drag threshold), `progress.test.js` (save/load, broken JSON → clean state, unlocking levels, keeping the best stars)
+- [x] run tests — must pass before next task
+- ➕ `view.js` also holds `pullDir`, `fixedSteps` (60 ticks/s, a backlog over 8 ticks is dropped) and `walkPos`/`walkTime` (the hero walk); `core.js` also exports `newProgress`/`parseProgress`/`starsOf`/`recordStars`/`firstUnfinished`. `loadProgress`/`saveProgress` take a Storage-like object (null or throwing → clean state / `false`). The sound toggle uses `window.PinsAudio` (`enabled`, `setEnabled`, `unlock`, `play(name)`) when it exists — Task 5's `audio.js` provides it; game.js plays `pin`, `hiss`, `sizzle`, `burn`, `coin`, `win`, `lose`
 
 ### Task 5: «Тяни штифт» — sound, hub registration, offline check, smoke
 
