@@ -1,5 +1,5 @@
 'use strict';
-// Родник — pure client helpers (no DOM): camera, tile picking, canvas sizing, art hashing.
+// Родник — pure client helpers (no DOM): camera, tile picking, canvas sizing, art hashing, HUD helpers.
 // Works in the browser (window.VillageView) and in Node (module.exports) so it can be tested.
 // Units: the camera and screen points are in CSS pixels; only fitCanvas deals with device pixels.
 (function (root) {
@@ -62,7 +62,118 @@
     return dy > 0 ? 'down' : 'up';
   }
 
-  const api = { TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing };
+  // ── HUD helpers ──
+
+  // Whole stock for the HUD: plain up to 9 999, then a short "12.3k" form.
+  function fmt(n) {
+    n = Math.floor(Number(n) || 0);
+    if (Math.abs(n) < 10000) return String(n);
+    const k = n / 1000;
+    return (Math.abs(k) < 100 ? k.toFixed(1).replace(/\.0$/, '') : String(Math.round(k))) + 'k';
+  }
+
+  // Signed rate (units per minute) for the small label next to a resource; '' when it's about zero.
+  function fmtRate(perMin) {
+    if (!Number.isFinite(perMin) || Math.abs(perMin) < 0.05) return '';
+    const a = Math.abs(perMin);
+    const v = a < 10 ? a.toFixed(1).replace(/\.0$/, '') : String(Math.round(a));
+    return (perMin < 0 ? '−' : '+') + v;
+  }
+
+  // Whole hours, minutes and seconds of a duration (negative and junk give zeros).
+  function splitDuration(sec) {
+    const s = Math.max(0, Math.floor(Number(sec) || 0));
+    return { h: Math.floor(s / 3600), m: Math.floor((s % 3600) / 60), s: s % 60 };
+  }
+
+  // Automatic income right now, per minute, from the same rules as core's produce(): villagers (with the
+  // mill bonus) while under the storage limit, workshops while raw stock is above the reserve and the
+  // product is under the limit. `full` lists resources whose producers are stopped by the storage limit.
+  function income(s, core) {
+    const rate = {};
+    const full = new Set();
+    const add = (r, v) => { rate[r] = (rate[r] || 0) + v * 60; };
+    const bonus = s.built.mill && s.built.mill.done ? core.MILL_BONUS : 1;
+    for (const v of s.villagers) {
+      const role = core.VILLAGERS[v.role];
+      if (!role) continue;
+      if (s.res[role.res] < s.storage) add(role.res, role.rate * bonus);
+      else full.add(role.res);
+    }
+    for (const [id, w] of Object.entries(core.WORKSHOPS)) {
+      if (!s.built[id] || !s.built[id].done) continue;
+      if (s.res[w.to] >= s.storage) { full.add(w.to); continue; }
+      if (s.res[w.from] - w.ratio < core.WORKSHOP_RESERVE) continue;
+      add(w.to, w.rate);
+      add(w.from, -w.rate * w.ratio);
+    }
+    return { rate, full: [...full] };
+  }
+
+  // The building whose footprint covers a tile, or null.
+  function buildingAt(core, x, y) {
+    const c = core.tileAt(x, y);
+    if (!c) return null;
+    for (const b of Object.values(core.BUILDINGS)) if (b.ch === c) return b.id;
+    return null;
+  }
+
+  // What a tap (or the action key) on a tile means:
+  //   { type: 'gather', node }  a standing node the player has a tool for
+  //   { type: 'tool', tool }    a standing node that needs a tool the player doesn't have yet
+  //   { type: 'ruin', id }      a ruin or a restored building (walk up and open its panel)
+  //   { type: 'walk' }          a walkable tile (also the restored bridge)
+  //   { type: 'none' }          water, the map edge
+  function tapAction(s, core, x, y) {
+    x = Math.floor(x); y = Math.floor(y);
+    if (core.tileAt(x, y) === null) return { type: 'none' };
+    const n = core.nodeAt(s, x, y);
+    if (n && n.hp > 0) {
+      const tool = core.NODE_KINDS[n.kind].tool;
+      return s.tools[tool] > 0 ? { type: 'gather', node: n.id } : { type: 'tool', tool };
+    }
+    const id = buildingAt(core, x, y);
+    if (id && !(id === 'bridge' && s.built.bridge.done)) return { type: 'ruin', id };
+    return core.isWalkable(s, x, y) ? { type: 'walk' } : { type: 'none' };
+  }
+
+  const FACE_DIR = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  // Tiles around the player for the action key: the one in front first, then the other sides, then corners.
+  function frontTiles(px, py, face) {
+    const tx = Math.floor(px), ty = Math.floor(py);
+    const [fx, fy] = FACE_DIR[face] || FACE_DIR.down;
+    const out = [{ x: tx + fx, y: ty + fy }];
+    for (const [dx, dy] of [[0, 1], [-1, 0], [1, 0], [0, -1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      if (dx === fx && dy === fy) continue;
+      out.push({ x: tx + dx, y: ty + dy });
+    }
+    return out;
+  }
+
+  // The action for the key: the first tile next to the player with a node or a building on it, or null.
+  function pickFront(s, core, px, py, face) {
+    for (const p of frontTiles(px, py, face)) {
+      const a = tapAction(s, core, p.x, p.y);
+      if (a.type === 'gather' || a.type === 'tool' || a.type === 'ruin') return { ...a, x: p.x, y: p.y };
+    }
+    return null;
+  }
+
+  // Distance (tiles) from a point to the nearest footprint tile's square; 0 inside one.
+  function footprintDist(px, py, tiles) {
+    let best = Infinity;
+    for (const t of tiles) {
+      const dx = Math.max(t.x - px, 0, px - (t.x + 1));
+      const dy = Math.max(t.y - py, 0, py - (t.y + 1));
+      best = Math.min(best, Math.hypot(dx, dy));
+    }
+    return best;
+  }
+
+  const api = {
+    TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
+    fmt, fmtRate, splitDuration, income, buildingAt, tapAction, frontTiles, pickFront, footprintDist,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VillageView = api;
 })(typeof window !== 'undefined' ? window : globalThis);

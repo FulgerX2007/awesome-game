@@ -7,10 +7,14 @@
   const { TILE: T, STEP, hash2, lerp, clamp } = VV;
   const { t } = window.I18n;
   const SAVE_KEY = 'village.save';
+  const CLOUD_KEY = 'village.cloud';
+  const A = window.VillageAudio;
   const TAU = Math.PI * 2;
   const $ = (id) => document.getElementById(id);
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
+    del(k) { try { localStorage.removeItem(k); } catch { /* storage unavailable */ } },
   };
   const ease = (x) => 1 - (1 - x) * (1 - x);
   const easeBack = (x) => 1 + 2.2 * (x - 1) ** 3 + 1.2 * (x - 1) ** 2;
@@ -51,15 +55,6 @@
     let paid = 0, total = 0;
     for (const [r, n] of Object.entries(b.cost)) { paid += own.paid[r] || 0; total += n; }
     return total ? paid / total : 1;
-  }
-
-  function loadState() {
-    const raw = store.get(SAVE_KEY);
-    if (raw) {
-      const s = V.load(raw);
-      if (!s.recovered) return s;
-    }
-    return V.newGame((Math.random() * 0x7fffffff) | 0);
   }
 
   // ───────────── Canvas ─────────────
@@ -1383,6 +1378,7 @@
     if (!S.events.length) return;
     const evs = S.events.splice(0);
     for (const e of evs) {
+      uiEvent(e);
       if (e.type === 'hit') {
         P.swing = 0;
         P.tool = TOOL_OF[e.kind];
@@ -1512,7 +1508,17 @@
 
   // ───────────── HUD ─────────────
   let hudClock = 0;
+  const RES_IDS = Object.keys(V.RESOURCES);
+  const BUILD_IDS = Object.keys(V.BUILDINGS);
+  const resName = (r) => t(V.RESOURCES[r].name);
+  // "Дерево 30, Камень 20" — names first, so the Russian words stay in the nominative case.
+  const costText = (cost) => Object.entries(cost).map(([r, n]) => `${resName(r)} ${n}`).join(', ');
+  const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // Set innerHTML only when it changed, so buttons under the pointer aren't replaced between press and release.
+  function setHTML(el, html) { if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } }
+
   function goalText(g) {
+    if (placing) return t('Ставь: {name}', { name: t(V.DECOR[placing].name) });
     if (!g) return t('Осмотрись вокруг');
     if (g.type === 'build') return t('Восстановить: {name}', { name: t(V.BUILDINGS[g.id].name) });
     if (g.type === 'tool') return t('Нужен инструмент: {name}', { name: t(V.TOOLS[g.tool].name) });
@@ -1520,27 +1526,527 @@
   }
 
   function renderHUD() {
-    for (const r of Object.keys(V.RESOURCES)) $(`r-${r}`).textContent = String(Math.floor(S.res[r]));
-    const ids = Object.keys(V.BUILDINGS);
-    const done = ids.filter((id) => S.built[id].done).length;
-    $('built-label').textContent = t('Восстановлено {n}/{total}', { n: done, total: ids.length });
+    const inc = VV.income(S, V);
+    for (const r of RES_IDS) {
+      $(`r-${r}`).textContent = VV.fmt(S.res[r]);
+      const rate = VV.fmtRate(inc.rate[r]);
+      $(`r-${r}-rate`).textContent = rate ? t('{v}/мин', { v: rate }) : '';
+      const item = $(`r-${r}`).closest('.res-item');
+      const full = inc.full.includes(r);
+      item.classList.toggle('full', full);
+      item.title = full ? t('Амбар полон: жители и мастерские ждут') : '';
+    }
+    const done = BUILD_IDS.filter((id) => S.built[id].done).length;
+    $('built-label').textContent = t('Восстановлено {n}/{total}', { n: done, total: BUILD_IDS.length });
     $('goal-text').textContent = goalText(V.nextGoal(S));
+    if (openId === 'panel-building') renderBuilding();
+    else if (openId === 'panel-buildings') renderBuildings();
+    else if (openId === 'panel-tools') renderTools();
+  }
+
+  // ───────────── Floats and toasts ─────────────
+  function float(text, wx, wy, cls = '') {
+    const el = document.createElement('div');
+    el.className = `float ${cls}`.trim();
+    el.textContent = text;
+    el.style.left = `${Math.round(wx - cam.x)}px`;
+    el.style.top = `${Math.round(wy - cam.y)}px`;
+    $('floats').append(el);
+    el.addEventListener('animationend', () => el.remove());
+    setTimeout(() => el.remove(), 3000); // in case animations are off
+  }
+
+  let toastTimer = 0;
+  function toast(text, ms = 2600) {
+    const el = $('toast');
+    el.textContent = text;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, ms);
+  }
+
+  // ───────────── Modal ─────────────
+  // actions: [{ label, primary?, danger?, run? }]; any button closes the window.
+  function modal(title, bodyHTML, actions) {
+    $('modal-title').textContent = title;
+    $('modal-body').innerHTML = bodyHTML;
+    const row = $('modal-actions');
+    row.innerHTML = '';
+    for (const a of actions) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `btn${a.primary ? ' primary' : ''}${a.danger ? ' danger' : ''}`;
+      b.textContent = a.label;
+      b.addEventListener('click', () => { closeModal(); if (a.run) a.run(); });
+      row.append(b);
+    }
+    $('modal').hidden = false;
+    const focus = row.querySelector('.primary') || row.lastElementChild;
+    if (focus) focus.focus();
+  }
+  const closeModal = () => { $('modal').hidden = true; };
+  const modalOpen = () => !$('modal').hidden;
+
+  // ───────────── Panels ─────────────
+  const PANELS = ['panel-building', 'panel-buildings', 'panel-tools', 'panel-settings'];
+  let openId = null;      // the panel on screen
+  let buildingId = null;  // the building shown in panel-building
+
+  function openPanel(id) {
+    for (const p of PANELS) $(p).hidden = p !== id;
+    openId = id;
+    renderHUD();
+  }
+  function closePanels() {
+    for (const p of PANELS) $(p).hidden = true;
+    openId = null;
+    buildingId = null;
+  }
+  const togglePanel = (id) => (openId === id ? closePanels() : openPanel(id));
+
+  const EFFECT = {
+    well: 'Площадь оживёт, а рядом можно будет поднять амбар.',
+    home: 'В доме появится верстак: можно улучшать инструменты.',
+    barn: 'Амбар хранит запасы жителей и мастерских: до 150, с пристройкой до 400.',
+    bridge: 'Откроет восточный берег и северную рощу. На том берегу найдётся лопата.',
+    sawmill: 'Сама пилит доски: два дерева на доску. Тридцать брёвен всегда остаются тебе.',
+    kiln: 'Сама обжигает кирпич: две глины на кирпич. Тридцать глины всегда остаются тебе.',
+    house1: 'Поселится лесоруб и сам будет рубить лес.',
+    house2: 'Поселится каменщик и сам будет добывать камень.',
+    house3: 'Поселится гончар и сам будет копать глину.',
+    forge: 'Кузнец откует инструменты третьего уровня.',
+    mill: 'Все жители работают в полтора раза быстрее.',
+    chapel: 'Зазвонит колокол, и село устроит праздник.',
+  };
+  const needsLeft = (id) => V.BUILDINGS[id].needs.filter((d) => !S.built[d].done);
+  const nearBuilding = (id) => VV.footprintDist(S.player.x, S.player.y, V.FOOTPRINTS[id]) <= 1.6;
+
+  function openBuilding(id) {
+    buildingId = id;
+    openPanel('panel-building');
+  }
+
+  function renderBuilding() {
+    const id = buildingId;
+    if (!id) return;
+    // The panel belongs to the place: walking away closes it.
+    if (!nearBuilding(id)) { closePanels(); return; }
+    const b = V.BUILDINGS[id], own = S.built[id];
+    $('pb-title').textContent = t(b.name);
+    $('pb-effect').textContent = t(EFFECT[id]);
+    const rows = Object.entries(b.cost).map(([r, n]) => {
+      const paid = own.paid[r] || 0;
+      const have = paid >= n ? '' : ` <small>${esc(t('есть {n}', { n: VV.fmt(S.res[r]) }))}</small>`;
+      return `<li class="${paid >= n ? 'ok' : ''}"><i class="ico ${r}"></i>${esc(resName(r))} <b>${paid}/${n}</b>${have}</li>`;
+    });
+    setHTML($('pb-cost'), own.done ? '' : rows.join(''));
+    const left = needsLeft(id);
+    const btn = $('btn-contribute');
+    let note = '';
+    if (own.done) note = t('Восстановлено. Спасибо!');
+    else if (left.length) note = t('Сначала: {list}', { list: left.map((d) => t(V.BUILDINGS[d].name)).join(', ') });
+    else if (!Object.keys(b.cost).some((r) => (own.paid[r] || 0) < b.cost[r] && S.res[r] >= 1)) note = t('Нечего внести: собери ещё.');
+    $('pb-needs').textContent = note;
+    btn.hidden = own.done;
+    btn.disabled = own.done || left.length > 0;
+  }
+
+  function contribute() {
+    if (!buildingId) return;
+    const r = V.contribute(S, buildingId);
+    if (r === 'none') toast(t('Нечего внести: собери ещё.'));
+    else if (r === 'locked') toast(t('Сначала: {list}', { list: needsLeft(buildingId).map((d) => t(V.BUILDINGS[d].name)).join(', ') }));
+    renderHUD();
+  }
+
+  function renderBuildings() {
+    const items = BUILD_IDS.map((id) => {
+      const own = S.built[id];
+      let status;
+      if (own.done) status = t('восстановлено');
+      else if (needsLeft(id).length) status = t('пока закрыто');
+      else status = `${Math.floor(share(id) * 100)}%`;
+      const cls = own.done ? 'done' : needsLeft(id).length ? 'locked' : '';
+      return `<li class="${cls}"><button class="link" type="button" data-go="${id}"><span>${esc(t(V.BUILDINGS[id].name))}</span><small>${esc(status)}</small></button></li>`;
+    });
+    setHTML($('buildings-list'), items.join(''));
+    // The barn extension.
+    const up = $('barn-upgrade');
+    up.hidden = !S.built.barn.done || S.barnLevel >= V.STORAGE.length - 1;
+    if (!up.hidden) {
+      $('barn-cost').textContent = costText(V.BARN_UPGRADE);
+      $('btn-barn').disabled = !V.canAfford(S, V.BARN_UPGRADE);
+    }
+    // Decorations after the festival.
+    const dec = $('decor');
+    dec.hidden = !S.festival;
+    if (!dec.hidden) {
+      setHTML($('decor-list'), Object.entries(V.DECOR).map(([k, d]) =>
+        `<li><button class="btn${placing === k ? ' primary' : ''}" type="button" data-decor="${k}"${V.canAfford(S, d.cost) ? '' : ' disabled'}>${esc(t(d.name))}</button> <small>${esc(costText(d.cost))}</small></li>`).join(''));
+    }
+  }
+
+  // From the list: walk to the building; its panel opens on arrival.
+  function goToBuilding(id) {
+    closePanels();
+    if (nearBuilding(id)) { openBuilding(id); return; }
+    const fp = V.FOOTPRINTS[id][0];
+    if (V.interact(S, fp.x, fp.y) === 'ruin') toast(t('Иду: {name}', { name: t(V.BUILDINGS[id].name) }), 1600);
+    else toast(t('Туда пока не пройти'));
+  }
+
+  function renderTools() {
+    $('tools-hint').hidden = S.built.home.done;
+    const rows = Object.entries(V.TOOLS).map(([id, tool]) => {
+      const lvl = S.tools[id];
+      const next = lvl + 1;
+      let what, btn = '';
+      if (lvl < 1) what = t('найдётся за мостом');
+      else if (lvl >= V.MAX_TOOL) what = t('лучший уровень');
+      else {
+        const need = V.TOOL_NEEDS[next];
+        const cost = tool.costs[next];
+        if (need && !S.built[need].done) what = t('нужно здание: {name}', { name: t(V.BUILDINGS[need].name) });
+        else {
+          what = costText(cost);
+          btn = `<button class="btn primary" type="button" data-tool="${id}"${V.canAfford(S, cost) ? '' : ' disabled'}>${esc(t('Улучшить'))}</button>`;
+        }
+      }
+      const level = lvl ? t('ур. {n}', { n: lvl }) : '—';
+      return `<li><div class="tool-row"><b>${esc(t(tool.name))}</b> <span class="muted">${esc(level)}</span>${btn}</div><small class="muted">${esc(what)}</small></li>`;
+    });
+    setHTML($('tools-list'), rows.join(''));
+  }
+
+  // ───────────── Events → UI ─────────────
+  function uiEvent(e) {
+    if (e.type === 'hit') {
+      const res = V.NODE_KINDS[e.kind].res;
+      float(`+${e.gain} ${resName(res)}`, (e.x + 0.5) * T, e.y * T, res);
+    } else if (e.type === 'ruin') {
+      openBuilding(e.id);
+    } else if (e.type === 'built') {
+      if (e.level) toast(t('Амбар расширен: запасы до {n}', { n: S.storage }));
+      else if (e.id !== 'chapel') toast(t('Восстановлено: {name}', { name: t(V.BUILDINGS[e.id].name) }), 3500);
+      save();
+    } else if (e.type === 'tool') {
+      toast(t('{name}: уровень {n}', { name: t(V.TOOLS[e.tool].name), n: e.level }));
+      save();
+    } else if (e.type === 'festival') {
+      closePanels();
+      modal(t('Праздник в селе!'), `<p>${esc(t('Колокол звонит, жители танцуют на площади. Село снова живое — спасибо тебе.'))}</p>`
+        + `<p>${esc(t('Дальше можно просто гулять, собирать и украшать площадь: клумбы, фонари, скамейки и заборы — в списке зданий.'))}</p>`,
+      [{ label: t('Ура!'), primary: true }]);
+    } else if (e.type === 'decor') {
+      save();
+    }
+  }
+
+  // ───────────── Actions ─────────────
+  let placing = null; // decoration kind waiting for a tap on the square
+
+  function act(a, x, y) {
+    if (a.type === 'tool') { toast(t('Нужен инструмент: {name}', { name: t(V.TOOLS[a.tool].name) })); return; }
+    if (a.type === 'ruin' && nearBuilding(a.id)) { openBuilding(a.id); return; }
+    if (a.type === 'gather' || a.type === 'ruin') {
+      if (V.interact(S, x, y) === 'none') toast(t('Туда пока не пройти'));
+      return;
+    }
+    if (a.type === 'walk' && !V.goTo(S, x, y)) toast(t('Туда пока не пройти'));
+  }
+
+  function tapTile(x, y) {
+    if (placing) {
+      const kind = placing;
+      const r = V.placeDecor(S, kind, x, y);
+      if (r === 'ok') return;
+      if (r === 'cost') { toast(t('Не хватает: {list}', { list: costText(V.DECOR[kind].cost) })); return; }
+      if (V.tileAt(x, y) === '#') { toast(t('Здесь уже занято')); return; }
+      placing = null; // a tap outside the square ends placing and acts as usual
+    }
+    if (openId && openId !== 'panel-building') closePanels();
+    act(VV.tapAction(S, V, x, y), x, y);
+  }
+
+  // The action key and the touch button: whatever is in front of the player.
+  function actFront() {
+    const a = VV.pickFront(S, V, S.player.x, S.player.y, P.face);
+    if (!a) { toast(t('Подойди к дереву, камню, кусту или руине'), 1800); return; }
+    act(a, a.x, a.y);
+  }
+
+  function startPlacing(kind) {
+    placing = placing === kind ? null : kind;
+    if (!placing) return;
+    closePanels();
+    toast(t('Нажми на свободное место на площади'));
+  }
+
+  // ───────────── Input ─────────────
+  const KEYS = {
+    KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
+    KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
+  };
+  const held = new Set();
+  function applyKeys() {
+    let dx = 0, dy = 0;
+    for (const k of held) { dx += KEYS[k][0]; dy += KEYS[k][1]; }
+    V.moveDir(S, dx, dy); // a zero direction only stops key walking, a tap order stays
+  }
+  const isEl = (e, sel) => e.target instanceof HTMLElement && e.target.matches(sel);
+
+  function onKeyDown(e) {
+    if (isEl(e, 'input:not([type=checkbox]), textarea, select') || e.ctrlKey || e.metaKey || e.altKey) return;
+    A.unlock();
+    if (modalOpen()) {
+      if (e.code === 'Escape') { e.preventDefault(); closeModal(); }
+      return;
+    }
+    if (KEYS[e.code]) {
+      e.preventDefault();
+      if (!held.has(e.code)) { held.add(e.code); applyKeys(); }
+      return;
+    }
+    if (e.repeat) return;
+    switch (e.code) {
+      case 'Space':
+        if (isEl(e, 'input')) return; // a focused checkbox toggles as usual
+        e.preventDefault(); actFront(); break;
+      case 'KeyE': actFront(); break;
+      case 'KeyB': togglePanel('panel-buildings'); break;
+      case 'KeyT': togglePanel('panel-tools'); break;
+      case 'KeyM': toggleMute(); break;
+      case 'Escape': placing = null; closePanels(); break;
+      default:
+    }
+  }
+  function onKeyUp(e) {
+    if (KEYS[e.code] && held.delete(e.code)) applyKeys();
+  }
+  function releaseKeys() {
+    if (!held.size) return;
+    held.clear();
+    applyKeys();
+  }
+
+  function onPointerDown(e) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    A.unlock();
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect();
+    const p = VV.screenToTile(e.clientX - r.left, e.clientY - r.top, cam);
+    tapTile(p.x, p.y);
+  }
+
+  // ───────────── Sound toggles ─────────────
+  function setAudio(music, sounds) {
+    A.setMusic(music);
+    A.setSounds(sounds);
+    $('opt-music').checked = music;
+    $('opt-sounds').checked = sounds;
+  }
+  function toggleMute() {
+    const on = !(A.state.music || A.state.sounds);
+    setAudio(on, on);
+    toast(on ? t('Звук включён') : t('Звук выключен'), 1400);
+  }
+
+  // ───────────── Saving ─────────────
+  // localStorage keeps core's save plus savedAt (load ignores unknown fields); the cloud gets core's save.
+  function save() {
+    const ok = store.set(SAVE_KEY, JSON.stringify({ ...V.save(S), savedAt: Date.now() }));
+    $('save-status').textContent = ok ? t('сохранено') : t('браузер не даёт сохранять');
+    return ok;
+  }
+
+  function loadSaved() {
+    const raw = store.get(SAVE_KEY);
+    if (!raw) return { s: null, savedAt: null, broken: false };
+    const s = V.load(raw);
+    if (s.recovered) {
+      store.set(`${SAVE_KEY}.broken`, raw); // keep the unreadable copy aside instead of losing it silently
+      return { s: null, savedAt: null, broken: true };
+    }
+    let savedAt = null;
+    try { savedAt = Number(JSON.parse(raw).savedAt) || null; } catch { /* checked by load */ }
+    return { s, savedAt, broken: false };
+  }
+
+  const newGame = () => V.newGame((Math.random() * 0x7fffffff) | 0);
+
+  // Swap the whole state (reset, cloud load): cosmetic followers start over, the rest is drawn from S.
+  function replaceState(s) {
+    S = s;
+    prev = { x: S.player.x, y: S.player.y };
+    P.x = S.player.x; P.y = S.player.y; P.swing = -1;
+    folk.clear();
+    fx.shake.clear(); fx.pop.clear(); fx.falls.length = 0;
+    for (const h of hens) h.placed = false;
+    placing = null;
+    held.clear();
+    closePanels();
+    syncFolk();
+    renderHUD();
+  }
+
+  function duration(sec) {
+    const d = VV.splitDuration(sec);
+    if (d.h) return t('{h} ч {m} мин', d);
+    if (d.m) return t('{m} мин', d);
+    return t('{s} с', d);
+  }
+
+  // Villagers and workshops kept working while the page was closed or hidden.
+  function catchUp(away, show) {
+    if (!(away > 2)) return;
+    const g = V.offline(S, away);
+    if (!show) return;
+    const rows = Object.entries(g.gains).map(([r, n]) => `<li><i class="ico ${r}"></i>${esc(resName(r))} <b>${n > 0 ? '+' : '−'}${VV.fmt(Math.abs(n))}</b></li>`);
+    if (g.regrown) rows.push(`<li>${esc(t('Отросло деревьев, камней и кустов: {n}', { n: g.regrown }))}</li>`);
+    if (!rows.length) return;
+    const note = away > V.OFFLINE_MAX ? t(' (дольше восьми часов село без тебя не работает)') : '';
+    modal(t('Пока тебя не было…'), `<p>${esc(t('Прошло {time}{note}. Вот что успели жители и мастерские:', { time: duration(Math.min(away, V.OFFLINE_MAX)), note }))}</p><ul class="cost">${rows.join('')}</ul>`,
+      [{ label: t('Хорошо'), primary: true }]);
+  }
+
+  function resetGame() {
+    modal(t('Начать заново?'), `<p>${esc(t('Всё восстановленное село пропадёт. Облачная копия по коду останется.'))}</p>`, [
+      { label: t('Отмена') },
+      { label: t('Начать заново'), danger: true, run: () => { replaceState(newGame()); save(); toast(t('Новое село ждёт')); } },
+    ]);
+  }
+
+  // ───────────── Cloud saves (only when served by the Go backend) ─────────────
+  function newCode() {
+    const abc = 'abcdefghjkmnpqrstuvwxyz23456789';
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => abc[b % abc.length]).join('');
+  }
+  const pretty = (code) => code.match(/.{1,4}/g).join('-');
+  const cleanCode = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  async function cloudPut(code) {
+    const res = await fetch(`/api/saves/${code}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(V.save(S)),
+    });
+    if (!res.ok) throw new Error(await res.text());
+  }
+
+  async function initCloud() {
+    try {
+      const res = await fetch('/healthz');
+      if (!res.ok || (await res.text()).trim() !== 'ok') return;
+    } catch { return; }
+    $('cloud').hidden = false;
+    let code = store.get(CLOUD_KEY);
+    if (code) $('cloud-code').textContent = pretty(code);
+
+    $('btn-cloud-save').addEventListener('click', async () => {
+      code = code || newCode();
+      try {
+        await cloudPut(code);
+        store.set(CLOUD_KEY, code);
+        $('cloud-code').textContent = pretty(code);
+        $('cloud-msg').textContent = t('Сохранено. Введи этот код на другом устройстве.');
+      } catch (err) { $('cloud-msg').textContent = t('Не удалось сохранить: {e}', { e: err.message }); }
+    });
+
+    $('cloud-load').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const c = cleanCode($('cloud-input').value);
+      if (c.length !== 16) { $('cloud-msg').textContent = t('Код состоит из 16 букв и цифр.'); return; }
+      try {
+        const res = await fetch(`/api/saves/${c}`);
+        if (res.status === 404) { $('cloud-msg').textContent = t('Сохранения с таким кодом нет.'); return; }
+        if (!res.ok) throw new Error(await res.text());
+        const s = V.load(await res.json());
+        if (s.recovered) { $('cloud-msg').textContent = t('Это сохранение не подходит к игре.'); return; }
+        code = c; store.set(CLOUD_KEY, c);
+        replaceState(s);
+        save();
+        openPanel('panel-settings');
+        $('cloud-code').textContent = pretty(c);
+        $('cloud-input').value = '';
+        $('cloud-msg').textContent = t('Загружено.');
+      } catch (err) { $('cloud-msg').textContent = t('Не удалось загрузить: {e}', { e: err.message }); }
+    });
+
+    // Quietly keep the cloud copy fresh once the player has a code.
+    setInterval(() => { if (code) cloudPut(code).catch(() => {}); }, 60000);
   }
 
   // ───────────── Boot ─────────────
+  function bindUI() {
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', releaseKeys);
+    $('btn-act').addEventListener('click', () => { A.unlock(); actFront(); });
+    $('btn-buildings').addEventListener('click', () => togglePanel('panel-buildings'));
+    $('btn-tools').addEventListener('click', () => togglePanel('panel-tools'));
+    $('btn-settings').addEventListener('click', () => togglePanel('panel-settings'));
+    for (const b of document.querySelectorAll('[data-close]')) b.addEventListener('click', closePanels);
+    $('btn-contribute').addEventListener('click', contribute);
+    $('btn-barn').addEventListener('click', () => {
+      if (V.upgradeBarn(S) === 'cost') toast(t('Не хватает: {list}', { list: costText(V.BARN_UPGRADE) }));
+      renderHUD();
+    });
+    $('buildings-list').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-go]');
+      if (b) goToBuilding(b.dataset.go);
+    });
+    $('decor-list').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-decor]');
+      if (b) startPlacing(b.dataset.decor);
+    });
+    $('tools-list').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-tool]');
+      if (!b) return;
+      const r = V.upgradeTool(S, b.dataset.tool);
+      if (r === 'cost') toast(t('Не хватает: {list}', { list: costText(V.TOOLS[b.dataset.tool].costs[S.tools[b.dataset.tool] + 1]) }));
+      renderHUD();
+    });
+    $('opt-music').addEventListener('change', (e) => A.setMusic(e.target.checked));
+    $('opt-sounds').addEventListener('change', (e) => A.setSounds(e.target.checked));
+    $('btn-reset').addEventListener('click', resetGame);
+    $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeModal(); });
+    document.addEventListener('pointerdown', () => A.unlock(), { once: true });
+
+    // rAF stops in a hidden tab, so the time away is caught up through core's offline path on return.
+    let hiddenAt = 0;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); releaseKeys(); save(); }
+      else if (hiddenAt) { catchUp((Date.now() - hiddenAt) / 1000, (Date.now() - hiddenAt) > 60000); hiddenAt = 0; save(); renderHUD(); }
+    });
+    window.addEventListener('pagehide', save);
+    setInterval(save, 10000);
+  }
+
   function boot() {
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.content = t(meta.content);
     // Added after I18n.translateDOM has run, so the button's own labels stay as they are.
     const addToggle = () => document.querySelector('.brand').append(GameNav.home('lang-btn'), I18n.toggle('lang-btn'));
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addToggle); else addToggle();
-    S = loadState();
+    const saved = loadSaved();
+    S = saved.s || newGame();
     prev = { x: S.player.x, y: S.player.y };
     P.x = S.player.x; P.y = S.player.y;
+    setAudio(A.state.music, A.state.sounds);
     resize();
     window.addEventListener('resize', resize);
+    bindUI();
     syncFolk();
+    if (saved.savedAt) {
+      const away = (Date.now() - saved.savedAt) / 1000;
+      catchUp(away, away > 30);
+    }
+    if (saved.broken) toast(t('Сохранение повреждено — начато новое село'), 4000);
+    save();
     renderHUD();
+    initCloud();
     requestAnimationFrame(frame);
   }
 

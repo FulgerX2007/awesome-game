@@ -169,3 +169,38 @@ h1 {
   .res-item b { font-size: 15px; }
   .chip { padding: 3px 9px; }
 }
+
+/* ── Panel lists ── */
+.list li.done { opacity: .75; }
+.list li.locked { color: var(--ink-dim); }
+.link {
+  display: flex; width: 100%; justify-content: space-between; align-items: baseline; gap: 8px;
+  border: 0; background: none; padding: 0; cursor: pointer; text-align: left; font-weight: 700;
+}
+.link small { font-weight: 600; color: var(--ink-dim); white-space: nowrap; }
+.list li.done .link small { color: var(--leaf-deep); }
+.cost li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cost li b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.cost li small { color: var(--ink-dim); }
+.cost li.ok { background: #dfe8c6; }
+.tool-row { display: flex; align-items: center; gap: 8px; }
+.tool-row .btn { margin-left: auto; padding: 3px 10px; font-size: 13px; }
+#decor-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#modal-body ul { padding: 0; }
+
+/* ── Floating numbers ── */
+.float {
+  position: absolute; transform: translate(-50%, -100%); white-space: nowrap;
+  font-weight: 800; font-size: 14px; color: #fff8ea; text-shadow: 0 1px 2px rgba(0, 0, 0, .7), 0 0 6px rgba(0, 0, 0, .35);
+  animation: float-up 1.2s ease-out forwards;
+}
+.float.wood { color: #ffe0b0; }
+.float.stone { color: #f0eee6; }
+.float.clay { color: #ffc49e; }
+.float.berries { color: #ffc0d4; }
+@keyframes float-up {
+  0% { opacity: 0; transform: translate(-50%, -80%); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -260%); }
+}
+@media (prefers-reduced-motion: reduce) { .float { animation-duration: .01s; animation-delay: .9s; } }

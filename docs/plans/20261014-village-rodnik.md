@@ -313,13 +313,14 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 - Modify: `web/village/view.js`
 - Modify: `tests/village/view.test.js`
 
-- [ ] keyboard: WASD/arrows to walk, `E`/`Пробел` to interact with what's in front of you, `B` buildings, `T` tools, `M` sound, `Esc` close panels
-- [ ] mouse and touch: a click or tap on a tile walks there, on a node gathers it, on a ruin walks over and opens the panel; drag to look around is not needed (the camera follows the player)
-- [ ] HUD: resources with income per minute, "Следующее дело", progress X/12 buildings; the building panel (cost, paid, "Внести" button, effect), the tools panel, floating "+3 дерево" numbers and a toast when a building is done
-- [ ] saving: autosave to `localStorage` (`village.save`) every 10 s and on `visibilitychange`/`pagehide`, offline progress on start with a "Пока тебя не было…" window, a "Начать заново" button with confirmation
-- [ ] cloud save following the `web/rust/game.js` pattern (`village.cloud`, `/api/saves/{code}`), the block appears only when the Go server answers
-- [ ] put the pure HUD helpers (number formatting, choosing the action for a tap on a tile) in `view.js` and cover them in `view.test.js`
-- [ ] run `node --test 'tests/**/*.test.js'` — must pass before task 8
+- [x] keyboard: WASD/arrows to walk, `E`/`Пробел` to interact with what's in front of you, `B` buildings, `T` tools, `M` sound, `Esc` close panels
+- [x] mouse and touch: a click or tap on a tile walks there, on a node gathers it, on a ruin walks over and opens the panel; drag to look around is not needed (the camera follows the player)
+- [x] HUD: resources with income per minute, "Следующее дело", progress X/12 buildings; the building panel (cost, paid, "Внести" button, effect), the tools panel, floating "+3 дерево" numbers and a toast when a building is done
+- [x] saving: autosave to `localStorage` (`village.save`) every 10 s and on `visibilitychange`/`pagehide`, offline progress on start with a "Пока тебя не было…" window, a "Начать заново" button with confirmation
+- [x] cloud save following the `web/rust/game.js` pattern (`village.cloud`, `/api/saves/{code}`), the block appears only when the Go server answers
+- [x] put the pure HUD helpers (number formatting, choosing the action for a tap on a tile) in `view.js` and cover them in `view.test.js`
+- [x] run `node --test 'tests/**/*.test.js'` — must pass before task 8
+- ➕ free-play decoration UI (a "Украшения" block in the buildings panel, then a tap on a free square tile) — `placeDecor` had no client entry point otherwise
 
 ### Task 8: Sounds and music
 

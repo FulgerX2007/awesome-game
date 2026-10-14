@@ -58,8 +58,14 @@
     <header class="panel-head"><h2 id="pbs-title">Здания</h2><button class="close" type="button" data-close aria-label="Закрыть">×</button></header>
     <ol class="list" id="buildings-list"></ol>
     <div id="barn-upgrade" hidden>
+      <h3>Пристройка</h3>
       <p class="small muted">Пристройка к амбару: больше места для запасов.</p>
-      <button class="btn" id="btn-barn" type="button">Расширить амбар</button>
+      <div class="row"><button class="btn" id="btn-barn" type="button">Расширить амбар</button> <small id="barn-cost"></small></div>
+    </div>
+    <div id="decor" hidden>
+      <h3>Украшения</h3>
+      <p class="small muted">Выбери украшение и нажми на свободное место на площади.</p>
+      <ul class="list" id="decor-list"></ul>
     </div>
   </section>
 

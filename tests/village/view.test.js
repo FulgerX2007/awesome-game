@@ -124,3 +124,152 @@ test('clamp and lerp helpers', () => {
   assert.equal(VV.lerp(2, 4, 0.5), 3);
   assert.equal(VV.STEP, 0.05);
 });
+
+// ── HUD helpers ──
+
+test('fmt shows whole numbers and a short form above 9 999', () => {
+  assert.equal(VV.fmt(0), '0');
+  assert.equal(VV.fmt(12.9), '12');
+  assert.equal(VV.fmt(9999), '9999');
+  assert.equal(VV.fmt(12345), '12.3k');
+  assert.equal(VV.fmt(20000), '20k');
+  assert.equal(VV.fmt(250400), '250k');
+  assert.equal(VV.fmt(undefined), '0');
+  assert.equal(VV.fmt(NaN), '0');
+});
+
+test('fmtRate is signed, drops near-zero and junk', () => {
+  assert.equal(VV.fmtRate(0), '');
+  assert.equal(VV.fmtRate(0.04), '');
+  assert.equal(VV.fmtRate(NaN), '');
+  assert.equal(VV.fmtRate(12), '+12');
+  assert.equal(VV.fmtRate(9), '+9');
+  assert.equal(VV.fmtRate(4.56), '+4.6');
+  assert.equal(VV.fmtRate(-36), '−36');
+  assert.equal(VV.fmtRate(-0.5), '−0.5');
+  assert.equal(VV.fmtRate(13.6), '+14');
+});
+
+test('splitDuration gives hours, minutes and seconds', () => {
+  assert.deepEqual(VV.splitDuration(3725.9), { h: 1, m: 2, s: 5 });
+  assert.deepEqual(VV.splitDuration(59), { h: 0, m: 0, s: 59 });
+  assert.deepEqual(VV.splitDuration(-5), { h: 0, m: 0, s: 0 });
+  assert.deepEqual(VV.splitDuration('junk'), { h: 0, m: 0, s: 0 });
+  assert.deepEqual(VV.splitDuration(8 * 3600), { h: 8, m: 0, s: 0 });
+});
+
+test('income matches the core rates: villagers, mill bonus, workshops, limits', () => {
+  const s = V.newGame(1);
+  assert.deepEqual(VV.income(s, V), { rate: {}, full: [] });
+  s.villagers.push({ role: 'woodcutter', house: 'house1' });
+  assert.ok(Math.abs(VV.income(s, V).rate.wood - V.VILLAGERS.woodcutter.rate * 60) < 1e-9);
+  s.built.mill.done = true;
+  assert.ok(Math.abs(VV.income(s, V).rate.wood - V.VILLAGERS.woodcutter.rate * V.MILL_BONUS * 60) < 1e-9);
+  // At the storage limit the villager stops and the resource is marked full.
+  s.res.wood = s.storage;
+  assert.deepEqual(VV.income(s, V), { rate: {}, full: ['wood'] });
+
+  // Sawmill: works only above the reserve, eats wood, stops at the planks limit.
+  const w = V.WORKSHOPS.sawmill;
+  const k = V.newGame(1);
+  k.built.sawmill.done = true;
+  k.res.wood = V.WORKSHOP_RESERVE;
+  assert.deepEqual(VV.income(k, V).rate, {});
+  k.res.wood = V.WORKSHOP_RESERVE + w.ratio;
+  const r = VV.income(k, V).rate;
+  assert.ok(Math.abs(r.planks - w.rate * 60) < 1e-9);
+  assert.ok(Math.abs(r.wood + w.rate * w.ratio * 60) < 1e-9);
+  k.res.planks = k.storage;
+  assert.deepEqual(VV.income(k, V), { rate: {}, full: ['planks'] });
+});
+
+test('income agrees with what step() actually produces', () => {
+  const s = V.newGame(3);
+  s.built.sawmill.done = true;
+  s.built.kiln.done = true;
+  s.villagers.push({ role: 'mason', house: 'house2' });
+  s.storage = 400;
+  s.res.wood = 200; s.res.clay = 200;
+  const { rate } = VV.income(s, V);
+  const before = { ...s.res };
+  for (let i = 0; i < 60 * 20; i++) V.step(s, 0.05);
+  for (const r of ['planks', 'bricks', 'stone', 'wood', 'clay']) {
+    assert.ok(Math.abs(s.res[r] - before[r] - rate[r]) <= 2, `${r}: ${s.res[r] - before[r]} vs ${rate[r]}`);
+  }
+});
+
+test('buildingAt finds footprints', () => {
+  for (const [id, tiles] of Object.entries(V.FOOTPRINTS)) {
+    for (const t of tiles) assert.equal(VV.buildingAt(V, t.x, t.y), id);
+  }
+  assert.equal(VV.buildingAt(V, V.START.x, V.START.y), null);
+  assert.equal(VV.buildingAt(V, -1, 0), null);
+});
+
+test('tapAction picks gather, tool, ruin, walk and none', () => {
+  const s = V.newGame(1);
+  const tree = s.nodes.find((n) => n.kind === 'tree');
+  assert.deepEqual(VV.tapAction(s, V, tree.x + 0.7, tree.y + 0.2), { type: 'gather', node: tree.id });
+  const clay = s.nodes.find((n) => n.kind === 'clay');
+  assert.deepEqual(VV.tapAction(s, V, clay.x, clay.y), { type: 'tool', tool: 'shovel' });
+  // An empty node is just ground.
+  tree.hp = 0;
+  assert.deepEqual(VV.tapAction(s, V, tree.x, tree.y), { type: 'walk' });
+  const well = V.FOOTPRINTS.well[0];
+  assert.deepEqual(VV.tapAction(s, V, well.x, well.y), { type: 'ruin', id: 'well' });
+  s.built.well.done = true; // a restored building still opens its panel
+  assert.deepEqual(VV.tapAction(s, V, well.x, well.y), { type: 'ruin', id: 'well' });
+  const br = V.FOOTPRINTS.bridge[0];
+  assert.deepEqual(VV.tapAction(s, V, br.x, br.y), { type: 'ruin', id: 'bridge' });
+  s.built.bridge.done = true; // the restored bridge is a road
+  assert.deepEqual(VV.tapAction(s, V, br.x, br.y), { type: 'walk' });
+  assert.deepEqual(VV.tapAction(s, V, V.START.x, V.START.y), { type: 'walk' });
+  assert.deepEqual(VV.tapAction(s, V, -1, 5), { type: 'none' });
+  assert.deepEqual(VV.tapAction(s, V, V.W, 5), { type: 'none' });
+  const water = (() => { for (let y = 0; y < V.H; y++) for (let x = 0; x < V.W; x++) if (V.tileAt(x, y) === '~') return { x, y }; })();
+  assert.deepEqual(VV.tapAction(s, V, water.x, water.y), { type: 'none' });
+});
+
+test('frontTiles puts the faced tile first and covers all 8 neighbours once', () => {
+  const ft = VV.frontTiles(5.5, 7.4, 'left');
+  assert.deepEqual(ft[0], { x: 4, y: 7 });
+  assert.equal(ft.length, 8);
+  assert.equal(new Set(ft.map((p) => `${p.x},${p.y}`)).size, 8);
+  assert.ok(!ft.some((p) => p.x === 5 && p.y === 7));
+  assert.deepEqual(VV.frontTiles(5.5, 7.4, 'up')[0], { x: 5, y: 6 });
+  assert.deepEqual(VV.frontTiles(5.5, 7.4, 'junk')[0], { x: 5, y: 8 });
+});
+
+test('pickFront prefers the faced node, falls back to neighbours, null when nothing is near', () => {
+  const s = V.newGame(1);
+  const tree = s.nodes.find((n) => n.kind === 'tree' && V.isWalkable(s, n.x - 1, n.y) && V.isWalkable(s, n.x, n.y + 1));
+  // Standing left of the tree, facing it.
+  assert.deepEqual(VV.pickFront(s, V, tree.x - 0.5, tree.y + 0.5, 'right'), { type: 'gather', node: tree.id, x: tree.x, y: tree.y });
+  // Facing away: still found among the neighbours.
+  assert.equal(VV.pickFront(s, V, tree.x - 0.5, tree.y + 0.5, 'left').node, tree.id);
+  // Below the tree, facing up.
+  assert.equal(VV.pickFront(s, V, tree.x + 0.5, tree.y + 1.5, 'up').node, tree.id);
+  // Next to the well ruin.
+  const w = V.FOOTPRINTS.well[0];
+  const spot = [[0, 1], [-1, 0], [1, 0], [0, -1]].map(([dx, dy]) => ({ x: w.x + dx, y: w.y + dy }))
+    .find((p) => V.isWalkable(s, p.x, p.y) && !VV.buildingAt(V, p.x, p.y));
+  const a = VV.pickFront(s, V, spot.x + 0.5, spot.y + 0.5, 'down');
+  assert.equal(a.type, 'ruin');
+  assert.equal(a.id, 'well');
+  // Middle of nowhere: find a tile with no node or building around.
+  let empty = null;
+  for (let y = 1; y < V.H - 1 && !empty; y++) for (let x = 1; x < V.W - 1 && !empty; x++) {
+    if (VV.frontTiles(x + 0.5, y + 0.5, 'down').every((p) => VV.tapAction(s, V, p.x, p.y).type === 'walk')) empty = { x, y };
+  }
+  assert.ok(empty);
+  assert.equal(VV.pickFront(s, V, empty.x + 0.5, empty.y + 0.5, 'down'), null);
+});
+
+test('footprintDist is 0 inside, 0.5 from a neighbouring tile centre', () => {
+  const tiles = [{ x: 3, y: 3 }, { x: 4, y: 3 }];
+  assert.equal(VV.footprintDist(3.5, 3.5, tiles), 0);
+  assert.equal(VV.footprintDist(5.5, 3.5, tiles), 0.5);
+  assert.equal(VV.footprintDist(3.5, 4.5, tiles), 0.5);
+  assert.ok(Math.abs(VV.footprintDist(5.5, 4.5, tiles) - Math.SQRT1_2) < 1e-12);
+  assert.equal(VV.footprintDist(0, 0, []), Infinity);
+});

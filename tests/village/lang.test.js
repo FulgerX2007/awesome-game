@@ -91,3 +91,17 @@ test('the hub lists «Родник» first with a RO description', () => {
   assert.match(hub, /--village:/);
   assert.match(hub, /'Родник': 'Izvorul'/);
 });
+
+test('every Russian string in game.js has a RO translation', () => {
+  const src = fs.readFileSync(path.join(WEB, 'village', 'game.js'), 'utf8')
+    .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')  // skip comment lines
+    .replace(/\/\/[^'\n]*$/gm, '');                             // and trailing comments
+  const keys = new Set();
+  for (const m of src.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
+    if (/[А-Яа-яЁё]/.test(m[1])) keys.add(m[1]);
+  }
+  assert.ok(keys.has('Пока тебя не было…'));
+  assert.ok(keys.has('Восстановить: {name}'));
+  const missing = [...keys].filter((k) => !hasRo(k));
+  assert.deepEqual(missing, []);
+});
