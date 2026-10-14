@@ -60,6 +60,28 @@
   const STORAGE = [50, 150, 400]; // start, after the barn, after the barn upgrade
   const WORKSHOP_RESERVE = 30;
 
+  // Automatic income, per second. Villagers come from the houses, the mill speeds them up.
+  const VILLAGERS = {
+    woodcutter: { name: 'Лесоруб', res: 'wood', rate: 0.2 },
+    mason: { name: 'Каменщик', res: 'stone', rate: 0.15 },
+    potter: { name: 'Гончар', res: 'clay', rate: 0.15 },
+  };
+  const MILL_BONUS = 1.5;
+  // Workshops turn `ratio` raw units into one product, `rate` products per second.
+  const WORKSHOPS = {
+    sawmill: { from: 'wood', to: 'planks', ratio: 2, rate: 0.25 },
+    kiln: { from: 'clay', to: 'bricks', ratio: 2, rate: 0.2 },
+  };
+  const OFFLINE_MAX = 8 * 3600;
+
+  // Free play after the festival: decorations on free square tiles.
+  const DECOR = {
+    bed: { name: 'Клумба', cost: { berries: 5, planks: 2 } },
+    lantern: { name: 'Фонарь', cost: { planks: 4, stone: 2 } },
+    bench: { name: 'Скамейка', cost: { planks: 6 } },
+    fence: { name: 'Забор', cost: { planks: 3, stone: 1 } },
+  };
+
   // Nodes scattered per zone. West is open from the start, north and east open with the bridge.
   const ZONE_NODES = {
     west: { tree: 22, rock: 10, bush: 10 },
@@ -277,6 +299,7 @@
       storage: STORAGE[0],
       barnLevel: 0,
       villagers: [],
+      acc: {},                      // fractional automatic income per producer, 0..1
       decor: [],
       festival: false,
       stats: { gathered: zeroRes(), playTime: 0 },
@@ -588,6 +611,7 @@
     s.stats.playTime += dt;
     p.cd = Math.max(0, (p.cd || 0) - dt);
     regrow(s);
+    produce(s, dt);
     if (p.dir) moveFree(s, dt);
     else if (p.path) followPath(s, dt);
     if (!p.path && p.target) {
@@ -616,6 +640,159 @@
     for (const [r, n] of Object.entries(cost)) s.res[r] -= n;
     s.tools[tool] = next;
     s.events.push({ type: 'tool', tool, level: next });
+    return 'ok';
+  }
+
+  // ── Restoration ──
+  const share = (s, id) => {
+    let paid = 0, total = 0;
+    for (const [r, n] of Object.entries(BUILDINGS[id].cost)) { paid += s.built[id].paid[r]; total += n; }
+    return total ? paid / total : 1;
+  };
+  const needsMet = (s, id) => BUILDINGS[id].needs.every((d) => s.built[d].done);
+  const remaining = (s, id) => {
+    const out = {};
+    for (const [r, n] of Object.entries(BUILDINGS[id].cost)) {
+      const left = n - s.built[id].paid[r];
+      if (left > 0) out[r] = left;
+    }
+    return out;
+  };
+
+  // Visual stage of a building: 0 ruin, 1 scaffolding (something paid), 2 restored.
+  function stage(s, id) {
+    if (!BUILDINGS[id]) return 0;
+    if (s.built[id].done) return 2;
+    return share(s, id) > 0 ? 1 : 0;
+  }
+
+  // Add as much as fits from the stock. Returns 'ok' (paid in part) | 'built' | 'none' (nothing to add)
+  // | 'locked' (dependencies) | 'done' | 'unknown'.
+  function contribute(s, id) {
+    const b = BUILDINGS[id];
+    if (!b) return 'unknown';
+    const own = s.built[id];
+    if (own.done) return 'done';
+    if (!needsMet(s, id)) return 'locked';
+    const given = {};
+    for (const [r, left] of Object.entries(remaining(s, id))) {
+      const n = Math.min(left, Math.floor(s.res[r]));
+      if (n <= 0) continue;
+      s.res[r] -= n;
+      own.paid[r] += n;
+      given[r] = n;
+    }
+    if (!Object.keys(given).length) return 'none';
+    s.events.push({ type: 'contribute', id, given, stage: stage(s, id) });
+    if (Object.keys(remaining(s, id)).length) return 'ok';
+    own.done = true;
+    applyEffect(s, id);
+    s.events.push({ type: 'built', id, effect: b.effect });
+    if (b.effect === 'festival') s.events.push({ type: 'festival' });
+    return 'built';
+  }
+
+  // Effects that change the state. Others (workbench, sawmill, kiln, forge, mill) are read from s.built.
+  function applyEffect(s, id) {
+    const b = BUILDINGS[id];
+    if (b.effect === 'storage' && s.barnLevel < 1) setBarn(s, 1);
+    else if (b.effect === 'bridge' && s.tools.shovel < 1) s.tools.shovel = 1;
+    else if (b.effect === 'villager' && !s.villagers.some((v) => v.house === id)) s.villagers.push({ role: b.role, house: id });
+    else if (b.effect === 'festival') s.festival = true;
+  }
+
+  function setBarn(s, level) {
+    s.barnLevel = level;
+    s.storage = STORAGE[level];
+  }
+
+  // Second barn level. Returns 'ok' | 'locked' (no barn) | 'cost' | 'max'.
+  function upgradeBarn(s) {
+    if (s.barnLevel >= STORAGE.length - 1) return 'max';
+    if (!s.built.barn.done) return 'locked';
+    if (!canAfford(s, BARN_UPGRADE)) return 'cost';
+    for (const [r, n] of Object.entries(BARN_UPGRADE)) s.res[r] -= n;
+    setBarn(s, s.barnLevel + 1);
+    s.events.push({ type: 'built', id: 'barn', effect: 'storage', level: s.barnLevel });
+    return 'ok';
+  }
+
+  // ── Automatic income ──
+  // Fractional progress builds up in s.acc; whole units are added while there is room under the storage limit.
+  // A blocked producer keeps at most one unit pending, so it doesn't burst later.
+  // EPS absorbs float drift, so many small steps give the same units as one big step (offline).
+  const EPS = 1e-6;
+  function produce(s, dt) {
+    const bonus = s.built.mill.done ? MILL_BONUS : 1;
+    for (const v of s.villagers) {
+      const role = VILLAGERS[v.role];
+      if (!role) continue;
+      const key = v.house;
+      let a = (s.acc[key] || 0) + role.rate * bonus * dt;
+      while (a >= 1 - EPS && s.res[role.res] < s.storage) { s.res[role.res] += 1; a -= 1; }
+      s.acc[key] = Math.min(Math.max(a, 0), 1);
+    }
+    for (const [id, w] of Object.entries(WORKSHOPS)) {
+      if (!s.built[id].done) continue;
+      let a = (s.acc[id] || 0) + w.rate * dt;
+      while (a >= 1 - EPS && s.res[w.from] - w.ratio >= WORKSHOP_RESERVE && s.res[w.to] < s.storage) {
+        s.res[w.from] -= w.ratio;
+        s.res[w.to] += 1;
+        a -= 1;
+      }
+      s.acc[id] = Math.min(Math.max(a, 0), 1);
+    }
+  }
+
+  // Time away from the game: villagers and workshops work in 1 s steps (capped at 8 h), empty nodes regrow.
+  // The player doesn't move. Returns a summary for the "while you were away" window.
+  function offline(s, seconds) {
+    const total = Math.floor(Math.min(Math.max(Number(seconds) || 0, 0), OFFLINE_MAX));
+    const before = { ...s.res };
+    for (let i = 0; i < total; i++) {
+      s.t += 1;
+      produce(s, 1);
+    }
+    const mark = s.events.length;
+    regrow(s);
+    const regrown = s.events.length - mark;
+    s.events.length = mark; // a summary instead of a burst of regrow events
+    const gains = {};
+    for (const r of RES_IDS) if (s.res[r] !== before[r]) gains[r] = s.res[r] - before[r];
+    return { seconds: total, gains, regrown };
+  }
+
+  // The hint in the HUD: the cheapest available restoration (by what is left to pay), or the tool that blocks it.
+  // After the festival: decorations. Returns { type: 'build', id } | { type: 'tool', tool } | { type: 'decor' } | null.
+  function nextGoal(s) {
+    if (s.festival) return { type: 'decor' };
+    let best = null, bestLeft = Infinity;
+    for (const id of BUILDING_IDS) {
+      if (s.built[id].done || !needsMet(s, id)) continue;
+      const left = Object.values(remaining(s, id)).reduce((a, n) => a + n, 0);
+      if (left < bestLeft) { best = id; bestLeft = left; }
+    }
+    if (!best) return null;
+    for (const r of Object.keys(remaining(s, best))) {
+      for (const [tool, t] of Object.entries(TOOLS)) {
+        if (NODE_KINDS[t.node].res === r && s.tools[tool] < 1) return { type: 'tool', tool };
+      }
+    }
+    return { type: 'build', id: best };
+  }
+
+  // Free play: a decoration on a free square tile. Returns 'ok' | 'locked' (before the festival) | 'cost'
+  // | 'occupied' (not a free square tile) | 'unknown'.
+  function placeDecor(s, kind, x, y) {
+    const d = DECOR[kind];
+    if (!d) return 'unknown';
+    if (!s.festival) return 'locked';
+    x = Math.floor(x); y = Math.floor(y);
+    if (tileAt(x, y) !== '#' || s.decor.some((o) => o.x === x && o.y === y)) return 'occupied';
+    if (!canAfford(s, d.cost)) return 'cost';
+    for (const [r, n] of Object.entries(d.cost)) s.res[r] -= n;
+    s.decor.push({ kind, x, y });
+    s.events.push({ type: 'decor', kind, x, y });
     return 'ok';
   }
 
@@ -710,16 +887,27 @@
       const roles = new Set(BUILDING_IDS.map((id) => BUILDINGS[id].role).filter(Boolean));
       s.villagers = d.villagers
         .filter((v) => isObj(v) && roles.has(v.role) && BUILDINGS[v.house] && BUILDINGS[v.house].role === v.role)
+        .filter((v, i, all) => all.findIndex((o) => o.house === v.house) === i)
         .map((v) => ({ role: v.role, house: v.house }));
+    }
+
+    if (isObj(d.acc)) {
+      for (const [k, v] of Object.entries(d.acc)) {
+        if ((BUILDINGS[k] && (BUILDINGS[k].role || WORKSHOPS[k])) && Number.isFinite(v)) s.acc[k] = Math.min(Math.max(v, 0), 1);
+      }
     }
 
     if (Array.isArray(d.decor)) {
       s.decor = d.decor
-        .filter((o) => isObj(o) && typeof o.kind === 'string' && Number.isInteger(o.x) && Number.isInteger(o.y) && inMap(o.x, o.y))
+        .filter((o) => isObj(o) && DECOR[o.kind] && Number.isInteger(o.x) && Number.isInteger(o.y) && inMap(o.x, o.y))
         .map((o) => ({ kind: o.kind, x: o.x, y: o.y }));
     }
 
     s.festival = d.festival === true;
+
+    // Effects of done buildings, in case the save lost them.
+    for (const id of BUILDING_IDS) if (s.built[id].done) applyEffect(s, id);
+    s.storage = STORAGE[s.barnLevel];
 
     if (isObj(d.stats)) {
       if (isObj(d.stats.gathered)) for (const r of RES_IDS) s.stats.gathered[r] = num(d.stats.gathered[r], 0);
@@ -730,10 +918,12 @@
 
   const api = {
     VERSION, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
-    BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES,
+    BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS,
+    OFFLINE_MAX, DECOR,
     MAP, W, H, START, FOOTPRINTS, SPEED,
     rng, rand, tileAt, zoneAt, nodeAt, newGame, isWalkable, canAfford, findPath,
-    step, moveDir, goTo, interact, upgradeTool, save, load,
+    step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, stage, nextGoal, offline,
+    placeDecor, save, load,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Village = api;

@@ -169,6 +169,7 @@
   built: { well: { paid: {...}, done: false }, ... },
   storage, barnLevel,              // barnLevel 0/1/2 indexes STORAGE; storage is derived from it on load
   villagers: [{ role, house }],
+  acc: {},                         // fractional automatic income per producer (house id / workshop id), 0..1
   decor: [{ kind, x, y }],
   festival: false, stats: { gathered: {...}, playTime }
 }
@@ -238,13 +239,13 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 - Modify: `web/village/core.js`
 - Create: `tests/village/build.test.js`
 
-- [ ] implement `contribute(s, id)` on top of `BUILDINGS` from Task 1: add as much as fits, keep progress in `paid`, visual stage (0/1/2) from the paid share, block on dependencies
-- [ ] implement completion effects: the bridge opens the east bank and the north grove and gives the shovel; barn and its upgrade (`upgradeBarn`); villagers from houses; the mill gives ×1.5 to villagers; the forge unlocks level 3; the chapel sets `festival`; events `contribute`/`built`/`festival`
-- [ ] implement the sawmill and kiln (raw materials above `WORKSHOP_RESERVE`=30 → product at a fixed rate, stop when output is at the `storage` limit) and villager production in `step`, with the storage limit for automatic income only
-- [ ] implement `offline(s, seconds)` (cap 8 h, 1 s step, summary of gains) and `nextGoal(s)`; after the festival, `placeDecor` on free square tiles
-- [ ] write tests: partial and full contribution, blocking on dependencies, effects of each building (bridge → walkability, house → villager, chapel → festival)
-- [ ] write tests: workshops don't go below the reserve and stop at the output limit, house1 (60 planks) is finished with no barn through two partial contributions, the limit doesn't cut hand gathering, offline caps at 8 h and is deterministic, `nextGoal` after the festival, `placeDecor` on an occupied tile is refused
-- [ ] run `node --test 'tests/**/*.test.js'` — must pass before task 4
+- [x] implement `contribute(s, id)` on top of `BUILDINGS` from Task 1: add as much as fits, keep progress in `paid`, visual stage (0/1/2) from the paid share, block on dependencies
+- [x] implement completion effects: the bridge opens the east bank and the north grove and gives the shovel; barn and its upgrade (`upgradeBarn`); villagers from houses; the mill gives ×1.5 to villagers; the forge unlocks level 3; the chapel sets `festival`; events `contribute`/`built`/`festival`
+- [x] implement the sawmill and kiln (raw materials above `WORKSHOP_RESERVE`=30 → product at a fixed rate, stop when output is at the `storage` limit) and villager production in `step`, with the storage limit for automatic income only
+- [x] implement `offline(s, seconds)` (cap 8 h, 1 s step, summary of gains) and `nextGoal(s)`; after the festival, `placeDecor` on free square tiles
+- [x] write tests: partial and full contribution, blocking on dependencies, effects of each building (bridge → walkability, house → villager, chapel → festival)
+- [x] write tests: workshops don't go below the reserve and stop at the output limit, house1 (60 planks) is finished with no barn through two partial contributions, the limit doesn't cut hand gathering, offline caps at 8 h and is deterministic, `nextGoal` after the festival, `placeDecor` on an occupied tile is refused
+- [x] run `node --test 'tests/**/*.test.js'` — must pass before task 4
 
 ### Task 4: Balance bot and tuning
 
