@@ -146,6 +146,12 @@ Cell types in a `Uint8Array`:
 - **Solver** (`solve(def)` in core.js, used by the tests). DFS over pull orders of all subsets of pins.
   After each pull it simulates "to settled" (a patient player) and caches the state snapshot per prefix.
   It returns the list of winning orders and whether the level is won without pulling at all. Levels have ≤5 pins.
+- ➕ **Status details (added in Task 2).** `status(s)` returns `{status, reason}`. Lava touching the hero (4-adjacent)
+  and an enemy reaching the hero are latched in `s.lost` at the end of a changing tick and right after a pull. Settled
+  with too little gold (or lava on the way) is still `playing` while unpulled pins remain; with none left it is `lost`
+  (`lava` if lava blocks the way, else `nogold`). "Touching" an enemy box means inside or 4-adjacent (corners don't count).
+  With no enemies, "all enemies dead" holds. `solve(def)` returns `{wins, losses, wonWithoutPull, nodes}`: a won prefix
+  ends the order (the game ends there), a lost prefix is a losing order.
 - **30 levels**, difficulty rising:
   - 1–5: one or two pins, teach the basics (gold, water, lava, enemy, water+lava);
   - 6–20: 3–4 pins;
@@ -270,12 +276,12 @@ Cell types in a `Uint8Array`:
 - Modify: `web/pins/core.js`
 - Create: `tests/pins/rules.test.js`
 
-- [ ] entities as solid boxes for the automaton; an enemy dies from ≥3 lava cells, a dead enemy frees its box
-- [ ] `status(state)`: an instant loss from lava (`lava`) and from a flood fill connecting a live enemy to the hero (`enemy`); a win after settling with `goldInRoom ≥ goldTarget` and no lava on the way to `exit`; otherwise `nogold`
-- [ ] `stars(state)` by the rules in Technical Details; `solve(def)` (DFS over orders of pin subsets with prefix-snapshot caching)
-- [ ] write tests on small hand-made test levels: an enemy burns in lava; opening the path to a live enemy → `enemy`; lava on the hero → `lava`; gold in the room → win; too little gold → `nogold`; stars 1/2/3
-- [ ] write tests for `solve`: finds the only correct order on a 2-pin test level, finds two solutions where there are two, returns an empty list for an unsolvable level
-- [ ] run tests — must pass before next task
+- [x] entities as solid boxes for the automaton; an enemy dies from ≥3 lava cells, a dead enemy frees its box
+- [x] `status(state)`: an instant loss from lava (`lava`) and from a flood fill connecting a live enemy to the hero (`enemy`); a win after settling with `goldInRoom ≥ goldTarget` and no lava on the way to `exit`; otherwise `nogold`
+- [x] `stars(state)` by the rules in Technical Details; `solve(def)` (DFS over orders of pin subsets with prefix-snapshot caching)
+- [x] write tests on small hand-made test levels: an enemy burns in lava; opening the path to a live enemy → `enemy`; lava on the hero → `lava`; gold in the room → win; too little gold → `nogold`; stars 1/2/3
+- [x] write tests for `solve`: finds the only correct order on a 2-pin test level, finds two solutions where there are two, returns an empty list for an unsolvable level
+- [x] run tests — must pass before next task
 
 ### Task 3: «Тяни штифт» — 30 levels and their verification
 

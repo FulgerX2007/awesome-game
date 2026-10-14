@@ -15,9 +15,13 @@
   // Without it a thin puddle on a flat floor would wander forever and the level would never settle.
   const FLOW = 24;
 
+  const KILL_LAVA = 3;      // an enemy dies when this many lava cells touch its box
+  // Not a grid code: what the automaton sees in a cell covered by a live hero or enemy box (solid).
+  const BODY = 7;
+
   const idx = (x, y) => y * W + x;
   const inside = (x, y) => x >= 0 && x < W && y >= 0 && y < H;
-  const isSolid = (c) => c === WALL || c === PIN || c === STONE;
+  const isSolid = (c) => c === WALL || c === PIN || c === STONE || c === BODY;
 
   // ── Level building ──
   function checkRect(r, what) {
@@ -42,7 +46,9 @@
     const grid = new Uint8Array(W * H);
     const pinId = new Int8Array(W * H).fill(-1);
     const flow = new Uint8Array(W * H);
-    const taken = new Uint8Array(W * H); // cells claimed by entities (they are not cells of the grid)
+    // Cells covered by entities: 0 free, 1 the hero, 2 + k enemy k. Entities are boxes, not grid cells,
+    // but the automaton treats a live entity's box as solid.
+    const body = new Uint8Array(W * H);
 
     (def.walls || []).forEach((r, n) => {
       checkRect(r, `wall ${n}`);
@@ -76,37 +82,40 @@
       });
     });
 
-    const claim = (r, what) => {
+    const claim = (r, what, mark) => {
       checkRect(r, what);
       eachCell(r, (i) => {
-        if (grid[i] !== EMPTY || taken[i]) throw new Error(`${what}: overlaps`);
-        taken[i] = 1;
+        if (grid[i] !== EMPTY || body[i]) throw new Error(`${what}: overlaps`);
+        body[i] = mark;
       });
       return box(r);
     };
-    const hero = def.hero ? claim(def.hero, 'hero') : null;
-    const enemies = (def.enemies || []).map((e, n) => claim(e, `enemy ${n}`));
+    const hero = def.hero ? claim(def.hero, 'hero', 1) : null;
+    const enemies = (def.enemies || []).map((e, n) => ({ ...claim(e, `enemy ${n}`, 2 + n), dead: false }));
     if (def.room) checkRect(def.room, 'room');
     if (def.exit) checkRect(def.exit, 'exit');
 
-    return {
+    const s = {
       tick: 0,
       quiet: 0,      // ticks in a row with no change
       sincePull: 0,  // ticks since the last pull (or the start)
-      grid, pinId, flow, pins, hero, enemies,
+      lost: null,    // latched instant loss: 'lava' | 'enemy'
+      grid, pinId, flow, body, pins, hero, enemies,
       room: def.room ? box(def.room) : null,
       exit: def.exit ? box(def.exit) : null,
       goldTarget: Number.isInteger(def.goldTarget) ? def.goldTarget : 0,
     };
+    checkEntities(s);
+    return s;
   }
 
   function clone(s) {
     return {
-      tick: s.tick, quiet: s.quiet, sincePull: s.sincePull,
-      grid: s.grid.slice(), pinId: s.pinId.slice(), flow: s.flow.slice(),
+      tick: s.tick, quiet: s.quiet, sincePull: s.sincePull, lost: s.lost,
+      grid: s.grid.slice(), pinId: s.pinId.slice(), flow: s.flow.slice(), body: s.body.slice(),
       pins: s.pins.map((p) => ({ ...p })),
       hero: s.hero ? box(s.hero) : null,
-      enemies: s.enemies.map(box),
+      enemies: s.enemies.map((e) => ({ ...e })),
       room: s.room ? box(s.room) : null,
       exit: s.exit ? box(s.exit) : null,
       goldTarget: s.goldTarget,
@@ -127,6 +136,7 @@
     }
     s.quiet = 0;
     s.sincePull = 0;
+    checkEntities(s); // the pulled pin may have opened the way between an enemy and the hero
     return true;
   }
 
@@ -141,7 +151,12 @@
     moved[b] = 1;
   }
 
-  const cell = (s, x, y) => (inside(x, y) ? s.grid[idx(x, y)] : WALL);
+  // What the automaton sees: grid code, BODY for a live entity's box, WALL outside the grid.
+  function cell(s, x, y) {
+    if (!inside(x, y)) return WALL;
+    const i = idx(x, y);
+    return s.body[i] ? BODY : s.grid[i];
+  }
 
   // Water and lava: down → diagonally down (preferred side first) → one cell sideways (preferred side only,
   // while the flow budget lasts). The diagonal step needs the side cell free of solids so nothing leaks
@@ -247,8 +262,69 @@
         }
       }
     }
+    if (changed && checkEntities(s)) changed = true;
     s.quiet = changed ? 0 : s.quiet + 1;
     return changed;
+  }
+
+  // ── Entities ──
+  // Lava cells touching a box: inside it or 4-adjacent to it (the box's ring without the corners).
+  function lavaTouching(s, r) {
+    let n = 0;
+    for (let y = r.y - 1; y <= r.y + r.h; y++) {
+      for (let x = r.x - 1; x <= r.x + r.w; x++) {
+        const outX = x < r.x || x >= r.x + r.w, outY = y < r.y || y >= r.y + r.h;
+        if (outX && outY) continue; // corner: touches diagonally only
+        if (inside(x, y) && s.grid[idx(x, y)] === LAVA) n++;
+      }
+    }
+    return n;
+  }
+
+  const passable = (c) => c === EMPTY || c === WATER || c === GOLD;
+  const queue = new Int16Array(W * H);
+  const seen = new Uint8Array(W * H);
+
+  // Flood fill over passable cells (empty, water, gold) from every live enemy's box: true if it reaches the hero.
+  // Entity boxes are empty in the grid, so they are passable too.
+  function enemyReachesHero(s) {
+    const live = s.enemies.filter((e) => !e.dead);
+    if (!s.hero || live.length === 0) return false;
+    seen.fill(0);
+    let head = 0, tail = 0;
+    for (const e of live) eachCell(e, (i) => { seen[i] = 1; queue[tail++] = i; });
+    while (head < tail) {
+      const i = queue[head++];
+      if (s.body[i] === 1) return true;
+      const x = i % W, y = (i - x) / W;
+      for (const [dx, dy] of NEIGHBOURS) {
+        const nx = x + dx, ny = y + dy;
+        if (!inside(nx, ny)) continue;
+        const j = idx(nx, ny);
+        if (seen[j] || !passable(s.grid[j])) continue;
+        seen[j] = 1;
+        queue[tail++] = j;
+      }
+    }
+    return false;
+  }
+
+  // Kills enemies burnt by lava (their boxes become free) and latches an instant loss: lava touching
+  // the hero, or a live enemy connected to the hero. Returns true if an enemy died (the grid's solids changed).
+  function checkEntities(s) {
+    let died = false;
+    s.enemies.forEach((e, k) => {
+      if (e.dead || lavaTouching(s, e) < KILL_LAVA) return;
+      e.dead = true;
+      died = true;
+      eachCell(e, (i) => { if (s.body[i] === 2 + k) s.body[i] = 0; });
+    });
+    if (died) s.quiet = 0;
+    if (!s.lost && s.hero) {
+      if (lavaTouching(s, s.hero) > 0) s.lost = 'lava';
+      else if (enemyReachesHero(s)) s.lost = 'enemy';
+    }
+    return died;
   }
 
   const settled = (s) => s.quiet >= SETTLE_TICKS || s.sincePull >= MAX_TICKS;
@@ -270,11 +346,84 @@
     return n;
   }
 
-  const cellAt = (s, x, y) => cell(s, x, y);
+  // The grid code of a cell (entities are not cells: a box reads as what lies under it); WALL outside.
+  const cellAt = (s, x, y) => (inside(x, y) ? s.grid[idx(x, y)] : WALL);
+
+  const goldInRoom = (s) => (s.room ? count(s, GOLD, s.room) : 0);
+  const liveEnemies = (s) => s.enemies.filter((e) => !e.dead).length;
+
+  // Lava in the room on the hero's way to the exit: the rows of the hero's box between the hero and the door.
+  function lavaOnWay(s) {
+    if (!s.hero || !s.exit) return false;
+    const h = s.hero, e = s.exit;
+    const x0 = Math.min(h.x, e.x), x1 = Math.max(h.x + h.w, e.x + e.w);
+    for (let y = h.y; y < h.y + h.h; y++) {
+      for (let x = x0; x < x1; x++) {
+        if (s.room && (x < s.room.x || x >= s.room.x + s.room.w || y < s.room.y || y >= s.room.y + s.room.h)) continue;
+        if (inside(x, y) && s.grid[idx(x, y)] === LAVA) return true;
+      }
+    }
+    return false;
+  }
+
+  // { status: 'playing' | 'won' | 'lost', reason: null | 'lava' | 'enemy' | 'nogold' }.
+  // Lava on the hero and an enemy reaching the hero lose at once. Otherwise nothing is decided until the
+  // automaton settles: then enough gold in the room and a lava-free way to the exit win; short of that the
+  // player may still pull a pin, and with no pins left it's a loss ('lava' if lava blocks the way, else 'nogold').
+  function status(s) {
+    if (s.lost) return { status: 'lost', reason: s.lost };
+    if (!settled(s)) return { status: 'playing', reason: null };
+    const blocked = lavaOnWay(s);
+    if (!blocked && goldInRoom(s) >= s.goldTarget) return { status: 'won', reason: null };
+    if (s.pins.some((p) => !p.pulled)) return { status: 'playing', reason: null };
+    return { status: 'lost', reason: blocked ? 'lava' : 'nogold' };
+  }
+
+  // 0 unless won; 3 with every enemy dead and ≥1.5× goldTarget gold, 2 when either holds, otherwise 1.
+  function stars(s) {
+    if (status(s).status !== 'won') return 0;
+    const allDead = liveEnemies(s) === 0;
+    const rich = goldInRoom(s) * 2 >= s.goldTarget * 3;
+    return 1 + (allDead ? 1 : 0) + (rich ? 1 : 0);
+  }
+
+  // Runs until the automaton settles or an instant loss happens (a patient player waits for that).
+  function rest(s) {
+    while (!s.lost && !settled(s)) step(s);
+  }
+
+  // Tries pull orders of every subset of pins (DFS). After each pull the world runs to rest; the snapshot of
+  // each prefix is kept and cloned for its continuations, so a prefix is simulated once. A won prefix is a
+  // winning order (the game ends there), a lost one is a losing order.
+  // Returns { wins: [[ids]], losses: [[ids]], wonWithoutPull, nodes }.
+  function solve(def) {
+    const start = buildLevel(def);
+    rest(start);
+    const res = { wins: [], losses: [], wonWithoutPull: false, nodes: 1 };
+    const st = status(start);
+    if (st.status === 'won') { res.wonWithoutPull = true; return res; }
+    if (st.status === 'lost') { res.losses.push([]); return res; }
+    (function dfs(s, order) {
+      for (const p of s.pins) {
+        if (p.pulled) continue;
+        const next = clone(s);
+        pull(next, p.id);
+        rest(next);
+        res.nodes++;
+        const seq = [...order, p.id];
+        const r = status(next).status;
+        if (r === 'won') res.wins.push(seq);
+        else if (r === 'lost') res.losses.push(seq);
+        else dfs(next, seq);
+      }
+    })(start, []);
+    return res;
+  }
 
   const api = {
-    W, H, EMPTY, WALL, PIN, WATER, LAVA, STONE, GOLD, FILL_TYPES, HANDLES, SETTLE_TICKS, MAX_TICKS, FLOW,
+    W, H, EMPTY, WALL, PIN, WATER, LAVA, STONE, GOLD, FILL_TYPES, HANDLES, SETTLE_TICKS, MAX_TICKS, FLOW, KILL_LAVA,
     idx, buildLevel, clone, pull, step, settled, settle, count, cellAt,
+    goldInRoom, liveEnemies, status, stars, solve,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PinsCore = api;

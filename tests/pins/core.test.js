@@ -58,7 +58,7 @@ test('buildLevel keeps hero, enemies, room, exit and goldTarget', () => {
     goldTarget: 10,
   }));
   assert.deepEqual(s.hero, { x: 3, y: 47, w: 3, h: 5 });
-  assert.deepEqual(s.enemies, [{ x: 20, y: 47, w: 3, h: 5 }]);
+  assert.deepEqual(s.enemies, [{ x: 20, y: 47, w: 3, h: 5, dead: false }]);
   assert.deepEqual(s.room, { x: 1, y: 40, w: 15, h: 13 });
   assert.deepEqual(s.exit, { x: 12, y: 47, w: 3, h: 5 });
   assert.equal(s.goldTarget, 10);
