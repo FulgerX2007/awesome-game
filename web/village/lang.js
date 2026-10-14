@@ -150,8 +150,9 @@ I18n.add({ ro: {
   '{s} с': '{s} s',
   'Хорошо': 'Bine',
   'Начать заново?': 'Începi din nou?',
-  'Всё восстановленное село пропадёт. Облачная копия по коду останется.':
-    'Tot satul refăcut se va pierde. Copia din cloud după cod rămâne.',
+  'Всё восстановленное село пропадёт.': 'Tot satul refăcut se va pierde.',
+  'Всё восстановленное село пропадёт. Облачная копия останется по коду {code} — запиши его, чтобы потом вернуться.':
+    'Tot satul refăcut se va pierde. Copia din cloud rămâne la codul {code} — notează-l ca să te poți întoarce.',
   'Отмена': 'Anulează',
   'Новое село ждёт': 'Un sat nou te așteaptă',
   'Сохранение повреждено — начато новое село': 'Salvarea e deteriorată — a început un sat nou',

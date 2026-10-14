@@ -1916,10 +1916,18 @@
       [{ label: t('Хорошо'), primary: true }]);
   }
 
+  // The new village gets no cloud code: the cloud autosave would otherwise write it over the old village.
+  // The old code is shown once more so the player can write it down and load that village later.
   function resetGame() {
-    modal(t('Начать заново?'), `<p>${esc(t('Всё восстановленное село пропадёт. Облачная копия по коду останется.'))}</p>`, [
+    const body = cloudCode
+      ? t('Всё восстановленное село пропадёт. Облачная копия останется по коду {code} — запиши его, чтобы потом вернуться.', { code: pretty(cloudCode) })
+      : t('Всё восстановленное село пропадёт.');
+    modal(t('Начать заново?'), `<p>${esc(body)}</p>`, [
       { label: t('Отмена') },
-      { label: t('Начать заново'), danger: true, run: () => { replaceState(V.newGame()); save(); toast(t('Новое село ждёт')); } },
+      { label: t('Начать заново'), danger: true, run: () => {
+        store.del(CLOUD_KEY); syncCloudCode(); $('cloud-msg').textContent = '';
+        replaceState(V.newGame()); save(); toast(t('Новое село ждёт'));
+      } },
     ]);
   }
 

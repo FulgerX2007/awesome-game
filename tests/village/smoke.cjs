@@ -433,6 +433,60 @@ async function edgeChecks() {
     check(errors.length === 0, 'no console errors (own state kept)', errors.join('\n'));
     await ctx.close();
   }
+  {
+    // "Начать заново" with a cloud code: the dialog shows the old code, the new village gets no code,
+    // the sped-up cloud autosave never PUTs to the old code, and loading that code brings the old village back.
+    const X = 'qrstuvwxyz234567';
+    const { ctx, page, errors } = await preparedPage(() => {
+      const si = window.setInterval;
+      window.setInterval = (fn, ms, ...rest) => si(fn, Math.max(10, (ms || 0) / 100), ...rest);
+      window.__puts = [];
+      const f = window.fetch;
+      window.__fetch = f;
+      window.fetch = (url, opts) => { if (opts && opts.method === 'PUT') window.__puts.push(String(url)); return f(url, opts); };
+    });
+    // Put an old village (wood 55) under code X and load it through the cloud form.
+    await page.evaluate(async (code) => {
+      const s = window.Village.newGame();
+      s.res.wood = 55;
+      await window.__fetch(`/api/saves/${code}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(window.Village.save(s)),
+      });
+    }, X);
+    await page.click('#btn-settings');
+    await page.fill('#cloud-input', X);
+    await page.press('#cloud-input', 'Enter');
+    await waitFor(() => page.evaluate((c) => window.__puts.some((u) => u.endsWith(`/api/saves/${c}`)), X), 5000);
+    const before = await page.evaluate(() => ({ wood: Number(document.getElementById('r-wood').textContent), code: document.getElementById('cloud-code').textContent }));
+    check(before.wood >= 55 && before.code.replace(/-/g, '') === X, 'the old village is loaded from cloud code X', JSON.stringify(before));
+    if (await page.isHidden('#panel-settings')) await page.click('#btn-settings');
+    await page.click('#btn-reset');
+    const dialog = await modalText(page);
+    check(dialog.includes(before.code), 'the reset dialog shows the cloud code to write down', JSON.stringify(dialog));
+    await page.click('#modal-actions .danger');
+    const mark = await page.evaluate(() => window.__puts.length);
+    await sleep(1500);
+    const after = await page.evaluate(async ({ mark, code }) => {
+      const res = await window.__fetch(`/api/saves/${code}`);
+      return {
+        puts: window.__puts.slice(mark),
+        shown: document.getElementById('cloud-code').textContent,
+        stored: localStorage.getItem('village.cloud'),
+        wood: Number(document.getElementById('r-wood').textContent),
+        cloudWood: (await res.json()).res.wood,
+      };
+    }, { mark, code: X });
+    check(after.puts.length === 0, 'after a reset no cloud PUTs go to the old code', JSON.stringify(after));
+    check(after.shown === '' && !after.stored && after.wood < 55, 'after a reset the cloud code is cleared and the village is new', JSON.stringify(after));
+    check(after.cloudWood >= 55, 'the cloud copy under the old code is untouched by the reset', JSON.stringify(after));
+    if (await page.isHidden('#panel-settings')) await page.click('#btn-settings');
+    await page.fill('#cloud-input', X);
+    await page.press('#cloud-input', 'Enter');
+    const back = await waitFor(() => page.evaluate(() => Number(document.getElementById('r-wood').textContent) >= 55), 5000);
+    check(back, 'loading the old code after a reset restores the old village');
+    check(errors.length === 0, 'no console errors (reset with cloud code)', errors.join('\n'));
+    await ctx.close();
+  }
 }
 
 async function main() {
