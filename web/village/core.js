@@ -268,7 +268,7 @@
     return {
       v: VERSION, seed, rng: R.state(),
       t: 0,
-      player: { x: START.x + 0.5, y: START.y + 0.5, target: null, path: null, cd: 0 },
+      player: { x: START.x + 0.5, y: START.y + 0.5, target: null, path: null, cd: 0, dir: null },
       events: [],
       res: zeroRes(),
       tools: freshTools(),
@@ -283,18 +283,344 @@
     };
   }
 
+  const bridgeOpen = (s) => !!(s.built.bridge && s.built.bridge.done);
+
   // Walkable for the player: in the map, not water, not a ruin or building, not a standing node.
   // The bridge site is water until the bridge is restored.
   function isWalkable(s, x, y) {
     x = Math.floor(x); y = Math.floor(y);
     const c = tileAt(x, y);
-    if (c === null || !groundWalkable(c, !!(s && s.built.bridge && s.built.bridge.done))) return false;
+    if (c === null || !groundWalkable(c, !!s && bridgeOpen(s))) return false;
     const n = s ? nodeAt(s, x, y) : null;
     return !(n && n.hp > 0);
   }
 
+  function canAfford(s, cost) {
+    for (const [r, n] of Object.entries(cost || {})) if (!((s.res[r] || 0) >= n)) return false;
+    return true;
+  }
+
+  // ── Pathfinding ──
+  // A* on the 4-neighbour grid. isGoal(x, y) ends the search, h(x, y) is an admissible estimate.
+  // Returns the tiles from start to goal inclusive, or null when no goal is reachable.
+  const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  function astar(s, from, isGoal, h) {
+    const sx = Math.floor(from.x), sy = Math.floor(from.y);
+    if (!inMap(sx, sy)) return null;
+    const g = new Float64Array(W * H).fill(Infinity);
+    const prev = new Int32Array(W * H).fill(-1);
+    const closed = new Uint8Array(W * H);
+    // Binary heap of [f, tie, index]; tie keeps the order stable between equal f values.
+    const heap = [];
+    let tie = 0;
+    const push = (f, i) => {
+      heap.push([f, tie++, i]);
+      for (let k = heap.length - 1; k > 0;) {
+        const p = (k - 1) >> 1;
+        if (less(heap[p], heap[k])) break;
+        [heap[p], heap[k]] = [heap[k], heap[p]];
+        k = p;
+      }
+    };
+    const less = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
+    const pop = () => {
+      const top = heap[0];
+      const last = heap.pop();
+      if (heap.length) {
+        heap[0] = last;
+        for (let k = 0; ;) {
+          const l = 2 * k + 1, r = l + 1;
+          let m = k;
+          if (l < heap.length && less(heap[l], heap[m])) m = l;
+          if (r < heap.length && less(heap[r], heap[m])) m = r;
+          if (m === k) break;
+          [heap[m], heap[k]] = [heap[k], heap[m]];
+          k = m;
+        }
+      }
+      return top;
+    };
+    const start = idx(sx, sy);
+    g[start] = 0;
+    push(h(sx, sy), start);
+    while (heap.length) {
+      const i = pop()[2];
+      if (closed[i]) continue;
+      closed[i] = 1;
+      const x = i % W, y = (i - x) / W;
+      if (isGoal(x, y)) {
+        const path = [];
+        for (let k = i; k !== -1; k = prev[k]) path.push({ x: k % W, y: Math.floor(k / W) });
+        return path.reverse();
+      }
+      for (const [dx, dy] of DIRS4) {
+        const nx = x + dx, ny = y + dy;
+        if (!isWalkable(s, nx, ny)) continue;
+        const j = idx(nx, ny);
+        if (closed[j] || g[i] + 1 >= g[j]) continue;
+        g[j] = g[i] + 1;
+        prev[j] = i;
+        push(g[j] + h(nx, ny), j);
+      }
+    }
+    return null;
+  }
+
+  // Shortest walkable path between two tiles (both inclusive), null when unreachable.
+  function findPath(s, from, to) {
+    const tx = Math.floor(to.x), ty = Math.floor(to.y);
+    if (!isWalkable(s, tx, ty)) return null;
+    return astar(s, from, (x, y) => x === tx && y === ty, (x, y) => Math.abs(x - tx) + Math.abs(y - ty));
+  }
+
+  // Shortest path to any walkable tile next to one of the given tiles (a node or a ruin footprint).
+  function pathNextTo(s, from, tiles) {
+    const set = new Set(tiles.map((t) => idx(t.x, t.y)));
+    const isGoal = (x, y) => DIRS4.some(([dx, dy]) => inMap(x + dx, y + dy) && set.has(idx(x + dx, y + dy)));
+    const h = (x, y) => {
+      let best = Infinity;
+      for (const t of tiles) best = Math.min(best, Math.abs(x - t.x) + Math.abs(y - t.y) - 1);
+      return Math.max(0, best);
+    };
+    return astar(s, from, isGoal, h);
+  }
+
+  // ── Movement ──
+  const SPEED = 4;         // tiles per second
+  const RADIUS = 0.3;      // half-size of the player's collision box
+  const MAX_DT = 0.05;     // step() splits longer intervals into chunks of this size
+  const NEAR_NODE = 1.5;   // the player hits a node when its centre is this close to the node's centre
+
+  // The player's box at (x, y) overlaps only walkable tiles.
+  function fits(s, x, y) {
+    for (const cy of [y - RADIUS, y + RADIUS]) for (const cx of [x - RADIUS, x + RADIUS]) {
+      if (!isWalkable(s, cx, cy)) return false;
+    }
+    return true;
+  }
+
+  // The player's box overlaps tile (tx, ty).
+  function playerOn(s, tx, ty) {
+    const p = s.player;
+    return p.x + RADIUS > tx && p.x - RADIUS < tx + 1 && p.y + RADIUS > ty && p.y - RADIUS < ty + 1;
+  }
+
+  function clearOrder(p) {
+    p.target = null;
+    p.path = null;
+  }
+
+  // Keyboard movement: a direction held by the player (0, 0 stops). Any non-zero direction cancels an order.
+  function moveDir(s, dx, dy) {
+    const p = s.player;
+    dx = Math.sign(dx) || 0; dy = Math.sign(dy) || 0;
+    if (dx || dy) clearOrder(p);
+    p.dir = dx || dy ? { x: dx, y: dy } : null;
+  }
+
+  // Walk to a tile along an A* path. Returns false (and keeps the current order) when it can't be reached.
+  function goTo(s, x, y) {
+    const p = s.player;
+    const path = findPath(s, p, { x, y });
+    if (!path) return false;
+    clearOrder(p);
+    p.dir = null;
+    p.path = path;
+    return true;
+  }
+
+  // Click or tap on a tile: a standing node → walk up and gather; a ruin → walk up (the client opens the panel
+  // on the 'ruin' event); a walkable tile → walk there. Returns 'gather' | 'ruin' | 'walk' | 'tool' | 'none'.
+  function interact(s, x, y) {
+    x = Math.floor(x); y = Math.floor(y);
+    const p = s.player;
+    const n = nodeAt(s, x, y);
+    if (n && n.hp > 0) {
+      if (!s.tools[NODE_KINDS[n.kind].tool]) return 'tool';
+      const path = pathNextTo(s, p, [n]);
+      if (!path) return 'none';
+      clearOrder(p);
+      p.dir = null;
+      p.target = { type: 'node', id: n.id };
+      p.path = path;
+      return 'gather';
+    }
+    const ruin = RUIN_CH[tileAt(x, y)];
+    if (ruin) {
+      const path = pathNextTo(s, p, FOOTPRINTS[ruin]);
+      if (!path) return 'none';
+      clearOrder(p);
+      p.dir = null;
+      p.target = { type: 'ruin', id: ruin };
+      p.path = path;
+      return 'ruin';
+    }
+    return goTo(s, x, y) ? 'walk' : 'none';
+  }
+
+  // Free movement by keys with sliding: each axis is tried on its own, so the player glides along walls.
+  function moveFree(s, dt) {
+    const p = s.player;
+    let { x: dx, y: dy } = p.dir;
+    const len = Math.hypot(dx, dy);
+    const d = (SPEED * dt) / len;
+    dx *= d; dy *= d;
+    if (fits(s, p.x + dx, p.y)) p.x += dx;
+    if (fits(s, p.x, p.y + dy)) p.y += dy;
+  }
+
+  // Follow the path through tile centres. A tile that became blocked (a regrown node) triggers a new path.
+  function followPath(s, dt) {
+    const p = s.player;
+    let left = SPEED * dt;
+    let repathed = false;
+    while (p.path && p.path.length && left > 0) {
+      const w = p.path[0];
+      if (!isWalkable(s, w.x, w.y)) {
+        if (repathed) { clearOrder(p); break; }
+        repathed = true;
+        repath(s);
+        continue;
+      }
+      const cx = w.x + 0.5, cy = w.y + 0.5;
+      const dist = Math.hypot(cx - p.x, cy - p.y);
+      if (dist <= left) {
+        p.x = cx; p.y = cy;
+        left -= dist;
+        p.path.shift();
+      } else {
+        p.x += ((cx - p.x) / dist) * left;
+        p.y += ((cy - p.y) / dist) * left;
+        left = 0;
+      }
+    }
+    if (p.path && !p.path.length) p.path = null;
+  }
+
+  function repath(s) {
+    const p = s.player;
+    const t = p.target;
+    let path = null;
+    if (t && t.type === 'node') path = pathNextTo(s, p, [s.nodes[t.id]]);
+    else if (t && t.type === 'ruin') path = pathNextTo(s, p, FOOTPRINTS[t.id]);
+    else if (p.path && p.path.length) path = findPath(s, p, p.path[p.path.length - 1]);
+    if (path) p.path = path;
+    else clearOrder(p);
+  }
+
+  // ── Gathering ──
+  function gatherTick(s) {
+    const p = s.player;
+    const n = s.nodes[p.target.id];
+    if (!n || n.hp <= 0) { clearOrder(p); return; }
+    if (Math.hypot(n.x + 0.5 - p.x, n.y + 0.5 - p.y) > NEAR_NODE) { repath(s); return; }
+    if (p.cd > 0) return;
+    const kind = NODE_KINDS[n.kind];
+    const level = s.tools[kind.tool];
+    if (!level) { clearOrder(p); return; }
+    const gain = TOOL_YIELD[level];
+    n.hp--;
+    s.res[kind.res] += gain;
+    s.stats.gathered[kind.res] += gain;
+    p.cd = TOOL_CD[level];
+    s.events.push({ type: 'hit', kind: n.kind, res: kind.res, gain, id: n.id, x: n.x, y: n.y });
+    if (n.hp === 0) {
+      const [lo, hi] = kind.regrow;
+      n.regrowAt = s.t + lo + rand(s) * (hi - lo);
+      noteRegrow(s, n.regrowAt);
+      s.events.push({ type: 'deplete', kind: n.kind, id: n.id, x: n.x, y: n.y });
+      clearOrder(p);
+    }
+  }
+
+  // ── Regrowth ──
+  // The earliest regrowAt among empty nodes, cached per state object (not saved). step() only scans
+  // the nodes when that moment has come, so a normal step costs O(1).
+  const regrowCache = new WeakMap();
+  const REGROW_RETRY = 2; // seconds to wait when the player stands on an empty node
+
+  function nextRegrow(s) {
+    if (!regrowCache.has(s)) {
+      let m = Infinity;
+      for (const n of s.nodes) if (n.hp <= 0 && n.regrowAt !== null && n.regrowAt < m) m = n.regrowAt;
+      regrowCache.set(s, m);
+    }
+    return regrowCache.get(s);
+  }
+
+  function noteRegrow(s, at) {
+    if (at < nextRegrow(s)) regrowCache.set(s, at);
+  }
+
+  function regrow(s) {
+    if (nextRegrow(s) > s.t) return;
+    let m = Infinity;
+    for (const n of s.nodes) {
+      if (n.hp > 0 || n.regrowAt === null) continue;
+      if (n.regrowAt <= s.t) {
+        if (playerOn(s, n.x, n.y)) n.regrowAt = s.t + REGROW_RETRY;
+        else {
+          n.hp = NODE_KINDS[n.kind].hp;
+          n.regrowAt = null;
+          s.events.push({ type: 'regrow', kind: n.kind, id: n.id, x: n.x, y: n.y });
+          continue;
+        }
+      }
+      if (n.regrowAt < m) m = n.regrowAt;
+    }
+    regrowCache.set(s, m);
+  }
+
+  // ── Step ──
+  // Advance the world by dt seconds (split into chunks of at most MAX_DT).
+  function step(s, dt) {
+    if (!(dt > 0)) return;
+    while (dt > 1e-9) {
+      const h = Math.min(dt, MAX_DT);
+      tick(s, h);
+      dt -= h;
+    }
+  }
+
+  function tick(s, dt) {
+    const p = s.player;
+    s.t += dt;
+    s.stats.playTime += dt;
+    p.cd = Math.max(0, (p.cd || 0) - dt);
+    regrow(s);
+    if (p.dir) moveFree(s, dt);
+    else if (p.path) followPath(s, dt);
+    if (!p.path && p.target) {
+      if (p.target.type === 'node') gatherTick(s);
+      else if (p.target.type === 'ruin') {
+        s.events.push({ type: 'ruin', id: p.target.id });
+        p.target = null;
+      }
+    }
+  }
+
+  // ── Tools ──
+  // Returns 'ok' | 'cost' (not enough resources) | 'locked' (needs home/bridge/forge) | 'max' | 'unknown'.
+  function upgradeTool(s, tool) {
+    const t = TOOLS[tool];
+    if (!t) return 'unknown';
+    const level = s.tools[tool];
+    if (level >= MAX_TOOL) return 'max';
+    // Level 0 means the tool hasn't been found yet (the shovel comes with the bridge).
+    if (level < 1) return 'locked';
+    const next = level + 1;
+    const need = TOOL_NEEDS[next];
+    if (need && !s.built[need].done) return 'locked';
+    const cost = t.costs[next];
+    if (!canAfford(s, cost)) return 'cost';
+    for (const [r, n] of Object.entries(cost)) s.res[r] -= n;
+    s.tools[tool] = next;
+    s.events.push({ type: 'tool', tool, level: next });
+    return 'ok';
+  }
+
   // ── Save / load ──
-  const TRANSIENT_PLAYER = ['target', 'path', 'cd'];
+  const TRANSIENT_PLAYER = ['target', 'path', 'cd', 'dir'];
 
   // Plain JSON object without transient fields (events, the player's order and cooldown).
   function save(s) {
@@ -405,8 +731,9 @@
   const api = {
     VERSION, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES,
-    MAP, W, H, START, FOOTPRINTS,
-    rng, rand, tileAt, zoneAt, nodeAt, newGame, isWalkable, save, load,
+    MAP, W, H, START, FOOTPRINTS, SPEED,
+    rng, rand, tileAt, zoneAt, nodeAt, newGame, isWalkable, canAfford, findPath,
+    step, moveDir, goTo, interact, upgradeTool, save, load,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Village = api;

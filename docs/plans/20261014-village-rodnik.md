@@ -224,13 +224,13 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 - Modify: `web/village/core.js`
 - Create: `tests/village/gather.test.js`
 
-- [ ] implement `step(s, dt)` with smooth movement: `moveDir` (velocity, sliding collisions along walls) and `goTo` following an A* path from `findPath`
-- [ ] implement `interact(s, x, y)`: on a node, walk to an adjacent tile and hit on a cooldown until the node is empty; any new order cancels gathering
-- [ ] implement yield and cooldown by tool level, node depletion and regrowth after 90–180 s (not under the player, check `regrowAt <= t` with no full scan every step), stats `stats.gathered`, events `hit`/`deplete`/`regrow` in `s.events`
-- [ ] implement `upgradeTool(s, tool)` with costs from the `TOOLS` table, dependencies (home, bridge, forge — in tests set by `s.built.<id>.done = true` directly) and return codes `ok`/`cost`/`locked`/`max`, event `tool`
-- [ ] write tests: A* finds the shortest path and returns `null` for unreachable targets (east bank before the bridge); walking up and gathering a tree adds the right amount of wood
-- [ ] write tests: regrowth by timer, no regrowth under the player, every zone stays reachable after forced regrowth of all nodes, events after a hit/depletion, upgrade costs and errors (not enough resources, locked, max level)
-- [ ] run `node --test 'tests/**/*.test.js'` — must pass before task 3
+- [x] implement `step(s, dt)` with smooth movement: `moveDir` (velocity, sliding collisions along walls) and `goTo` following an A* path from `findPath`
+- [x] implement `interact(s, x, y)`: on a node, walk to an adjacent tile and hit on a cooldown until the node is empty; any new order cancels gathering
+- [x] implement yield and cooldown by tool level, node depletion and regrowth after 90–180 s (not under the player, check `regrowAt <= t` with no full scan every step), stats `stats.gathered`, events `hit`/`deplete`/`regrow` in `s.events`
+- [x] implement `upgradeTool(s, tool)` with costs from the `TOOLS` table, dependencies (home, bridge, forge — in tests set by `s.built.<id>.done = true` directly) and return codes `ok`/`cost`/`locked`/`max`, event `tool`
+- [x] write tests: A* finds the shortest path and returns `null` for unreachable targets (east bank before the bridge); walking up and gathering a tree adds the right amount of wood
+- [x] write tests: regrowth by timer, no regrowth under the player, every zone stays reachable after forced regrowth of all nodes, events after a hit/depletion, upgrade costs and errors (not enough resources, locked, max level)
+- [x] run `node --test 'tests/**/*.test.js'` — must pass before task 3
 
 ### Task 3: Restoration, villagers, workshops and offline
 
