@@ -355,10 +355,10 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 - [x] verify every public function of `core.js` is covered by tests
 
 ### Task 11: [Final] Update documentation
-- [ ] add a `## Родник (/village/)` section to `README.md` in the style of the others: what it is, controls, saves, the rules in `core.js` and the bot's results
-- [ ] update the first line of `README.md` (game count: twelve), the `Запуск` section (the `node --test 'tests/**/*.test.js'` command) and the «Готовый образ» list (CI runs JS tests too)
-- [ ] update `docs/roadmap.md`: «Родник» is out (the list stays empty)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] add a `## Родник (/village/)` section to `README.md` in the style of the others: what it is, controls, saves, the rules in `core.js` and the bot's results
+- [x] update the first line of `README.md` (game count: twelve), the `Запуск` section (the `node --test 'tests/**/*.test.js'` command) and the «Готовый образ» list (CI runs JS tests too)
+- [x] update `docs/roadmap.md`: «Родник» is out (the list stays empty)
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases finish)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
