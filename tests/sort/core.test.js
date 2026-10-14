@@ -294,3 +294,12 @@ test('replay rejects bad input', () => {
   assert.equal(S.replay(lvl([[R, G, R, G], [G, R, G, R], []]), ['tube', 'tube']), null, 'the spare tube only once');
   assert.ok(S.replay(lvl([[R, G, R, G], [G, R, G, R], []]), [[0, 2]]));
 });
+
+test('pathOf lists the history as saved steps', () => {
+  const g = S.newGame(lvl([[R, G, B, B], [G, R, R, G], [R, B, G, B], [], []]));
+  assert.deepEqual(S.pathOf(g), []);
+  S.pour(g, 0, 3);
+  S.addTube(g);
+  S.pour(g, 2, 3);
+  assert.deepEqual(S.pathOf(g), [[0, 3], S.TUBE, [2, 3]]);
+});

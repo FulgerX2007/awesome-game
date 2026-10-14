@@ -706,16 +706,28 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - [x] run `node --test`, `go vet ./... && go test ./...`, the castle smoke, and re-run all ad-game smokes — must pass before next task
 
 ### Task 10: Verify acceptance criteria
-- [ ] verify every requirement from the Overview in both games: menu, levels or modes, progress saving, sound toggle, RU/RO, phone control, offline play, leaderboard best effort
-- [ ] verify edge cases:
+- [x] verify every requirement from the Overview in both games: menu, levels or modes, progress saving, sound toggle, RU/RO, phone control, offline play, leaderboard best effort
+- [x] verify edge cases:
   - broken or blocked `localStorage`;
   - reload mid-level (sort) and mid-wave (castle);
   - 360 px and 320 px screens;
   - switching language on every screen;
   - leaderboard request failing (server returns 500, or no network)
-- [ ] run full test suite: `node --test 'tests/**/*.test.js'` and `go vet ./... && go test ./...`
-- [ ] run the e2e smoke of every ad game: `NODE_PATH=/opt/node22/lib/node_modules node tests/{pins,rush,parking,sort,castle}/smoke.cjs`
-- [ ] verify every export of the new `core.js`/`view.js`/`audio.js` is exercised by tests (name grep plus a call-recording hook, as in the previous plan)
+- [x] run full test suite: `node --test 'tests/**/*.test.js'` and `go vet ./... && go test ./...`
+- [x] run the e2e smoke of every ad game: `NODE_PATH=/opt/node22/lib/node_modules node tests/{pins,rush,parking,sort,castle}/smoke.cjs`
+- [x] verify every export of the new `core.js`/`view.js`/`audio.js` is exercised by tests (name grep plus a call-recording hook, as in the previous plan)
+- ➕ Verified in Chromium (a scratch script, not committed): 21 edge checks pass.
+  - Broken or blocked storage in both games.
+  - Reloads:
+    - sort, mid-level: resumes the level (covered by the smoke);
+    - castle, mid-wave: restarts the wave from its start.
+  - No horizontal scroll at 320 px.
+  - The RO switch on every screen leaves no Russian text and no errors.
+  - Castle's leaderboard returning 500 or failing to connect:
+    - shows a quiet note and lets the player retry;
+    - the game goes on.
+- ➕ Coverage: 84 exports of the six new modules are all called while `node --test` runs (call-recording hook).
+  Tests were added for `sort.pathOf` and `castle.clamp` / `rand` / `status`.
 
 ### Task 11: [Final] Update documentation
 - [ ] `README.md`:

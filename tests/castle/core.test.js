@@ -303,3 +303,20 @@ test('helpers: segment-box entry and descent angle', () => {
   near(C.descent(1, 1), -45, 1e-9);
   assert.throws(() => C.spawn(C.newRun(), 'dragon'));
 });
+
+test('status, clamp and the run generator', () => {
+  const run = C.newRun('campaign', 9);
+  assert.equal(C.status(run), 'ready');
+  C.startWave(run, []);
+  assert.equal(C.status(run), 'wave');
+  assert.equal(C.clamp(5, 0, 3), 3);
+  assert.equal(C.clamp(-5, 0, 3), 0);
+  assert.equal(C.clamp(2, 0, 3), 2);
+  // rand advances the run's own state: the same seed gives the same sequence, and it stays in [0, 1)
+  const a = C.newRun('campaign', 77), b = C.newRun('campaign', 77);
+  const xs = Array.from({ length: 50 }, () => C.rand(a));
+  assert.deepEqual(xs, Array.from({ length: 50 }, () => C.rand(b)));
+  assert.ok(xs.every((x) => x >= 0 && x < 1));
+  assert.notEqual(a.rng, 77, 'the state moved on');
+  assert.ok(new Set(xs).size > 45);
+});
