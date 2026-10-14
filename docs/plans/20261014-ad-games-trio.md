@@ -413,11 +413,11 @@ Cell types in a `Uint8Array`:
 - Modify: `web/index.html`
 - Modify: `main_test.go`
 
-- [ ] `audio.js`: gate (pitch depends on good/bad), hit, battle, coins, win/loss, the toggle in `rush.audio`
-- [ ] hub card (`--rush`), RO string, `/rush/*` paths in `main_test.go`
-- [ ] `audio.test.js` and `build.test.js` (scripts exist, no external URLs, RO translations for all `t(` strings)
-- [ ] `tests/rush/smoke.cjs`: menu → level 1, hold → (keyboard) for a few seconds, wait for the finish, check the result screen, `rush.save`, no console errors, RO
-- [ ] run `node --test`, `go test ./...`, the smoke — must pass before next task
+- [x] `audio.js`: gate (pitch depends on good/bad), hit, battle, coins, win/loss, the toggle in `rush.audio`
+- [x] hub card (`--rush`), RO string, `/rush/*` paths in `main_test.go`
+- [x] `audio.test.js` and `build.test.js` (scripts exist, no external URLs, RO translations for all `t(` strings)
+- [x] `tests/rush/smoke.cjs`: menu → level 1, hold → (keyboard) for a few seconds, wait for the finish, check the result screen, `rush.save`, no console errors, RO
+- [x] run `node --test`, `go test ./...`, the smoke — must pass before next task
 
 ### Task 10: «Тесная парковка» — rules, parsing and BFS solver
 
