@@ -370,19 +370,19 @@ The whole run of same-coloured top layers of A moves, as many as fit in B. One p
 - Create: `tests/sort/core.test.js`
 - Create: `tests/sort/solver.test.js`
 
-- [ ] UMD `root.SortCore`:
+- [x] UMD `root.SortCore`:
   - `parseLevel(def)` with validation: equal counts per colour, `cap` 3–6, layers fit;
   - `newGame(level)`, `canPour`, `pour` (moves the whole same-coloured top run as far as it fits);
   - `undo`, `addTube` (once per level, undoable while the tube is empty);
   - `status` (`playing` / `won` / `stuck`), `stars(state)`.
-- [ ] progress helpers like parking:
+- [x] progress helpers like parking:
   - `loadProgress` / `saveProgress` (tolerant of broken JSON and blocked storage), `recordStars`, `unlocked`, `firstUnfinished`;
   - `currentOf` / `resume` for the level in progress.
-- [ ] `solve(level, {maxStates})`: A* over canonical states with the pruning rules from Technical Details.
+- [x] `solve(level, {maxStates})`: A* over canonical states with the pruning rules from Technical Details.
   It returns `{moves, path}`, or `null` when the level is unsolvable or the search goes over `maxStates`.
   - The canonical key is only for the visited set.
   - `path` is a list of `[from, to]` real tube indices that replays on `newGame(level)` without remapping.
-- [ ] write tests for the rules:
+- [x] write tests for the rules:
   - partial pours;
   - pouring a whole run;
   - pouring onto a different colour or into a full tube is refused;
@@ -391,13 +391,13 @@ The whole run of same-coloured top layers of A moves, as many as fit in B. One p
   - stars at the boundaries;
   - progress load/save with broken data;
   - `currentOf` / `resume`.
-- [ ] write tests for the solver:
+- [x] write tests for the solver:
   - hand-checked small boards with known optima, verified by brute force;
   - an unsolvable board gives `null`;
   - the returned path replays to a win;
   - the path replays from `newGame(level)` using real indices;
   - a 9 × 5 test board finishes under the default `maxStates`.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 2: «Цветные колбы» — generator and 60 levels
 
