@@ -626,12 +626,12 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - Create: `web/castle/lang.js`
 - Create: `tests/castle/view.test.js`
 
-- [ ] `view.js` (UMD):
+- [x] `view.js` (UMD):
   - `fit(viewport)` maps world metres to pixels; the whole field 0–60 m is visible on a phone held landscape or portrait;
   - `aimFromDrag(dx, dy)` gives angle and power from the drag vector relative to where the touch started, like a slingshot (pull back to shoot forward);
   - `trajectory(...)` gives the preview points;
   - number formatting.
-- [ ] `game.js` drawing:
+- [x] `game.js` drawing:
   - sky with a day-to-dusk gradient by wave, distant hills, ground;
   - a stone wall with battlements and cracks by HP stage;
   - the archer with the bow drawing back;
@@ -640,10 +640,10 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
   - enemy walk and attack animations with hit flashes;
   - the shield spark on a shallow hit, fire, death puffs;
   - floating damage numbers and screen shake when the wall is hit.
-- [ ] input:
+- [x] input:
   - pointer down anywhere starts aiming and firing; the drag sets angle and power; firing follows the rule in Technical Details > Firing (first arrow after the current cooldown, release stops and fires nothing extra);
   - keyboard: ←/→ angle, ↑/↓ power, Space fire/hold, P pause, Esc menu.
-- [ ] screens:
+- [x] screens:
   - menu: «Кампания» (continue from saved wave), «Бесконечный режим», records, sound, RU/RO;
   - between waves: 3 upgrade cards plus shop;
   - HUD: wave, wall HP bar, gold, ward charges;
@@ -651,13 +651,17 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 
   Progress is saved the moment it is earned. Snapshots follow Technical Details > Run and save.
   Starting a new run while one is saved asks before overwriting it.
-- [ ] `lang.js` with RO; `index.html` with no external URLs.
-- [ ] write `view.test.js`:
+- [x] `lang.js` with RO; `index.html` with no external URLs.
+- [x] write `view.test.js`:
   - `fit` keeps the field visible at 360×640, 640×360 and 1280×800;
   - `aimFromDrag` clamps;
   - `trajectory` matches `CastleCore`'s flight;
   - formatting.
-- [ ] run tests — must pass before next task
+- ➕ Found while checking screenshots:
+  - the field is capped at 0.62 of its width (`MAX_ASPECT`), so a portrait phone gets a centred band instead of a tower of sky;
+  - aiming listens on the whole stage, so the empty space around the band works as a pull area;
+  - wave 1 on a portrait phone tips to rotate the phone.
+- [x] run tests — must pass before next task
 
 ### Task 9: «Последняя крепость» — leaderboard, sound, hub registration, offline check, smoke
 
