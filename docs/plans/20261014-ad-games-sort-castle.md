@@ -482,23 +482,23 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - Modify: `tests/rush/build.test.js`
 - Modify: `tests/parking/build.test.js`
 
-- [ ] `audio.js` (`window.SortAudio`): lift, pour (`{layers}`), complete, win, stuck; the toggle is in `sort.audio`. Load it before `game.js`.
-- [ ] hub card (`--sort`, RU text plus RO string), placed first. The hub order becomes `sort, parking, rush, pins`. Add the `/sort/*` paths to `main_test.go`.
+- [x] `audio.js` (`window.SortAudio`): lift, pour (`{layers}`), complete, win, stuck; the toggle is in `sort.audio`. Load it before `game.js`.
+- [x] hub card (`--sort`, RU text plus RO string), placed first. The hub order becomes `sort, parking, rush, pins`. Add the `/sort/*` paths to `main_test.go`.
   Update the card-order assertions in `tests/{rush,parking}/build.test.js` (for example `slice(0, 4)`), and rename the parking test title «first among the ad games».
-- [ ] write `audio.test.js` and `build.test.js`:
+- [x] write `audio.test.js` and `build.test.js`:
   - scripts exist and load in order;
   - no external URLs;
   - RO for every Russian string, with matching `{…}` placeholders;
   - hub card and its order;
   - `main_test.go` paths.
-- [ ] write `tests/sort/smoke.cjs`:
+- [x] write `tests/sort/smoke.cjs`:
   - menu → level 1;
   - solve it by tapping along the level's stored `solution`;
   - check 3★ in the UI and in `sort.progress`;
   - undo mid-level, spare tube on level 2;
   - reload mid-level restores the board;
   - RO on a 360 px phone, no console errors, no external requests.
-- [ ] run `node --test`, `go test ./...`, the sort smoke, and re-run the pins/rush/parking smokes (the hub changed) — must pass before next task
+- [x] run `node --test`, `go test ./...`, the sort smoke, and re-run the pins/rush/parking smokes (the hub changed) — must pass before next task
 
 ### Task 5: «Последняя крепость» — world, arrows, enemies and wall in core.js
 

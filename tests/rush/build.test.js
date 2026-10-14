@@ -114,7 +114,7 @@ test('the hub has the «Числовой забег» card with its colour and R
   assert.match(hub, new RegExp(`'${esc(card[2])}': '[^']+'`), 'the description has a RO string');
   const order = [...hub.matchAll(/<a href="([a-z]+)\/"/g)].map((m) => m[1]);
   // The ad games sit together at the top, newest first: «Тесная парковка» went in front of this one.
-  assert.deepEqual(order.slice(0, 3), ['parking', 'rush', 'pins'], 'the ad games come first');
+  assert.deepEqual(order.slice(0, 4), ['sort', 'parking', 'rush', 'pins'], 'the ad games come first');
 });
 
 test('main_test.go serves every rush file', () => {
