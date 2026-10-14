@@ -11,14 +11,19 @@ WORKDIR /src
 COPY go.mod ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o /out/awesome-game . \
- && mkdir -p /out/data
+# Assemble the whole runtime filesystem here, so the final image is a single layer.
+# The server makes no outbound TLS calls and uses no time zones, so it needs no CA bundle or tzdata.
+RUN mkdir -p /rootfs/etc /rootfs/data \
+ && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o /rootfs/awesome-game . \
+ && echo 'nonroot:x:65532:65532:nonroot:/data:/sbin/nologin' > /rootfs/etc/passwd \
+ && echo 'nonroot:x:65532:' > /rootfs/etc/group \
+ && chown 65532:65532 /rootfs/data
 
-# Minimal runtime: no shell, no package manager, runs as an unprivileged user.
-FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=build /out/awesome-game /awesome-game
-COPY --from=build --chown=nonroot:nonroot /out/data /data
+# Minimal runtime: one layer, no shell, no package manager, runs as an unprivileged user (uid 65532).
+FROM scratch
+COPY --from=build /rootfs /
+USER 65532:65532
 VOLUME /data
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
