@@ -556,23 +556,23 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - Modify: `web/castle/core.js`
 - Create: `tests/castle/waves.test.js`
 
-- [ ] waves:
+- [x] waves:
   - `waveDef(n, seed)`: teaching waves 1–3, a growing budget, unlocking of enemy types, boss every 10th wave;
   - at most 40 enemies per wave, with the extra budget becoming an HP/speed multiplier;
   - campaign end at 30, endless with no end;
   - `startWave`, wave clear and the no-damage bonus; the ward refills at each wave start.
-- [ ] upgrades and shop:
+- [x] upgrades and shop:
   - `offerUpgrades(run)` draws 3 different ones from the run's seeded rng and never offers capped ones;
   - `chooseUpgrade` applies one: additive stacking with the caps from Technical Details;
   - `buy(run, 'repair'|'fortify')` with the start prices and growth from Technical Details;
   - refusals: no gold, wall already full for repair, unknown item.
-- [ ] save and score:
+- [x] save and score:
   - `castle.save` helpers `loadSave` / `storeSave` / `recordRun`, tolerant of broken data;
   - one `current` run of either mode;
   - `snapshot` / `restore` at wave start, at wave clear (with the drawn offer and rng state) and after each pick or purchase;
   - `campaignBest` updated at wave clear;
   - `score(run) = kills·10 + (wave − 1)·100`.
-- [ ] write `waves.test.js`:
+- [x] write `waves.test.js`:
   - `waveDef` is deterministic, its budget grows, and the enemy count cap holds;
   - teaching waves have the enemy types they are meant to teach;
   - boss waves; upgrade offers are distinct, seeded and respect caps;
@@ -581,7 +581,7 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
   - snapshot/restore round-trip, including a reload on the between-wave screen keeping the cleared wave, the same 3 offers and purchases;
   - broken saves fall back to defaults;
   - the score formula.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 7: «Последняя крепость» — bots and balance tuning
 

@@ -287,7 +287,7 @@ test('a wave clears when every enemy is down; kills pay gold', () => {
   sim(run, 6);
   assert.equal(run.status, 'between');
   assert.equal(run.kills, 1);
-  assert.equal(run.gold, C.KINDS.grunt.gold);
+  assert.equal(run.gold, C.KINDS.grunt.gold + C.NO_DAMAGE_BONUS + 1, 'the kill plus the bonus for an untouched wall');
   const ev = C.drain(run);
   assert.ok(ev.some((e) => e.type === 'waveClear' && e.noDamage));
   assert.equal(C.startWave(run, []), true, 'the next wave can start');

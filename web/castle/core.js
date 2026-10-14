@@ -33,6 +33,8 @@
     boss: { hp: 60, speed: 0.6, w: 2.2, h: 3.2, wall: 6, gold: 40 },
   };
   const BOSS_HP_STEP = 12;          // boss HP = 60 + 12·bossIndex (bossIndex = wave / 10)
+  const CAMPAIGN_WAVES = 30;
+  const NO_DAMAGE_BONUS = 5;        // gold for a wave the wall came through untouched (+ the wave number)
   const BOSS_SUMMON = 3;            // grunts the boss calls at half HP
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -58,7 +60,7 @@
       aim: { angle: 0.6, power: 0.7 }, firing: false, cooldown: 0,
       ward: WARD_START, up: { power: 0, reload: 0, velocity: 0, pierce: 0, multi: 0, fire: 0, ward: 0 },
       arrows: [], enemies: [], queue: [], t: 0, acc: 0, nextId: 1, events: [],
-      mult: { hp: 1, speed: 1 },
+      mult: { hp: 1, speed: 1 }, offer: [], picked: false, bought: { repair: 0, fortify: 0 },
     };
   }
 
@@ -124,9 +126,10 @@
     run.damageThisWave = 0;
     run.ward = stats(run).wardMax;
     run.cooldown = 0;
-    const def = list || (api.waveDef ? api.waveDef(run.wave, run.seed) : []);
-    run.mult = { hp: (def.hpMul) || 1, speed: (def.speedMul) || 1 };
+    const def = list || waveDef(run.wave, run.seed);
+    run.mult = { hp: def.hpMul || 1, speed: def.speedMul || 1 };
     const spawns = Array.isArray(def) ? def : def.spawns;
+    run.offer = [];
     run.queue = spawns.map((s) => ({ ...s })).sort((a, b) => a.at - b.at);
     run.events.push({ type: 'waveStart', wave: run.wave });
     return true;
@@ -293,13 +296,20 @@
       run.events.push({ type: 'lost', wave: run.wave });
       return;
     }
-    if (!run.queue.length && !run.enemies.length) {
-      run.arrows = [];
-      run.firing = false;
-      run.status = run.mode === 'campaign' && run.wave >= api.CAMPAIGN_WAVES ? 'won' : 'between';
-      run.events.push({ type: 'waveClear', wave: run.wave, noDamage: run.damageThisWave === 0 });
-      if (api.onWaveClear) api.onWaveClear(run);
-    }
+    if (!run.queue.length && !run.enemies.length) clearWave(run);
+  }
+
+  // The wave is over: a bonus for a wall without a scratch, then the break with three upgrades to pick from.
+  function clearWave(run) {
+    run.arrows = [];
+    run.firing = false;
+    const noDamage = run.damageThisWave === 0;
+    const bonus = noDamage ? NO_DAMAGE_BONUS + run.wave : 0;
+    run.gold += bonus;
+    run.status = run.mode === 'campaign' && run.wave >= CAMPAIGN_WAVES ? 'won' : 'between';
+    run.picked = false;
+    run.offer = run.status === 'between' ? offerUpgrades(run) : [];
+    run.events.push({ type: 'waveClear', wave: run.wave, noDamage, bonus });
   }
 
   // Advances the world by dt seconds in fixed ticks (at most MAX_DT per call). Bad dt is ignored.
@@ -328,11 +338,202 @@
     return { x: ARCHER.x + Math.cos(angle) * v * t, y: ARCHER.y + Math.sin(angle) * v * t - (G * t * t) / 2 };
   }
 
+
+  // ── Waves ──
+  // waveDef(n, seed) → { spawns: [{ kind, at }], hpMul, speedMul }. Waves 1–3 teach (grunts, then shields, then
+  // flyers); after that a budget grows by BUDGET_GROWTH per wave and buys the enemy types unlocked so far. At most
+  // MAX_ENEMIES per wave: budget beyond that makes the wave's enemies tougher and faster instead. Every 10th wave
+  // brings the boss with an escort. Deterministic in (n, seed); the endless mode uses the same waves past 30.
+  const MAX_ENEMIES = 40;
+  const BUDGET_START = 9, BUDGET_GROWTH = 1.12;
+  const COST = { grunt: 1, shield: 1.5, flyer: 1.4, ram: 5 };
+  const UNLOCK = { grunt: 1, shield: 2, flyer: 3, ram: 5 };
+  const WEIGHT = { grunt: 5, shield: 3, flyer: 2.5, ram: 1.2 };
+
+  function waveRng(seed, n) {
+    const r = { rng: ((seed >>> 0) ^ Math.imul(n, 0x9E3779B1)) >>> 0 };
+    return () => rand(r);
+  }
+
+  const budgetOf = (n) => BUDGET_START * BUDGET_GROWTH ** (n - 1);
+
+  function waveDef(n, seed = 1) {
+    if (!Number.isInteger(n) || n < 1) throw new Error(`bad wave ${n}`);
+    const r = waveRng(seed, n);
+    const spawns = [];
+    const gap = Math.max(0.4, 1.9 - n * 0.04);
+    let at = 1;
+    const add = (kind) => { spawns.push({ kind, at: Math.round(at * 100) / 100 }); at += gap * (0.6 + r() * 0.8); };
+    if (n === 1) { for (let k = 0; k < 6; k++) add('grunt'); return { spawns, hpMul: 1, speedMul: 1 }; }
+    if (n === 2) { ['grunt', 'grunt', 'shield', 'grunt', 'shield', 'grunt', 'shield'].forEach(add); return { spawns, hpMul: 1, speedMul: 1 }; }
+    if (n === 3) { ['grunt', 'flyer', 'grunt', 'flyer', 'shield', 'flyer', 'grunt', 'flyer'].forEach(add); return { spawns, hpMul: 1, speedMul: 1 }; }
+    let budget = budgetOf(n);
+    const boss = n % 10 === 0;
+    if (boss) { spawns.push({ kind: 'boss', at: 3 }); budget *= 0.6; }
+    const kinds = Object.keys(COST).filter((k) => n >= UNLOCK[k]);
+    let spent = 0;
+    while (spawns.length < MAX_ENEMIES) {
+      const left = budget - spent;
+      const can = kinds.filter((k) => COST[k] <= left + 1e-9);
+      if (!can.length) break;
+      const total = can.reduce((a, k) => a + WEIGHT[k], 0);
+      let x = r() * total, kind = can[can.length - 1];
+      for (const k of can) { x -= WEIGHT[k]; if (x <= 0) { kind = k; break; } }
+      add(kind);
+      spent += COST[kind];
+    }
+    // only a full wave turns the leftover budget into toughness; a few points short of one more enemy are dropped
+    const extra = spawns.length >= MAX_ENEMIES ? Math.max(0, budget - spent) / Math.max(1, spent) : 0;
+    return {
+      spawns: spawns.sort((a, b) => a.at - b.at),
+      hpMul: Math.round((1 + extra) * 1000) / 1000,
+      speedMul: Math.round(Math.min(1.5, 1 + extra * 0.25) * 1000) / 1000,
+    };
+  }
+
+  // ── Upgrades and the shop ──
+  // Additive stacks with caps; a capped upgrade is no longer offered.
+  const UPGRADES = ['power', 'reload', 'velocity', 'pierce', 'multi', 'fire', 'ward'];
+  const UP_CAP = { power: Infinity, reload: 5, velocity: 5, pierce: 3, multi: 3, fire: 1, ward: 2 };
+  const PRICE = { repair: { base: 30, growth: 1.3 }, fortify: { base: 50, growth: 1.4 } };
+  const REPAIR_SHARE = 0.25, FORTIFY_SHARE = 0.2;
+
+  const capped = (run, id) => run.up[id] >= UP_CAP[id];
+
+  // Three different upgrades (fewer when most are capped), drawn from the run's own generator.
+  function offerUpgrades(run) {
+    const pool = UPGRADES.filter((id) => !capped(run, id));
+    const out = [];
+    while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rand(run) * pool.length), 1)[0]);
+    return out;
+  }
+
+  // Takes one of the offered upgrades; one pick per break. Returns true when applied.
+  function chooseUpgrade(run, id) {
+    if (run.status !== 'between' || run.picked || !run.offer.includes(id) || capped(run, id)) return false;
+    run.up[id]++;
+    run.picked = true;
+    if (id === 'ward') run.ward = stats(run).wardMax;
+    return true;
+  }
+
+  const priceOf = (run, item) => Math.round(PRICE[item].base * PRICE[item].growth ** run.bought[item]);
+  const prices = (run) => ({ repair: priceOf(run, 'repair'), fortify: priceOf(run, 'fortify') });
+
+  // Repair or fortify the wall between waves → 'ok' | 'nogold' | 'full' | 'closed' | 'unknown'.
+  function buy(run, item) {
+    if (!Object.prototype.hasOwnProperty.call(PRICE, item)) return 'unknown';
+    if (run.status !== 'between' && run.status !== 'ready') return 'closed';
+    if (item === 'repair' && run.wallHp >= run.wallMax) return 'full';
+    const price = priceOf(run, item);
+    if (run.gold < price) return 'nogold';
+    run.gold -= price;
+    run.bought[item]++;
+    if (item === 'repair') {
+      run.wallHp = Math.min(run.wallMax, run.wallHp + run.wallMax * REPAIR_SHARE);
+    } else {
+      const add = run.wallMax * FORTIFY_SHARE;
+      run.wallMax += add;
+      run.wallHp += add;
+    }
+    return 'ok';
+  }
+
+  // Endless score: 10 per kill and 100 per wave before the current one (an endless run ends in its last wave).
+  const score = (run) => run.kills * 10 + Math.max(0, run.wave - 1) * 100;
+
+  // ── Snapshots ──
+  // A run between waves (or before the first) as plain data: everything the next wave needs, with the drawn
+  // offer and the generator state. A wave in progress is not saved: the client snapshots right before startWave,
+  // so a reload restarts that wave the same way.
+  const SNAP_FIELDS = ['v', 'mode', 'seed', 'rng', 'wave', 'status', 'wallHp', 'wallMax', 'gold', 'kills', 'aim', 'ward',
+    'up', 'offer', 'picked', 'bought'];
+
+  function snapshot(run) {
+    const o = {};
+    for (const k of SNAP_FIELDS) o[k] = JSON.parse(JSON.stringify(run[k]));
+    return o;
+  }
+
+  const num = (v, lo, hi) => finite(v) && v >= lo && v <= hi;
+
+  // A run from a snapshot, or null when it doesn't look right.
+  function restore(o) {
+    if (!o || typeof o !== 'object' || o.v !== 1) return null;
+    if (o.mode !== 'campaign' && o.mode !== 'endless') return null;
+    if (!['ready', 'between', 'won', 'lost'].includes(o.status)) return null;
+    if (!Number.isInteger(o.wave) || o.wave < 0 || o.wave > 100000) return null;
+    if (!num(o.wallMax, 1, 1e7) || !num(o.wallHp, 0, o.wallMax) || !num(o.gold, 0, 1e9) || !num(o.kills, 0, 1e9)) return null;
+    if (!Number.isInteger(o.seed) || !Number.isInteger(o.rng)) return null;
+    if (!o.up || typeof o.up !== 'object' || !UPGRADES.every((k) => Number.isInteger(o.up[k]) && o.up[k] >= 0 && o.up[k] <= Math.min(UP_CAP[k], 1000))) return null;
+    if (!Array.isArray(o.offer) || !o.offer.every((id) => UPGRADES.includes(id)) || o.offer.length > 3) return null;
+    if (!o.bought || !Number.isInteger(o.bought.repair) || !Number.isInteger(o.bought.fortify)) return null;
+    const run = newRun(o.mode, o.seed);
+    for (const k of SNAP_FIELDS) run[k] = JSON.parse(JSON.stringify(o[k]));
+    run.picked = !!o.picked;
+    run.ward = Number.isInteger(o.ward) ? Math.max(0, Math.min(o.ward, stats(run).wardMax)) : stats(run).wardMax;
+    if (!o.aim || !finite(o.aim.angle) || !finite(o.aim.power)) run.aim = { angle: 0.6, power: 0.7 };
+    aim(run, run.aim.angle, run.aim.power);
+    return run;
+  }
+
+  // ── Save ──
+  // castle.save: { v: 1, campaignBest (waves cleared), campaignDone, endlessBest (score), current: snapshot | null }
+  const SAVE_KEY = 'castle.save';
+  const newSave = () => ({ v: 1, campaignBest: 0, campaignDone: false, endlessBest: 0, current: null });
+
+  function parseSave(raw) {
+    const out = newSave();
+    if (typeof raw !== 'string') return out;
+    let d;
+    try { d = JSON.parse(raw); } catch { return out; }
+    if (!d || typeof d !== 'object' || d.v !== 1) return out;
+    if (Number.isInteger(d.campaignBest) && d.campaignBest >= 0 && d.campaignBest <= CAMPAIGN_WAVES) out.campaignBest = d.campaignBest;
+    out.campaignDone = d.campaignDone === true;
+    if (Number.isInteger(d.endlessBest) && d.endlessBest >= 0 && d.endlessBest < 1e9) out.endlessBest = d.endlessBest;
+    out.current = restore(d.current) ? d.current : null;
+    return out;
+  }
+
+  function loadSave(storage) {
+    let raw = null;
+    try { raw = storage ? storage.getItem(SAVE_KEY) : null; } catch { raw = null; }
+    return parseSave(raw);
+  }
+
+  function storeSave(storage, save) {
+    try {
+      if (!storage) return false;
+      storage.setItem(SAVE_KEY, JSON.stringify(save));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Folds a run into the records: campaign waves cleared and completion, endless best score. Returns true when
+  // a record improved.
+  function recordRun(save, run) {
+    let better = false;
+    if (run.mode === 'campaign') {
+      const cleared = run.status === 'wave' || run.status === 'lost' ? run.wave - 1 : run.wave;
+      if (cleared > save.campaignBest) { save.campaignBest = Math.min(CAMPAIGN_WAVES, cleared); better = true; }
+      if (run.status === 'won' && !save.campaignDone) { save.campaignDone = true; better = true; }
+    } else {
+      const sc = score(run);
+      if (sc > save.endlessBest) { save.endlessBest = sc; better = true; }
+    }
+    return better;
+  }
+
   const api = {
     TICK, MAX_DT, WALL_X, WALL_TOP, ARCHER, SPAWN_X, G, V_BASE, MIN_POWER, ANGLE_MIN, ANGLE_MAX, RELOAD_BASE,
     RELOAD_FLOOR, DAMAGE_BASE, SPREAD, SHIELD_ANGLE, SHIELD_FACTOR, BURN_TIME, BURN_DPS, WALL_HP, WARD_START, KINDS,
-    BOSS_HP_STEP, BOSS_SUMMON, CAMPAIGN_WAVES: 30,
+    BOSS_HP_STEP, BOSS_SUMMON, CAMPAIGN_WAVES, NO_DAMAGE_BONUS, MAX_ENEMIES, BUDGET_START, BUDGET_GROWTH, COST, UNLOCK,
+    UPGRADES, UP_CAP, PRICE, REPAIR_SHARE, FORTIFY_SHARE, SAVE_KEY,
     clamp, rand, newRun, stats, aim, setFiring, spawn, startWave, step, drain, status, flight, segmentBox, descent,
+    waveDef, budgetOf, offerUpgrades, chooseUpgrade, prices, buy, score, snapshot, restore,
+    newSave, parseSave, loadSave, storeSave, recordRun,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CastleCore = api;
