@@ -474,11 +474,11 @@ Cell types in a `Uint8Array`:
 - Modify: `web/index.html`
 - Modify: `main_test.go`
 
-- [ ] `audio.js`: slide, bump, barrier, victory; the toggle in `parking.audio`
-- [ ] hub card (`--parking`), RO string, `/parking/*` paths in `main_test.go`
-- [ ] `audio.test.js` and `build.test.js` (scripts exist, no external URLs, RO translations)
-- [ ] `tests/parking/smoke.cjs`: menu → level 1, solve it by dragging along the path from `solve` (read from `ParkingCore`/`ParkingLevels` in the page), check 3★ in the UI and in `parking.progress`, undo, no console errors, RO
-- [ ] run `node --test`, `go test ./...`, the smoke — must pass before next task
+- [x] `audio.js`: slide, bump, barrier, victory; the toggle in `parking.audio`
+- [x] hub card (`--parking`), RO string, `/parking/*` paths in `main_test.go`
+- [x] `audio.test.js` and `build.test.js` (scripts exist, no external URLs, RO translations)
+- [x] `tests/parking/smoke.cjs`: menu → level 1, solve it by dragging along the path from `solve` (read from `ParkingCore`/`ParkingLevels` in the page), check 3★ in the UI and in `parking.progress`, undo, no console errors, RO
+- [x] run `node --test`, `go test ./...`, the smoke — must pass before next task
 
 ### Task 14: Verify acceptance criteria
 - [ ] verify all requirements from Overview are implemented in all three games: menu, levels, progress saving, sound toggle, RU/RO, phone control, no external resources
