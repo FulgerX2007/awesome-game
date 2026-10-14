@@ -297,12 +297,12 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 - Modify: `web/village/view.js`
 - Create: `tests/village/view.test.js`
 
-- [ ] game loop: `requestAnimationFrame`, accumulator with a fixed step of `core.step`, interpolated player position
-- [ ] drawing with Canvas 2D code: grass with variations, river with gentle ripples, paths, trees/rocks/clay/bushes, stumps and empty bushes, ruins in 3 stages and restored buildings, the bridge, decorations, the player with a walk cycle and a swing animation
-- [ ] villagers walking in the view between their house and their zone (cosmetic only), chimney smoke and the spinning mill when built, the festival (lanterns, fireworks)
-- [ ] animations from `s.events` (swing on `hit`, a node shaking/falling on `deplete`); the camera follows the player with clamping at map edges, DPR support and resize, only visible tiles drawn
-- [ ] pure camera functions (`clampCamera`, `screenToTile`, `visibleRange`) live in `web/village/view.js` (`VillageView`), `game.js` only calls them; cover them in `tests/village/view.test.js` (bounds, DPR, edges)
-- [ ] run `node --test 'tests/**/*.test.js'` — must pass before task 7
+- [x] game loop: `requestAnimationFrame`, accumulator with a fixed step of `core.step`, interpolated player position
+- [x] drawing with Canvas 2D code: grass with variations, river with gentle ripples, paths, trees/rocks/clay/bushes, stumps and empty bushes, ruins in 3 stages and restored buildings, the bridge, decorations, the player with a walk cycle and a swing animation
+- [x] villagers walking in the view between their house and their zone (cosmetic only), chimney smoke and the spinning mill when built, the festival (lanterns, fireworks)
+- [x] animations from `s.events` (swing on `hit`, a node shaking/falling on `deplete`); the camera follows the player with clamping at map edges, DPR support and resize, only visible tiles drawn
+- [x] pure camera functions (`clampCamera`, `screenToTile`, `visibleRange`) live in `web/village/view.js` (`VillageView`), `game.js` only calls them; cover them in `tests/village/view.test.js` (bounds, DPR, edges)
+- [x] run `node --test 'tests/**/*.test.js'` — must pass before task 7
 
 ### Task 7: Input, HUD, panels and saving
 
