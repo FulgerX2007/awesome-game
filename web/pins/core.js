@@ -337,10 +337,11 @@
 
   const settled = (s) => s.quiet >= SETTLE_TICKS || s.sincePull >= MAX_TICKS;
 
-  // Runs the automaton until it settles (or hits the tick cap). Returns the number of ticks run.
+  // Runs the automaton until it settles (or hits the tick cap) or an instant loss happens — a patient player
+  // waits for that. Returns the number of ticks run.
   function settle(s) {
     let n = 0;
-    while (!settled(s)) {
+    while (!s.lost && !settled(s)) {
       step(s);
       n++;
     }
@@ -378,11 +379,14 @@
   // Lava on the hero and an enemy reaching the hero lose at once. Otherwise nothing is decided until the
   // automaton settles: then enough gold in the room and a lava-free way to the exit win; short of that the
   // player may still pull a pin, and with no pins left it's a loss ('lava' if lava blocks the way, else 'nogold').
+  // A win needs a truly quiet world, not just the tick cap: while cells still move it stays 'playing'.
   function status(s) {
     if (s.lost) return { status: 'lost', reason: s.lost };
     if (!settled(s)) return { status: 'playing', reason: null };
     const blocked = lavaOnWay(s);
-    if (!blocked && goldInRoom(s) >= s.goldTarget) return { status: 'won', reason: null };
+    if (!blocked && goldInRoom(s) >= s.goldTarget) {
+      return { status: s.quiet >= SETTLE_TICKS ? 'won' : 'playing', reason: null };
+    }
     if (s.pins.some((p) => !p.pulled)) return { status: 'playing', reason: null };
     return { status: 'lost', reason: blocked ? 'lava' : 'nogold' };
   }
@@ -395,18 +399,13 @@
     return 1 + (allDead ? 1 : 0) + (rich ? 1 : 0);
   }
 
-  // Runs until the automaton settles or an instant loss happens (a patient player waits for that).
-  function rest(s) {
-    while (!s.lost && !settled(s)) step(s);
-  }
-
   // Tries pull orders of every subset of pins (DFS). After each pull the world runs to rest; the snapshot of
   // each prefix is kept and cloned for its continuations, so a prefix is simulated once. A won prefix is a
   // winning order (the game ends there), a lost one is a losing order.
   // Returns { wins: [[ids]], losses: [[ids]], wonWithoutPull, nodes }.
   function solve(def) {
     const start = buildLevel(def);
-    rest(start);
+    settle(start);
     const res = { wins: [], losses: [], wonWithoutPull: false, nodes: 1 };
     const st = status(start);
     if (st.status === 'won') { res.wonWithoutPull = true; return res; }
@@ -416,7 +415,7 @@
         if (p.pulled) continue;
         const next = clone(s);
         pull(next, p.id);
-        rest(next);
+        settle(next);
         res.nodes++;
         const seq = [...order, p.id];
         const r = status(next).status;
@@ -479,6 +478,14 @@
     return true;
   }
 
+  // A level is won: keep its best stars and save at once (the hero's walk to the door may be cut short by
+  // a restart or the level screen, the win must not depend on it). Returns true if the result improved.
+  function recordWin(storage, p, level, n) {
+    if (!recordStars(p, level, n)) return false;
+    saveProgress(storage, p);
+    return true;
+  }
+
   // The first level (0-based) with no stars; `total` when every level is done.
   function firstUnfinished(p, total) {
     for (let i = 0; i < total; i++) if (!starsOf(p, i)) return i;
@@ -495,7 +502,8 @@
     W, H, EMPTY, WALL, PIN, WATER, LAVA, STONE, GOLD, FILL_TYPES, HANDLES, SETTLE_TICKS, MAX_TICKS, FLOW, KILL_LAVA,
     idx, handleCell, buildLevel, clone, pull, step, settled, settle, count, cellAt,
     goldInRoom, liveEnemies, status, stars, solve,
-    PROGRESS_KEY, newProgress, parseProgress, loadProgress, saveProgress, starsOf, recordStars, firstUnfinished, unlocked,
+    PROGRESS_KEY, newProgress, parseProgress, loadProgress, saveProgress, starsOf, recordStars, recordWin, firstUnfinished,
+    unlocked,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PinsCore = api;

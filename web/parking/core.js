@@ -100,7 +100,7 @@
   const gateOpen = (state) => !gateClosed(state.moves);
 
   // ── Shared geometry over a positions array (x of 'h' vehicles, y of 'v' ones) ──
-  const startPos = (L) => L.vehicles.map((v) => (v.dir === 'h' ? v.x : v.y));
+  const posOf = (vehicles) => vehicles.map((v) => (v.dir === 'h' ? v.x : v.y));
 
   function occupancy(L, pos) {
     const occ = new Int16Array(L.w * L.h);
@@ -144,16 +144,14 @@
   }
 
   // ── Game state ──
-  // { level, vehicles: [{ id, kind, dir, len, x, y }], moves, optimal, limit, history: [{ pos, moves }], status }
+  // { level, vehicles: [{ id, kind, dir, len, x, y }], moves, optimal, limit,
+  //   history: [{ pos, moves, id, delta }] (the board before each move and the move itself), status }
   // status: 'playing' | 'won' | 'lost'. Everything is plain data (JSON-serializable).
+  // The level must carry its optimum (the generator and the tests solve it; the game never has to).
   function newGame(level) {
     const L = asLevel(level);
-    let optimal = L.optimal;
-    if (optimal === null) {
-      const sol = solve(L);
-      if (!sol) throw new Error('level has no solution');
-      optimal = sol.moves;
-    }
+    const optimal = L.optimal;
+    if (optimal === null) throw new Error('level has no optimal');
     return {
       level: L,
       vehicles: L.vehicles.map((v) => ({ ...v })),
@@ -165,7 +163,6 @@
     };
   }
 
-  const positions = (state) => state.vehicles.map((v) => (v.dir === 'h' ? v.x : v.y));
   const indexOf = (state, id) => state.vehicles.findIndex((v) => v.id === id);
   const playerExited = (state) => {
     const x = state.vehicles.find((v) => v.id === PLAYER);
@@ -182,7 +179,7 @@
   function moveRange(state, id) {
     const i = indexOf(state, id);
     if (i < 0 || state.status !== 'playing') return null;
-    const pos = positions(state);
+    const pos = posOf(state.vehicles);
     return span(state.level, occupancy(state.level, pos), pos, i, gateClosed(state.moves));
   }
 
@@ -196,11 +193,14 @@
   // Slides a vehicle by delta cells along its axis. A slide of the player past the free road to the edge leaves
   // through the exit (x = w). Returns true when the move was made (it counts as one move).
   function move(state, id, delta) {
-    if (!canMove(state, id, delta)) return false;
+    if (!isInt(delta) || delta === 0) return false;
     const r = moveRange(state, id);
+    if (!r || !((delta >= r.min && delta <= r.max) || (r.exit && delta > r.max))) return false;
     const v = state.vehicles[indexOf(state, id)];
-    state.history.push({ pos: positions(state), moves: state.moves });
-    if (v.dir === 'h') v.x = delta > r.max ? state.level.w : v.x + delta;
+    const exits = delta > r.max;
+    // an exit is stored as the slide to the edge (w − x), whatever overshoot the player gave
+    state.history.push({ pos: posOf(state.vehicles), moves: state.moves, id, delta: exits ? state.level.w - v.x : delta });
+    if (v.dir === 'h') v.x = exits ? state.level.w : v.x + delta;
     else v.y += delta;
     state.moves++;
     state.status = status(state);
@@ -227,10 +227,10 @@
     return state;
   }
 
-  // Board as rows of text (vehicles on top of the static cells); the player is left out once it exited.
-  function toRows(state) {
-    const L = state.level || state;
-    const vs = state.vehicles || L.vehicles;
+  // Board as rows of text: a parsed level's static cells with `vehicles` (its own by default) on top; the player
+  // is left out once it exited. For a game: toRows(state.level, state.vehicles).
+  function toRows(L, vehicles = L.vehicles) {
+    const vs = vehicles;
     const g = L.cells.slice();
     for (const v of vs) {
       for (let k = 0; k < v.len; k++) {
@@ -245,19 +245,11 @@
   }
 
   // ── BFS solver ──
-  // solve(def | parsed level | state) → { moves, path: [[id, delta], ...] } with the fewest moves, or null when there
-  // is no solution or more than MAX_STATES states were met. The search key is the positions plus the move parity.
-  function solve(arg, maxStates = MAX_STATES) {
-    let L, pos, moves = 0;
-    if (arg && Array.isArray(arg.vehicles) && arg.level && isInt(arg.moves)) {
-      L = arg.level;
-      pos = positions(arg);
-      moves = arg.moves;
-      if (playerExited(arg)) return { moves: 0, path: [] };
-    } else {
-      L = asLevel(arg);
-      pos = startPos(L);
-    }
+  // The search key is the positions plus the move parity. search() is a generator: it yields every SLICE nodes so
+  // the client can spread a long search over several frames, and returns { moves, path: [[id, delta], ...] } with
+  // the fewest moves, or null when there is no solution or more than maxStates states were met.
+  const SLICE = 4000;
+  function* search(L, pos, moves, maxStates) {
     const n = L.vehicles.length;
     const px = L.vehicles.findIndex((v) => v.id === PLAYER);
     const keyOf = (p, par) => String.fromCharCode(...p.map((c) => c + 1)) + par;
@@ -274,6 +266,7 @@
     };
 
     for (let head = 0; head < nodes.length; head++) {
+      if (head % SLICE === SLICE - 1) yield head;
       const p = nodes[head];
       const par = pars[head];
       const closed = par === 0;
@@ -301,6 +294,26 @@
     }
     return null;
   }
+
+  function drain(it) {
+    for (let r = it.next(); ; r = it.next()) if (r.done) return r.value;
+  }
+
+  // The shortest solution of a level (a definition or a parsed level) from its start.
+  function solve(level, maxStates = MAX_STATES) {
+    const L = asLevel(level);
+    return drain(search(L, posOf(L.vehicles), 0, maxStates));
+  }
+
+  // The search from a game's current position as an iterator (each next() runs one slice; the final value is the
+  // solve() result, { moves: 0, path: [] } once the player is out). The client steps it between frames (hints).
+  function* solverFor(state, maxStates = MAX_STATES) {
+    if (playerExited(state)) return { moves: 0, path: [] };
+    return yield* search(state.level, posOf(state.vehicles), state.moves, maxStates);
+  }
+
+  // The shortest solution from a game's current position, in one go.
+  const solveState = (state, maxStates = MAX_STATES) => drain(solverFor(state, maxStates));
 
   // ── Progress ──
   // Saved under PROGRESS_KEY as { v: 1, stars: { levelIndex: 1..3 }, current: null | { level, path, hints } }.
@@ -382,16 +395,43 @@
     return starsOf(p, level) > 0 || level <= firstUnfinished(p, total);
   }
 
-  // The moves made so far as [[id, delta], ...], read back from the history snapshots (an exit is [X, w − x]).
-  function pathOf(state) {
-    const out = [];
-    const snaps = state.history.map((h) => h.pos).concat([positions(state)]);
-    for (let k = 1; k < snaps.length; k++) {
-      const a = snaps[k - 1], b = snaps[k];
-      const i = a.findIndex((p, j) => p !== b[j]);
-      if (i >= 0) out.push([state.vehicles[i].id, b[i] - a[i]]);
-    }
-    return out;
+  // The moves made so far as [[id, delta], ...] (an exit is [X, w − x]).
+  const pathOf = (state) => state.history.map((h) => [h.id, h.delta]);
+
+  // What the progress keeps of the game on screen: its moves and the hints used, while it can be continued —
+  // playing, or lost (an undo brings it back). A won level keeps nothing.
+  function currentOf(level, state, hints) {
+    return state && state.status !== 'won' ? { level, path: pathOf(state), hints } : null;
+  }
+
+  // The saved level in progress as { level, state, hints }, or null when there is none or its moves no longer
+  // replay. A lost game comes back lost, so the result screen can offer the undo again.
+  function resume(p, levels) {
+    const cur = p && p.current;
+    if (!cur || !Array.isArray(levels) || cur.level >= levels.length) return null;
+    const state = replay(levels[cur.level], cur.path);
+    return state && state.status !== 'won' ? { level: cur.level, state, hints: cur.hints } : null;
+  }
+
+  // ── Hints ──
+  // The hint from a solution found for this game: its first move as { id, delta }, or null when there is no
+  // solution or it needs more moves than are left (a hint must never lead past the limit).
+  function hintOf(state, sol) {
+    if (!sol || !sol.path.length || sol.moves > state.limit - state.moves) return null;
+    const [id, delta] = sol.path[0];
+    return { id, delta };
+  }
+
+  // A solution found when the game had made the moves `base` (pathOf), seen from the moves `now`: what is left
+  // of it while the player kept to it, else null (search again).
+  function followRoute(base, sol, now) {
+    if (!sol || !Array.isArray(base) || !Array.isArray(now) || now.length < base.length) return null;
+    const same = (a, b) => a[0] === b[0] && a[1] === b[1];
+    if (!base.every((m, i) => same(m, now[i]))) return null;
+    const done = now.slice(base.length);
+    if (done.length > sol.path.length || !done.every((m, i) => same(m, sol.path[i]))) return null;
+    const path = sol.path.slice(done.length);
+    return { moves: path.length, path };
   }
 
   // A new game of `level` with the moves of `path` made. null when the level is bad or a move is not allowed.
@@ -408,9 +448,9 @@
   const api = {
     MIN_SIZE, MAX_SIZE, MAX_STATES, PLAYER, EMPTY, BOLLARD, GATE, KINDS, LENGTHS, TOW_STEP,
     parseLevel, limitFor, stars, gateClosed, gateOpen, newGame, status, moveRange, canMove, move, undo, restart,
-    toRows, solve,
+    toRows, solve, solveState, solverFor,
     PROGRESS_KEY, MAX_HINTS, newProgress, parseProgress, loadProgress, saveProgress, starsOf, recordStars,
-    firstUnfinished, unlocked, pathOf, replay,
+    firstUnfinished, unlocked, pathOf, replay, currentOf, resume, hintOf, followRoute,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ParkingCore = api;

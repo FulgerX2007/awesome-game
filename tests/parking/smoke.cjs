@@ -200,6 +200,14 @@ async function desktopChecks() {
   await page.click('#btn-next');
   check(await text(page, '#hud-level') === 'Уровень 2', '«Дальше» opens level 2');
 
+  // A hint is searched in slices off the click and then shown; it is the first move of an optimal solution.
+  await page.click('#btn-hint');
+  const hinted = await waitFor(async () => (await text(page, '#hint-left')) === '2', 5000, 50);
+  check(hinted, 'a hint is given and counted', await text(page, '#hint-left'));
+  const hs = await readSave(page);
+  check(hs && hs.current && hs.current.level === 1 && hs.current.hints === 1, 'the hint used is saved with the level', JSON.stringify(hs));
+  check(await page.isDisabled('#btn-hint'), 'one hint at a time: the button waits for a move');
+
   // After a reload level 1 keeps its stars and the menu goes on with level 2.
   await page.reload({ waitUntil: 'load' });
   await ready(page);
@@ -207,6 +215,28 @@ async function desktopChecks() {
   await page.click('#btn-levels-menu');
   const first = await page.$eval('#level-grid > *', (b) => b.querySelectorAll('.mini-stars .on').length);
   check(first === 3, 'the level select shows ★★★ on level 1', String(first));
+
+  // A level lost on moves survives a reload: «Продолжить» brings back the result screen, and its undo works.
+  await page.evaluate((key) => {
+    const C = window.ParkingCore;
+    const s = C.newGame(window.ParkingLevels.LEVELS[1]);
+    const u = s.vehicles.find((v) => v.id !== C.PLAYER && C.canMove(s, v.id, 1));
+    while (s.status === 'playing') { C.move(s, u.id, 1); if (s.status === 'playing') C.move(s, u.id, -1); }
+    const p = JSON.parse(localStorage.getItem(key));
+    p.current = { level: 1, path: C.pathOf(s), hints: 1 };
+    localStorage.setItem(key, JSON.stringify(p));
+  }, SAVE_KEY);
+  await page.reload({ waitUntil: 'load' });
+  await ready(page);
+  check(await text(page, '#btn-play') === 'Продолжить: уровень 2', 'the lost level is offered to continue', await text(page, '#btn-play'));
+  await page.click('#btn-play');
+  const lostTitle = await waitFor(() => resultShown(page), 3000, 50);
+  check(lostTitle === 'Ходы кончились', 'it comes back on the «Ходы кончились» screen', JSON.stringify(lostTitle));
+  const limit2 = await page.evaluate(() => window.ParkingCore.limitFor(window.ParkingLevels.LEVELS[1].optimal));
+  await page.click('#btn-res-undo');
+  check(await page.isVisible('#hud') && !(await resultShown(page)) && await text(page, '#hud-moves') === `Ходы: ${limit2 - 1}/${limit2}`,
+    '«Отменить ход» returns to the board one move before the limit', await text(page, '#hud-moves'));
+  check(await text(page, '#hint-left') === '2', 'the hints used before the reload still count', await text(page, '#hint-left'));
 
   check(external.length === 0, 'no requests leave the server', external.join('\n'));
   check(errors.length === 0, 'no console errors (desktop)', errors.join('\n'));

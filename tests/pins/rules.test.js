@@ -121,24 +121,24 @@ test('opening the way to a live enemy loses at once (enemy)', () => {
 });
 
 test('water and gold do not stop an enemy, stone does', () => {
-  const lvl = base({
-    walls: [...frame(), { x: 17, y: 1, w: 1, h: 45 }],
-    pins: [{ id: 1, x: 17, y: 46, w: 1, h: 7, handle: 'top' }],
-    enemies: [ENEMY],
-  });
-  // replace the pin in the doorway (x 17, y 46..52) with other cells; the check runs at the end of a tick
-  // that changed something
-  const doorway = (code) => {
-    const s = P.buildLevel(lvl);
-    s.pins[0].pulled = true;
-    for (let y = 46; y < 53; y++) { s.grid[P.idx(17, y)] = code; s.pinId[P.idx(17, y)] = -1; }
-    s.grid[P.idx(20, 20)] = GOLD; // something to move, so the tick counts as a change
-    P.step(s);
-    return s.lost;
-  };
-  assert.equal(doorway(WATER), 'enemy');
-  assert.equal(doorway(GOLD), 'enemy');
-  assert.equal(doorway(P.STONE), null);
+  // the divider has a doorway at the floor (x 17, y 46..52); what fills it decides whether the enemy gets through
+  const lvl = (fills) => base({ walls: [...frame(), { x: 17, y: 1, w: 1, h: 45 }], fills, enemies: [ENEMY] });
+  const doorway = { x: 17, y: 46, w: 1, h: 7 };
+  assert.equal(P.buildLevel(lvl([{ type: 'water', ...doorway }])).lost, 'enemy');
+  assert.equal(P.buildLevel(lvl([{ type: 'gold', ...doorway }])).lost, 'enemy');
+  // lava in the doorway between two columns of water: the automaton turns all of it into stone in one tick
+  const s = P.buildLevel(lvl([
+    { type: 'lava', ...doorway },
+    { type: 'water', ...doorway, x: 16 },
+    { type: 'water', ...doorway, x: 18 },
+  ]));
+  assert.equal(s.lost, null, 'lava is not a way through');
+  P.step(s);
+  for (let y = 46; y < 53; y++) assert.equal(P.cellAt(s, 17, y), P.STONE, `stone at 17,${y}`);
+  rest(s);
+  assert.ok(P.count(s, WATER) > 0, 'water is left on both sides');
+  assert.equal(s.lost, null);
+  assert.deepEqual(P.status(s), { status: 'won', reason: null });
 });
 
 test('a dead enemy does not reach the hero', () => {
@@ -219,6 +219,43 @@ test('lava between the hero and the exit blocks the win', () => {
   assert.equal(P.count(s, LAVA), 6);
   assert.equal(P.cellAt(s, 8, 52), LAVA);
   assert.deepEqual(P.status(s), { status: 'lost', reason: 'lava' });
+});
+
+test('lava on the way with a pin left keeps playing; lava outside the room does not block', () => {
+  const pit = (extra) => base({
+    walls: [...base().walls, { x: 7, y: 50, w: 1, h: 3 }, { x: 10, y: 50, w: 1, h: 3 },
+      { x: 7, y: 28, w: 1, h: 6 }, { x: 10, y: 28, w: 1, h: 6 }],
+    pins: [{ id: 1, x: 8, y: 33, w: 2, h: 1, handle: 'top' }],
+    fills: [{ type: 'lava', x: 8, y: 30, w: 2, h: 3 }],
+    ...extra,
+  });
+  const run = (lvl) => {
+    const s = P.buildLevel(lvl);
+    P.pull(s, 1);
+    rest(s);
+    assert.equal(P.cellAt(s, 8, 52), LAVA);
+    return s;
+  };
+  // a second pin is still in: the player may yet fix things
+  const spare = { id: 2, x: 20, y: 30, w: 5, h: 1, handle: 'right' };
+  const playing = run(pit({ pins: [pit().pins[0], spare] }));
+  assert.deepEqual(P.status(playing), { status: 'playing', reason: null });
+  // the room ends at x 7, so the pit (x 8..9) is in the hero's rows but not in the room: it doesn't count
+  const outside = run(pit({ room: { x: 1, y: 36, w: 7, h: 17 } }));
+  assert.deepEqual(P.status(outside), { status: 'won', reason: null });
+});
+
+test('the tick cap alone never wins: while cells still move the level stays playing', () => {
+  const s = P.buildLevel(base({ fills: [{ type: 'water', x: 25, y: 1, w: 1, h: 1 }] }));
+  s.sincePull = P.MAX_TICKS - 1;
+  P.step(s);
+  assert.equal(P.settled(s), true, 'settled by the cap');
+  assert.ok(s.quiet < P.SETTLE_TICKS, 'the water is still falling');
+  assert.deepEqual(P.status(s), { status: 'playing', reason: null });
+  assert.equal(P.stars(s), 0);
+  s.sincePull = 0;
+  rest(s);
+  assert.deepEqual(P.status(s), { status: 'won', reason: null });
 });
 
 test('stars: 3 with every enemy dead and 1.5× gold, 2 when one holds, 1 otherwise', () => {

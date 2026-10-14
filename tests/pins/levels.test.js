@@ -139,9 +139,34 @@ test('the winning orders really win, and every level can be finished with 3 star
   });
 });
 
-test('a losing order really loses', () => {
+test('every losing order really loses', () => {
   LEVELS.forEach((def, i) => {
-    const order = solution(i).losses[0];
-    assert.equal(P.status(play(def, order)).status, 'lost', `level ${i + 1}: order ${order} does not lose`);
+    for (const order of solution(i).losses) {
+      assert.equal(P.status(play(def, order)).status, 'lost', `level ${i + 1}: order ${order} does not lose`);
+    }
+  });
+});
+
+// The solver's player waits for the world to settle after every pull; a real one may pull while things still flow.
+function hasty(def, order, gap) {
+  const s = P.buildLevel(def);
+  P.settle(s);
+  for (const id of order) {
+    P.pull(s, id);
+    for (let k = 0; k < gap && !s.lost; k++) P.step(s);
+  }
+  P.settle(s);
+  return s;
+}
+
+test('a hasty player who pulls 10–30 ticks apart can still win every level with 3 stars', () => {
+  LEVELS.forEach((def, i) => {
+    for (const gap of [10, 20, 30]) {
+      const ok = solution(i).wins.some((order) => {
+        const s = hasty(def, order, gap);
+        return P.status(s).status === 'won' && P.stars(s) === 3;
+      });
+      assert.ok(ok, `level ${i + 1}: no 3-star win when pins are pulled ${gap} ticks apart`);
+    }
   });
 });

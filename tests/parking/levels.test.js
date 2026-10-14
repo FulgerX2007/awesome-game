@@ -87,6 +87,17 @@ test('board size, barriers and tow trucks are where the curve says', () => {
   assert.ok(hasGate(parsed[SPECIALS_FROM - 1]) || hasTow(parsed[SPECIALS_FROM - 1]), 'level 12 introduces one');
 });
 
+test('every barrier matters: with the barriers open each barrier level is solved in fewer moves', () => {
+  const gated = LEVELS.map((def, i) => [def, i]).filter(([, i]) => hasGate(parsed[i]));
+  assert.ok(gated.length >= 10);
+  for (const [def, i] of gated) {
+    const open = { rows: def.rows.map((r) => r.split(P.GATE).join(P.EMPTY)) };
+    if (def.vehicles) open.vehicles = def.vehicles;
+    const sol = P.solve(open);
+    assert.ok(sol && sol.moves < def.optimal, `level ${i + 1}: ${sol && sol.moves} moves without the barrier, ${def.optimal} with it`);
+  }
+});
+
 test('levels are blocking chains, not idle crowds', () => {
   LEVELS.forEach((def, i) => {
     const sol = solution(i);
@@ -100,10 +111,31 @@ test('levels are blocking chains, not idle crowds', () => {
   });
 });
 
-test('the move limit leaves room: every level is lost only after optimal + max(5, 50%) moves', () => {
+test('the move limit as played: wasted moves up to the limit still win, one pair more loses', () => {
   LEVELS.forEach((def, i) => {
-    const s = P.newGame(def);
-    assert.equal(s.limit, P.limitFor(def.optimal));
-    assert.ok(s.limit - def.optimal >= 5, `level ${i + 1}`);
+    const sol = solution(i);
+    // a vehicle that can step out and back from the start: two wasted moves that keep the barrier parity
+    const probe = P.newGame(def);
+    let shuffle = null;
+    for (const u of probe.vehicles) {
+      for (const d of [1, -1]) {
+        if (shuffle || !P.move(probe, u.id, d)) continue;
+        if (P.canMove(probe, u.id, -d)) shuffle = [u.id, d];
+        P.undo(probe);
+      }
+    }
+    assert.ok(shuffle, `level ${i + 1}: something can shuffle`);
+    const [id0, d0] = shuffle;
+    const playWith = (pairs) => {
+      const s = P.newGame(def);
+      for (let k = 0; k < pairs && s.status === 'playing'; k++) { P.move(s, id0, d0); P.move(s, id0, -d0); }
+      for (const [id, d] of sol.path) if (s.status === 'playing') P.move(s, id, d);
+      return s;
+    };
+    const spare = Math.floor((P.limitFor(def.optimal) - def.optimal) / 2);
+    const ok = playWith(spare);
+    assert.equal(ok.status, 'won', `level ${i + 1}: ${spare} wasted pairs`);
+    assert.equal(P.stars(ok.moves, ok.optimal), 1);
+    assert.equal(playWith(spare + 1).status, 'lost', `level ${i + 1}: ${spare + 1} wasted pairs`);
   });
 });

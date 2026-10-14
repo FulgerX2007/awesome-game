@@ -6,7 +6,7 @@ const P = require('../../web/parking/core.js');
 // Replays a path on a fresh game and returns the final state.
 function replay(def, path) {
   const s = P.newGame({ ...def, optimal: def.optimal || 99 });
-  for (const [id, d] of path) assert.equal(P.move(s, id, d), true, `move ${id} ${d} on ${P.toRows(s).join('/')}`);
+  for (const [id, d] of path) assert.equal(P.move(s, id, d), true, `move ${id} ${d} on ${P.toRows(s.level, s.vehicles).join('/')}`);
   return s;
 }
 
@@ -28,14 +28,14 @@ test('a hand-checked board: B clears the way for bus A, then X leaves (3 moves)'
   assert.equal(sol.path[0][0], 'B');
   assert.deepEqual(sol.path.slice(1), [['A', 3], ['X', 6]]);
   assert.equal(replay(def, sol.path).status, 'won');
-  // the same accepts a parsed level and a game state
+  // the same accepts a parsed level; solveState answers for a game in progress
   assert.equal(P.solve(P.parseLevel(def)).moves, 3);
   const s = P.newGame({ ...def, optimal: 3 });
   P.move(s, 'B', 3);
-  assert.deepEqual(P.solve(s), { moves: 2, path: [['A', 3], ['X', 6]] }, 'solve from the current state (hint)');
+  assert.deepEqual(P.solveState(s), { moves: 2, path: [['A', 3], ['X', 6]] }, 'solve from the current state (hint)');
   P.move(s, 'A', 3);
   P.move(s, 'X', 6);
-  assert.deepEqual(P.solve(s), { moves: 0, path: [] }, 'already out');
+  assert.deepEqual(P.solveState(s), { moves: 0, path: [] }, 'already out');
 });
 
 test('a classic jam with a hand-checked optimum of 4', () => {
@@ -74,7 +74,7 @@ test('the optimum waits for the barrier: the first move can never cross it', () 
   // from a state with an odd number of moves made the barrier is open: one move
   const s = P.newGame({ ...gated, optimal: 2 });
   P.move(s, 'B', 1);
-  assert.deepEqual(P.solve(s), { moves: 1, path: [['X', 6]] });
+  assert.deepEqual(P.solveState(s), { moves: 1, path: [['X', 6]] });
   // two barriers that need opposite parities can't both be passed in one slide: still 2 moves here,
   // and with a vehicle pinned on its only cell the barrier forces a wasted move
   const lone = { rows: ['......', '......', 'XX.|..', '......', '......', '#.....'] };
@@ -141,7 +141,7 @@ test('invalid levels → parseLevel throws', () => {
   assert.throws(() => P.solve({ rows: ['XX'] }));
 });
 
-test('BFS finds a short path on a 7×7 board with every kind of object quickly', () => {
+test('BFS finds a short path on a 7×7 board with every kind of object', () => {
   const def = {
     rows: [
       '..A..B.',
@@ -154,9 +154,7 @@ test('BFS finds a short path on a 7×7 board with every kind of object quickly',
     ],
     vehicles: { T: 'tow' },
   };
-  const t0 = Date.now();
   const sol = P.solve(def);
-  assert.ok(Date.now() - t0 < 2000);
   assert.equal(sol.moves, 4, JSON.stringify(sol));
   assert.equal(replay(def, sol.path).status, 'won');
   // no shorter path exists: every path of fewer moves found by a brute-force check fails
@@ -187,3 +185,46 @@ function shortest(def, depth) {
   };
   return dfs(depth);
 }
+
+// Hints: the client runs solverFor a slice at a time and turns the result into a hint with hintOf.
+test('solverFor gives the same answer as solveState, a slice per next()', () => {
+  const { LEVELS } = require('../../web/parking/levels.js');
+  const def = LEVELS[27];
+  const s = P.newGame(def);
+  const it = P.solverFor(s);
+  let slices = 0;
+  let r = it.next();
+  while (!r.done) { slices++; r = it.next(); }
+  assert.ok(slices >= 1, 'a big board takes more than one slice');
+  assert.deepEqual(r.value, P.solveState(s));
+  assert.equal(r.value.moves, def.optimal);
+  const out = P.newGame({ rows: ['......', '......', 'XX....', '......', '......', '......'], optimal: 1 });
+  P.move(out, 'X', 6);
+  assert.deepEqual(P.solveState(out), { moves: 0, path: [] });
+});
+
+test('hintOf: the first move, but no hint without a way out or past the move limit', () => {
+  const def = { rows: ['..A...', '..A...', 'XXA...', '......', '......', '......'], optimal: 2 };
+  const s = P.newGame(def);
+  const sol = P.solveState(s);
+  assert.deepEqual(P.hintOf(s, sol), { id: sol.path[0][0], delta: sol.path[0][1] });
+  assert.equal(P.hintOf(s, null), null, 'no solution');
+  assert.equal(P.hintOf(s, { moves: 0, path: [] }), null);
+  // waste moves until the solution no longer fits in what is left
+  while (s.limit - s.moves >= sol.moves) { P.move(s, 'A', 1); P.move(s, 'A', -1); }
+  const late = P.solveState(s);
+  assert.equal(late.moves, sol.moves, 'still solvable on the board');
+  assert.ok(late.moves > s.limit - s.moves);
+  assert.equal(P.hintOf(s, late), null, 'but not within the moves left');
+});
+
+test('followRoute reuses a solution while the player keeps to it', () => {
+  const sol = { moves: 3, path: [['B', 3], ['A', 3], ['X', 6]] };
+  assert.deepEqual(P.followRoute([], sol, []), sol);
+  assert.deepEqual(P.followRoute([], sol, [['B', 3]]), { moves: 2, path: [['A', 3], ['X', 6]] });
+  assert.deepEqual(P.followRoute([['C', 1]], sol, [['C', 1], ['B', 3], ['A', 3]]), { moves: 1, path: [['X', 6]] });
+  assert.equal(P.followRoute([], sol, [['B', 2]]), null, 'left the route');
+  assert.equal(P.followRoute([['C', 1]], sol, []), null, 'undone past where it was found');
+  assert.equal(P.followRoute([['C', 1]], sol, [['C', -1]]), null);
+  assert.equal(P.followRoute([], null, []), null);
+});

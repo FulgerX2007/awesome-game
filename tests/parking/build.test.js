@@ -58,6 +58,18 @@ test('nothing in web/parking/ references the network', () => {
   }
 });
 
+test('every RO translation keeps the {…} placeholders of its Russian key', () => {
+  const ro = {};
+  require('node:vm').runInNewContext(read('lang.js'), { I18n: { add: (d) => Object.assign(ro, d.ro) } });
+  const holes = (str) => [...str.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+  assert.ok(Object.keys(ro).length > 20);
+  assert.ok(Object.keys(ro).some((k) => holes(k).length > 0), 'some keys have placeholders');
+  for (const [ru, value] of Object.entries(ro)) {
+    assert.equal(typeof value, 'string', ru);
+    assert.deepEqual(holes(value), holes(ru), `«${ru}» → «${value}»`);
+  }
+});
+
 test('every Russian string passed to t( in game.js has a RO translation', () => {
   const src = code(read('game.js'));
   const keys = new Set();

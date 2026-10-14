@@ -132,7 +132,8 @@
     return out;
   }
 
-  const shieldMul = (u) => Math.max(0, 1 - SHIELD_PER_LEVEL * cleanUpgrades(u).shield);
+  // u: clean upgrades (see cleanUpgrades).
+  const shieldMul = (u) => Math.max(0, 1 - SHIELD_PER_LEVEL * u.shield);
 
   // def is a level definition or a level number (see levelDef).
   function newRun(def, upgrades) {
@@ -336,12 +337,14 @@
   const price = (id, lvl) => Math.round(PRICE_BASE[id] * PRICE_GROWTH ** lvl);
 
   // Coins for a settled run (call finishBattle first): survivors + 10·level number, +10% per Доход level.
-  // A lost run still pays the level bonus, so a stuck player can buy upgrades. 0 for a run not settled yet.
-  function reward(run, upgrades) {
+  // The level bonus is paid while the level is new (`fresh`): a lost run still gets it, so a stuck player can buy
+  // upgrades, but a replay of a level already won pays only its survivors. 0 for a run not settled yet.
+  function reward(run, upgrades, fresh = true) {
     const res = run && run.result;
     if (!res) return 0;
-    const u = cleanUpgrades(upgrades === undefined ? run.upgrades : upgrades);
-    return Math.round((res.survivors + COIN_PER_LEVEL * run.level.num) * (1 + INCOME_PER_LEVEL * u.income));
+    const u = cleanUpgrades(upgrades);
+    const bonus = fresh ? COIN_PER_LEVEL * run.level.num : 0;
+    return Math.round((res.survivors + bonus) * (1 + INCOME_PER_LEVEL * u.income));
   }
 
   // Saved under SAVE_KEY: { v: 1, level: the level to play next, best: the highest level won, coins, upgrades }.
@@ -391,7 +394,6 @@
   // Buys one level of an upgrade. Returns 'ok', or why not: 'unknown' | 'max' | 'nocoins'.
   function buy(save, id) {
     if (!save || !UPGRADES.includes(id)) return 'unknown';
-    save.upgrades = cleanUpgrades(save.upgrades);
     const lvl = save.upgrades[id];
     if (lvl >= MAX_UPGRADE) return 'max';
     const cost = price(id, lvl);
@@ -412,16 +414,26 @@
   }
 
   // Puts a settled run into the save: its coins, and on a win the next level. Returns the coins earned.
+  // A run is banked once: recording it again adds nothing. The level bonus is paid only on a level not won yet.
   function record(save, run) {
     const res = finishBattle(run);
-    if (!save || !res) return 0;
-    const coins = reward(run, save.upgrades);
+    if (!save || !res || run.recorded) return 0;
+    run.recorded = true;
+    const coins = reward(run, save.upgrades, run.level.num > save.best);
     save.coins = Math.min(MAX_COINS, save.coins + coins);
     if (res.won) {
       const n = run.level.num;
       save.best = Math.max(save.best, n);
       save.level = Math.min(MAX_LEVEL, Math.max(save.level, n + 1));
     }
+    return coins;
+  }
+
+  // The client's end of a run: record it and write the save at once (before the battle animation), so leaving
+  // mid-animation loses nothing. Returns the coins earned.
+  function bank(storage, save, run) {
+    const coins = record(save, run);
+    storeSave(storage, save);
     return coins;
   }
 
@@ -672,6 +684,7 @@
     return { num: n, length, gates, obstacles, platforms };
   }
 
+  const isBossLevel = (n) => n % BOSS_EVERY === 0;
   const enemyPower = (n) => Math.min(9.9, Math.round(10 * (1 + 0.08 * (n - 1))) / 10);
   const marginFor = (n) => (n <= CAMPAIGN ? MARGIN : Math.max(0.12, MARGIN - 0.004 * (n - CAMPAIGN)));
 
@@ -686,7 +699,7 @@
     const S = strength(smart.run);
     if (S < 15) return null;
     const budget = S / (1 + m);
-    const boss = n % BOSS_EVERY === 0 ? { hp: Math.max(1, Math.round(budget * BOSS_SHARE)) } : null;
+    const boss = isBossLevel(n) ? { hp: Math.max(1, Math.round(budget * BOSS_SHARE)) } : null;
     const pe = enemyPower(n);
     const count = Math.max(1, Math.round((budget - (boss ? boss.hp : 0)) / pe));
     const def = { ...layout, enemy: { count, power: pe }, boss };
@@ -719,7 +732,6 @@
     if (!levelMemo.has(n)) levelMemo.set(n, JSON.stringify(makeLevel(n)));
     return JSON.parse(levelMemo.get(n));
   }
-  const isBossLevel = (n) => n % BOSS_EVERY === 0;
 
   const api = {
     HZ, TICK, MAX_DT, SPEED, STEER, BASE_COUNT, BASE_POWER, MAX_COUNT, FALL_RATE,
@@ -727,7 +739,7 @@
     radius, overlap, spanOverlap, parseLevel, cleanUpgrades, shieldMul, newRun, applyOp, gateSide,
     obstacleLoss, platformX, platformAt, uncovered, step, progress, strength,
     finishBattle, COIN_PER_LEVEL, INCOME_PER_LEVEL, PRICE_BASE, PRICE_GROWTH, SAVE_KEY, MAX_LEVEL, MAX_COINS,
-    price, reward, newSave, parseSave, loadSave, storeSave, nextPrice, buy, cheapest, record,
+    price, reward, newSave, parseSave, loadSave, storeSave, nextPrice, buy, cheapest, record, bank,
     LEVEL_SEED, BOSS_EVERY, BOSS_SHARE, MARGIN, CAMPAIGN, TIE, rng, expectedUpgrades, pilotTarget, autoplay,
     enemyPower, levelDef, isBossLevel,
   };

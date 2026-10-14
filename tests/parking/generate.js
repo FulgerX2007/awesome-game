@@ -6,7 +6,13 @@
 // the exit by a backward BFS. A state with even parity at exactly the level's target distance becomes the level
 // (the "farthest state" trick: random boards alone are almost always easy). Among the candidates it prefers the
 // ones whose optimal path moves the most different vehicles — blocking chains, not a crowd of idle cars.
+// A barrier level must need its barrier: with every barrier open the optimum has to be shorter. When the level's
+// regular pick doesn't qualify, a dedicated search (its own seed, so the other levels stay as they were) builds
+// a board whose barrier really slows it down.
 // Each pick is verified with ParkingCore.solve, which is the authority on `optimal`. Progress goes to stderr.
+// A full run takes 20–30 minutes plus the barrier searches; `--fix-barriers` redoes only the barrier levels
+// whose barrier doesn't matter in the committed levels.js (with the same result as a full run), and
+// `--only=n,m` limits that to some levels so the work can be split between processes.
 'use strict';
 const P = require('../../web/parking/core.js');
 
@@ -105,7 +111,8 @@ function randomBoard(cfg, rand) {
 
 // ── Full state graph and distances to the exit ──
 // Geometry mirrors core.js (span/occupancy); core.solve re-checks every pick.
-function explore(L) {
+// `open`: every barrier stays open (the board as if the barriers were not there).
+function explore(L, open = false) {
   const { w, h, cells, vehicles } = L;
   const n = vehicles.length;
   const px = vehicles.findIndex((v) => v.id === P.PLAYER);
@@ -137,7 +144,7 @@ function explore(L) {
   for (let s = 0; s < states.length; s++) {
     const p = states[s];
     const par = pars[s];
-    const closed = par === 0;
+    const closed = !open && par === 0;
     const occ = occOf(p);
     const out = [];
     let canExit = false;
@@ -185,18 +192,145 @@ function explore(L) {
     const t = queue[qi];
     for (const s of pred[t]) if (dist[s] < 0) { dist[s] = dist[t] + 1; queue.push(s); }
   }
-  return { states, pars, dist };
+  return { states, pars, dist, index, keyOf };
+}
+
+// The level with every barrier replaced by an empty cell.
+function withoutGates(def) {
+  const open = { rows: def.rows.map((r) => r.split(P.GATE).join(P.EMPTY)) };
+  if (def.vehicles) open.vehicles = def.vehicles;
+  return open;
+}
+
+// True when the barriers lengthen the optimum: the same board with them open is solved faster.
+function gateMatters(def, optimal) {
+  const sol = P.solve(withoutGates(def));
+  return !!sol && sol.moves < optimal;
+}
+
+// Cells of a level's barriers and a test whether positions p put a vehicle on one (the text format can't show that).
+function gateTest(L) {
+  const gateCells = [];
+  L.cells.forEach((c, j) => { if (c === P.GATE) gateCells.push(j); });
+  return (p) => gateCells.length > 0 && L.vehicles.some((v, i) => {
+    for (let k = 0; k < v.len; k++) {
+      const x = v.dir === 'h' ? p[i] + k : v.x;
+      const y = v.dir === 'v' ? p[i] + k : v.y;
+      if (gateCells.includes(y * L.w + x)) return true;
+    }
+    return false;
+  });
+}
+
+// A candidate from a state's definition, or null when it breaks a rule (solver check, tow truck in the solution).
+function candidate(def, cfg, meta, k) {
+  const sol = P.solve(def);
+  if (!sol || sol.moves !== cfg.target) throw new Error(`level ${cfg.n}: core.solve disagrees (${sol && sol.moves})`);
+  if (cfg.tows && !sol.path.some(([id]) => meta[id] === 'tow')) return null;
+  return { def, sol, movers: new Set(sol.path.map(([id]) => id)).size, k };
+}
+
+// Barrier levels whose regular candidates all ignore the barrier. Random boards rarely make a barrier matter,
+// so this search builds it in: a board without barriers (from a per-level stream), a state 1–2 moves short of the
+// target, then barriers dropped on its empty cells (the first one in the exit row only right of X, the second off
+// it, as in randomBoard) until the solver says the barriers stretch the optimum to exactly the target.
+const GATE_DROPS = 10;        // barrier placements tried per state
+const GATE_CANDIDATES = 6;    // the search is slow on 7×7: fewer candidates than the regular one
+
+function gateSearch(cfg, seen) {
+  const rand = rng(SEED + cfg.n * 7919);
+  const plain = { ...cfg, gates: 0 };
+  const cands = [];
+  let tries = 0;
+  for (; tries < TRIES && cands.length < GATE_CANDIDATES; tries++) {
+    const board = randomBoard(plain, rand);
+    if (!board) continue;
+    let L;
+    try { L = P.parseLevel(board); } catch (e) { continue; }
+    const g = explore(L);
+    if (!g) continue;
+    const pick = [];
+    for (let s = 0; s < g.states.length; s++) {
+      if (g.pars[s] === 0 && g.dist[s] >= cfg.target - 2 && g.dist[s] < cfg.target) pick.push(s);
+    }
+    for (let k = 0; k < 4 && pick.length; k++) {
+      const s = pick.splice(Math.floor(rand() * pick.length), 1)[0];
+      const base = defAt(L, g.states[s], board.vehicles);
+      const rows = base.rows.map((r) => r.split(''));
+      const px = rows[L.exitRow].indexOf(P.PLAYER);
+      const spots = (first) => {
+        const out = [];
+        rows.forEach((r, y) => r.forEach((c, x) => {
+          if (c === P.EMPTY && (y !== L.exitRow || (first && x > px + 1))) out.push([x, y]);
+        }));
+        return out;
+      };
+      for (let d = 0; d < GATE_DROPS; d++) {
+        const put = [];
+        for (let i = 0; i < cfg.gates; i++) {
+          const free = spots(i === 0).filter(([x, y]) => !put.some(([u, v]) => u === x && v === y));
+          if (!free.length) break;
+          put.push(free[Math.floor(rand() * free.length)]);
+        }
+        if (put.length < cfg.gates) break;
+        const def = { rows: rows.map((r, y) => r.map((c, x) => (put.some(([u, v]) => u === x && v === y) ? P.GATE : c)).join('')) };
+        if (base.vehicles) def.vehicles = base.vehicles;
+        if (seen.has(keyOfDef(def))) continue;
+        const sol = P.solve(def);
+        if (!sol || sol.moves !== cfg.target) continue;
+        const c = candidate(def, cfg, board.vehicles || {}, tries);
+        if (!c || c.movers * 2 < cfg.target) continue; // a blocking chain, as levels.test.js asks
+        if (!gateMatters(def, cfg.target)) throw new Error(`level ${cfg.n}: core.solve disagrees on the open board`);
+        process.stderr.write(`  level ${cfg.n}: barrier search, candidate ${cands.length + 1} on board ${tries}\n`);
+        cands.push(c);
+        break;
+      }
+    }
+  }
+  return { cands, tries };
 }
 
 // Rebuilds a level definition with the vehicles at positions p.
 function defAt(L, p, meta) {
   const vs = L.vehicles.map((v, i) => ({ ...v, x: v.dir === 'h' ? p[i] : v.x, y: v.dir === 'v' ? p[i] : v.y }));
-  const def = { rows: P.toRows({ level: L, vehicles: vs }) };
+  const def = { rows: P.toRows(L, vs) };
   if (meta) def.vehicles = meta;
   return def;
 }
 
 const keyOfDef = (def) => def.rows.join('/') + '|' + JSON.stringify(def.vehicles || {});
+
+// The barrier search's best candidate (most vehicles moving), or an error when it found none.
+function pickGated(cfg, seen) {
+  const { cands, tries } = gateSearch(cfg, seen);
+  if (!cands.length) throw new Error(`level ${cfg.n}: no barrier board with optimum ${cfg.target} in ${tries} tries`);
+  cands.sort((a, b) => b.movers - a.movers || a.k - b.k);
+  return { ...cands[0], tries };
+}
+
+// What a full run would do to the barrier levels, without redoing the rest: every level of `old` (the committed
+// LEVELS) is kept, except barrier levels whose barrier doesn't matter, which go through the barrier search — the
+// same per-level search a full run falls back to. `only` (level numbers) limits the work, e.g. to split it
+// between processes.
+function fixBarriers(old, only = null) {
+  const seen = new Set();
+  const levels = [];
+  for (let n = 1; n <= COUNT; n++) {
+    const cfg = config(n);
+    let level = old[n - 1];
+    if (cfg.gates && (!only || only.includes(n)) && !gateMatters(level, level.optimal)) {
+      const best = pickGated(cfg, seen);
+      level = { rows: best.def.rows };
+      if (best.def.vehicles) level.vehicles = best.def.vehicles;
+      level.optimal = best.sol.moves;
+      process.stderr.write(`level ${n}: barrier board, optimal ${level.optimal}, ${best.movers} vehicles move, ` +
+        `${best.tries} boards\n`);
+    }
+    seen.add(keyOfDef(level));
+    levels.push(level);
+  }
+  return levels;
+}
 
 function generate() {
   const rand = rng(SEED);
@@ -204,7 +338,7 @@ function generate() {
   const levels = [];
   for (let n = 1; n <= COUNT; n++) {
     const cfg = config(n);
-    const cands = [];
+    let cands = [];
     let tries = 0;
     for (; tries < TRIES && cands.length < CANDIDATES; tries++) {
       const board = randomBoard(cfg, rand);
@@ -214,16 +348,7 @@ function generate() {
       const g = explore(L);
       if (!g) continue;
       // the text format can't show a vehicle standing on a barrier, so such states are not offered
-      const gateCells = [];
-      L.cells.forEach((c, j) => { if (c === P.GATE) gateCells.push(j); });
-      const onGate = (p) => gateCells.length > 0 && L.vehicles.some((v, i) => {
-        for (let k = 0; k < v.len; k++) {
-          const x = v.dir === 'h' ? p[i] + k : v.x;
-          const y = v.dir === 'v' ? p[i] + k : v.y;
-          if (gateCells.includes(y * L.w + x)) return true;
-        }
-        return false;
-      });
+      const onGate = gateTest(L);
       const pick = [];
       for (let s = 0; s < g.states.length; s++) {
         if (g.pars[s] === 0 && g.dist[s] === cfg.target && !onGate(g.states[s])) pick.push(s);
@@ -234,16 +359,19 @@ function generate() {
         const s = pick.splice(Math.floor(rand() * pick.length), 1)[0];
         const def = defAt(L, g.states[s], board.vehicles);
         if (seen.has(keyOfDef(def))) continue;
-        const sol = P.solve(def);
-        if (!sol || sol.moves !== cfg.target) throw new Error(`level ${n}: core.solve disagrees (${sol && sol.moves})`);
-        const movers = new Set(sol.path.map(([id]) => id)).size;
-        if (cfg.tows && !sol.path.some(([id]) => board.vehicles[id] === 'tow')) continue;
-        cands.push({ def, sol, movers, k: tries });
+        const c = candidate(def, cfg, board.vehicles || {}, tries);
+        if (c) cands.push(c);
       }
     }
     if (!cands.length) throw new Error(`level ${n}: no board with optimum ${cfg.target} in ${TRIES} tries`);
     cands.sort((a, b) => b.movers - a.movers || a.k - b.k);
-    const best = cands[0];
+    let best = cands[0];
+    // a barrier level keeps its regular pick only when the barrier matters there; the regular search ran in full
+    // either way, so the shared random stream (and every other level) does not depend on this
+    if (cfg.gates && !gateMatters(best.def, cfg.target)) {
+      best = pickGated(cfg, seen);
+      tries += best.tries;
+    }
     const level = { rows: best.def.rows };
     if (best.def.vehicles) level.vehicles = best.def.vehicles;
     level.optimal = best.sol.moves;
@@ -286,7 +414,15 @@ function render(levels) {
 }
 
 if (require.main === module) {
-  process.stdout.write(render(generate()));
+  // node tests/parking/generate.js [--fix-barriers [--only=12,17]] > web/parking/levels.js
+  const args = process.argv.slice(2);
+  const only = args.find((a) => a.startsWith('--only='));
+  if (args.includes('--fix-barriers')) {
+    const { LEVELS } = require('../../web/parking/levels.js');
+    process.stdout.write(render(fixBarriers(LEVELS, only ? only.slice(7).split(',').map(Number) : null)));
+  } else {
+    process.stdout.write(render(generate()));
+  }
 }
 
-module.exports = { rng, config, randomBoard, explore, generate, render, TARGETS };
+module.exports = { rng, config, randomBoard, explore, withoutGates, gateMatters, gateSearch, fixBarriers, generate, render, TARGETS };

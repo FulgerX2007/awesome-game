@@ -284,9 +284,27 @@ test('determinism: the same steering gives the same run, however dt is cut', () 
   assert.equal(a.status, 'battle');
   assert.deepEqual(a.events.filter((e) => e.type !== 'fall').map((e) => e.type), ['gate', 'hit', 'gate', 'hit', 'gate']);
   // Coarser and mixed steps (the target changes only between calls) still tick the same simulation clock.
-  const c = play((i) => (i % 3 === 0 ? 2 * TICK : TICK / 2));
+  const mixed = (i) => (i % 3 === 0 ? 2 * TICK : TICK / 2);
+  const c = play(mixed);
   assert.equal(c.ticks, a.ticks);
   assert.equal(c.status, a.status);
+  // With a steady finger the run is the same whatever the steps: count, power and every event.
+  const steady = (cut) => {
+    const run = R.newRun(def, { start: 2, shield: 3 });
+    let i = 0;
+    while (run.status === 'running') R.step(run, cut(i++), 0.35);
+    return run;
+  };
+  const p = steady(() => TICK);
+  for (const cut of [mixed, () => 3 * TICK, () => R.MAX_DT]) {
+    const q = steady(cut);
+    assert.equal(q.ticks, p.ticks);
+    assert.equal(q.status, p.status);
+    assert.equal(q.count, p.count);
+    assert.equal(q.power, p.power);
+    assert.deepEqual(q.events, p.events);
+  }
+  assert.ok(p.events.some((e) => e.type === 'gate') && p.events.some((e) => e.type === 'hit'), 'the steady run meets gates and hits');
 });
 
 test('step ignores dt ≤ 0, NaN and infinite dt, and caps a long dt', () => {

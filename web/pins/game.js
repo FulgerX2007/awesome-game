@@ -16,14 +16,9 @@
   let storage = null;
   try { storage = window.localStorage; } catch { storage = null; }
 
-  // Sound comes from audio.js when it's there; without it the toggle still works for this visit.
-  const Sound = window.PinsAudio || {
-    enabled: true,
-    setEnabled(v) { this.enabled = !!v; },
-    unlock() {},
-    play() {},
-  };
-  const sfx = (name) => { if (Sound.enabled) Sound.play(name); };
+  // Sound comes from audio.js (index.html loads it first); its play() is silent while the sound is off.
+  const Sound = window.PinsAudio;
+  const sfx = (name) => Sound.play(name);
 
   // One-line lessons for the teaching levels, shown until the first pull.
   const TIPS = [
@@ -741,13 +736,13 @@
   function draw(dt) {
     ctx.setTransform(k, 0, 0, k, 0, 0);
     if (!s) return;
-    const key = `${level}:${fit.w}x${fit.h}`;
+    const key = String(level); // resize() clears staticKey
     if (key !== staticKey) { staticLayer = buildStatic(); staticKey = key; }
     ctx.drawImage(staticLayer, 0, 0, LW, LH);
     drawTorches();
     // The door opens as the hero comes close and stays open once the hero is through.
     let open = 0;
-    if (phase === 'walk') open = clamp((phaseT - 0.5 - V.walkTime(s.hero, s.exit) + 0.5) / 0.5, 0, 1);
+    if (phase === 'walk') open = clamp((phaseT - V.walkTime(s.hero, s.exit)) / 0.5, 0, 1);
     else if (outcome && outcome.won && phase === 'end') open = 1;
     drawSolids();
     drawDoor(open);
@@ -778,6 +773,7 @@
       const st = C.status(s);
       if (st.status === 'won') {
         outcome = { won: true, reason: null, stars: C.stars(s), gold: C.goldInRoom(s), allDead: C.liveEnemies(s) === 0 };
+        C.recordWin(storage, progress, level, outcome.stars);
         drag = null;
         setPhase('walk');
         sfx('win');
@@ -855,9 +851,6 @@
 
   function finish() {
     if (!outcome.won) outcome.gold = C.goldInRoom(s);
-    if (outcome.won) {
-      if (C.recordStars(progress, level, outcome.stars)) C.saveProgress(storage, progress);
-    }
     setPhase('end');
     showResult();
   }
@@ -869,9 +862,9 @@
     nogold: 'Золота не хватило',
   };
 
-  function starsHTML(n, total = 3) {
+  function starsHTML(n) {
     let h = '';
-    for (let i = 0; i < total; i++) h += `<span class="${i < n ? 'on' : 'off'}">★</span>`;
+    for (let i = 0; i < 3; i++) h += `<span class="${i < n ? 'on' : 'off'}">★</span>`;
     return h;
   }
 

@@ -120,7 +120,7 @@ test('levels unlock one after another; finished levels stay open', () => {
 test('pathOf and replay bring a level in progress back exactly', () => {
   const def = LEVELS[9];
   const s = P.newGame(def);
-  const sol = P.solve(s);
+  const sol = P.solveState(s);
   for (const [id, d] of sol.path.slice(0, 4)) assert.ok(P.move(s, id, d));
   const path = P.pathOf(s);
   assert.deepEqual(path, sol.path.slice(0, 4));
@@ -132,7 +132,7 @@ test('pathOf and replay bring a level in progress back exactly', () => {
   P.undo(s);
   assert.deepEqual(P.pathOf(s), sol.path.slice(0, 3));
   const w = P.newGame(LEVELS[0]);
-  for (const [id, d] of P.solve(w).path) P.move(w, id, d);
+  for (const [id, d] of P.solveState(w).path) P.move(w, id, d);
   assert.equal(w.status, 'won');
   assert.equal(P.replay(LEVELS[0], P.pathOf(w)).status, 'won');
   assert.deepEqual(P.pathOf(P.newGame(LEVELS[0])), []);
@@ -151,7 +151,7 @@ test('a won level records stars and the saved progress survives a reload', () =>
   const st = memoryStorage();
   const p = P.loadProgress(st);
   const s = P.newGame(LEVELS[0]);
-  for (const [id, d] of P.solve(s).path) P.move(s, id, d);
+  for (const [id, d] of P.solveState(s).path) P.move(s, id, d);
   assert.equal(s.status, 'won');
   P.recordStars(p, 0, P.stars(s.moves, s.optimal));
   p.current = null;
@@ -160,4 +160,63 @@ test('a won level records stars and the saved progress survives a reload', () =>
   assert.equal(P.starsOf(q, 0), 3);
   assert.equal(P.firstUnfinished(q, LEVELS.length), 1);
   assert.equal(q.current, null);
+});
+
+// The client's save/restore of the level in progress goes through currentOf (after every move, win and loss)
+// and resume (on the menu and on «Играть»).
+test('currentOf keeps a playing or lost game and drops a won one', () => {
+  const s = P.newGame(LEVELS[0]);
+  assert.deepEqual(P.currentOf(0, s, 0), { level: 0, path: [], hints: 0 });
+  const sol = P.solveState(s);
+  P.move(s, ...sol.path[0]);
+  assert.deepEqual(P.currentOf(0, s, 2), { level: 0, path: [sol.path[0]], hints: 2 });
+  for (const m of sol.path.slice(1)) P.move(s, ...m);
+  assert.equal(s.status, 'won');
+  assert.equal(P.currentOf(0, s, 2), null, 'a won level keeps nothing');
+  assert.equal(P.currentOf(0, null, 0), null);
+});
+
+// Runs a level out of moves by shuffling one vehicle back and forth. Returns the lost game.
+function runOut(def) {
+  const s = P.newGame(def);
+  const u = s.vehicles.find((v) => v.id !== P.PLAYER && P.canMove(s, v.id, 1));
+  while (s.status === 'playing') { P.move(s, u.id, 1); if (s.status === 'playing') P.move(s, u.id, -1); }
+  return s;
+}
+
+test('a level lost on moves survives a reload and can still be undone', () => {
+  const st = memoryStorage();
+  const p = P.loadProgress(st);
+  const s = runOut(LEVELS[2]);
+  assert.equal(s.status, 'lost');
+  p.current = P.currentOf(2, s, 1);
+  assert.ok(p.current, 'the lost game is kept');
+  P.saveProgress(st, p);
+  const r = P.resume(P.loadProgress(st), LEVELS);
+  assert.equal(r.level, 2);
+  assert.equal(r.hints, 1);
+  assert.equal(r.state.status, 'lost');
+  assert.equal(r.state.moves, s.limit);
+  assert.ok(P.undo(r.state), 'the last move can be taken back');
+  assert.equal(r.state.status, 'playing');
+});
+
+test('resume: nothing saved, a won path, a path that no longer fits or a missing level give null', () => {
+  assert.equal(P.resume(P.newProgress(), LEVELS), null);
+  assert.equal(P.resume(null, LEVELS), null);
+  const won = P.newGame(LEVELS[0]);
+  for (const m of P.solveState(won).path) P.move(won, ...m);
+  assert.equal(P.resume({ current: { level: 0, path: P.pathOf(won), hints: 0 } }, LEVELS), null);
+  assert.equal(P.resume({ current: { level: 0, path: [['X', 1]], hints: 0 } }, LEVELS), null);
+  assert.equal(P.resume({ current: { level: 99, path: [], hints: 0 } }, LEVELS), null);
+  const ok = P.resume({ current: { level: 5, path: [], hints: 3 } }, LEVELS);
+  assert.equal(ok.state.status, 'playing');
+  assert.equal(ok.hints, 3);
+});
+
+test('pathOf stores the exit as the slide to the edge, whatever the overshoot', () => {
+  const s = P.newGame({ rows: ['......', '......', 'XX....', '......', '......', '......'], optimal: 1 });
+  assert.ok(P.move(s, 'X', 9));
+  assert.deepEqual(P.pathOf(s), [['X', 6]]);
+  assert.equal(P.replay({ rows: ['......', '......', 'XX....', '......', '......', '......'], optimal: 1 }, P.pathOf(s)).status, 'won');
 });

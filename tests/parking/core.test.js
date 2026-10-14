@@ -38,7 +38,7 @@ test('parseLevel reads size, exit row, vehicles and kinds', () => {
   // {kind, dir} form and explicit car/bus are accepted too
   const L2 = P.parseLevel({ rows: OPEN, vehicles: { A: { kind: 'car', dir: 'v' }, B: 'car' }, optimal: 2 });
   assert.equal(L2.optimal, 2);
-  assert.deepEqual(P.toRows(P.newGame(L2)), OPEN, 'newGame accepts a parsed level');
+  assert.deepEqual(P.toRows(P.newGame(L2).level, P.newGame(L2).vehicles), OPEN, 'newGame accepts a parsed level');
 });
 
 test('vehicles move only along their axis, any distance, as one move', () => {
@@ -128,7 +128,7 @@ test('the player leaves through the exit with one move; the tail passes the edge
   assert.equal(s.moves, 1);
   assert.equal(s.status, 'won');
   assert.equal(P.status(s), 'won');
-  assert.deepEqual(P.toRows(s)[2], '......', 'the car is gone');
+  assert.deepEqual(P.toRows(s.level, s.vehicles)[2], '......', 'the car is gone');
   assert.equal(P.move(s, 'X', -1), false, 'no moves after the win');
   assert.equal(P.moveRange(s, 'X'), null);
   // only X may leave
@@ -200,17 +200,17 @@ test('limit and stars follow the rules at the boundaries', () => {
   for (const junk of [[-1, 3], [1.5, 3], [3, 0], [3, null], ['3', 3], [NaN, 3]]) assert.equal(P.stars(...junk), 0);
 });
 
-test('newGame computes the optimum when the level has none; restart resets', () => {
-  const s = P.newGame({ rows: OPEN });
+test('newGame needs the level\'s optimum; restart resets', () => {
+  assert.throws(() => P.newGame({ rows: OPEN }), /no optimal/, 'the game never solves a level itself');
+  const s = P.newGame({ rows: OPEN, optimal: 2 });
   assert.equal(s.optimal, 2);
   assert.equal(s.limit, 7);
   P.move(s, 'A', 2);
   P.restart(s);
   assert.equal(s.moves, 0);
   assert.equal(s.history.length, 0);
-  assert.deepEqual(P.toRows(s), OPEN);
+  assert.deepEqual(P.toRows(s.level, s.vehicles), OPEN);
   assert.equal(s.optimal, 2);
-  assert.throws(() => P.newGame({ rows: ['......', '......', 'XX..BB', '......', '......', '......'] }), /no solution/);
 });
 
 test('the state is plain data: a JSON round trip keeps playing', () => {

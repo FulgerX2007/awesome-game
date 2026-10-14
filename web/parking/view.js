@@ -55,9 +55,8 @@
     return v ? v.id : null;
   }
 
-  // The part of a pointer offset { dx, dy } (cells, or a plain number) along a vehicle's axis.
+  // The part of a pointer offset { dx, dy } (cells) along a vehicle's axis.
   function along(v, d) {
-    if (typeof d === 'number') return Number.isFinite(d) ? d : 0;
     if (!d) return 0;
     const a = v.dir === 'h' ? d.dx : d.dy;
     return Number.isFinite(a) ? a : 0;
@@ -85,17 +84,7 @@
     return clamp(d, r.min, r.max);
   }
 
-  // How far past the allowed shift the pointer pushes (cells, ≥ 0): drives the bump wobble and its sound.
-  function overPush(state, id, pointerDelta) {
-    const r = Core.moveRange(state, id);
-    if (!r) return 0;
-    const v = state.vehicles.find((u) => u.id === id);
-    const want = along(v, pointerDelta);
-    const got = dragTarget(state, id, pointerDelta);
-    return Math.abs(want - got);
-  }
-
-  // A soft give past the stop for the drawing: approaches OVERDRAG cells however hard the pointer pushes.
+  // A soft give past the stop for the drawing (push: how far past the allowed shift the pointer is, cells): approaches OVERDRAG cells however hard the pointer pushes.
   const give = (push) => (push > 0 ? OVERDRAG * (1 - Math.exp(-push * 3)) : 0);
 
   // ── Keyboard picking ──
@@ -156,7 +145,7 @@
 
   const api = {
     PAD, ROAD, MAX_CELL, MAX_DPR, DRAG_START, OVERDRAG,
-    clamp, worldSize, fitBoard, cellAt, covers, vehicleAt, along, dragTarget, dropDelta, overPush, give,
+    clamp, worldSize, fitBoard, cellAt, covers, vehicleAt, along, dragTarget, dropDelta, give,
     cycle, neighbor, approach, easeInQuad, easeOutBack, hash2,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

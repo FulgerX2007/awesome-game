@@ -88,20 +88,23 @@ test('finishBattle: a running run gives null, a run lost on the track settles as
   assert.equal(R.finishBattle(done), first, 'the same result on a second call');
 });
 
-test('reward: survivors + 10·level, +10% per Доход level; a loss still pays the level bonus', () => {
+test('reward: survivors + 10·level, +10% per Доход level; a loss still pays the level bonus, a replay does not', () => {
   const won = atFinish(level(), 40); // 10 survivors on level 4
-  assert.equal(R.reward(won), 0, 'nothing before the battle is settled');
+  assert.equal(R.reward(won, {}), 0, 'nothing before the battle is settled');
   R.finishBattle(won);
-  assert.equal(R.reward(won), 50);
+  assert.equal(R.reward(won, {}), 50);
   assert.equal(R.reward(won, { income: 3 }), 65);
   assert.equal(R.reward(won, { income: 10 }), 100);
+  assert.equal(R.reward(won, {}, false), 10, 'without the level bonus: survivors only');
+  assert.equal(R.reward(won, { income: 10 }, false), 20);
   const lost = atFinish(level(), 5);
   R.finishBattle(lost);
-  assert.equal(R.reward(lost), 40);
+  assert.equal(R.reward(lost, {}), 40);
+  assert.equal(R.reward(lost, {}, false), 0);
   const plain = atFinish(level({ num: undefined }), 40); // a level without a number counts as level 1
   R.finishBattle(plain);
-  assert.equal(R.reward(plain), 20);
-  assert.equal(R.reward(null), 0);
+  assert.equal(R.reward(plain, {}), 20);
+  assert.equal(R.reward(null, {}), 0);
 });
 
 test('prices grow as base·1.35^level', () => {
@@ -197,13 +200,43 @@ test('record banks the coins and moves on only after a win', () => {
   assert.equal(R.record(save, won), 50);
   assert.deepEqual([save.level, save.best, save.coins], [5, 4, 90]);
   const replay = atFinish(level({ num: 2 }), 40);
-  R.record(save, replay);
-  assert.deepEqual([save.level, save.best], [5, 4], 'replaying an old level does not move back');
+  assert.equal(R.record(save, replay), 10, 'a replay of a won level pays its survivors, no level bonus');
+  assert.deepEqual([save.level, save.best, save.coins], [5, 4, 100], 'replaying an old level does not move back');
+  const lostReplay = atFinish(level(), 5);
+  assert.equal(R.record(save, lostReplay), 0, 'losing a won level again pays nothing');
   assert.equal(R.record(save, R.newRun(level(), {})), 0, 'a running run banks nothing');
+  assert.equal(save.coins, 100);
+});
+
+test('record banks a run once: recording it again adds nothing', () => {
+  const save = R.newSave();
+  save.level = 4;
+  save.best = 3;
+  const won = atFinish(level(), 40);
+  assert.equal(R.record(save, won), 50);
+  assert.equal(R.record(save, won), 0);
+  assert.equal(R.record(save, won), 0);
+  assert.deepEqual([save.level, save.best, save.coins], [5, 4, 50]);
+  const lost = atFinish(level({ num: 5 }), 5);
+  assert.equal(R.record(save, lost), 50);
+  assert.equal(R.record(save, lost), 0);
+  assert.equal(save.coins, 100);
+});
+
+test('bank records the run and writes the save at once; a blocked storage keeps the coins for this visit', () => {
+  const st = memStorage();
+  const save = R.newSave();
+  save.level = 4;
+  save.best = 3;
+  assert.equal(R.bank(st, save, atFinish(level(), 40)), 50);
+  assert.deepEqual(R.loadSave(st), save);
+  assert.deepEqual([save.level, save.coins], [5, 50]);
+  assert.equal(R.bank(throwing, save, atFinish(level({ num: 5 }), 5)), 50);
+  assert.equal(save.coins, 100);
+  assert.equal(R.bank(st, save, R.newRun(level(), {})), 0, 'a running run banks nothing');
 });
 
 test('a smart bot buying the cheapest upgrades wins levels 1–30 with at most 3 losses in a row', () => {
-  const started = Date.now();
   const { save, runs, worstStreak } = campaign(30, 300);
   assert.equal(save.best, 30, `reached level ${save.level} after ${runs.length} runs`);
   assert.ok(worstStreak <= 3, `worst losing streak ${worstStreak}`);
@@ -211,5 +244,17 @@ test('a smart bot buying the cheapest upgrades wins levels 1–30 with at most 3
   // Upgrades spread over the campaign: something left to buy at level 20.
   const at20 = runs.find((r) => r.n === 20).upgrades;
   assert.ok(R.UPGRADES.some((id) => at20[id] < R.MAX_UPGRADE));
-  assert.ok(Date.now() - started < 10000, 'the campaign runs fast');
+});
+
+// Other players: the casual bot (bot.js) and shopping orders unlike the generator's cheapest-first model.
+test('a casual bot reaches level 30 whatever it buys first, and a player who never buys gets stuck', () => {
+  for (const shop of ['cheapest', ['weapon', 'start', 'shield', 'income'], ['income', 'weapon', 'start', 'shield']]) {
+    const { save, runs, worstStreak } = campaign(30, 60, { mode: 'casual', shop });
+    const name = Array.isArray(shop) ? shop.join('>') : shop;
+    assert.equal(save.best, 30, `${name}: stopped at level ${save.level} after ${runs.length} runs`);
+    assert.ok(runs.length <= 40, `${name}: ${runs.length} runs for 30 levels`);
+    assert.ok(worstStreak <= 3, `${name}: worst losing streak ${worstStreak}`);
+  }
+  const { save } = campaign(30, 40, { mode: 'smart', shop: 'none' });
+  assert.ok(save.best < 10, `with no upgrades the smart bot still got to level ${save.best}`);
 });

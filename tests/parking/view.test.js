@@ -17,7 +17,7 @@ const BOARD = {
   ],
 };
 
-const game = (def = BOARD) => P.newGame(def);
+const game = (def = BOARD) => P.newGame({ optimal: 99, ...def });
 
 test('fitBoard fits the whole lot with the exit road and keeps cells square', () => {
   const L = P.parseLevel(BOARD);
@@ -73,7 +73,6 @@ test('dragTarget follows the pointer along the axis only', () => {
   assert.equal(V.dragTarget(s, 'B', { dx: 1.4, dy: 3 }), 1.4, 'only the axis part counts');
   assert.equal(V.dragTarget(s, 'B', { dx: -0.6, dy: 0 }), -0.6);
   assert.equal(V.dragTarget(s, 'A', { dx: 5, dy: -1.5 }), -1.5);
-  assert.equal(V.dragTarget(s, 'A', -0.7), -0.7, 'a plain number is the axis offset');
   assert.equal(V.dragTarget(s, 'A', { dx: NaN, dy: NaN }), 0);
   assert.equal(V.dragTarget(s, 'Q', { dx: 1, dy: 1 }), 0, 'unknown vehicle');
   assert.equal(V.along(s.vehicles[0], null), 0);
@@ -109,7 +108,8 @@ test('dragTarget stops at a closed barrier and passes an open one', () => {
   const s = game({ rows: ['BB....', '......', 'XX....', '...|..', '...A..', '...A..'] });
   assert.equal(P.gateOpen(s), false, 'closed for the first move');
   assert.equal(V.dragTarget(s, 'A', { dx: 0, dy: -4 }), 0, 'the barrier holds A');
-  assert.ok(V.overPush(s, 'A', { dx: 0, dy: -4 }) > 3.9, 'pushing into it shows as a bump');
+  assert.ok(Math.abs(V.along(s.vehicles[0], { dx: 0, dy: -4 }) - V.dragTarget(s, 'A', { dx: 0, dy: -4 })) > 3.9,
+    'pushing into it shows as a bump');
   assert.ok(P.move(s, 'B', 1));
   assert.equal(P.gateOpen(s), true);
   assert.equal(V.dragTarget(s, 'A', { dx: 0, dy: -4 }), -4, 'open on the even move: A drives through');
@@ -135,11 +135,12 @@ test('dropDelta snaps to the nearest allowed cell', () => {
   assert.equal(V.dropDelta(s, 'X', 1.4), 1, 'X is blocked by A: no exit');
 });
 
-test('overPush and give measure pushing past a stop', () => {
+test('give softens pushing past a stop (the push is the pointer beyond dragTarget)', () => {
   const s = game();
-  assert.equal(V.overPush(s, 'B', { dx: 1, dy: 0 }), 0);
-  assert.equal(V.overPush(s, 'B', { dx: 4, dy: 0 }), 1);
-  assert.equal(V.overPush(s, 'Q', { dx: 4, dy: 0 }), 0);
+  const B = s.vehicles.find((v) => v.id === 'B');
+  const push = (d) => Math.abs(V.along(B, d) - V.dragTarget(s, 'B', d));
+  assert.equal(push({ dx: 1, dy: 0 }), 0);
+  assert.equal(push({ dx: 4, dy: 0 }), 1);
   assert.equal(V.give(0), 0);
   assert.ok(V.give(0.3) > 0 && V.give(0.3) < V.give(2));
   assert.ok(V.give(100) <= V.OVERDRAG);
@@ -190,13 +191,15 @@ test('hash2 is stable and in [0, 1)', () => {
   }
 });
 
-test('every level: dragging along the solution path wins with 3 stars', () => {
+test('every fourth level: dragging along the solution path wins with 3 stars', () => {
   for (const [i, def] of LEVELS.entries()) {
     if (i % 4) continue; // a sample keeps this fast; levels.test.js replays every solution through core
     const s = P.newGame(def);
-    const sol = P.solve(s);
+    const sol = P.solve(def);
     for (const [id, delta] of sol.path) {
-      const shift = V.dragTarget(s, id, delta + (delta > 0 ? 0.2 : -0.2));
+      const v = s.vehicles.find((u) => u.id === id);
+      const d = delta + (delta > 0 ? 0.2 : -0.2);
+      const shift = V.dragTarget(s, id, v.dir === 'h' ? { dx: d, dy: 0.3 } : { dx: 0.3, dy: d });
       assert.ok(P.move(s, id, V.dropDelta(s, id, shift)), `level ${i + 1}: ${id} ${delta}`);
     }
     assert.equal(s.status, 'won', `level ${i + 1}`);

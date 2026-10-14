@@ -118,9 +118,27 @@ test('a won level records its stars through the same path the client uses', () =
   const s = P.buildLevel(def);
   P.settle(s);
   assert.equal(P.status(s).status, 'won');
+  // the client calls recordWin the moment the win is detected: it saves at once, before the hero's walk
   const st = memoryStorage();
   const p = P.loadProgress(st);
-  assert.equal(P.recordStars(p, 0, P.stars(s)), true);
-  P.saveProgress(st, p);
+  assert.equal(P.recordWin(st, p, 0, P.stars(s)), true);
   assert.equal(P.starsOf(P.loadProgress(st), 0), 3);
+  assert.equal(P.unlocked(P.loadProgress(st), 1, 30), true, 'the next level opens right away');
+});
+
+test('recordWin keeps the best stars and only writes when the result improved', () => {
+  const st = memoryStorage();
+  const p = P.newProgress();
+  assert.equal(P.recordWin(st, p, 2, 2), true);
+  assert.deepEqual(JSON.parse(st.m.get('pins.progress')), { v: 1, stars: { 2: 2 } });
+  st.m.clear();
+  assert.equal(P.recordWin(st, p, 2, 1), false, 'a worse replay changes nothing');
+  assert.equal(st.m.size, 0, 'and writes nothing');
+  assert.equal(P.recordWin(st, p, 2, 3), true);
+  assert.equal(P.starsOf(P.loadProgress(st), 2), 3);
+  assert.equal(P.recordWin(st, p, 2, 0), false, 'not a win');
+  // blocked storage: the stars still count for this visit
+  const q = P.newProgress();
+  assert.equal(P.recordWin(memoryStorage(true), q, 0, 3), true);
+  assert.equal(P.starsOf(q, 0), 3);
 });

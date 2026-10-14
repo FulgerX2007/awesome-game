@@ -81,8 +81,29 @@ test('boss levels are winnable: the rest after the army covers the boss', () => 
   for (const n of CAMPAIGN.filter((i) => i % 5 === 0)) {
     const { result } = smartRun(n);
     assert.ok(result.boss > 0, `level ${n}: a boss`);
-    assert.ok(result.won && result.rest >= result.boss, `level ${n}: rest ${result.rest} vs HP ${result.boss}`);
+    assert.ok(result.won, `level ${n}: lost to the boss (rest ${result.rest} vs HP ${result.boss})`);
+    // the boss is a real fight: it takes a good share of what the army left, and the survivors are what remains
+    assert.ok(result.boss >= result.rest * 0.4, `level ${n}: the boss (${result.boss}) is a pushover after ${result.rest}`);
+    const { power } = smartRun(n).run;
+    assert.equal(result.survivors, Math.max(0, Math.ceil((result.rest - result.boss) / power - 1e-9)), `level ${n}: survivors`);
   }
+});
+
+// A player profile the generator knows nothing about (bot.js 'casual': reaction lag, jitter, coarse dodging, no
+// platform lead). If the levels were tuned only to the generator's own autopilot, this would show it.
+test('an imperfect casual player with the expected upgrades still wins nearly every level 1–30', () => {
+  for (const seed of [1, 2, 3]) {
+    const runs = CAMPAIGN.map((n) => ({ n, ...play(n, R.expectedUpgrades(n), 'casual', seed) }));
+    const won = runs.filter((r) => r.result.won);
+    assert.ok(won.length >= 27, `seed ${seed}: the casual bot won only ${won.length} of 30`);
+    for (const r of won) assert.ok(r.margin <= 0.4, `level ${r.n}: margin ${(r.margin * 100).toFixed(1)}% — too easy`);
+  }
+});
+
+test('the levels are not trivial: without upgrades even the smart bot loses most of levels 11–30', () => {
+  const late = CAMPAIGN.filter((n) => n > 10);
+  const lost = late.filter((n) => !play(n, {}, 'smart').result.won);
+  assert.ok(lost.length >= 15, `won ${late.length - lost.length} of ${late.length} with no upgrades at all`);
 });
 
 test('the smart bot meets every kind of gate and obstacle along the campaign', () => {

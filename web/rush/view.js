@@ -32,11 +32,11 @@
   const horizonY = (vp) => vp.h * HORIZON;
   const groundY = (vp) => vp.h * GROUND;
 
+  // vp is a clean viewport (see viewport(); the client cleans it once per resize).
   // Screen point of the track point (x, z), h metres above the ground, seen from a camera at camZ.
   // Returns { sx, sy, scale (px per metre there), d (metres from the camera) }, or null when it is too near.
   // y follows 1/d, so the ground recedes to the horizon; near things are larger and lower.
-  function project(x, z, camZ, vp, h) {
-    const v = viewport(vp);
+  function project(x, z, camZ, v, h) {
     const d = z - camZ;
     if (!(d >= NEAR - 1e-9)) return null;
     const scale = focal(v) / d;
@@ -51,8 +51,7 @@
 
   // The ground point { x, z } under a screen point, or null above the horizon (or nearer than NEAR).
   // Without sy it answers for the crowd's depth: that is how a pointer's X becomes a steering target.
-  function unproject(sx, sy, camZ, vp) {
-    const v = viewport(vp);
+  function unproject(sx, sy, camZ, v) {
     const hy = horizonY(v);
     const y = isNum(sy) ? sy : groundY(v);
     if (!(y > hy)) return null;
@@ -63,10 +62,9 @@
 
   // Positions of the drawn soldiers of a crowd of `count` with radius r (track units): a sunflower spiral that fills
   // the disc evenly, densest in the middle. [{ dx, dy }] in track units, |(dx, dy)| ≤ r; dy runs along the track
-  // (the client turns it into metres with HALF_M·DEPTH_SQUASH). At most `max` (MAX_SOLDIERS) figures.
-  function crowdLayout(count, r, max) {
-    const cap = Number.isInteger(max) && max >= 0 ? max : MAX_SOLDIERS;
-    const n = Math.min(cap, Math.max(0, Math.floor(isNum(count) ? count : 0)));
+  // (the client turns it into metres with HALF_M·DEPTH_SQUASH). At most MAX_SOLDIERS figures.
+  function crowdLayout(count, r) {
+    const n = Math.min(MAX_SOLDIERS, Math.max(0, Math.floor(isNum(count) ? count : 0)));
     const rad = isNum(r) && r > 0 ? r : 0;
     const out = [];
     for (let i = 0; i < n; i++) {
@@ -78,9 +76,8 @@
   }
 
   // The enemy army as a block of ranks facing the crowd: [{ dx (track units), dz (metres back from the front) }].
-  function armyLayout(count, max) {
-    const cap = Number.isInteger(max) && max >= 0 ? max : MAX_SOLDIERS;
-    const n = Math.min(cap, Math.max(0, Math.floor(isNum(count) ? count : 0)));
+  function armyLayout(count) {
+    const n = Math.min(MAX_SOLDIERS, Math.max(0, Math.floor(isNum(count) ? count : 0)));
     const cols = Math.max(1, Math.min(15, Math.ceil(Math.sqrt(n * 2.5))));
     const out = [];
     for (let i = 0; i < n; i++) {
@@ -146,9 +143,7 @@
       bossEnd: L.boss ? (res.won ? 0 : hasBoss ? Math.max(1, Math.ceil(L.boss.hp - (S - Se) - 1e-9)) : L.boss.hp) : 0,
       hasBoss,
       won: res.won,
-      t: { ...BATTLE },
     };
-    if (!armyBeaten) plan.oursEnd = 0;
     plan.total = BATTLE.charge + BATTLE.army + (hasBoss ? BATTLE.walk + BATTLE.boss : 0) + BATTLE.tail;
     return plan;
   }
@@ -158,7 +153,7 @@
 
   // What the battle shows at time t: { phase: charge|army|walk|boss|done, k (0..1 in the phase), ours, enemy, boss }.
   function battleAt(plan, t) {
-    const T = plan.t;
+    const T = BATTLE;
     let rest = Math.max(0, isNum(t) ? t : 0);
     const out = (phase, k, ours, enemy, boss) => ({ phase, k: clamp(k, 0, 1), ours, enemy, boss });
     if (rest < T.charge) return out('charge', rest / T.charge, plan.ours0, plan.enemy0, plan.boss0);

@@ -168,6 +168,13 @@ async function desktopChecks() {
   const pulled = await page.evaluate(() => document.getElementById('tip').hidden);
   check(pulled, 'the drag pulled a pin (the tip hides on the first pull)');
 
+  // The win is saved the moment it happens, while the hero still walks to the door (a restart then can't lose it).
+  const early = await waitFor(async () => {
+    const p = await readProgress(page);
+    return p && p.stars && p.stars[0] ? { stars: p.stars[0], result: await resultShown(page) } : null;
+  }, 20000, 40);
+  check(early && early.stars >= 1 && !early.result, 'pins.progress has the stars before the result screen', JSON.stringify(early));
+
   const title = await waitFor(() => resultShown(page), 20000, 200);
   check(title === 'Уровень пройден!', 'the level is won', JSON.stringify(title));
   const stars = await page.$$eval('#res-stars .on', (s) => s.length);

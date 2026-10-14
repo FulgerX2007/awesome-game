@@ -14,14 +14,9 @@
   let storage = null;
   try { storage = window.localStorage; } catch { storage = null; }
 
-  // Sound comes from audio.js when it's there; without it the toggle still works for this visit.
+  // Sound comes from audio.js (index.html loads it first); its play() is silent while the sound is off.
   // Names: gate ({ good }), hit, fall, battle, clash, coin, win, lose.
-  const Sound = window.RushAudio || {
-    enabled: true,
-    setEnabled(v) { this.enabled = !!v; },
-    unlock() {},
-    play() {},
-  };
+  const Sound = window.RushAudio;
 
   // ── Look ──
   const STRIP = 4;          // metres per track stripe
@@ -104,7 +99,7 @@
     const h = Math.max(1, stage.clientHeight);
     const ratio = clamp(window.devicePixelRatio || 1, 1, 2);
     if (w === vp.w && h === vp.h && ratio === dpr && canvas.width === Math.round(w * ratio)) return;
-    vp = { w, h };
+    vp = V.viewport({ w, h });
     dpr = ratio;
     canvas.width = Math.round(w * ratio);
     canvas.height = Math.round(h * ratio);
@@ -856,7 +851,7 @@
   }
 
   // ───────────── Simulation ─────────────
-  const sfx = (name, opts) => { if (!demo && Sound.enabled) Sound.play(name, opts); };
+  const sfx = (name, opts) => { if (!demo) Sound.play(name, opts); };
 
   function handleEvents() {
     for (const e of run.events) {
@@ -917,8 +912,8 @@
 
   function startBattle() {
     const start = { count: run.count, power: run.power };
-    coinsWon = demo ? 0 : C.record(save, run);
-    if (demo) C.finishBattle(run); else C.storeSave(storage, save);
+    C.finishBattle(run);
+    coinsWon = demo ? 0 : C.bank(storage, save, run);
     const plan = V.battlePlan(run, start);
     battle = { plan, view: V.battleAt(plan, 0), done: false };
     mode = 'battle';
@@ -927,8 +922,7 @@
   }
 
   function loseOnTrack() {
-    coinsWon = demo ? 0 : C.record(save, run);
-    if (!demo) C.storeSave(storage, save);
+    coinsWon = demo ? 0 : C.bank(storage, save, run);
     mode = 'lost';
     modeT = 0;
     shownCount = 0;

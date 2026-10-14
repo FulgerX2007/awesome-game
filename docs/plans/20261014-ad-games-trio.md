@@ -200,7 +200,8 @@ Cell types in a `Uint8Array`:
   | `Доход` | +10% coins | 60 |
 
   Bases tuned with the bot: buying the cheapest upgrade, everything is maxed around level 30 (≈10, 26 and 37 of
-  the 40 upgrade levels by levels 10, 20 and 30). A lost run still pays the `10·level` bonus.
+  the 40 upgrade levels by levels 10, 20 and 30). A lost run still pays the `10·level` bonus, but only while the
+  level is not won yet: a replay of a won level pays its survivors only, and a run is banked once.
 
 - **Levels.** Generated from the seed `level·7919` by a deterministic generator.
   - It places gates, obstacles and platforms.
@@ -208,7 +209,7 @@ Cell types in a `Uint8Array`:
     every gate, dodging obstacles) wins with a margin of 15–40%.
   - Levels 1–3 are hand-written for teaching. After 30, levels keep coming (endless mode) with growing difficulty.
 - **API**: `newRun(levelIdx, upgrades)`, `step(run, dt, targetX)`, `run.status`, `finishBattle(run)`,
-  `reward(run, upgrades)`, `buy(save, upgradeId)`, `levelDef(i)`.
+  `reward(run, upgrades, fresh)`, `buy(save, upgradeId)`, `levelDef(i)`.
 - **Bot** (in the tests): a "smart" bot looks one gate ahead and picks the side with the larger resulting strength,
   steering around obstacles. A "dumb" bot always picks the worse side.
 - **Projection** (`view.js`): `project(x, z, camZ, viewport)` gives screen `{sx, sy, scale}`, with the horizon at 30% of

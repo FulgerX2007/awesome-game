@@ -16,15 +16,10 @@
   let storage = null;
   try { storage = window.localStorage; } catch { storage = null; }
 
-  // Sound comes from audio.js when it's there; without it the toggle still works for this visit.
+  // Sound comes from audio.js (index.html loads it first); its play() is silent while the sound is off.
   // Names: slide ({ dist, kind }), bump, barrier ({ open }), undo, hint, win, lose.
-  const Sound = window.ParkingAudio || {
-    enabled: true,
-    setEnabled(v) { this.enabled = !!v; },
-    unlock() {},
-    play() {},
-  };
-  const sfx = (name, opts) => { if (Sound.enabled) Sound.play(name, opts); };
+  const Sound = window.ParkingAudio;
+  const sfx = (name, opts) => Sound.play(name, opts);
 
   // Level facts the tips and the art need.
   const PARSED = LEVELS.map((d) => C.parseLevel(d));
@@ -54,6 +49,8 @@
   let hintsUsed = 0;
   let hint = null;         // { id, delta } shown until the next move
   let hintBusy = false;
+  let route = null;        // the last solution the hints came from: { base: pathOf when found, sol }
+  let version = 0;         // bumps on every change of the board, so a search started before it is dropped
   let drag = null;         // { id, pointer, x0, y0, shift, over, started, bumped }
   let sel = null;          // vehicle picked with the keyboard
   let pending = 0;         // keyboard shift of `sel` not yet made into a move
@@ -775,6 +772,8 @@
     pending = 0;
     hint = null;
     hintBusy = false;
+    route = null;
+    version++;
     outcome = null;
     exitV = 0;
     shake = 0;
@@ -784,16 +783,11 @@
     resize();
   }
 
-  // A saved level in progress that still replays to a playable board, or null.
-  function restored() {
-    const cur = progress.current;
-    if (!cur || cur.level >= LEVELS.length) return null;
-    const st = C.replay(LEVELS[cur.level], cur.path);
-    return st && st.status === 'playing' ? { level: cur.level, state: st, hints: cur.hints } : null;
-  }
+  // The saved level in progress (playing, or lost with the undo still to offer), or null.
+  const restored = () => C.resume(progress, LEVELS);
 
   function saveCurrent() {
-    progress.current = s && s.status === 'playing' && phase !== 'menu' ? { level, path: C.pathOf(s), hints: hintsUsed } : null;
+    progress.current = phase !== 'menu' ? C.currentOf(level, s, hintsUsed) : null;
     C.saveProgress(storage, progress);
   }
 
@@ -818,6 +812,12 @@
       hintsUsed = 0;
     }
     enterPlay();
+    if (s.status === 'lost') {
+      // it was left out of moves: back to the result screen, where the last move can still be taken back
+      outcome = { won: false, moves: s.moves, stars: 0 };
+      finish();
+      return;
+    }
     const tip = s.moves === 0 ? tipFor(level) : null;
     showTip(tip);
     saveCurrent();
@@ -845,6 +845,7 @@
     if (phase !== 'play' || !delta) return false;
     if (!C.move(s, id, delta)) { bump(id, delta); return false; }
     const v = vehicle(id);
+    version++;
     hint = null;
     showTip(null);
     sfx('slide', { dist: Math.abs(delta), kind: v.kind });
@@ -895,9 +896,12 @@
 
   function undo() {
     const lost = phase === 'end' && outcome && !outcome.won;
-    if (!(phase === 'play' || lost) || !s.history.length) return;
-    commitPending();
+    if (!(phase === 'play' || lost)) return;
+    // a keyboard shift not made yet is simply dropped (making it first could even end the level)
+    if (pending) { pending = 0; renderHUD(); return; }
+    if (!s.history.length) return;
     C.undo(s);
+    version++;
     hint = null;
     sfx('undo');
     if (lost) {
@@ -912,6 +916,7 @@
     if (!s || !(phase === 'play' || (phase === 'end' && !outcome.won))) return;
     pending = 0;
     C.restart(s);
+    version++;
     hint = null;
     outcome = null;
     if (phase !== 'play') enterPlay();
@@ -920,34 +925,50 @@
     renderHUD();
   }
 
+  // Hints follow the last solution while the player keeps to it; otherwise the BFS runs again, a slice per
+  // timer tick (a 7×7 search takes a second or more), and is dropped if the board changes meanwhile.
   function useHint() {
     if (phase !== 'play' || hintBusy || hint || hintsUsed >= C.MAX_HINTS) return;
     commitPending();
     if (phase !== 'play') return;
+    const now = C.pathOf(s);
+    const known = route && C.followRoute(route.base, route.sol, now);
+    if (known) { giveHint(known); return; }
     hintBusy = true;
     renderHUD();
-    // Let the button show it's thinking: the solver can take a moment on the big boards.
-    setTimeout(() => {
+    const it = C.solverFor(s);
+    const at = version;
+    const slice = () => {
+      if (phase !== 'play' || version !== at) { hintBusy = false; renderHUD(); return; }
+      const t0 = performance.now();
+      let r = it.next();
+      while (!r.done && performance.now() - t0 < 12) r = it.next();
+      if (!r.done) { setTimeout(slice, 0); return; }
       hintBusy = false;
-      if (phase !== 'play') { renderHUD(); return; }
-      const sol = C.solve(s);
-      if (sol && sol.path.length) {
-        const [id, delta] = sol.path[0];
-        hint = { id, delta };
-        hintsUsed++;
-        sfx('hint');
-        showTip(null);
-        saveCurrent();
-      } else {
-        showTip('Отсюда не выехать: отмени ход или начни заново');
-      }
-      renderHUD();
-    }, 40);
+      route = r.value ? { base: now, sol: r.value } : null;
+      giveHint(r.value);
+    };
+    setTimeout(slice, 0);
   }
 
-  function starsHTML(n, total = 3) {
+  function giveHint(sol) {
+    const h = C.hintOf(s, sol);
+    if (h) {
+      hint = h;
+      hintsUsed++;
+      sfx('hint');
+      showTip(null);
+      saveCurrent();
+    } else {
+      // no way out, or not within the moves left: the hint is not spent
+      showTip('Отсюда не выехать: отмени ход или начни заново');
+    }
+    renderHUD();
+  }
+
+  function starsHTML(n) {
     let h = '';
-    for (let i = 0; i < total; i++) h += `<span class="${i < n ? 'on' : 'off'}">★</span>`;
+    for (let i = 0; i < 3; i++) h += `<span class="${i < n ? 'on' : 'off'}">★</span>`;
     return h;
   }
 
@@ -1103,7 +1124,7 @@
       if (!drag.started && Math.abs(want) < V.DRAG_START) return;
       drag.started = true;
       drag.shift = V.dragTarget(s, drag.id, d);
-      const push = V.overPush(s, drag.id, d);
+      const push = Math.abs(want - drag.shift); // how far past the stop the pointer pushes
       drag.over = Math.sign(want - drag.shift) * V.give(push);
       if (push > 0.3 && !drag.bumped) {
         drag.bumped = true;

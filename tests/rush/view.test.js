@@ -51,7 +51,7 @@ test('project: too near or behind the camera is not drawn; junk viewports fall b
   assert.equal(V.project(0, NaN, 0, VP), null);
   assert.ok(V.project(0, V.NEAR, 0, VP), 'exactly NEAR is drawn');
   for (const vp of [undefined, {}, { w: -1, h: 0 }, { w: NaN, h: 'x' }]) {
-    const p = V.project(0, V.CAM_BACK, 0, vp);
+    const p = V.project(0, V.CAM_BACK, 0, V.viewport(vp));
     assert.ok(near(p.sx, 180) && near(p.sy, 640 * V.GROUND));
   }
 });
@@ -97,7 +97,6 @@ test('crowdLayout fits the soldiers in the crowd radius, up to 150 figures', () 
   assert.deepEqual(V.crowdLayout(0, 0.5), []);
   assert.deepEqual(V.crowdLayout(-3, 0.5), []);
   assert.deepEqual(V.crowdLayout(NaN, 0.5), []);
-  assert.equal(V.crowdLayout(10, 0.5, 4).length, 4, 'a custom cap');
   assert.ok(V.crowdLayout(10, NaN).every((p) => p.dx === 0 && p.dy === 0), 'junk radius collapses to the middle');
   // No two soldiers on the same spot.
   const lay = V.crowdLayout(150, 0.9);
@@ -201,7 +200,7 @@ test('battle timeline: a boss level walks on to the boss and melts its HP', () =
   assert.equal(won.plan.hasBoss, true);
   const phases = new Set(sample(won.plan).map((f) => f.phase));
   for (const p of ['charge', 'army', 'walk', 'boss', 'done']) assert.ok(phases.has(p), p);
-  const mid = V.battleAt(won.plan, won.plan.t.charge + won.plan.t.army + 0.1);
+  const mid = V.battleAt(won.plan, V.BATTLE.charge + V.BATTLE.army + 0.1);
   assert.equal(mid.phase, 'walk');
   assert.equal(mid.ours, 40, 'after the army');
   assert.equal(mid.boss, 20);
