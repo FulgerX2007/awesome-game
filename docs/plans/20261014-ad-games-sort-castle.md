@@ -257,6 +257,14 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 | `boss` | Вожак | 60 + 12·bossIndex (bossIndex = wave / 10) | 0.6 | every 10th wave; summons grunts at 50% HP |
 
 - **Ward:** starts with 1 charge and refills at every wave start. Each charge destroys one flyer on contact.
+- ➕ Geometry (found in Task 5): the archer stands at 9.5 m, so close to the wall every arrow comes down steeply.
+  The shield rule (shallower than 35° → ¼ damage) therefore protects shield-bearers at range only (beyond ~25–30 m).
+  Near the wall they take full damage. Pierce helps against crowds that overlap along the arrow's descending path,
+  not against a spaced line.
+- ➕ Core API in Task 5:
+  - `startWave(run, list)` takes an explicit spawn list `[{ kind, at, x?, hpMul?, speedMul? }]`, or `waveDef(...)` from Task 6 when it is omitted;
+  - `drain(run)` returns and clears `run.events`;
+  - `flight(run, angle, power, t)` is the closed-form arrow position for the preview and the bots.
 
 - An enemy that reaches the wall (`x ≤ 3`) stops and hits the wall every second for its wall damage.
 - Flyers hit the ward instead; if they get through it, they hit the wall.
@@ -506,19 +514,19 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
 - Create: `web/castle/core.js`
 - Create: `tests/castle/core.test.js`
 
-- [ ] UMD `root.CastleCore`:
+- [x] UMD `root.CastleCore`:
   - world constants;
   - `newRun(mode, seed)`;
   - `aim`, `setFiring`;
   - `step(run, dt)` with a 1/60 s fixed-tick accumulator, at most 0.25 s per call; `dt ≤ 0` or NaN is ignored.
-- [ ] arrows:
+- [x] arrows:
   - ballistic flight;
   - swept segment-vs-box hits;
   - ground hits;
   - pierce and multishot;
   - the impact angle passed to the damage rule (shield enemies take 1/4 damage from shallow hits);
   - burning damage over time.
-- [ ] enemies and wall:
+- [x] enemies and wall:
   - `grunt`, `shield`, `flyer`, `ram`, `boss` with the traits from Technical Details;
   - walking and stopping at the wall;
   - wall damage per second;
@@ -527,7 +535,7 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
   - wall HP 0 loses the run;
   - kills pay gold;
   - `run.events` records `fire`, `hit`, `shieldHit`, `kill`, `wallHit` and `waveClear` for animations and sounds.
-- [ ] write tests:
+- [x] write tests:
   - the arrow trajectory matches the closed-form parabola;
   - a hit at a steep angle against a shield does full damage, at a shallow angle 1/4;
   - pierce passes through N enemies;
@@ -538,9 +546,9 @@ The whole generator takes 0.3 s, so `levels.test.js` checks that its output equa
   - losing at wall 0;
   - determinism (same inputs give the same run);
   - `dt` slicing gives the same result.
-- [ ] write tests for errors and edges: invalid `aim` values are clamped, `step` with bad `dt` is ignored, `setFiring` before a wave starts does nothing.
-- [ ] write tests for the firing rule: with firing held, the first arrow goes when the cooldown ends, then one per reload; release fires nothing extra.
-- [ ] run tests — must pass before next task
+- [x] write tests for errors and edges: invalid `aim` values are clamped, `step` with bad `dt` is ignored, `setFiring` before a wave starts does nothing.
+- [x] write tests for the firing rule: with firing held, the first arrow goes when the cooldown ends, then one per reload; release fires nothing extra.
+- [x] run tests — must pass before next task
 
 ### Task 6: «Последняя крепость» — waves, upgrades, shop, saving and score
 
