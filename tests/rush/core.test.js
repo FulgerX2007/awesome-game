@@ -334,6 +334,9 @@ test('invalid levels throw', () => {
     level({ enemy: { count: -1, power: 1 } }),
     level({ enemy: { count: 5, power: 0 } }),
     level({ boss: { hp: 0 } }),
+    level({ num: 0 }),
+    level({ num: 2.5 }),
+    level({ num: '3' }),
   ];
   for (const def of bad) assert.throws(() => R.newRun(def, {}), Error, JSON.stringify(def));
 });
@@ -349,4 +352,12 @@ test('parseLevel sorts by z and keeps a boss', () => {
   assert.deepEqual(lv.boss, { hp: 300 });
   assert.equal(R.parseLevel(level({ boss: null })).boss, null);
   assert.deepEqual(R.parseLevel({ length: 50, enemy: { count: 0, power: 1 } }).gates, [], 'lists are optional');
+});
+
+test('parseLevel keeps the level number, 1 by default', () => {
+  assert.equal(R.parseLevel(level()).num, 1);
+  assert.equal(R.parseLevel(level({ num: 17 })).num, 17);
+  const run = R.newRun(level({ num: 6 }), {});
+  assert.equal(run.level.num, 6);
+  assert.equal(run.result, null);
 });

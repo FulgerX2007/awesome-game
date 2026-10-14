@@ -192,12 +192,15 @@ Cell types in a `Uint8Array`:
   - The client shows the battle as a 2–3 s animation. The result is computed by `core`.
 - **Economy.** Coins = survivors + `10·level`. Upgrades, each 10 levels, price `base·1.35^level`:
 
-  | upgrade | effect per level |
-  |---|---|
-  | `Старт` | +3 soldiers at the start |
-  | `Оружие` | +0.2 weapon level at the start |
-  | `Щит` | −6% losses from obstacles and platforms |
-  | `Доход` | +10% coins |
+  | upgrade | effect per level | base price |
+  |---|---|---|
+  | `Старт` | +3 soldiers at the start | 30 |
+  | `Оружие` | +0.2 weapon level at the start | 45 |
+  | `Щит` | −6% losses from obstacles and platforms | 40 |
+  | `Доход` | +10% coins | 60 |
+
+  Bases tuned with the bot: buying the cheapest upgrade, everything is maxed around level 30 (≈10, 26 and 37 of
+  the 40 upgrade levels by levels 10, 20 and 30). A lost run still pays the `10·level` bonus.
 
 - **Levels.** Generated from the seed `level·7919` by a deterministic generator.
   - It places gates, obstacles and platforms.
@@ -359,12 +362,23 @@ Cell types in a `Uint8Array`:
 - Create: `tests/rush/balance.test.js`
 - Create: `tests/rush/economy.test.js`
 
-- [ ] `finishBattle(run)` (army, then a boss on every 5th level), `reward`, the `buy` upgrades with price `base·1.35^level` and a cap of 10, `newSave`/`loadSave` tolerant of broken JSON
-- [ ] `levelDef(i)`: levels 1–3 by hand, the rest from the seed generator with growing length and difficulty, enemy army sized by the "expected upgrades" for the level; endless mode past 30
-- [ ] `tests/rush/bot.js`: smart and dumb bots through the `core` API only
-- [ ] `balance.test.js`: on levels 1–30 the smart bot with the expected upgrades wins with a margin of 15–40%, the dumb one loses on ≥80% of levels; boss levels are winnable
-- [ ] `economy.test.js`: a smart bot playing in a row and buying the cheapest upgrade reaches level 30 with no more than 3 losses in a row on any level; `buy` without coins and above the cap is refused
-- [ ] run tests — must pass before next task (tune the generator and the prices if needed; update the table in this plan)
+- [x] `finishBattle(run)` (army, then a boss on every 5th level), `reward`, the `buy` upgrades with price `base·1.35^level` and a cap of 10, `newSave`/`loadSave` tolerant of broken JSON
+- [x] `levelDef(i)`: levels 1–3 by hand, the rest from the seed generator with growing length and difficulty, enemy army sized by the "expected upgrades" for the level; endless mode past 30
+- [x] `tests/rush/bot.js`: smart and dumb bots through the `core` API only
+- [x] `balance.test.js`: on levels 1–30 the smart bot with the expected upgrades wins with a margin of 15–40%, the dumb one loses on ≥80% of levels; boss levels are winnable
+- [x] `economy.test.js`: a smart bot playing in a row and buying the cheapest upgrade reaches level 30 with no more than 3 losses in a row on any level; `buy` without coins and above the cap is refused
+- [x] run tests — must pass before next task (tune the generator and the prices if needed; update the table in this plan)
+- ➕ level numbers are 1-based (`levelDef(n)`, `newRun(n | def, upgrades)`, level field `num`, default 1); the generated
+  layout is ~300–700 m (`min(700, 280 + 14n)`), with gates, obstacles (edge or middle, 0.4–1.2 wide) and platforms at
+  least ~26 m apart; levels 1–3 are hand-written layouts whose enemy is sized the same way. The enemy is sized from a
+  simulated run of the core's own autopilot (`pilotTarget`/`autoplay`, the same rules as the bot) with
+  `expectedUpgrades(n)` (cheapest-first buying with `3 + 2k` expected survivors per level): strength / (army + boss HP)
+  = 1.25 ± 0.03; boss HP is 40% of the enemy budget; enemy weapon level `1 + 0.08·(n−1)` (max 9.9). A layout is
+  rejected (next attempt, seed `n·7919 + attempt·104729`) when the smart run doesn't reach the finish, a gate pair is
+  a near tie (< 15% apart) or the worse-side run would win. Endless mode (n > 30): length stays 700, the margin
+  shrinks by 0.4% per level to 12%. `finishBattle` → `run.result {won, reason: army|boss|crowd, survivors, strength,
+  enemy, boss, rest}`; save `rush.save` = `{v: 1, level, best, coins, upgrades}` via `parseSave/loadSave/storeSave`;
+  `buy` returns `ok|nocoins|max|unknown`; `record(save, run)` banks coins and advances on a win
 
 ### Task 8: «Числовой забег» — pseudo-3D rendering, control, screens and shop
 
