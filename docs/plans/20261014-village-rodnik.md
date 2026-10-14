@@ -342,10 +342,10 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 **Files:**
 - Create: `tests/village/smoke.cjs`
 
-- [ ] the script starts `go run . -addr :18080 -data ""`, waits for `/healthz`, opens `/village/` in Chromium (`executablePath: '/opt/pw-browsers/chromium'` when needed)
-- [ ] checks: no console errors, the canvas isn't empty, a `D` press moves the player, a tap on the nearest tree adds wood within 10 s, the save shows up in `localStorage`
-- [ ] checks the `?lang=ro` switch: the HUD shows `Lemn` instead of `Дерево`, and after opening the panels `I18n.missing.size === 0`; checks a 390×844 viewport (phone) — the HUD fits on screen without horizontal scroll
-- [ ] run the smoke test and fix whatever it finds; stop the server at the end even after an error
+- [x] the script starts `go run . -addr :18080 -data ""`, waits for `/healthz`, opens `/village/` in Chromium (`executablePath: '/opt/pw-browsers/chromium'` when needed)
+- [x] checks: no console errors, the canvas isn't empty, a `D` press moves the player, a tap on the nearest tree adds wood within 10 s, the save shows up in `localStorage`
+- [x] checks the `?lang=ro` switch: the HUD shows `Lemn` instead of `Дерево`, and after opening the panels `I18n.missing.size === 0`; checks a 390×844 viewport (phone) — the HUD fits on screen without horizontal scroll
+- [x] run the smoke test and fix whatever it finds; stop the server at the end even after an error
 
 ### Task 10: Verify acceptance criteria
 - [ ] verify all requirements from Overview are implemented (gathering, restoration, villagers, festival, no enemies/losing, offline, cloud, phone, sound, RU/RO)
