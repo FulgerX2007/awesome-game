@@ -18,19 +18,20 @@
   const RES_IDS = Object.keys(RESOURCES);
 
   // hp = hits until the node is empty; regrow = [min, max] seconds until it comes back.
+  // Values tuned by the balance bot (tests/village/balance.test.js).
   const NODE_KINDS = {
-    tree: { name: 'Дерево', res: 'wood', hp: 5, tool: 'axe', regrow: [90, 180] },
-    rock: { name: 'Камень', res: 'stone', hp: 6, tool: 'pick', regrow: [90, 180] },
-    clay: { name: 'Глиняная яма', res: 'clay', hp: 4, tool: 'shovel', regrow: [90, 180] },
-    bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [90, 180] },
+    tree: { name: 'Дерево', res: 'wood', hp: 4, tool: 'axe', regrow: [150, 300] },
+    rock: { name: 'Камень', res: 'stone', hp: 4, tool: 'pick', regrow: [150, 300] },
+    clay: { name: 'Глиняная яма', res: 'clay', hp: 3, tool: 'shovel', regrow: [150, 300] },
+    bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [150, 300] },
   };
 
   // Level 2 needs the workbench (home), level 3 needs the forge. The shovel starts at 0 and comes with the bridge.
   const TOOLS = {
-    axe: { name: 'Топор', node: 'tree', start: 1, costs: { 2: { stone: 15, wood: 10 }, 3: { bricks: 10, planks: 20 } } },
-    pick: { name: 'Кирка', node: 'rock', start: 1, costs: { 2: { wood: 20, stone: 10 }, 3: { bricks: 10, planks: 20 } } },
-    shovel: { name: 'Лопата', node: 'clay', start: 0, costs: { 2: { wood: 20 }, 3: { bricks: 8, planks: 15 } } },
-    basket: { name: 'Корзина', node: 'bush', start: 1, costs: { 2: { wood: 15 }, 3: { planks: 15 } } },
+    axe: { name: 'Топор', node: 'tree', start: 1, costs: { 2: { stone: 30, wood: 20 }, 3: { bricks: 50, planks: 100 } } },
+    pick: { name: 'Кирка', node: 'rock', start: 1, costs: { 2: { wood: 40, stone: 20 }, 3: { bricks: 50, planks: 100 } } },
+    shovel: { name: 'Лопата', node: 'clay', start: 0, costs: { 2: { wood: 50 }, 3: { bricks: 40, planks: 80 } } },
+    basket: { name: 'Корзина', node: 'bush', start: 1, costs: { 2: { wood: 30 }, 3: { planks: 80 } } },
   };
   const TOOL_NEEDS = { 2: 'home', 3: 'forge' };
   const TOOL_YIELD = [0, 1, 2, 3];       // per hit, by tool level
@@ -38,20 +39,21 @@
   const MAX_TOOL = 3;
 
   // ch is the ruin footprint character in MAP. Effects are applied when a building is done.
+  // Costs tuned by the balance bot: the festival in about 2¼ h, something new at least every 15 min.
   const BUILDINGS = {
-    well: { id: 'well', ch: 'W', name: 'Колодец', cost: { stone: 20, wood: 10 }, needs: [], effect: 'square' },
-    home: { id: 'home', ch: 'H', name: 'Твой дом', cost: { wood: 40, stone: 20 }, needs: [], effect: 'workbench' },
-    barn: { id: 'barn', ch: 'A', name: 'Амбар', cost: { wood: 60, stone: 30 }, needs: ['well'], effect: 'storage' },
-    bridge: { id: 'bridge', ch: 'b', name: 'Мост', cost: { wood: 80, stone: 40 }, needs: ['home'], effect: 'bridge' },
-    sawmill: { id: 'sawmill', ch: 'S', name: 'Лесопилка', cost: { wood: 100, stone: 50 }, needs: ['bridge'], effect: 'sawmill' },
-    kiln: { id: 'kiln', ch: 'K', name: 'Печь для обжига', cost: { stone: 60, clay: 60 }, needs: ['bridge'], effect: 'kiln' },
-    house1: { id: 'house1', ch: '1', name: 'Дом лесоруба', cost: { planks: 60, bricks: 20 }, needs: ['sawmill', 'kiln'], effect: 'villager', role: 'woodcutter' },
-    house2: { id: 'house2', ch: '2', name: 'Дом каменщика', cost: { planks: 60, bricks: 30 }, needs: ['house1'], effect: 'villager', role: 'mason' },
-    forge: { id: 'forge', ch: 'F', name: 'Кузница', cost: { bricks: 80, planks: 40, stone: 60 }, needs: ['kiln'], effect: 'forge' },
-    mill: { id: 'mill', ch: 'M', name: 'Мельница', cost: { planks: 120, bricks: 40 }, needs: ['house2'], effect: 'mill' },
-    house3: { id: 'house3', ch: '3', name: 'Дом гончара', cost: { planks: 80, bricks: 40, berries: 40 }, needs: ['mill'], effect: 'villager', role: 'potter' },
+    well: { id: 'well', ch: 'W', name: 'Колодец', cost: { stone: 40, wood: 60 }, needs: [], effect: 'square' },
+    home: { id: 'home', ch: 'H', name: 'Твой дом', cost: { wood: 120, stone: 60 }, needs: [], effect: 'workbench' },
+    barn: { id: 'barn', ch: 'A', name: 'Амбар', cost: { wood: 200, stone: 100 }, needs: ['well'], effect: 'storage' },
+    bridge: { id: 'bridge', ch: 'b', name: 'Мост', cost: { wood: 260, stone: 160 }, needs: ['home'], effect: 'bridge' },
+    sawmill: { id: 'sawmill', ch: 'S', name: 'Лесопилка', cost: { wood: 300, stone: 200 }, needs: ['bridge'], effect: 'sawmill' },
+    kiln: { id: 'kiln', ch: 'K', name: 'Печь для обжига', cost: { stone: 180, clay: 130 }, needs: ['bridge'], effect: 'kiln' },
+    house1: { id: 'house1', ch: '1', name: 'Дом лесоруба', cost: { planks: 120, bricks: 60 }, needs: ['sawmill', 'kiln'], effect: 'villager', role: 'woodcutter' },
+    house2: { id: 'house2', ch: '2', name: 'Дом каменщика', cost: { planks: 200, bricks: 120 }, needs: ['house1'], effect: 'villager', role: 'mason' },
+    forge: { id: 'forge', ch: 'F', name: 'Кузница', cost: { bricks: 100, planks: 60, stone: 200 }, needs: ['kiln'], effect: 'forge' },
+    mill: { id: 'mill', ch: 'M', name: 'Мельница', cost: { planks: 240, bricks: 120 }, needs: ['house2'], effect: 'mill' },
+    house3: { id: 'house3', ch: '3', name: 'Дом гончара', cost: { planks: 240, bricks: 160, berries: 100 }, needs: ['mill'], effect: 'villager', role: 'potter' },
     chapel: {
-      id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 150, stone: 150, berries: 60 },
+      id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 180, stone: 450, berries: 160 },
       needs: ['well', 'home', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'house2', 'forge', 'mill', 'house3'], effect: 'festival',
     },
   };
@@ -69,8 +71,8 @@
   const MILL_BONUS = 1.5;
   // Workshops turn `ratio` raw units into one product, `rate` products per second.
   const WORKSHOPS = {
-    sawmill: { from: 'wood', to: 'planks', ratio: 2, rate: 0.25 },
-    kiln: { from: 'clay', to: 'bricks', ratio: 2, rate: 0.2 },
+    sawmill: { from: 'wood', to: 'planks', ratio: 2, rate: 0.3 },
+    kiln: { from: 'clay', to: 'bricks', ratio: 2, rate: 0.25 },
   };
   const OFFLINE_MAX = 8 * 3600;
 
@@ -764,12 +766,17 @@
 
   // The hint in the HUD: the cheapest available restoration (by what is left to pay), or the tool that blocks it.
   // After the festival: decorations. Returns { type: 'build', id } | { type: 'tool', tool } | { type: 'decor' } | null.
+  // A building that still needs planks or bricks is skipped until their workshop works, so the hint never
+  // points at something that can't be paid yet.
+  const PRODUCT_OF = Object.fromEntries(Object.entries(WORKSHOPS).map(([id, w]) => [w.to, id]));
   function nextGoal(s) {
     if (s.festival) return { type: 'decor' };
     let best = null, bestLeft = Infinity;
     for (const id of BUILDING_IDS) {
       if (s.built[id].done || !needsMet(s, id)) continue;
-      const left = Object.values(remaining(s, id)).reduce((a, n) => a + n, 0);
+      const rest = remaining(s, id);
+      if (Object.keys(rest).some((r) => PRODUCT_OF[r] && !s.built[PRODUCT_OF[r]].done && s.res[r] < rest[r])) continue;
+      const left = Object.values(rest).reduce((a, n) => a + n, 0);
       if (left < bestLeft) { best = id; bestLeft = left; }
     }
     if (!best) return null;

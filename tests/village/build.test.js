@@ -34,11 +34,13 @@ test('contribute: partial then full contribution, stages and events', () => {
   assert.deepEqual(s.events.at(-1), { type: 'contribute', id: 'well', given: { stone: 12, wood: 3 }, stage: 1 });
   assert.equal(V.contribute(s, 'well'), 'none', 'nothing to add');
 
-  s.res.stone = 50;
-  s.res.wood = 50;
+  const cost = V.BUILDINGS.well.cost;
+  s.res.stone = 100;
+  s.res.wood = 100;
   s.events.length = 0;
   assert.equal(V.contribute(s, 'well'), 'built');
-  assert.deepEqual([s.res.stone, s.res.wood], [42, 43], 'only what is still needed is taken');
+  assert.deepEqual([s.res.stone, s.res.wood], [100 - (cost.stone - 12), 100 - (cost.wood - 3)],
+    'only what is still needed is taken');
   assert.equal(s.built.well.done, true);
   assert.equal(V.stage(s, 'well'), 2);
   assert.deepEqual(s.events.map((e) => e.type), ['contribute', 'built']);
@@ -119,12 +121,12 @@ test('houses bring villagers who produce their resource; the mill speeds them up
 test('the forge unlocks level 3 tools', () => {
   const s = V.newGame(1);
   finish(s, 'home');
-  s.res.stone = 15; s.res.wood = 10;
+  Object.assign(s.res, V.TOOLS.axe.costs[2]);
   assert.equal(V.upgradeTool(s, 'axe'), 'ok');
-  s.res.bricks = 10; s.res.planks = 20;
+  Object.assign(s.res, V.TOOLS.axe.costs[3]);
   assert.equal(V.upgradeTool(s, 'axe'), 'locked');
   finish(s, 'forge');
-  s.res.bricks = 10; s.res.planks = 20;
+  Object.assign(s.res, V.TOOLS.axe.costs[3]);
   assert.equal(V.upgradeTool(s, 'axe'), 'ok');
   assert.equal(s.tools.axe, 3);
 });
@@ -165,19 +167,24 @@ test('workshops keep the reserve and stop at the output limit', () => {
   assert.ok(s.res.planks <= 42, 'no burst after a long block');
 });
 
-test('house1 (60 planks) is finished with no barn through two partial contributions', () => {
+test('house1 (more planks than the storage limit) is finished with no barn through partial contributions', () => {
   const s = V.newGame(1);
   finish(s, 'sawmill', 'kiln');
   assert.equal(s.barnLevel, 0);
-  s.res.bricks = 20;
+  const need = V.BUILDINGS.house1.cost.planks;
+  assert.ok(need > s.storage, 'the cost is above the starting limit');
+  s.res.bricks = V.BUILDINGS.house1.cost.bricks;
   s.res.planks = 0;
   s.res.wood = 1000;
+  let paid = 0;
+  while (paid + s.storage < need) {
+    run(s, 400);
+    assert.equal(s.res.planks, 50, 'the sawmill stops at the limit');
+    assert.equal(V.contribute(s, 'house1'), 'ok');
+    paid += 50;
+    assert.equal(s.built.house1.paid.planks, paid);
+  }
   run(s, 400);
-  assert.equal(s.res.planks, 50);
-  assert.equal(V.contribute(s, 'house1'), 'ok');
-  assert.equal(s.built.house1.paid.planks, 50);
-  run(s, 60);
-  assert.ok(s.res.planks >= 10);
   assert.equal(V.contribute(s, 'house1'), 'built');
   assert.equal(s.villagers.length, 1);
 });
@@ -243,12 +250,29 @@ test('offline matches step for automatic income', () => {
   assert.equal(a.res.stone, b.res.stone);
 });
 
+test('nextGoal skips a building that needs planks or bricks until their workshop works', () => {
+  const s = V.newGame(1);
+  finish(s, 'kiln');
+  // The forge needs only the kiln, but it also costs planks: with no sawmill it can't be paid.
+  s.built.forge.paid.stone = V.BUILDINGS.forge.cost.stone;
+  s.built.forge.paid.bricks = V.BUILDINGS.forge.cost.bricks;
+  assert.notDeepEqual(V.nextGoal(s), { type: 'build', id: 'forge' });
+  s.res.planks = V.BUILDINGS.forge.cost.planks; // planks already in stock are fine
+  assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'forge' });
+  s.res.planks = 0;
+  finish(s, 'sawmill');
+  assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'forge' });
+});
+
 test('nextGoal: the cheapest available building, then decorations after the festival', () => {
   const s = V.newGame(1);
   assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'well' });
   finish(s, 'well');
   assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'home' });
-  s.res.wood = 50; s.res.stone = 25;
+  // Pay the barn until less is left than for the home.
+  const homeLeft = Object.values(V.BUILDINGS.home.cost).reduce((a, n) => a + n, 0);
+  s.res.wood = Object.values(V.BUILDINGS.barn.cost).reduce((a, n) => a + n, 0) - homeLeft + 1;
+  s.res.stone = 0;
   V.contribute(s, 'barn');
   assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'barn' }, 'what is left to pay counts');
   const t = V.newGame(1);

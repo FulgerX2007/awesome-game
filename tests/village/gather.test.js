@@ -196,7 +196,7 @@ test('interact: a ruin walks up and emits a ruin event, missing tool refuses, pl
   assert.equal(V.interact(t, 0, 9), 'none', 'water');
 });
 
-test('an empty node regrows after 90–180 s', () => {
+test('an empty node regrows after its regrow time (NODE_KINDS.regrow)', () => {
   const s = V.newGame(1);
   const n = westTree(s);
   gatherAll(s, n);
@@ -292,25 +292,26 @@ test('upgradeTool: costs, dependencies and return codes', () => {
   assert.equal(V.upgradeTool(s, 'axe'), 'locked', 'level 2 needs home');
   s.built.home.done = true;
   assert.equal(V.upgradeTool(s, 'axe'), 'cost');
-  s.res.stone = 15; s.res.wood = 12;
-  assert.equal(V.canAfford(s, V.TOOLS.axe.costs[2]), true);
+  const c2 = V.TOOLS.axe.costs[2], c3 = V.TOOLS.axe.costs[3];
+  s.res.stone = c2.stone; s.res.wood = c2.wood + 2;
+  assert.equal(V.canAfford(s, c2), true);
   assert.equal(V.upgradeTool(s, 'axe'), 'ok');
   assert.equal(s.tools.axe, 2);
   assert.equal(s.res.stone, 0);
   assert.equal(s.res.wood, 2);
   assert.deepEqual(s.events, [{ type: 'tool', tool: 'axe', level: 2 }]);
 
-  s.res.bricks = 100; s.res.planks = 100;
+  s.res.bricks = 200; s.res.planks = 200;
   assert.equal(V.upgradeTool(s, 'axe'), 'locked', 'level 3 needs the forge');
   s.built.forge.done = true;
   assert.equal(V.upgradeTool(s, 'axe'), 'ok');
   assert.equal(s.tools.axe, 3);
-  assert.equal(s.res.bricks, 90);
-  assert.equal(s.res.planks, 80);
+  assert.equal(s.res.bricks, 200 - c3.bricks);
+  assert.equal(s.res.planks, 200 - c3.planks);
   assert.equal(V.upgradeTool(s, 'axe'), 'max');
 
   // The shovel can't be upgraded before the bridge gives it.
-  s.res.wood = 100;
+  s.res.wood = V.TOOLS.shovel.costs[2].wood;
   assert.equal(V.upgradeTool(s, 'shovel'), 'locked');
   s.tools.shovel = 1;
   assert.equal(V.upgradeTool(s, 'shovel'), 'ok');
@@ -318,9 +319,9 @@ test('upgradeTool: costs, dependencies and return codes', () => {
 
   const t = V.newGame(1);
   t.built.home.done = true;
-  t.res.wood = 14;
+  t.res.wood = V.TOOLS.basket.costs[2].wood - 1;
   assert.equal(V.upgradeTool(t, 'basket'), 'cost');
-  assert.equal(t.res.wood, 14, 'nothing taken on failure');
+  assert.equal(t.res.wood, V.TOOLS.basket.costs[2].wood - 1, 'nothing taken on failure');
   assert.equal(t.tools.basket, 1);
   assert.deepEqual(t.events, []);
 });

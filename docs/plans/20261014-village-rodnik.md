@@ -113,41 +113,49 @@
 
 - A barn (`storage`) limits stock: 50 at the start, 150 after the barn, 400 after the barn upgrade.
   The limit only applies to automatic income (villagers, workshops). Hand gathering above the limit is still allowed,
-  so the game never stops the player. Costs above the limit (house1 60 planks with a cap of 50, the chapel) work
+  so the game never stops the player. Costs above the limit (house1 120 planks with a cap of 50, the chapel) work
   because `contribute` takes partial contributions: a building gets paid for over several visits.
 - **Workshops don't eat what you need**: the sawmill and the kiln only take raw materials above a reserve of 30
   (`WORKSHOP_RESERVE`), and they stop when their output reaches the `storage` limit. So hand-gathered wood
   for tools and clay for buildings always stays with the player.
 
 ### Nodes
-- `tree` (5 hits, 1 wood per hit × axe level), `rock` (6 hits), `clay` (4 hits), `bush` (3 picks).
-- An empty node turns into a stump, pebbles or an empty bush and regrows after 90–180 s (from the seed). It can't regrow
-  under the player.
+- `tree` (4 hits, 1 wood per hit × axe level), `rock` (4 hits), `clay` (3 hits), `bush` (3 picks) — tuned by the bot (start values 5/6/4/3).
+- An empty node turns into a stump, pebbles or an empty bush and regrows after 150–300 s (from the seed; start value 90–180 s).
+  It can't regrow under the player.
 - Hit cooldown is 0.6 s. Tools of level 2 and 3 give ×2 and ×3 yield and cut the cooldown to 0.5 and 0.4 s.
 
 ### Tools
 | Tool | Level 2 | Level 3 (needs the forge) |
 |---|---|---|
-| axe | 15 stone + 10 wood | 10 bricks + 20 planks |
-| pickaxe | 20 wood + 10 stone | 10 bricks + 20 planks |
-| shovel (appears after the bridge) | 20 wood | 8 bricks + 15 planks |
-| basket (berries) | 15 wood | 15 planks |
+| axe | 30 stone + 20 wood | 50 bricks + 100 planks |
+| pickaxe | 40 wood + 20 stone | 50 bricks + 100 planks |
+| shovel (appears after the bridge) | 50 wood | 40 bricks + 80 planks |
+| basket (berries) | 30 wood | 80 planks |
+
+Final values after the bot tuning (Task 4). Level 3 is deliberately expensive so the four upgrades arrive one by one
+and fill the mid-game instead of all at once.
 
 ### Restoration (order is soft, only the dependencies are fixed)
-| # | id | Name | Cost (start values, tuned by the bot) | Needs | Effect |
+| # | id | Name | Cost (final, tuned by the bot) | Needs | Effect |
 |---|---|---|---|---|---|
-| 1 | `well` | Колодец | 20 stone, 10 wood | — | the square comes alive, unlocks the barn |
-| 2 | `home` | Твой дом | 40 wood, 20 stone | — | unlocks tool upgrades (workbench) |
-| 3 | `barn` | Амбар | 60 wood, 30 stone | well | storage limit 150, then an upgrade to 400 (100 planks + 40 bricks) |
-| 4 | `bridge` | Мост | 80 wood, 40 stone | home | opens the east bank and the north grove, gives the shovel |
-| 5 | `sawmill` | Лесопилка | 100 wood, 50 stone | bridge | wood → planks |
-| 6 | `kiln` | Печь для обжига | 60 stone, 60 clay | bridge | clay → bricks |
-| 7 | `house1` | Дом лесоруба | 60 planks, 20 bricks | sawmill, kiln | villager: woodcutter (+wood/s) |
-| 8 | `house2` | Дом каменщика | 60 planks, 30 bricks | house1 | villager: mason (+stone/s) |
-| 9 | `forge` | Кузница | 80 bricks, 40 planks, 60 stone | kiln | level 3 tools |
-| 10 | `mill` | Мельница | 120 planks, 40 bricks | house2 | all villagers work ×1.5 faster |
-| 11 | `house3` | Дом гончара | 80 planks, 40 bricks, 40 berries | mill | villager: potter (+clay/s) |
-| 12 | `chapel` | Часовня с колоколом | 200 planks, 150 bricks, 150 stone, 60 berries | buildings 1–11 (the barn upgrade is not needed) | **festival**: final screen, after it free play |
+| 1 | `well` | Колодец | 40 stone, 60 wood | — | the square comes alive, unlocks the barn |
+| 2 | `home` | Твой дом | 120 wood, 60 stone | — | unlocks tool upgrades (workbench) |
+| 3 | `barn` | Амбар | 200 wood, 100 stone | well | storage limit 150, then an upgrade to 400 (100 planks + 40 bricks) |
+| 4 | `bridge` | Мост | 260 wood, 160 stone | home | opens the east bank and the north grove, gives the shovel |
+| 5 | `sawmill` | Лесопилка | 300 wood, 200 stone | bridge | wood → planks (0.3 planks/s) |
+| 6 | `kiln` | Печь для обжига | 180 stone, 130 clay | bridge | clay → bricks (0.25 bricks/s) |
+| 7 | `house1` | Дом лесоруба | 120 planks, 60 bricks | sawmill, kiln | villager: woodcutter (+0.2 wood/s) |
+| 8 | `house2` | Дом каменщика | 200 planks, 120 bricks | house1 | villager: mason (+0.15 stone/s) |
+| 9 | `forge` | Кузница | 100 bricks, 60 planks, 200 stone | kiln | level 3 tools |
+| 10 | `mill` | Мельница | 240 planks, 120 bricks | house2 | all villagers work ×1.5 faster |
+| 11 | `house3` | Дом гончара | 240 planks, 160 bricks, 100 berries | mill | villager: potter (+0.15 clay/s) |
+| 12 | `chapel` | Часовня с колоколом | 200 planks, 180 bricks, 450 stone, 160 berries | buildings 1–11 (the barn upgrade is not needed) | **festival**: final screen, after it free play |
+
+- Bot result on seed 1 (Task 4): well 1.6 min, sawmill ~44 min, forge ~80 min, festival ~140 min; the longest stretch
+  without something new is 13.4 min. All 20 seeds reach the festival in 135–145 min.
+- `nextGoal` skips a building that still needs planks/bricks while their workshop isn't built (with the tuned costs the
+  forge is cheaper than the sawmill, and the hint would otherwise point at something that can't be paid).
 
 - Berries are gathered by hand only (needed for house3, the chapel and decorations): this is the player's calm "walk to the bushes".
 
@@ -251,13 +259,15 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 
 **Files:**
 - Create: `tests/village/balance.test.js`
+- Create: `tests/village/bot.js` (the bot itself, a helper outside the `*.test.js` glob so tuning scripts can reuse it)
 - Modify: `web/village/core.js`
+- Modify: `tests/village/build.test.js`, `tests/village/core.test.js`, `tests/village/gather.test.js` (read costs from the tables)
 
-- [ ] write a greedy bot on top of the public `core.js` API: picks a goal through `nextGoal`, walks to the nearest node of the needed resource, contributes, upgrades tools
-- [ ] write a test: on seed `1` the festival comes in 2–3.5 h of game time, the well in 1–3 min, and the gap between new things is at most 15 min
-- [ ] write a test: the bot reaches the festival with no deadlock on 3 seeds (on 20 seeds when `BALANCE=1`); after the bridge every resource node can be reached by BFS; the default run of the whole file takes < 20 s
-- [ ] tune only the allowed knobs (costs, node `hp`, regrowth time, villager/workshop rates — see Balance targets) until the targets are met; log the final values with `[decision]` in the progress file
-- [ ] run `node --test 'tests/**/*.test.js'` — must pass before task 5
+- [x] write a greedy bot on top of the public `core.js` API: picks a goal through `nextGoal`, walks to the nearest node of the needed resource, contributes, upgrades tools
+- [x] write a test: on seed `1` the festival comes in 2–3.5 h of game time, the well in 1–3 min, and the gap between new things is at most 15 min
+- [x] write a test: the bot reaches the festival with no deadlock on 3 seeds (on 20 seeds when `BALANCE=1`); after the bridge every resource node can be reached by BFS; the default run of the whole file takes < 20 s
+- [x] tune only the allowed knobs (costs, node `hp`, regrowth time, villager/workshop rates — see Balance targets) until the targets are met; log the final values with `[decision]` in the progress file
+- [x] run `node --test 'tests/**/*.test.js'` — must pass before task 5
 
 ### Task 5: Page skeleton, translation and hub registration
 

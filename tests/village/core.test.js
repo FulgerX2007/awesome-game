@@ -127,7 +127,7 @@ test('save → load round-trip drops transient fields', () => {
   s.nodes[4].hp = 0; s.nodes[4].regrowAt = 140;
   s.nodes[5].hp = 2;
   s.built.well.paid.stone = 7;
-  s.built.home.done = true; s.built.home.paid = { wood: 40, stone: 20 };
+  s.built.home.done = true; s.built.home.paid = { ...V.BUILDINGS.home.cost };
   s.tools.axe = 2;
   s.t = 99;
   s.player.x = 20.25; s.player.target = { node: 3 }; s.player.path = [[1, 2]]; s.player.cd = 0.3;
@@ -202,7 +202,7 @@ test('missing fields get defaults and junk is dropped', () => {
   assert.deepEqual(junk.tools, { axe: 1, pick: 2, shovel: 0, basket: 1 });
   assert.deepEqual(junk.nodes, fresh.nodes, 'node layout comes from the seed');
   assert.equal(junk.built.well.done, false);
-  assert.deepEqual(junk.built.well.paid, { stone: 20, wood: 0 }, 'paid is clamped to the cost');
+  assert.deepEqual(junk.built.well.paid, { stone: V.BUILDINGS.well.cost.stone, wood: 0 }, 'paid is clamped to the cost');
   assert.equal(junk.built.tower, undefined);
   assert.equal(junk.barnLevel, 0, 'no barn upgrade without the barn');
   assert.equal(junk.storage, 50);
