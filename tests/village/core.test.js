@@ -230,3 +230,33 @@ test('rand advances the saved generator state deterministically', () => {
   const c = V.load(V.save(a));
   assert.equal(V.rand(c), V.rand(a));
 });
+
+test('rng is deterministic, in [0, 1) and exposes its state', () => {
+  const a = V.rng(42), b = V.rng(42);
+  const xs = Array.from({ length: 1000 }, () => a());
+  assert.deepEqual(xs.slice(0, 5), Array.from({ length: 5 }, () => b()));
+  for (const x of xs) assert.ok(x >= 0 && x < 1);
+  assert.ok(new Set(xs).size > 990, 'values do not repeat early');
+  const c = V.rng(a.state());
+  assert.equal(c(), a(), 'a generator restarted from state() continues the sequence');
+});
+
+test('nodeAt finds nodes by tile and returns null elsewhere', () => {
+  const s = V.newGame(6);
+  for (const n of s.nodes) assert.equal(V.nodeAt(s, n.x, n.y), n);
+  assert.equal(V.nodeAt(s, V.START.x, V.START.y), null);
+  assert.equal(V.nodeAt(s, -1, -1), null);
+  // A loaded state gets its own lookup, pointing at its own node objects.
+  const r = V.load(V.save(s));
+  const n = r.nodes[3];
+  assert.equal(V.nodeAt(r, n.x, n.y), n);
+  assert.notEqual(V.nodeAt(r, n.x, n.y), s.nodes[3]);
+});
+
+test('stage: unknown building is 0, restored building is 2', () => {
+  const s = V.newGame(1);
+  assert.equal(V.stage(s, 'nope'), 0);
+  s.res.stone = 100; s.res.wood = 100;
+  assert.equal(V.contribute(s, 'well'), 'built');
+  assert.equal(V.stage(s, 'well'), 2);
+});

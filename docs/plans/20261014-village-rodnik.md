@@ -348,11 +348,11 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 - [x] run the smoke test and fix whatever it finds; stop the server at the end even after an error
 
 ### Task 10: Verify acceptance criteria
-- [ ] verify all requirements from Overview are implemented (gathering, restoration, villagers, festival, no enemies/losing, offline, cloud, phone, sound, RU/RO)
-- [ ] verify edge cases: broken save, storage full, closed tab for more than 8 hours, play after the festival
-- [ ] run full test suite: `go vet ./... && go test ./... && node --test 'tests/**/*.test.js'`
-- [ ] run e2e smoke: `NODE_PATH=/opt/node22/lib/node_modules node tests/village/smoke.cjs`
-- [ ] verify every public function of `core.js` is covered by tests
+- [x] verify all requirements from Overview are implemented (gathering, restoration, villagers, festival, no enemies/losing, offline, cloud, phone, sound, RU/RO)
+- [x] verify edge cases: broken save, storage full, closed tab for more than 8 hours, play after the festival
+- [x] run full test suite: `go vet ./... && go test ./... && node --test 'tests/**/*.test.js'`
+- [x] run e2e smoke: `NODE_PATH=/opt/node22/lib/node_modules node tests/village/smoke.cjs`
+- [x] verify every public function of `core.js` is covered by tests
 
 ### Task 11: [Final] Update documentation
 - [ ] add a `## Родник (/village/)` section to `README.md` in the style of the others: what it is, controls, saves, the rules in `core.js` and the bot's results
