@@ -703,15 +703,19 @@
     }
   }
 
-  // Changes since the last frame: new stone hisses with steam, burnt gold sparks, gold reaching the room clinks.
+  const FLOW_CELLS = 6; // liquid cells that moved into empty space in one frame to count as pouring
+  // Changes since the last frame: new stone hisses with steam, burnt gold sparks, gold reaching the room clinks,
+  // pouring water gurgles and pouring lava bubbles.
   function watchChanges() {
     const g = s.grid;
     if (!prevGrid) { prevGrid = g.slice(); prevGold = C.goldInRoom(s); return; }
-    let hiss = false, burn = false;
+    let hiss = false, burn = false, water = 0, lava = 0;
     for (let i = 0; i < W * H; i++) {
       const was = prevGrid[i], now = g[i];
       if (was === now) continue;
       const x = i % W, y = (i - x) / W;
+      if (was === 0 && now === WATER) water++;
+      else if (was === 0 && now === LAVA) lava++;
       if (now === STONE && was !== STONE) {
         hiss = true;
         puff(x * CELL + 5, y * CELL + 2, 'steam');
@@ -726,6 +730,8 @@
     prevGrid.set(g);
     if (hiss) sfx('hiss');
     if (burn) sfx('sizzle');
+    if (water >= FLOW_CELLS) sfx('gurgle');
+    if (lava >= FLOW_CELLS) sfx('bubble');
     const gold = C.goldInRoom(s);
     if (gold > prevGold) sfx('coin');
     prevGold = gold;

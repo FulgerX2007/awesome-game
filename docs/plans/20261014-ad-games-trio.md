@@ -330,11 +330,12 @@ Cell types in a `Uint8Array`:
 - Modify: `web/index.html`
 - Modify: `main_test.go`
 
-- [ ] `audio.js` (UMD, no-op without `AudioContext`, unlocks on the first gesture): pin pull, liquid, hiss, coins, win/loss; the toggle is saved in `pins.audio`
-- [ ] the hub card in `web/index.html` (`--pins` colour, RU text), the RO string for the card in the hub's translations (wherever they live — check `web/index.html`/`web/i18n.js`), the paths `/pins/`, `/pins/core.js`, `/pins/levels.js`, `/pins/view.js`, `/pins/game.js`, `/pins/lang.js`, `/pins/audio.js` in `main_test.go`
-- [ ] write `audio.test.js` (no-op without a context, saving the toggle with broken storage) and `build.test.js` (all script files from `index.html` exist; no `http://`/`https://` in `web/pins/`; every Russian string passed to `t(` in `game.js` has a RO translation in `lang.js`)
-- [ ] write `tests/pins/smoke.cjs` modelled on `tests/village/smoke.cjs`: open `/pins/`, from the menu go to level 1, pull the pin with a mouse drag, wait for the win, check for no console errors, that `pins.progress` is written, and that RO works
-- [ ] run `node --test 'tests/**/*.test.js'`, `go vet ./... && go test ./...` and the smoke — must pass before next task
+- [x] `audio.js` (UMD, no-op without `AudioContext`, unlocks on the first gesture): pin pull, liquid, hiss, coins, win/loss; the toggle is saved in `pins.audio`
+- [x] the hub card in `web/index.html` (`--pins` colour, RU text), the RO string for the card in the hub's translations (wherever they live — check `web/index.html`/`web/i18n.js`), the paths `/pins/`, `/pins/core.js`, `/pins/levels.js`, `/pins/view.js`, `/pins/game.js`, `/pins/lang.js`, `/pins/audio.js` in `main_test.go`
+- [x] write `audio.test.js` (no-op without a context, saving the toggle with broken storage) and `build.test.js` (all script files from `index.html` exist; no `http://`/`https://` in `web/pins/`; every Russian string passed to `t(` in `game.js` has a RO translation in `lang.js`)
+- [x] write `tests/pins/smoke.cjs` modelled on `tests/village/smoke.cjs`: open `/pins/`, from the menu go to level 1, pull the pin with a mouse drag, wait for the win, check for no console errors, that `pins.progress` is written, and that RO works
+- [x] run `node --test 'tests/**/*.test.js'`, `go vet ./... && go test ./...` and the smoke — must pass before next task
+- ➕ `audio.js` also has `gurgle` (pouring water) and `bubble` (pouring lava): `game.js` plays them when ≥6 liquid cells move into empty space in one frame (per-sound rate limits in `audio.js`). The toggle is stored as `{"enabled":bool}` in `pins.audio`. The hub card goes first (newest first), so `tests/village/lang.test.js` now checks only that the «Родник» card exists, not its place. The smoke test picks a free port, blocks and reports any request that leaves the server, and also checks the sound toggle, locks in the level select, «Дальше» and a reload continuing at level 2
 
 ### Task 6: «Числовой забег» — track, gates, obstacles and platforms in core.js
 
