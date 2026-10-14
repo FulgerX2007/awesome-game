@@ -343,12 +343,13 @@ Cell types in a `Uint8Array`:
 - Create: `web/rush/core.js`
 - Create: `tests/rush/core.test.js`
 
-- [ ] UMD `root.RushCore`: level format (`gates`, `obstacles`, `platforms`, `enemy`, `boss`, `length`), `newRun(levelDef, upgrades)`, `step(run, dt, targetX)` with movement, crowd radius, crossing gates (each pair at most once), obstacles and platforms
-- [ ] gate ops `add/sub/mul/div/pow` with rounding as in Technical Details; `count ≤ 0` → `status='lost'`, reason `crowd`
-- [ ] losses from `saw`/`wall`/platforms through the crowd span overlap, scaled down by the `Щит` upgrade
-- [ ] write tests: each gate op, picking the side by the crowd centre, a single pass through a gate, overlap and losses (full/partial/none), falling off a platform at different phases, determinism, losing at zero
-- [ ] write tests for errors: an invalid op in a level, `dt ≤ 0`/NaN in `step` is ignored
-- [ ] run tests — must pass before next task
+- [x] UMD `root.RushCore`: level format (`gates`, `obstacles`, `platforms`, `enemy`, `boss`, `length`), `newRun(levelDef, upgrades)`, `step(run, dt, targetX)` with movement, crowd radius, crossing gates (each pair at most once), obstacles and platforms
+- [x] gate ops `add/sub/mul/div/pow` with rounding as in Technical Details; `count ≤ 0` → `status='lost'`, reason `crowd`
+- [x] losses from `saw`/`wall`/platforms through the crowd span overlap, scaled down by the `Щит` upgrade
+- [x] write tests: each gate op, picking the side by the crowd centre, a single pass through a gate, overlap and losses (full/partial/none), falling off a platform at different phases, determinism, losing at zero
+- [x] write tests for errors: an invalid op in a level, `dt ≤ 0`/NaN in `step` is ignored
+- [x] run tests — must pass before next task
+- ➕ `core.js` runs in fixed 60 Hz ticks whatever `dt` is passed (an accumulator, at most 0.25 s per `step` call), with `z` and time computed from the tick count; the crowd centre is clamped to `[-(1−r), 1−r]` so the whole crowd stays on the track; the side at a gate is `x < 0` → left, `x ≥ 0` → right; gates are `{z, left, right}` or `{z, full}` with `mul`/`div` n ∈ {2, 3} and `pow` always +1; platform falls are a rate (`FALL_RATE` = 4/s of the uncovered share, times the shield) accumulated over ticks, so `Щит` matters there too; `run.events` (`gate`/`hit`/`fall`) feeds the client's animations and sounds; `newRun` takes a level definition (Task 7 may add an index via `levelDef`); `run.status` is `running` → `battle` at the finish line (Task 7's `finishBattle` settles it) or `lost` (reason `crowd`)
 
 ### Task 7: «Числовой забег» — battle, boss, economy, level generator and bot
 
