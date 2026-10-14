@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b2418">
+<title>Родник</title>
+<meta name="description" content="Спокойная игра о заброшенном селе: руби лес, бей камень, копай глину и восстанавливай дома до праздника.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Родник</h1>
+      <span class="progress" id="built-label">Восстановлено 0/12</span>
+    </div>
+    <div class="top-actions">
+      <button class="chip" id="btn-buildings" type="button" aria-controls="panel-buildings">Здания</button>
+      <button class="chip" id="btn-tools" type="button" aria-controls="panel-tools">Инструменты</button>
+      <button class="chip" id="btn-settings" type="button" aria-controls="panel-settings" aria-label="Настройки" title="Настройки">⚙</button>
+    </div>
+  </header>
+
+  <dl class="res" id="res">
+    <div class="res-item" data-res="wood"><dt><i class="ico wood"></i>Дерево</dt><dd><b id="r-wood">0</b><small id="r-wood-rate"></small></dd></div>
+    <div class="res-item" data-res="stone"><dt><i class="ico stone"></i>Камень</dt><dd><b id="r-stone">0</b><small id="r-stone-rate"></small></dd></div>
+    <div class="res-item" data-res="clay"><dt><i class="ico clay"></i>Глина</dt><dd><b id="r-clay">0</b><small id="r-clay-rate"></small></dd></div>
+    <div class="res-item" data-res="berries"><dt><i class="ico berries"></i>Ягоды</dt><dd><b id="r-berries">0</b><small id="r-berries-rate"></small></dd></div>
+    <div class="res-item" data-res="planks"><dt><i class="ico planks"></i>Доски</dt><dd><b id="r-planks">0</b><small id="r-planks-rate"></small></dd></div>
+    <div class="res-item" data-res="bricks"><dt><i class="ico bricks"></i>Кирпич</dt><dd><b id="r-bricks">0</b><small id="r-bricks-rate"></small></dd></div>
+  </dl>
+
+  <main class="stage">
+    <div class="scene-wrap" id="scene-wrap">
+      <canvas id="scene" aria-label="Заброшенное село у реки"></canvas>
+      <div class="goal" id="goal" aria-live="polite">
+        <span class="goal-label">Следующее дело</span>
+        <span class="goal-text" id="goal-text">Осмотрись вокруг</span>
+      </div>
+      <div class="floats" id="floats" aria-hidden="true"></div>
+      <div class="toast" id="toast" role="status" hidden></div>
+    </div>
+    <button class="act" id="btn-act" type="button">Действие <kbd>E</kbd></button>
+  </main>
+
+  <section class="panel" id="panel-building" hidden aria-labelledby="pb-title">
+    <header class="panel-head"><h2 id="pb-title">Здание</h2><button class="close" type="button" data-close aria-label="Закрыть">×</button></header>
+    <p class="muted" id="pb-effect"></p>
+    <ul class="cost" id="pb-cost"></ul>
+    <p class="small muted" id="pb-needs"></p>
+    <div class="row"><button class="btn primary" id="btn-contribute" type="button">Внести</button></div>
+  </section>
+
+  <section class="panel" id="panel-buildings" hidden aria-labelledby="pbs-title">
+    <header class="panel-head"><h2 id="pbs-title">Здания</h2><button class="close" type="button" data-close aria-label="Закрыть">×</button></header>
+    <ol class="list" id="buildings-list"></ol>
+    <div id="barn-upgrade" hidden>
+      <p class="small muted">Пристройка к амбару: больше места для запасов.</p>
+      <button class="btn" id="btn-barn" type="button">Расширить амбар</button>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-tools" hidden aria-labelledby="pt-title">
+    <header class="panel-head"><h2 id="pt-title">Инструменты</h2><button class="close" type="button" data-close aria-label="Закрыть">×</button></header>
+    <p class="small muted" id="tools-hint">Верстак появится в твоём доме.</p>
+    <ul class="list" id="tools-list"></ul>
+  </section>
+
+  <section class="panel" id="panel-settings" hidden aria-labelledby="ps-title">
+    <header class="panel-head"><h2 id="ps-title">Настройки</h2><button class="close" type="button" data-close aria-label="Закрыть">×</button></header>
+    <div class="row">
+      <label class="toggle"><input type="checkbox" id="opt-music" checked> Музыка</label>
+      <label class="toggle"><input type="checkbox" id="opt-sounds" checked> Звуки</label>
+    </div>
+    <h3>Сохранение</h3>
+    <p class="small muted" id="save-status">сохраняется само</p>
+    <div id="cloud" hidden>
+      <p class="small muted">Код облачного сохранения переносит прогресс на другое устройство.</p>
+      <div class="row">
+        <button class="btn" id="btn-cloud-save" type="button">Сохранить в облако</button>
+        <code id="cloud-code"></code>
+      </div>
+      <form class="row" id="cloud-load">
+        <input id="cloud-input" placeholder="код сохранения" autocomplete="off" spellcheck="false">
+        <button class="btn" type="submit">Загрузить</button>
+      </form>
+      <p class="small" id="cloud-msg"></p>
+    </div>
+    <div class="row"><button class="btn danger" id="btn-reset" type="button">Начать заново</button></div>
+    <p class="small muted keys">Клавиши: <kbd>WASD</kbd> или стрелки — идти, <kbd>E</kbd> или <kbd>Пробел</kbd> — делать, <kbd>B</kbd> здания, <kbd>T</kbd> инструменты, <kbd>M</kbd> звук, <kbd>Esc</kbd> закрыть.</p>
+  </section>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title"></h2>
+    <div id="modal-body"></div>
+    <div class="row end" id="modal-actions"></div>
+  </div>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="view.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

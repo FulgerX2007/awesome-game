@@ -282,13 +282,13 @@ ruin → open/target), `contribute(s, id)`, `upgradeTool(s, tool)`, `upgradeBarn
 - Modify: `main_test.go`
 - Modify: `.github/workflows/release-image.yml`
 
-- [ ] create `index.html` in the style of `web/rust/index.html`: canvas, HUD (resources, "Следующее дело"), slots for the building, tools and settings panels, link `i18n.js`, `nav.js`, `lang.js`, `core.js`, `view.js`, `audio.js`, `game.js`; boot like `web/rust/game.js` (meta description translation, `GameNav.home(...)` and `I18n.toggle(...)` after DOMContentLoaded)
-- [ ] create `style.css` (warm village palette, layout working down to a 360 px wide screen, safe-area for phones) and `lang.js` with RO translations of all strings, including building, resource and tool names from `core.js`
-- [ ] add a «Родник» card at the top of `.games` (the newest game goes first) with a variable `--village` in `web/index.html`, and the RO card description in the first `I18n.add` block of the hub
-- [ ] add `/village/`, `/village/core.js`, `/village/view.js`, `/village/game.js`, `/village/lang.js`, `/village/audio.js` to the path list in `main_test.go`
-- [ ] add `actions/setup-node` (Node 22) and `node --test 'tests/**/*.test.js'` to the `test` job in `release-image.yml`
-- [ ] write a test in `tests/village/lang.test.js`: every name from `BUILDINGS`, `TOOLS` and `RESOURCES` has an RO translation in `lang.js` (load the real `web/i18n.js`, put it on `globalThis.I18n`, then `require` `lang.js`); `view.js` and `audio.js` load in Node without errors
-- [ ] run `go test ./...` and `node --test 'tests/**/*.test.js'` — must pass before task 6
+- [x] create `index.html` in the style of `web/rust/index.html`: canvas, HUD (resources, "Следующее дело"), slots for the building, tools and settings panels, link `i18n.js`, `nav.js`, `lang.js`, `core.js`, `view.js`, `audio.js`, `game.js`; boot like `web/rust/game.js` (meta description translation, `GameNav.home(...)` and `I18n.toggle(...)` after DOMContentLoaded)
+- [x] create `style.css` (warm village palette, layout working down to a 360 px wide screen, safe-area for phones) and `lang.js` with RO translations of all strings, including building, resource and tool names from `core.js`
+- [x] add a «Родник» card at the top of `.games` (the newest game goes first) with a variable `--village` in `web/index.html`, and the RO card description in the first `I18n.add` block of the hub
+- [x] add `/village/`, `/village/core.js`, `/village/view.js`, `/village/game.js`, `/village/lang.js`, `/village/audio.js` to the path list in `main_test.go`
+- [x] add `actions/setup-node` (Node 22) and `node --test 'tests/**/*.test.js'` to the `test` job in `release-image.yml`
+- [x] write a test in `tests/village/lang.test.js`: every name from `BUILDINGS`, `TOOLS` and `RESOURCES` has an RO translation in `lang.js` (load the real `web/i18n.js`, put it on `globalThis.I18n`, then `require` `lang.js`); `view.js` and `audio.js` load in Node without errors
+- [x] run `go test ./...` and `node --test 'tests/**/*.test.js'` — must pass before task 6
 
 ### Task 6: Drawing the world in `game.js`
 

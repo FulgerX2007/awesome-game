@@ -25,6 +25,10 @@ jobs:
           go-version-file: go.mod
       - run: go vet ./...
       - run: go test ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test 'tests/**/*.test.js'
 
   image:
     needs: test
