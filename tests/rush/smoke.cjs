@@ -148,6 +148,17 @@ async function desktopChecks() {
   await hold(page, 'ArrowRight', 3000);
   const moved = await progress(page);
   check(moved > 0, 'the crowd runs forward', String(moved));
+
+  // P pauses the run: the pause screen shows and the crowd stands still; P again goes on.
+  await page.keyboard.press('KeyP');
+  check(await page.isVisible('#pause'), '«P» opens the pause screen');
+  const p0 = await progress(page);
+  await sleep(700);
+  check((await progress(page)) === p0, 'nothing moves while paused', `${p0} → ${await progress(page)}`);
+  await page.keyboard.press('KeyP');
+  check(!(await page.isVisible('#pause')), '«P» again closes the pause screen');
+  await sleep(400);
+  check((await progress(page)) > p0, 'the run goes on after the pause');
   let title = await waitFor(() => resultShown(page), 60000, 250);
   check(title === 'Победа!' || title === 'Поражение', 'the run ends on the result screen', JSON.stringify(title));
   const coins = Number((await page.textContent('#res-coins')).replace(/[^0-9]/g, ''));
@@ -164,9 +175,28 @@ async function desktopChecks() {
   check(title === 'Победа!', 'the better gates win level 1', JSON.stringify(title));
   sv = await readSave(page);
   check(sv && sv.level === 2 && sv.best === 1 && sv.coins > coins, 'rush.save advances to level 2 and adds the coins', JSON.stringify(sv));
+  const shown = await page.evaluate(() => {
+    const box = document.getElementById('res-stars');
+    return { visible: !box.hidden, on: box.querySelectorAll('.star.on').length, all: box.querySelectorAll('.star').length };
+  });
+  check(shown.visible && shown.all === 3 && shown.on >= 1, 'the result shows the stars', JSON.stringify(shown));
+  check(sv && Array.isArray(sv.stars) && sv.stars.length === 1 && sv.stars[0] === shown.on, 'rush.save keeps the stars', JSON.stringify(sv));
   check(await page.isVisible('#btn-next'), '«Дальше» is offered');
   await page.click('#btn-next');
   check((await page.textContent('#hud-level')).trim() === 'Уровень 2', '«Дальше» opens level 2');
+
+  // The HUD's pause button pauses too; «Меню» there leaves the run.
+  await page.click('#btn-pause');
+  check(await page.isVisible('#pause'), 'the pause button opens the pause screen');
+  await page.click('#btn-pause-menu');
+  check(await page.isVisible('#menu'), '«Меню» on the pause screen goes to the menu');
+  await page.click('#btn-levels-menu');
+  const grid = await page.evaluate(() => ({
+    stars: document.querySelectorAll('#level-grid .lvl-btn.done .star').length,
+    total: document.getElementById('levels-total').textContent.trim(),
+  }));
+  check(grid.stars === 3 && /^Звёзды: [1-3] из 3$/.test(grid.total), 'the level select shows the stars', JSON.stringify(grid));
+  await page.click('#btn-levels-back');
 
   // After a reload the menu continues from level 2 with the coins kept.
   await page.reload({ waitUntil: 'load' });

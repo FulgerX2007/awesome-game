@@ -106,12 +106,14 @@ test('the levels are not trivial: without upgrades even the smart bot loses most
   assert.ok(lost.length >= 15, `won ${late.length - lost.length} of ${late.length} with no upgrades at all`);
 });
 
-test('the smart bot meets every kind of gate and obstacle along the campaign', () => {
+test('the smart bot meets every kind of gate, obstacle and recruits along the campaign', () => {
   const seen = new Set();
   for (const n of CAMPAIGN) {
     for (const e of smartRun(n).events) seen.add(e.type === 'gate' ? `${e.op}` : e.type === 'hit' ? e.kind : e.type);
   }
-  for (const k of ['add', 'sub', 'mul', 'pow', 'saw', 'wall', 'fall']) assert.ok(seen.has(k), `no ${k} met`);
+  for (const k of ['add', 'sub', 'mul', 'pow', 'saw', 'wall', 'fall', 'recruit']) assert.ok(seen.has(k), `no ${k} met`);
+  const taken = CAMPAIGN.flatMap((n) => smartRun(n).events.filter((e) => e.type === 'recruit'));
+  assert.ok(taken.length >= 20 && taken.every((e) => e.taken), 'the smart bot picks up every band of recruits');
 });
 
 test('difficulty grows: more on the track and a stronger enemy weapon', () => {
@@ -151,4 +153,25 @@ test('the generator autopilot agrees with the bot', () => {
     const auto = R.autoplay(R.levelDef(n), u, 'best').run;
     assert.equal(R.strength(auto), smartRun(n).result.strength, `level ${n}`);
   }
+});
+
+test('stars: the smart bot earns three on every level; the casual one mostly does, but not always', () => {
+  for (const n of CAMPAIGN) assert.equal(R.starsFor(smartRun(n).run), 3, `level ${n}`);
+  const casual = CAMPAIGN.flatMap((n) => [1, 2, 3].map((seed) => R.starsFor(play(n, R.expectedUpgrades(n), 'casual', seed).run)));
+  const three = casual.filter((s) => s === 3).length;
+  assert.ok(three >= casual.length * 0.5 && three < casual.length, `casual: ${three} of ${casual.length} with three stars`);
+});
+
+test('a moving saw is a real hazard: standing still in the middle loses soldiers on most of them', () => {
+  let hits = 0;
+  let total = 0;
+  for (let n = 8; n <= 30; n++) {
+    const L = R.parseLevel(R.levelDef(n));
+    for (const o of L.obstacles.filter((x) => x.A > 0)) {
+      total++;
+      const [x0, x1] = R.obstacleSpan(o, R.crossTime(o.z));
+      if (R.spanOverlap(0, 20, x0, x1) > 0) hits++;
+    }
+  }
+  assert.ok(total >= 20 && hits >= total * 0.4, `${hits} of ${total} moving saws pass through the middle`);
 });

@@ -15,7 +15,7 @@
   try { storage = window.localStorage; } catch { storage = null; }
 
   // Sound comes from audio.js (index.html loads it first); its play() is silent while the sound is off.
-  // Names: gate ({ good }), hit, fall, battle, clash, coin, win, lose.
+  // Names: gate ({ good }), hit, fall, recruit, battle, clash, coin, win, lose, star ({ n }).
   const Sound = window.RushAudio;
 
   // ── Look ──
@@ -55,6 +55,26 @@
     'Обходи стены и пилы: они отнимают бойцов',
     'Ворота «Оружие» усиливают каждого бойца. На платформе держись середины',
   ];
+  // Tips for things that first show up on a generated level: shown on the first level that has them.
+  const FIRST_TIPS = [
+    { tip: 'Подбирай новобранцев: проведи толпу рядом с ними', has: (L) => L.recruits.length > 0 },
+    { tip: 'Эта пила ездит по трассе: проходи там, где её не будет', has: (L) => L.obstacles.some((o) => o.A > 0) },
+  ];
+  const firstLevels = new Map(); // FIRST_TIPS entry → the first level that has it (looked up once, campaign only)
+  function firstLevel(entry) {
+    if (!firstLevels.has(entry)) {
+      let n = 0;
+      for (let i = 1; i <= C.CAMPAIGN && !n; i++) if (entry.has(C.levelDef(i))) n = i;
+      firstLevels.set(entry, n);
+    }
+    return firstLevels.get(entry);
+  }
+  function tipFor(n) {
+    if (TIPS[n - 1]) return TIPS[n - 1];
+    if (n > C.CAMPAIGN) return null;
+    const e = FIRST_TIPS.find((x) => firstLevel(x) === n);
+    return e ? e.tip : null;
+  }
   const REASONS = {
     crowd: 'Толпа не добежала до финиша',
     army: 'Армия врага оказалась сильнее',
@@ -69,7 +89,7 @@
   let run = null;
   let levelNum = save.level;
   let demo = true;          // an autopilot run behind the menu screens
-  let mode = 'menu';        // menu | play | battle | lost | end
+  let mode = 'menu';        // menu | play | pause | battle | lost | end
   let modeT = 0;
   let target = 0;
   let keys = { left: false, right: false };
@@ -80,6 +100,7 @@
   let particles = [];
   let floats = [];
   let pops = new Map();     // gate z → { side, t }: the panel the crowd went through bursts
+  let joined = new Map();   // recruits z → { taken, t }: recruits the crowd has passed
   let shake = 0;
   let soldiers = [];        // eased positions of the drawn soldiers { dx, dy }
   let layoutKey = '';
@@ -331,11 +352,24 @@
   }
 
   function drawSaw(o, camZ, a) {
-    // A slot in the track with spinning blades half sunk into it
+    // A slot in the track with spinning blades half sunk into it; a moving saw's slot spans all of its travel
     ctx.globalAlpha = a;
     ctx.fillStyle = '#39404d';
-    const slot = [P(o.x0, o.z - 0.18, camZ), P(o.x1, o.z - 0.18, camZ), P(o.x1, o.z + 0.18, camZ), P(o.x0, o.z + 0.18, camZ)];
-    if (slot.every(Boolean)) { poly(slot); ctx.fill(); }
+    const A = o.A || 0;
+    const slot = [P(o.x0 - A, o.z - 0.18, camZ), P(o.x1 + A, o.z - 0.18, camZ), P(o.x1 + A, o.z + 0.18, camZ), P(o.x0 - A, o.z + 0.18, camZ)];
+    if (slot.every(Boolean)) {
+      poly(slot);
+      ctx.fill();
+      if (A) { // warning chevrons at both ends of the rail
+        ctx.fillStyle = '#ffd34d';
+        for (const x of [o.x0 - A, o.x1 + A]) {
+          const e = [P(x - 0.03, o.z - 0.3, camZ), P(x + 0.03, o.z - 0.3, camZ), P(x + 0.03, o.z + 0.3, camZ), P(x - 0.03, o.z + 0.3, camZ)];
+          if (e.every(Boolean)) { poly(e); ctx.fill(); }
+        }
+      }
+    }
+    const [x0, x1] = C.obstacleSpan(o, runTime());
+    o = { ...o, x0, x1 };
     const g = P(0, o.z, camZ);
     const span = (o.x1 - o.x0) * V.HALF_M;
     const nb = Math.max(1, Math.round(span / 1.6));
@@ -502,6 +536,7 @@
   const TEAM = {
     ours: { body: '#2f7bff', head: '#9fcbff', legs: '#1b4fb0' },
     enemy: { body: '#e43f3a', head: '#ffad9c', legs: '#9c1f1b' },
+    recruit: { body: '#2bb35f', head: '#c4f5d3', legs: '#17773b' },
   };
 
   // A little soldier standing at a projected ground point p. phase: running animation phase, or null for idle.
@@ -615,6 +650,33 @@
     ctx.fillStyle = 'rgba(0, 20, 60, .2)';
     for (const { p } of pts) shadow(p, 0.26 * SOLDIER);
     for (const { p, i } of pts) drawSoldier(p, 'ours', running ? time * 13 + i * 1.7 : null, run.power);
+  }
+
+  // Recruits wait in a little band, hopping and waving; taken ones vanish (they joined the crowd).
+  function drawRecruits(rc, camZ) {
+    const j = joined.get(rc.z);
+    const gone = j && j.taken ? clamp(j.t / 0.25, 0, 1) : 0;
+    if (gone >= 1) return;
+    const base = P(rc.x, rc.z, camZ);
+    if (!base) return;
+    const a = fade(base.d) * (1 - gone);
+    if (a <= 0.01) return;
+    ctx.globalAlpha = a;
+    const shown = Math.min(rc.n, 24);
+    const lay = V.crowdLayout(shown, Math.min(0.35, C.radius(rc.n) * 0.8));
+    const pts = [];
+    for (let i = 0; i < lay.length; i++) {
+      const hop = Math.max(0, Math.sin(time * 7 + i * 1.9)) * 0.25;
+      const p = P(rc.x + lay[i].dx, rc.z + lay[i].dy * V.HALF_M * V.DEPTH_SQUASH, camZ, hop);
+      if (p) pts.push({ p, ground: P(rc.x + lay[i].dx, rc.z + lay[i].dy * V.HALF_M * V.DEPTH_SQUASH, camZ) });
+    }
+    pts.sort((u, v) => v.p.d - u.p.d);
+    ctx.fillStyle = 'rgba(0, 40, 10, .2)';
+    for (const { ground } of pts) if (ground) shadow(ground, 0.26 * SOLDIER);
+    for (const { p } of pts) drawSoldier(p, 'recruit', null, 1);
+    const head = P(rc.x, rc.z, camZ, 1.7);
+    if (head && head.d < 60 && !(j && j.taken)) bubble(head, `+${V.fmt(rc.n)}`, '#1f9c4c', true);
+    ctx.globalAlpha = 1;
   }
 
   function enemyFront(L) {
@@ -806,6 +868,41 @@
     ctx.globalAlpha = 1;
   }
 
+  // The duel bar at the top: the crowd's strength now against what waits at the finish (army + boss).
+  function drawDuel() {
+    const L = run.level;
+    const ours = C.strength(run);
+    const theirs = L.enemy.count * L.enemy.power + (L.boss ? L.boss.hp : 0);
+    const w = Math.min(320, vp.w - 24);
+    const h = 22;
+    const x = (vp.w - w) / 2;
+    const y = 10;
+    const k = ours + theirs > 0 ? clamp(ours / (ours + theirs), 0.08, 0.92) : 0.5;
+    ctx.fillStyle = 'rgba(0, 0, 0, .35)';
+    ctx.beginPath();
+    rrect(ctx, x - 2, y - 2, w + 4, h + 4, (h + 4) / 2);
+    ctx.fill();
+    ctx.save();
+    ctx.beginPath();
+    rrect(ctx, x, y, w, h, h / 2);
+    ctx.clip();
+    ctx.fillStyle = '#2f7bff';
+    ctx.fillRect(x, y, w * k, h);
+    ctx.fillStyle = '#e43f3a';
+    ctx.fillRect(x + w * k, y, w * (1 - k), h);
+    ctx.fillStyle = 'rgba(255, 255, 255, .9)';
+    ctx.fillRect(x + w * k - 1.5, y, 3, h);
+    ctx.restore();
+    ctx.font = `900 13px ${FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    const ahead = ours > theirs ? ' ✓' : '';
+    ctx.fillText(`⚔ ${V.fmt(ours)}${ahead}`, x + 10, y + h / 2 + 1);
+    ctx.textAlign = 'right';
+    ctx.fillText(`${V.fmt(theirs)}${L.boss ? ' ♛' : ''}`, x + w - 10, y + h / 2 + 1);
+  }
+
   // ───────────── Scene ─────────────
   function draw(dt) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -832,6 +929,7 @@
       } });
     }
     for (const p of L.platforms) if (p.z1 > camZ + V.NEAR && p.z0 < camZ + V.FAR) items.push({ z: p.z1, f: () => drawPlatform(p, camZ) });
+    for (const rc of L.recruits) if (inView(rc.z)) items.push({ z: rc.z, f: () => drawRecruits(rc, camZ) });
     if (inView(L.length)) items.push({ z: L.length + 0.01, f: () => drawArch(L, camZ) });
     items.push({ z: L.length + ARMY_Z, f: () => drawArmy(camZ) });
     items.push({ z: L.length + BOSS_Z, f: () => drawBoss(camZ) });
@@ -845,6 +943,7 @@
       if (head) bubble(head, V.fmt(shownCount), '#1f63e0');
     }
     drawFloats(camZ, dt);
+    if (!demo && (mode === 'play' || mode === 'pause')) drawDuel();
     if (mode === 'lost' || (mode === 'end' && run.result && !run.result.won)) {
       const a = Math.min(1, modeT * 2) * 0.3;
       const vg = ctx.createRadialGradient(vp.w / 2, vp.h / 2, vp.h * 0.25, vp.w / 2, vp.h / 2, vp.h * 0.75);
@@ -857,6 +956,11 @@
 
   // ───────────── Simulation ─────────────
   const sfx = (name, opts) => { if (!demo) Sound.play(name, opts); };
+  // A short vibration on a phone, while the sound is on (the same switch for all feedback).
+  const buzz = (pattern) => {
+    if (demo || !Sound.enabled || !navigator.vibrate) return;
+    try { navigator.vibrate(pattern); } catch { /* not allowed here */ }
+  };
 
   function handleEvents() {
     for (const e of run.events) {
@@ -868,10 +972,18 @@
         else if (e.after > e.before) burst(run.x, run.z, 10, 'spark', { color: '#7dff9f', vh: 6, spread: 0.5, size: 0.6, life: 0.7 });
       } else if (e.type === 'hit') {
         shake = Math.max(shake, 0.25);
+        buzz(35);
         addFloat(`−${e.lost}`, false);
         sfx('hit');
         burst(run.x, run.z, Math.min(30, e.lost), 'man', { spread: C.radius(run.count + e.lost) * 2, vh: 6, vz: 3 });
         burst(run.x, run.z, 8, 'spark', { color: '#ffd34d', vh: 5, spread: 0.6, life: 0.5 });
+      } else if (e.type === 'recruit') {
+        joined.set(e.z, { taken: e.taken, t: 0 });
+        if (e.taken) {
+          addFloat(`+${e.n}`, true);
+          sfx('recruit');
+          burst(e.x, e.z, 12, 'spark', { color: '#7dff9f', vh: 6, spread: 0.4, size: 0.6, life: 0.7 });
+        }
       } else if (e.type === 'fall') {
         const prevFloat = floats[floats.length - 1];
         if (prevFloat && prevFloat.fall && prevFloat.t < 0.5) {
@@ -899,6 +1011,7 @@
     particles = [];
     floats = [];
     pops = new Map();
+    joined = new Map();
     soldiers = [];
     layoutKey = '';
     target = 0;
@@ -929,6 +1042,7 @@
     modeT = 0;
     shownCount = 0;
     sfx('lose');
+    buzz([60, 40, 90]);
   }
 
   function steer() {
@@ -987,6 +1101,7 @@
     modeT += dt;
     shake = Math.max(0, shake - dt);
     for (const p of pops.values()) p.t += dt;
+    for (const j of joined.values()) j.t += dt;
     const L = run.level;
     if (mode === 'play' || (mode === 'menu' && run.status === 'running')) {
       if (mode === 'menu') target = C.pilotTarget(run, 'best'); else steer();
@@ -1022,17 +1137,18 @@
   }
 
   function frame(now) {
-    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
+    let dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
+    if (mode === 'pause') dt = 0; // the scene stands still behind the pause screen
     time += dt;
-    if (run && mode !== 'end') update(dt);
-    else if (run) { modeT += dt; updateSoldiers(shownCount, dt); }
+    if (run && mode !== 'end' && mode !== 'pause') update(dt);
+    else if (run && mode === 'end') { modeT += dt; updateSoldiers(shownCount, dt); }
     draw(dt);
     requestAnimationFrame(frame);
   }
 
   // ───────────── Screens ─────────────
-  const SCREENS = ['menu', 'shop', 'levels', 'result'];
+  const SCREENS = ['menu', 'shop', 'levels', 'result', 'pause'];
   function show(name) {
     for (const id of SCREENS) $(id).hidden = id !== name;
     stage.classList.toggle('dim', !!name);
@@ -1044,7 +1160,7 @@
     mode = 'play';
     show(null);
     $('hud').hidden = false;
-    const tip = TIPS[levelNum - 1];
+    const tip = tipFor(levelNum);
     $('tip').textContent = tip ? t(tip) : '';
     $('tip').hidden = !tip;
     tipT = tip ? 4.5 : 0;
@@ -1067,6 +1183,35 @@
     renderSound();
     show('menu');
     $('btn-play').focus({ preventScroll: true });
+  }
+
+  // Pause only stops a run on the track: the battle plays out by itself and is short.
+  function pause() {
+    if (mode !== 'play' || demo) return;
+    mode = 'pause';
+    keys = { left: false, right: false };
+    drag = null;
+    $('tip').hidden = true;
+    show('pause');
+    $('btn-resume').focus({ preventScroll: true });
+  }
+
+  function resume() {
+    if (mode !== 'pause') return;
+    mode = 'play';
+    tipT = 0;
+    show(null);
+    canvas.focus({ preventScroll: true });
+  }
+
+  // Stars as small icons into a box: n of 3 filled.
+  function fillStars(box, n) {
+    box.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const st = document.createElement('i');
+      st.className = 'star' + (i < n ? ' on' : '');
+      box.append(st);
+    }
   }
 
   function renderShop(bought) {
@@ -1140,17 +1285,31 @@
       const open = i <= save.best + 1;
       const done = i <= save.best;
       const boss = C.isBossLevel(i);
+      const stars = C.levelStars(save, i);
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'lvl-btn' + (open ? '' : ' locked') + (done ? ' done' : '') + (boss ? ' boss' : '') + (i === save.level ? ' current' : '');
       b.disabled = !open;
-      const label = boss ? t('босс') : done ? '✓' : '';
-      b.innerHTML = `<b>${i}</b>` + (open ? `<small>${label}</small>` : '<i class="lock" aria-hidden="true"></i>');
-      b.setAttribute('aria-label', !open ? t('Уровень {n} закрыт', { n: i }) : done ? t('Уровень {n}, пройден', { n: i }) : t('Уровень {n}', { n: i }));
+      b.innerHTML = `<b>${i}</b>`;
+      if (!open) {
+        b.insertAdjacentHTML('beforeend', '<i class="lock" aria-hidden="true"></i>');
+      } else if (done) {
+        const box = document.createElement('span');
+        box.className = 'stars';
+        box.setAttribute('aria-hidden', 'true');
+        fillStars(box, stars);
+        b.append(box);
+      } else {
+        const small = document.createElement('small');
+        small.textContent = boss ? t('босс') : '';
+        b.append(small);
+      }
+      b.setAttribute('aria-label', !open ? t('Уровень {n} закрыт', { n: i })
+        : done ? t('Уровень {n}, пройден, звёзд: {s} из 3', { n: i, s: stars }) : t('Уровень {n}', { n: i }));
       b.addEventListener('click', () => startLevel(i));
       grid.append(b);
     }
-    $('levels-total').textContent = t('Пройдено: {n}', { n: save.best });
+    $('levels-total').textContent = t('Звёзды: {n} из {max}', { n: C.totalStars(save), max: 3 * save.best });
     $('hud').hidden = true;
     $('tip').hidden = true;
     show('levels');
@@ -1166,6 +1325,24 @@
     $('res-title').textContent = res.won ? t('Победа!') : t('Поражение');
     $('res-reason').textContent = res.won ? '' : t(REASONS[res.reason] || REASONS.crowd);
     $('res-reason').hidden = res.won;
+    const stars = C.starsFor(run);
+    const starBox = $('res-stars');
+    starBox.hidden = !res.won;
+    if (res.won) {
+      fillStars(starBox, stars);
+      starBox.setAttribute('aria-label', t('Звёзд: {n} из 3', { n: stars }));
+      if (!run.starsShown) { // the first time only, not on the way back from the shop
+        run.starsShown = true;
+        starBox.classList.remove('reveal');
+        void starBox.offsetWidth; // restart the reveal animation
+        starBox.classList.add('reveal');
+        sfx('star', { n: stars });
+      }
+    }
+    const parLine = $('res-par');
+    const need = Math.ceil(C.par(run) * C.STAR_SHARES[1] - C.EPS);
+    parLine.hidden = !res.won || stars >= 3;
+    if (!parLine.hidden) parLine.textContent = t('Для трёх звёзд нужна сила {p}, у тебя {s}', { p: V.fmt(need), s: V.fmt(res.strength) });
     const line = $('res-survivors');
     if (res.won) line.textContent = t('Выжило бойцов: {n}', { n: res.survivors });
     else if (res.reason === 'crowd') line.textContent = '';
@@ -1254,19 +1431,23 @@
     if (k && mode === 'play') {
       keys[k] = true;
       e.preventDefault();
-    } else if (e.code === 'KeyR' && !demo && (mode === 'play' || mode === 'battle' || mode === 'lost')) {
+    } else if (e.code === 'KeyR' && !demo && (mode === 'play' || mode === 'pause' || mode === 'battle' || mode === 'lost')) {
       startLevel(levelNum);
       e.preventDefault();
-    } else if (e.code === 'Escape') {
-      if (!$('shop').hidden) $('btn-shop-back').click();
-      else if (!$('levels').hidden || mode === 'play') showMenu();
+    } else if (e.code === 'KeyP' || e.code === 'Escape') {
+      if (mode === 'play') { pause(); e.preventDefault(); }
+      else if (mode === 'pause') { resume(); e.preventDefault(); }
+      else if (e.code === 'Escape' && !$('shop').hidden) $('btn-shop-back').click();
+      else if (e.code === 'Escape' && !$('levels').hidden) showMenu();
     }
   });
   document.addEventListener('keyup', (e) => {
     const k = KEYS[e.code];
     if (k) keys[k] = false;
   });
-  window.addEventListener('blur', () => { keys = { left: false, right: false }; });
+  // Leaving the tab or the window pauses a run on the track, so nobody comes back to a lost crowd.
+  window.addEventListener('blur', () => { keys = { left: false, right: false }; pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') pause(); });
 
   $('btn-play').addEventListener('click', () => startLevel(save.level));
   $('btn-shop-menu').addEventListener('click', () => showShop('menu'));
@@ -1275,7 +1456,10 @@
   $('btn-levels-back').addEventListener('click', () => showMenu());
   $('btn-shop-back').addEventListener('click', () => (shopFrom === 'result' && mode === 'end' ? showResult() : showMenu()));
   $('btn-shop-play').addEventListener('click', () => startLevel(shopLevel()));
-  $('btn-menu').addEventListener('click', () => showMenu());
+  $('btn-pause').addEventListener('click', pause);
+  $('btn-resume').addEventListener('click', resume);
+  $('btn-pause-again').addEventListener('click', () => startLevel(levelNum));
+  $('btn-pause-menu').addEventListener('click', () => showMenu());
   $('btn-sound').addEventListener('click', toggleSound);
   $('btn-next').addEventListener('click', () => startLevel(levelNum + 1));
   $('btn-again').addEventListener('click', () => startLevel(levelNum));

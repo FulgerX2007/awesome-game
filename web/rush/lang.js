@@ -14,6 +14,9 @@ I18n.add({ ro: {
   'Оружие': 'Armă',
   'Пройдено': 'Parcurs',
   'Меню': 'Meniu',
+  'Пауза': 'Pauză',
+  'Продолжить': 'Continuă',
+  'Заново': 'De la capăt',
   'Звук: вкл': 'Sunet: pornit',
   'Звук: выкл': 'Sunet: oprit',
 
@@ -35,6 +38,13 @@ I18n.add({ ro: {
   'На финише сила толпы (бойцы × оружие) должна превысить силу армии врага. Каждый 5-й уровень — ещё и босс.':
     'La final puterea mulțimii (luptători × armă) trebuie să întreacă puterea armatei dușmane. La fiecare al 5-lea nivel vine și un șef.',
   'Монеты за забег тратятся в магазине на улучшения.': 'Monedele câștigate se cheltuie în magazin pe îmbunătățiri.',
+  'Зелёные новобранцы присоединяются, если пробежать рядом с ними.':
+    'Recruții verzi se alătură dacă treci pe lângă ei.',
+  'Звёзды: сравни силу на финише с автопилотом на тех же улучшениях. Три звезды — не хуже автопилота.':
+    'Stele: puterea de la final se compară cu pilotul automat cu aceleași îmbunătățiri. Trei stele — nu mai slab decât pilotul automat.',
+  'Пауза —': 'Pauză —',
+  'или': 'sau',
+  ', заново —': ', de la capăt —',
 
   // ── Shop ──
   'Назад': 'Înapoi',
@@ -54,12 +64,16 @@ I18n.add({ ro: {
   'босс': 'șef',
   'Уровень {n} закрыт': 'Nivelul {n} e blocat',
   'Уровень {n}, пройден': 'Nivelul {n}, trecut',
+  'Уровень {n}, пройден, звёзд: {s} из 3': 'Nivelul {n}, trecut, stele: {s} din 3',
+  'Звёзды: {n} из {max}': 'Stele: {n} din {max}',
 
   // ── Tips and the track ──
   'Веди толпу пальцем или ←/→ через ворота с большим числом': 'Condu mulțimea cu degetul sau ←/→ prin porțile cu numărul mai mare',
   'Обходи стены и пилы: они отнимают бойцов': 'Ocolește zidurile și fierăstraiele: ele iau din luptători',
   'Ворота «Оружие» усиливают каждого бойца. На платформе держись середины':
     'Porțile „Armă” întăresc fiecare luptător. Pe platformă ține-te de mijloc',
+  'Подбирай новобранцев: проведи толпу рядом с ними': 'Adună recruții: condu mulțimea pe lângă ei',
+  'Эта пила ездит по трассе: проходи там, где её не будет': 'Acest fierăstrău se mișcă: treci pe unde nu va fi el',
   'ОРУЖИЕ': 'ARMĂ',
   'Босс': 'Șef',
 
@@ -70,6 +84,8 @@ I18n.add({ ro: {
   'Армия врага оказалась сильнее': 'Armata dușmană a fost mai puternică',
   'Босс оказался сильнее': 'Șeful a fost mai puternic',
   'Выжило бойцов: {n}': 'Luptători rămași: {n}',
+  'Звёзд: {n} из 3': 'Stele: {n} din 3',
+  'Для трёх звёзд нужна сила {p}, у тебя {s}': 'Pentru trei stele e nevoie de puterea {p}, tu ai {s}',
   'Сила толпы {s} против {e}': 'Puterea mulțimii {s} contra {e}',
   'Монет всего: {n}': 'Monede în total: {n}',
   'В магазине можно купить улучшения': 'În magazin poți cumpăra îmbunătățiri',
