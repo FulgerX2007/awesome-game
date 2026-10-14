@@ -201,12 +201,17 @@ The whole run of same-coloured top layers of A moves, as many as fit in B. One p
 - Difficulty bands. The colour count is the hard rule; the par numbers are the lower bounds measured by the plan review's
   prototype (7×4 ≈ 21, 10×4 ≈ 30, 12×4 ≈ 35–38, 9×5 ≈ 36–40, 12×5 ≈ 47–53):
 
-| Levels | Colours | Empty tubes | Capacity | par lower bound (expected range) |
-|---|---|---|---|---|
-| 1–5 | 3–4 | 2 | 4 | 5 (5–14) |
-| 6–20 | 5–7 | 2 | 4 | 13 (13–24) |
-| 21–40 | 8–10 | 2 | 4 | 22 (22–34) |
-| 41–60 | 9–12 | 2 | 5 | 34 (34–55) |
+| Levels | Colours | Empty tubes | Capacity | par lower bound | par generated |
+|---|---|---|---|---|---|
+| 1–5 | 3–4 | 2 | 4 | 5 | 5–8 |
+| 6–20 | 5–7 | 2 | 4 | 12 | 13–21 |
+| 21–40 | 8–10 | 2 | 4 | 22 | 23–34 |
+| 41–60 | 9–12 | 2 | 5 | 29 | 35–53 |
+
+➕ Calibration (20 boards per colour count, Task 2), par min/median/max:
+3×4 4/7/10, 4×4 9/12/14, 5×4 12/15/17, 6×4 16/18/20, 7×4 19/22/24, 8×4 22/25/28, 9×4 25/27/30, 10×4 27/31/34,
+9×5 29/37/39, 10×5 38/40/44, 11×5 42/45/47, 12×5 46/50/53. The worst A* run expanded 12.4k states (11×5, 0.34 s).
+The whole generator takes 0.3 s, so `levels.test.js` checks that its output equals the committed `levels.js`.
 
 - The generator first runs a calibration pass (20 boards per colour count and capacity) and adjusts the lower bounds
   if the measured distribution differs. It logs the result as a `[decision]` and updates this table.
@@ -407,13 +412,13 @@ The whole run of same-coloured top layers of A moves, as many as fit in B. One p
 - Create: `tests/sort/levels.test.js`
 - Create: `tests/sort/par.test.js`
 
-- [ ] `tests/sort/generate.js` (run by hand: `node tests/sort/generate.js > web/sort/levels.js`):
+- [x] `tests/sort/generate.js` (run by hand: `node tests/sort/generate.js > web/sort/levels.js`):
   - seeded shuffles by the difficulty bands from Technical Details;
   - rejects boards with a sorted tube at the start or with par outside the band;
   - writes the UMD `root.SortLevels = { LEVELS }` with `{ tubes, cap, par, solution }`.
-- [ ] run the calibration pass from Technical Details; adjust the par lower bounds if needed and update the bands table (log a `[decision]`).
-- [ ] generate the 60 levels and commit `levels.js`. The generator logs its runtime to stderr.
-- [ ] write `levels.test.js`:
+- [x] run the calibration pass from Technical Details; adjust the par lower bounds if needed and update the bands table (log a `[decision]`).
+- [x] generate the 60 levels and commit `levels.js`. The generator logs its runtime to stderr.
+- [x] write `levels.test.js`:
   - every level parses;
   - no tube is sorted at the start;
   - colours and capacity follow the bands;
@@ -422,7 +427,7 @@ The whole run of same-coloured top layers of A moves, as many as fit in B. One p
     `tests/sort/par.test.js`, so `node --test` runs it in parallel;
   - there are no duplicates;
   - par does not drop within a band.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 3: «Цветные колбы» — page, rendering, input, screens and saving
 
