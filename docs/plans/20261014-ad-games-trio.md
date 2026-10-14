@@ -111,6 +111,11 @@ Cell types in a `Uint8Array`:
 
 - **Determinism, no rng.** Cells are processed bottom to top. The sideways and diagonal direction depends on
   the parity of `(x + y + tick)`. A cell moves at most once per tick (a `moved` flag array).
+- ➕ **Flow budget (added in Task 1).** Each liquid cell carries a sideways budget (`FLOW = 24`): a fall (straight or
+  diagonal) refills it, each sideways step spends one, and a sideways step goes only to the parity-preferred side.
+  Without it a thin puddle on a flat floor wanders forever and never settles. A diagonal step also needs the side cell
+  free of solids, so nothing leaks through a corner. Reactions (stone, burnt gold) run every tick, lava only moves on even ticks.
+  The 3000-tick cap counts from the last pull. `pull` with an unknown id returns `false` instead of throwing.
 - **Level format.** A JS object:
   - `walls`: rectangles in cells;
   - `pins`: `{id, x, y, w, h, handle: 'left'|'right'|'top'}`, horizontal or vertical bars;
@@ -252,12 +257,12 @@ Cell types in a `Uint8Array`:
 - Create: `web/pins/core.js`
 - Create: `tests/pins/core.test.js`
 
-- [ ] create `web/pins/core.js` as UMD (`root.PinsCore` / `module.exports`): constants W=36, H=54, cell codes, `buildLevel(def)`, `pull`, `step`
-- [ ] implement the rules for water, lava, gold and stone exactly as in the Technical Details table (bottom-to-top pass, parity of `x+y+tick`, `moved` flags, lava only on even ticks, lava+water → stone, lava destroys gold)
-- [ ] implement `settled` tracking (20 ticks with no changes) and the 3000-tick cap
-- [ ] write tests: rasterizing walls/pins/fills, pulling a pin clears its cells and re-pulling returns `false`, water falls and spreads, gold falls like sand and sinks in water, lava+water gives stone, lava destroys gold, determinism (two runs give the same grid), cell count is conserved for water/gold without reactions
-- [ ] write tests for errors: an invalid `pinId`, a level with overlapping or out-of-bounds rectangles throws from `buildLevel`
-- [ ] run `node --test 'tests/**/*.test.js'` — must pass before next task
+- [x] create `web/pins/core.js` as UMD (`root.PinsCore` / `module.exports`): constants W=36, H=54, cell codes, `buildLevel(def)`, `pull`, `step`
+- [x] implement the rules for water, lava, gold and stone exactly as in the Technical Details table (bottom-to-top pass, parity of `x+y+tick`, `moved` flags, lava only on even ticks, lava+water → stone, lava destroys gold)
+- [x] implement `settled` tracking (20 ticks with no changes) and the 3000-tick cap
+- [x] write tests: rasterizing walls/pins/fills, pulling a pin clears its cells and re-pulling returns `false`, water falls and spreads, gold falls like sand and sinks in water, lava+water gives stone, lava destroys gold, determinism (two runs give the same grid), cell count is conserved for water/gold without reactions
+- [x] write tests for errors: an invalid `pinId`, a level with overlapping or out-of-bounds rectangles throws from `buildLevel`
+- [x] run `node --test 'tests/**/*.test.js'` — must pass before next task
 
 ### Task 2: «Тяни штифт» — hero, enemies, win/loss, stars and solver
 
