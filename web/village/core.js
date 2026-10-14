@@ -327,6 +327,13 @@
     return true;
   }
 
+  // Take a cost out of the stock; callers check canAfford first.
+  function pay(s, cost) {
+    for (const [r, n] of Object.entries(cost)) s.res[r] -= n;
+  }
+
+  const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
+
   // ── Pathfinding ──
   // A* on the 4-neighbour grid. isGoal(x, y) ends the search, h(x, y) is an admissible estimate.
   // Returns the tiles from start to goal inclusive, or null when no goal is reachable.
@@ -415,7 +422,7 @@
   // ── Movement ──
   const SPEED = 4;         // tiles per second
   const RADIUS = 0.3;      // half-size of the player's collision box
-  const MAX_DT = 0.05;     // step() splits longer intervals into chunks of this size
+  const MAX_DT = 0.05;     // step() splits longer intervals into chunks of this size (the client's fixed step too)
   const NEAR_NODE = 1.5;   // the player hits a node when its centre is this close to the node's centre
 
   // The player's box at (x, y) overlaps only walkable tiles.
@@ -639,7 +646,7 @@
     if (need && !s.built[need].done) return 'locked';
     const cost = t.costs[next];
     if (!canAfford(s, cost)) return 'cost';
-    for (const [r, n] of Object.entries(cost)) s.res[r] -= n;
+    pay(s, cost);
     s.tools[tool] = next;
     s.events.push({ type: 'tool', tool, level: next });
     return 'ok';
@@ -714,7 +721,7 @@
     if (s.barnLevel >= STORAGE.length - 1) return 'max';
     if (!s.built.barn.done) return 'locked';
     if (!canAfford(s, BARN_UPGRADE)) return 'cost';
-    for (const [r, n] of Object.entries(BARN_UPGRADE)) s.res[r] -= n;
+    pay(s, BARN_UPGRADE);
     setBarn(s, s.barnLevel + 1);
     s.events.push({ type: 'built', id: 'barn', effect: 'storage', level: s.barnLevel });
     return 'ok';
@@ -736,7 +743,7 @@
       const key = v.house;
       let a = (s.acc[key] || 0) + villagerRate(s, role) * dt;
       while (a >= 1 - EPS && hasRoom(s, role.res)) { s.res[role.res] += 1; a -= 1; }
-      s.acc[key] = Math.min(Math.max(a, 0), 1);
+      s.acc[key] = clamp01(a);
     }
     for (const [id, w] of Object.entries(WORKSHOPS)) {
       if (!s.built[id].done) continue;
@@ -746,7 +753,7 @@
         s.res[w.to] += 1;
         a -= 1;
       }
-      s.acc[id] = Math.min(Math.max(a, 0), 1);
+      s.acc[id] = clamp01(a);
     }
   }
 
@@ -823,7 +830,7 @@
     x = Math.floor(x); y = Math.floor(y);
     if (tileAt(x, y) !== '#' || s.decor.some((o) => o.x === x && o.y === y)) return 'occupied';
     if (!canAfford(s, d.cost)) return 'cost';
-    for (const [r, n] of Object.entries(d.cost)) s.res[r] -= n;
+    pay(s, d.cost);
     s.decor.push({ kind, x, y });
     s.events.push({ type: 'decor', kind, x, y });
     return 'ok';
@@ -871,8 +878,7 @@
 
     if (isObj(d.tools)) {
       for (const id of Object.keys(TOOLS)) {
-        const l = d.tools[id];
-        if (Number.isInteger(l) && l >= 0 && l <= MAX_TOOL) s.tools[id] = l;
+        if (Number.isInteger(d.tools[id])) s.tools[id] = num(d.tools[id], s.tools[id], 0, MAX_TOOL);
       }
     }
 
@@ -913,7 +919,7 @@
       s.player.y = d.player.y;
     }
 
-    s.barnLevel = Number.isInteger(d.barnLevel) && d.barnLevel >= 0 && d.barnLevel < STORAGE.length ? d.barnLevel : 0;
+    s.barnLevel = Number.isInteger(d.barnLevel) ? num(d.barnLevel, 0, 0, STORAGE.length - 1) : 0;
     if (s.barnLevel > 0 && !s.built.barn.done) s.barnLevel = 0;
 
     if (Array.isArray(d.villagers)) {
@@ -925,7 +931,7 @@
 
     if (isObj(d.acc)) {
       for (const [k, v] of Object.entries(d.acc)) {
-        if ((BUILDINGS[k] && (BUILDINGS[k].role || WORKSHOPS[k])) && Number.isFinite(v)) s.acc[k] = Math.min(Math.max(v, 0), 1);
+        if ((BUILDINGS[k] && (BUILDINGS[k].role || WORKSHOPS[k])) && Number.isFinite(v)) s.acc[k] = clamp01(v);
       }
     }
 
@@ -951,10 +957,10 @@
   const api = {
     VERSION, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS,
-    OFFLINE_MAX, DECOR,
+    OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
     MAP, W, H, START, FOOTPRINTS, SPEED,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
-    step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, stage, rates, nextGoal, offline,
+    step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
     placeDecor, save, load,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

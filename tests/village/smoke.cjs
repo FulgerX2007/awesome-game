@@ -3,18 +3,19 @@
 //   node tests/village/smoke.cjs
 // Needs Playwright with Chromium (npm i -g playwright && npx playwright install chromium); with a global
 // install, point NODE_PATH at the global modules, e.g. NODE_PATH="$(npm root -g)" node tests/village/smoke.cjs.
+// PW_CHROMIUM=/path/to/chromium picks a specific browser binary instead of Playwright's own.
 // Starts the Go server on :18080 with in-memory storage, drives the page through real input
 // (keyboard, taps) and reads state only from the DOM and localStorage. Exits non-zero on failure
 // and always stops the server.
 const { spawn } = require('node:child_process');
 const path = require('node:path');
-const fs = require('node:fs');
 const { chromium } = require('playwright');
 
 const ROOT = path.join(__dirname, '..', '..');
 const PORT = 18080;
 const BASE = `http://127.0.0.1:${PORT}`;
-const CHROMIUM = '/opt/pw-browsers/chromium';
+// Optional: a Chromium binary to use instead of Playwright's own browser.
+const CHROMIUM = process.env.PW_CHROMIUM;
 const SAVE_KEY = 'village.save';
 
 let server = null;
@@ -289,7 +290,7 @@ async function edgeChecks() {
     const text = await modalText(page);
     check(/Пока тебя не было/.test(text), `the time-away window opens after ${away} s`, JSON.stringify(text));
     check(/Дерево/.test(text), `the window lists the woodcutter's wood (${away} s)`, JSON.stringify(text));
-    check(/дольше восьми часов/.test(text) === note, `the 8 h note is ${note ? 'shown' : 'absent'} (${away} s)`, JSON.stringify(text));
+    check(/дольше 8 ч /.test(text) === note, `the 8 h note is ${note ? 'shown' : 'absent'} (${away} s)`, JSON.stringify(text));
     check(errors.length === 0, `no console errors (${away} s away)`, errors.join('\n'));
     await ctx.close();
   }
@@ -528,7 +529,7 @@ async function main() {
   startServer();
   const up = await waitFor(healthy, 120000, 250);
   if (!up) throw new Error('server did not answer /healthz');
-  browser = await chromium.launch(fs.existsSync(CHROMIUM) ? { executablePath: CHROMIUM } : {});
+  browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
   await desktopChecks();
   await roPhoneChecks();
   await edgeChecks();

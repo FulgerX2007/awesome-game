@@ -90,19 +90,19 @@ I18n.add({ ro: {
   // ── Building panel ──
   'Площадь оживёт, а рядом можно будет поднять амбар.': 'Piața va prinde viață, iar alături se va putea ridica hambarul.',
   'В доме появится верстак: можно улучшать инструменты.': 'În casă va apărea bancul de lucru: poți îmbunătăți uneltele.',
-  'Амбар хранит запасы жителей и мастерских: до 150, с пристройкой до 400.':
-    'Hambarul păstrează proviziile sătenilor și atelierelor: până la 150, cu extindere până la 400.',
+  'Амбар хранит запасы жителей и мастерских: до {n}, с пристройкой до {max}.':
+    'Hambarul păstrează proviziile sătenilor și atelierelor: până la {n}, cu extindere până la {max}.',
   'Откроет восточный берег и северную рощу. На том берегу найдётся лопата.':
     'Deschide malul de est și crângul de nord. Pe malul celălalt vei găsi o lopată.',
-  'Сама пилит доски: два дерева на доску. Тридцать брёвен всегда остаются тебе.':
-    'Taie singur scânduri: două lemne pe o scândură. Treizeci de lemne rămân mereu ale tale.',
-  'Сама обжигает кирпич: две глины на кирпич. Тридцать глины всегда остаются тебе.':
-    'Arde singur cărămizi: două de lut pe o cărămidă. Treizeci de lut rămân mereu ale tale.',
+  'Сама пилит доски: дерево {ratio} → доски 1. Запас дерева до {reserve} всегда остаётся тебе.':
+    'Taie singur scânduri: lemn {ratio} → scânduri 1. Rezerva de lemn de până la {reserve} rămâne mereu a ta.',
+  'Сама обжигает кирпич: глина {ratio} → кирпич 1. Запас глины до {reserve} всегда остаётся тебе.':
+    'Arde singur cărămizi: lut {ratio} → cărămidă 1. Rezerva de lut de până la {reserve} rămâne mereu a ta.',
   'Поселится лесоруб и сам будет рубить лес.': 'Se mută un tăietor de lemne care va tăia singur pădurea.',
   'Поселится каменщик и сам будет добывать камень.': 'Se mută un pietrar care va scoate singur piatră.',
   'Поселится гончар и сам будет копать глину.': 'Se mută un olar care va săpa singur lut.',
   'Кузнец откует инструменты третьего уровня.': 'Fierarul va făuri unelte de nivelul trei.',
-  'Все жители работают в полтора раза быстрее.': 'Toți sătenii lucrează de o dată și jumătate mai repede.',
+  'Все жители работают на {n}% быстрее.': 'Toți sătenii lucrează cu {n}% mai repede.',
   'Зазвонит колокол, и село устроит праздник.': 'Va bate clopotul și satul va face sărbătoare.',
   'есть {n}': 'ai {n}',
   'Восстановлено. Спасибо!': 'Refăcută. Mulțumim!',
@@ -143,7 +143,7 @@ I18n.add({ ro: {
   'Звук выключен': 'Sunet oprit',
   'Пока тебя не было…': 'Cât ai lipsit…',
   'Прошло {time}{note}. Вот что успели жители и мастерские:': 'Au trecut {time}{note}. Iată ce au reușit sătenii și atelierele:',
-  ' (дольше восьми часов село без тебя не работает)': ' (mai mult de opt ore satul nu lucrează fără tine)',
+  ' (дольше {h} ч село без тебя не работает)': ' (mai mult de {h} h satul nu lucrează fără tine)',
   'Отросло деревьев, камней и кустов: {n}': 'Au crescut la loc copaci, pietre și tufe: {n}',
   '{h} ч {m} мин': '{h} h {m} min',
   '{m} мин': '{m} min',

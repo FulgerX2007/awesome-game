@@ -1,8 +1,8 @@
-'use strict';
 // Родник — synthesized sounds and a quiet ambient score (WebAudio, no files).
 // Works in the browser (window.VillageAudio) and in Node (module.exports). Without an AudioContext,
 // or before the first user gesture (unlock), every call is a safe no-op: nothing autoplays.
 (function (root) {
+  'use strict';
   const STORE_KEY = 'village.audio';
   const MUSIC_VOL = 0.15;
   const SFX_VOL = 0.4;

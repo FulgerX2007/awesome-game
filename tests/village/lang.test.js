@@ -64,7 +64,7 @@ test('every Russian string in index.html has a RO translation', () => {
 test('index.html loads the scripts in order', () => {
   const html = fs.readFileSync(path.join(WEB, 'village', 'index.html'), 'utf8');
   const srcs = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', 'lang.js', 'core.js', 'view.js', 'audio.js', 'game.js']);
+  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', 'lang.js', 'core.js', 'view.js', 'audio.js', 'art.js', 'game.js']);
 });
 
 test('view.js and audio.js load in Node without errors', () => {

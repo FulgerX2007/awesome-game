@@ -122,7 +122,7 @@ test('clamp and lerp helpers', () => {
   assert.equal(VV.clamp(5, 0, 3), 3);
   assert.equal(VV.clamp(-1, 0, 3), 0);
   assert.equal(VV.lerp(2, 4, 0.5), 3);
-  assert.equal(VV.STEP, 0.05);
+  assert.equal(VV.STEP, V.MAX_DT); // the client's fixed step is core's step size
 });
 
 // ── HUD helpers ──

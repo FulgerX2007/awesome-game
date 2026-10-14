@@ -1,10 +1,11 @@
-'use strict';
 // Родник — pure client helpers (no DOM): camera, tile picking, canvas sizing, art hashing, HUD helpers.
 // Works in the browser (window.VillageView) and in Node (module.exports) so it can be tested.
 // Units: the camera and screen points are in CSS pixels; only fitCanvas deals with device pixels.
 (function (root) {
+  'use strict';
+  const Core = typeof module === 'object' && module.exports ? require('./core.js') : root.Village;
   const TILE = 32;     // tile size in CSS pixels
-  const STEP = 0.05;   // fixed simulation step, seconds (core.step splits by the same size)
+  const STEP = Core.MAX_DT; // fixed simulation step, seconds: the size core.step splits by
   const MAX_DPR = 2;   // sharper than this costs fill rate on phones and isn't visible
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

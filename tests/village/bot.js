@@ -8,18 +8,10 @@ const CHUNK = 0.5;      // seconds of game time per bot decision while walking o
 const WAIT = 5;         // seconds to wait when there is nothing useful to do
 const LIMIT = 6 * 3600; // a run that takes longer than this is a deadlock
 const RAW = new Set(['wood', 'stone', 'clay', 'berries']);
-const FEED = { planks: 'wood', bricks: 'clay' }; // product → raw material its workshop eats
+// product → raw material its workshop eats
+const FEED = Object.fromEntries(Object.values(V.WORKSHOPS).map((w) => [w.to, w.from]));
 const KIND_OF = Object.fromEntries(Object.entries(V.NODE_KINDS).map(([k, n]) => [n.res, k]));
 const TOOL_ORDER = ['axe', 'pick', 'shovel', 'basket'];
-
-function remaining(s, id) {
-  const out = {};
-  for (const [r, n] of Object.entries(V.BUILDINGS[id].cost)) {
-    const left = n - s.built[id].paid[r];
-    if (left > 0) out[r] = left;
-  }
-  return out;
-}
 
 function reachable(s, n) {
   const z = V.zoneAt(n.x, n.y);
@@ -93,7 +85,7 @@ function play(seed, opts = {}) {
     // No goal, or a missing tool the bot can't get (the shovel before the bridge): that is a deadlock.
     if (!goal || goal.type !== 'build') break;
     const id = goal.id;
-    const left = remaining(s, id);
+    const left = V.remaining(s, id);
 
     // Ready to visit when the raw resources are all there and every product is either enough or capped by storage.
     let ready = true;
