@@ -489,10 +489,10 @@ Cell types in a `Uint8Array`:
 - ⚠️ found at 360 px: the pins HUD wrapped to two lines once the gold reached 3 digits (and the rush HUD with a 4-digit crowd), so the board/scene jumped mid-level; fixed by tightening the narrow HUD CSS (pins also reserves room for the widest gold count); each smoke now checks that the HUD keeps one line from the first to the longest values at 360 px
 
 ### Task 15: [Final] Update documentation
-- [ ] `README.md`: the first line «Пятнадцать браузерных игр…»; a short intro about «Игры из рекламы» and three sections (`/pins/`, `/rush/`, `/parking/`) in the style of the existing ones: rules, controls, saving, where the rules live, how the levels are verified
-- [ ] `docs/roadmap.md`: mention that the other ad games (Save the Survivor, Hero Evolution, Build & Defend, Water Sort, Last Castle) are queued
-- [ ] update CLAUDE.md if new patterns were found (there is no file — don't create one unless needed)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md`: the first line «Пятнадцать браузерных игр…»; a short intro about «Игры из рекламы» and three sections (`/pins/`, `/rush/`, `/parking/`) in the style of the existing ones: rules, controls, saving, where the rules live, how the levels are verified
+- [x] `docs/roadmap.md`: mention that the other ad games (Save the Survivor, Hero Evolution, Build & Defend, Water Sort, Last Castle) are queued
+- [x] update CLAUDE.md if new patterns were found (there is no file — don't create one unless needed) (skipped - no CLAUDE.md, none created)
+- [x] move this plan to `docs/plans/completed/` (skipped - the harness moves the plan after all phases)
 
 ## Post-Completion
 *Items requiring manual intervention or external systems — no checkboxes, informational only*
