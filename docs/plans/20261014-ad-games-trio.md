@@ -456,12 +456,12 @@ Cell types in a `Uint8Array`:
 - Create: `tests/parking/view.test.js`
 - Create: `tests/parking/progress.test.js`
 
-- [ ] `view.js` (UMD): board layout for the screen, `cellAt`, `vehicleAt`, `dragTarget(state, id, pointerDelta)` → the allowed shift (no passing through obstacles)
-- [ ] `game.js`: top view of the lot (markings, the exit with an arrow, bollards, a barrier with an open/closed animation), cars/buses/the tow truck with shading, smooth movement and snapping, the car leaving after the win
-- [ ] screens: menu, level select with stars, HUD (moves/limit, optimum after the win, «Отменить», «Заново», «Подсказка» ×3), result; keyboard control; `parking.progress` (`loadProgress`/`saveProgress`/`unlocked` in `core.js`)
-- [ ] `lang.js` with RO; `index.html` with no external URLs
-- [ ] write `view.test.js` (hit-test, `dragTarget` stops at an obstacle, at the edge, at a closed barrier) and `progress.test.js` (saving, broken JSON, best stars, unlocking)
-- [ ] run tests — must pass before next task
+- [x] `view.js` (UMD): board layout for the screen, `cellAt`, `vehicleAt`, `dragTarget(state, id, pointerDelta)` → the allowed shift (no passing through obstacles)
+- [x] `game.js`: top view of the lot (markings, the exit with an arrow, bollards, a barrier with an open/closed animation), cars/buses/the tow truck with shading, smooth movement and snapping, the car leaving after the win
+- [x] screens: menu, level select with stars, HUD (moves/limit, optimum after the win, «Отменить», «Заново», «Подсказка» ×3), result; keyboard control; `parking.progress` (`loadProgress`/`saveProgress`/`unlocked` in `core.js`)
+- [x] `lang.js` with RO; `index.html` with no external URLs
+- [x] write `view.test.js` (hit-test, `dragTarget` stops at an obstacle, at the edge, at a closed barrier) and `progress.test.js` (saving, broken JSON, best stars, unlocking)
+- [x] run tests — must pass before next task
 
 ### Task 13: «Тесная парковка» — sound, hub registration, offline check, smoke
 

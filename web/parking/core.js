@@ -302,10 +302,115 @@
     return null;
   }
 
+  // ── Progress ──
+  // Saved under PROGRESS_KEY as { v: 1, stars: { levelIndex: 1..3 }, current: null | { level, path, hints } }.
+  // `current` is the level in progress: its moves as [[id, delta], ...] (replayed on load) and the hints used,
+  // so a reload in the middle of a level comes back to the same board. Loading tolerates missing, broken or
+  // foreign data and blocked storage: whatever doesn't look right is dropped, the rest is kept.
+  const PROGRESS_KEY = 'parking.progress';
+  const MAX_LEVELS = 1000;
+  const MAX_HINTS = 3;
+  const MAX_PATH = 500;
+
+  const newProgress = () => ({ v: 1, stars: {}, current: null });
+
+  function cleanCurrent(c) {
+    if (!c || typeof c !== 'object') return null;
+    const { level, path, hints } = c;
+    if (!isInt(level) || level < 0 || level >= MAX_LEVELS) return null;
+    if (!Array.isArray(path) || path.length > MAX_PATH) return null;
+    const ok = path.every((m) => Array.isArray(m) && m.length === 2 && typeof m[0] === 'string' &&
+      /^[A-Z]$/.test(m[0]) && isInt(m[1]) && m[1] !== 0);
+    if (!ok) return null;
+    const h = isInt(hints) && hints >= 0 ? Math.min(hints, MAX_HINTS) : 0;
+    return { level, path: path.map((m) => [m[0], m[1]]), hints: h };
+  }
+
+  // A progress object from a JSON string (or null). Never throws.
+  function parseProgress(raw) {
+    const p = newProgress();
+    if (typeof raw !== 'string') return p;
+    let data;
+    try { data = JSON.parse(raw); } catch { return p; }
+    if (!data || typeof data !== 'object' || data.v !== 1 || !data.stars || typeof data.stars !== 'object') return p;
+    for (const [k, v] of Object.entries(data.stars)) {
+      const i = Number(k);
+      if (!/^\d+$/.test(k) || i >= MAX_LEVELS || !isInt(v) || v < 1 || v > 3) continue;
+      p.stars[i] = v;
+    }
+    p.current = cleanCurrent(data.current);
+    return p;
+  }
+
+  // Reads progress from a Storage-like object ({ getItem }); a missing or throwing storage gives a clean state.
+  function loadProgress(storage) {
+    let raw = null;
+    try { raw = storage ? storage.getItem(PROGRESS_KEY) : null; } catch { raw = null; }
+    return parseProgress(raw);
+  }
+
+  // Writes progress to a Storage-like object ({ setItem }). Returns false when it couldn't be stored.
+  function saveProgress(storage, p) {
+    try {
+      if (!storage) return false;
+      storage.setItem(PROGRESS_KEY, JSON.stringify({ v: 1, stars: p.stars, current: cleanCurrent(p.current) }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const starsOf = (p, level) => (p && p.stars && p.stars[level]) || 0;
+
+  // Keeps the best result of a level. Returns true if it improved.
+  function recordStars(p, level, n) {
+    if (!isInt(level) || level < 0 || level >= MAX_LEVELS || !isInt(n) || n < 1 || n > 3) return false;
+    if (starsOf(p, level) >= n) return false;
+    p.stars[level] = n;
+    return true;
+  }
+
+  // The first level (0-based) with no stars; `total` when every level is done.
+  function firstUnfinished(p, total) {
+    for (let i = 0; i < total; i++) if (!starsOf(p, i)) return i;
+    return total;
+  }
+
+  // A level is open when it's finished or none before it is left unfinished.
+  function unlocked(p, level, total) {
+    if (!isInt(level) || level < 0 || level >= total) return false;
+    return starsOf(p, level) > 0 || level <= firstUnfinished(p, total);
+  }
+
+  // The moves made so far as [[id, delta], ...], read back from the history snapshots (an exit is [X, w − x]).
+  function pathOf(state) {
+    const out = [];
+    const snaps = state.history.map((h) => h.pos).concat([positions(state)]);
+    for (let k = 1; k < snaps.length; k++) {
+      const a = snaps[k - 1], b = snaps[k];
+      const i = a.findIndex((p, j) => p !== b[j]);
+      if (i >= 0) out.push([state.vehicles[i].id, b[i] - a[i]]);
+    }
+    return out;
+  }
+
+  // A new game of `level` with the moves of `path` made. null when the level is bad or a move is not allowed.
+  function replay(level, path) {
+    let state;
+    try { state = newGame(level); } catch { return null; }
+    if (!Array.isArray(path)) return null;
+    for (const m of path) {
+      if (!Array.isArray(m) || !move(state, m[0], m[1])) return null;
+    }
+    return state;
+  }
+
   const api = {
     MIN_SIZE, MAX_SIZE, MAX_STATES, PLAYER, EMPTY, BOLLARD, GATE, KINDS, LENGTHS, TOW_STEP,
     parseLevel, limitFor, stars, gateClosed, gateOpen, newGame, status, moveRange, canMove, move, undo, restart,
     toRows, solve,
+    PROGRESS_KEY, MAX_HINTS, newProgress, parseProgress, loadProgress, saveProgress, starsOf, recordStars,
+    firstUnfinished, unlocked, pathOf, replay,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ParkingCore = api;
