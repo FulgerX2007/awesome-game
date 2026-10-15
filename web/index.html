@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Awesome Game</title>
 <style>
-  :root { --bg: #120f1c; --fg: #efe6dc; --dim: #9d92ad; --line: #352b47; --echo: #5ee1ff; --rust: #e2733d; --oasis: #9be4f5; --valley: #f2c66d; --stars: #f5c96a; --deep: #ffd98a; --math: #ff9b6a; --ants: #e0a85a; --neon: #ff2bd6; --wonders: #ffc94a; --bastion: #e0533d; --village: #e9b44c; --pins: #ffb547; --rush: #4fd17a; --parking: #5aa7ff; --sort: #c38bff; --castle: #d9a35b; --hero: #ff6f91; color-scheme: dark; }
+  :root { --bg: #120f1c; --fg: #efe6dc; --dim: #9d92ad; --line: #352b47; --echo: #5ee1ff; --rust: #e2733d; --oasis: #9be4f5; --valley: #f2c66d; --stars: #f5c96a; --deep: #ffd98a; --math: #ff9b6a; --ants: #e0a85a; --neon: #ff2bd6; --wonders: #ffc94a; --bastion: #e0533d; --village: #e9b44c; --pins: #ffb547; --rush: #4fd17a; --parking: #5aa7ff; --sort: #c38bff; --castle: #d9a35b; --hero: #ff6f91; --front: #b9c26b; color-scheme: dark; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding-inline: 16px; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
   main { max-width: 720px; width: 100%; padding-block: 32px; }
   h1 { font-weight: 300; letter-spacing: .1em; margin: 0 0 20px; }
@@ -39,6 +39,7 @@
 <main>
   <div class="head"><h1>Игры</h1></div>
   <div class="games">
+    <a href="front/" style="--c: var(--front)"><b>Рубеж</b><span>Строй и обороняйся: добывай дерево, камень и металл, ставь мосты, стены и башни и возьми вражескую крепость.</span></a>
     <a href="hero/" style="--c: var(--hero)"><b>Путь героя</b><span>Рогалик «от новичка до легенды»: выбирай путь по развилкам, собирай оружие и магию, меняй оружие прямо в бою.</span></a>
     <a href="castle/" style="--c: var(--castle)"><b>Последняя крепость</b><span>Оборона со стены: стреляй из лука по волнам монстров, выбирай улучшения и держись до последней волны.</span></a>
     <a href="sort/" style="--c: var(--sort)"><b>Цветные колбы</b><span>Спокойная головоломка: переливай цветные слои из колбы в колбу, пока в каждой не останется один цвет.</span></a>
@@ -67,6 +68,8 @@
 <script>
 I18n.add({ ro: {
   'Игры': 'Jocuri',
+  'Рубеж': 'Frontiera',
+  'Строй и обороняйся: добывай дерево, камень и металл, ставь мосты, стены и башни и возьми вражескую крепость.': 'Construiește și apără-te: adună lemn, piatră și metal, ridică poduri, ziduri și turnuri și cucerește cetatea dușmană.',
   'Путь героя': 'Drumul eroului',
   'Рогалик «от новичка до легенды»: выбирай путь по развилкам, собирай оружие и магию, меняй оружие прямо в бою.': 'Roguelike „de la începător la legendă”: alege drumul la răscruci, adună arme și magie, schimbă arma chiar în luptă.',
   'Последняя крепость': 'Ultima cetate',

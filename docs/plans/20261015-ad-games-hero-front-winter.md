@@ -886,13 +886,13 @@
 - Create: `web/front/lang.js`
 - Create: `tests/front/view.test.js`
 
-- [ ] `view.js` (UMD):
+- [x] `view.js` (UMD):
   - `camera(viewport, L)` with clamped pan;
   - `toScreen`/`toWorld`;
   - `plotAt`;
   - `buildMenu(plot, state)` listing options with affordability and missing resources (a list panel);
   - formatting.
-- [ ] `game.js` drawing:
+- [x] `game.js` drawing:
   - parallax sky and hills;
   - the ground strip with forest, quarry and mine art;
   - chasms and bridges;
@@ -902,21 +902,21 @@
   - units with walk/attack animations;
   - arrows and catapult stones;
   - damage numbers.
-- [ ] screens:
+- [x] screens:
   - menu;
   - level select (12 levels, stars, locks);
   - HUD and the bottom bar;
   - pause;
   - result.
   - Stars are recorded the moment the win is detected; the snapshot rules from Saving apply.
-- [ ] input: drag to pan; tap a plot for the build menu; the keyboard from Technical Details.
-- [ ] `lang.js` with RO; `index.html` with no external URLs.
-- [ ] write `view.test.js`:
+- [x] input: drag to pan; tap a plot for the build menu; the keyboard from Technical Details.
+- [x] `lang.js` with RO; `index.html` with no external URLs.
+- [x] write `view.test.js`:
   - the camera clamps at both ends;
   - `toScreen`/`toWorld` round-trip;
   - `plotAt` hits and misses;
   - the build menu at 320/360 px.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 9: «Рубеж» — sound, hub registration, offline check, smoke
 
@@ -929,18 +929,20 @@
 - Modify: `main_test.go`
 - Modify: `tests/{rush,parking,sort,castle,hero}/build.test.js`
 
-- [ ] `audio.js` (`window.FrontAudio`) with the sounds from Shared; the toggle is in `front.audio`.
-- [ ] hub card (`--front`, RO), first among the ad games; `/front/*` paths in `main_test.go`; the card-order assertions
+- [x] `audio.js` (`window.FrontAudio`) with the sounds from Shared; the toggle is in `front.audio`.
+- [x] hub card (`--front`, RO), first among the ad games; `/front/*` paths in `main_test.go`; the card-order assertions
   become `slice(0, 7)` with `front, hero, …`.
-- [ ] write `audio.test.js` and `build.test.js`.
-- [ ] write `tests/front/smoke.cjs`:
+- [x] write `audio.test.js` and `build.test.js`.
+- [x] write `tests/front/smoke.cjs`:
   - level 1 played by real taps at ×2: build a house and a barracks, recruit, attack; then a seeded near-win snapshot
     finishes the fortress, and 3★ lands in the UI and in `front.progress`;
+  - ➕ `game.js` exposes `window.frontDebugGame()` and `window.frontDebugCam()` (read-only) so the smoke can find
+    plots and chasms on the canvas;
   - level 2 with a bridge;
   - reload mid-level restores units and resources;
   - RO on a 360 px phone with touch and drag panning;
   - no console errors, no external requests.
-- [ ] run `node --test`, `go vet ./... && go test ./...`, the front smoke and the other ad-game smokes — must pass before next task
+- [x] run `node --test`, `go vet ./... && go test ./...`, the front smoke and the other ad-game smokes — must pass before next task
 
 ### Task 10: «Долгая зима» — world, stats, actions and fire in core.js
 
