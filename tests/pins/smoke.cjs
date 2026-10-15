@@ -150,7 +150,9 @@ async function desktopChecks() {
   await page.click('#btn-levels-menu');
   check(await page.isVisible('#levels'), 'the level select opens');
   const locks = await page.$$eval('.lvl-btn', (bs) => bs.map((b) => b.disabled));
-  check(locks.length === 30 && !locks[0] && locks.slice(1).every(Boolean), 'level 1 open, 2–30 locked', JSON.stringify(locks));
+  check(locks.length === 42 && !locks[0] && locks.slice(1).every(Boolean), 'level 1 open, 2–42 locked', JSON.stringify(locks));
+  const chapters = await page.$$eval('.chapter > span', (hs) => hs.map((h) => h.textContent));
+  check(chapters.join('|') === 'Подземелье|Ядовитый газ|Пороховые бочки', 'the level select shows the three chapters', JSON.stringify(chapters));
   await page.click('.lvl-btn >> nth=0');
   check(await page.isVisible('#hud') && (await page.textContent('#hud-level')).trim() === 'Уровень 1', 'level 1 starts with the HUD');
   await sleep(300);
@@ -191,6 +193,38 @@ async function desktopChecks() {
   await page.waitForFunction(() => document.getElementById('board').width > 1);
   check((await page.textContent('#btn-play')).trim() === 'Играть: уровень 2', 'after a reload «Играть» continues at level 2');
 
+  // The new chapters: with every level unlocked, play gas and keg levels through the planner's best order
+  // (the one the hint button follows), the first one at double speed.
+  await page.evaluate((key) => {
+    const stars = {};
+    for (let i = 0; i < 41; i++) stars[i] = 1;
+    localStorage.setItem(key, JSON.stringify({ v: 1, stars }));
+  }, PROGRESS_KEY);
+  for (const n of [32, 39, 42]) {
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForFunction(() => document.getElementById('board').width > 1);
+    await page.click('#btn-levels-menu');
+    await page.click(`.lvl-btn >> nth=${n - 1}`);
+    check((await page.textContent('#hud-level')).trim() === `Уровень ${n}`, `level ${n} opens from the level select`);
+    if (n === 32) {
+      await page.click('#btn-speed');
+      check(await page.getAttribute('#btn-speed', 'aria-pressed') === 'true', 'the speed button turns on');
+    }
+    // Ask for a hint (H), then pull the planner's order from the start, giving the world time to settle.
+    await page.keyboard.press('KeyH');
+    const order = await page.evaluate((i) => {
+      const C = window.PinsCore;
+      return C.bestPlan(C.buildLevel(window.PinsLevels.LEVELS[i])).order;
+    }, n - 1);
+    for (const id of order) {
+      await page.keyboard.press(`Digit${id}`);
+      await sleep(2500);
+    }
+    const res = await waitFor(() => resultShown(page), 30000, 200);
+    const got = await page.$$eval('#res-stars .on', (x) => x.length);
+    check(res === 'Уровень пройден!' && got === 3, `level ${n} is won with 3 stars by following the hints`, `${res} ${got}`);
+  }
+
   check(external.length === 0, 'no requests leave the server', external.join('\n'));
   check(errors.length === 0, 'no console errors (desktop)', errors.join('\n'));
   await ctx.close();
@@ -221,7 +255,7 @@ async function roPhoneChecks() {
     const hud = document.getElementById('hud');
     const saved = [];
     const set = (id, v) => { const e = document.getElementById(id); saved.push([e, e.textContent]); e.textContent = v; };
-    set('hud-level', 'Nivelul 30');
+    set('hud-level', 'Nivelul 42');
     set('hud-gold', '0/80');
     const h0 = hud.offsetHeight;
     set('hud-gold', '160/80');

@@ -19,8 +19,10 @@
     <span class="hud-level" id="hud-level">Уровень 1</span>
     <span class="hud-gold" id="hud-gold-wrap" title="Золото в комнате героя"><i class="coin" aria-hidden="true"></i><b id="hud-gold">0/0</b></span>
     <span class="spacer"></span>
-    <button class="chip" id="btn-restart" type="button" title="R">Заново</button>
-    <button class="chip" id="btn-levels" type="button">Уровни</button>
+    <button class="chip icon" id="btn-hint" type="button" title="Подсказка (H)" aria-label="Подсказка">?</button>
+    <button class="chip icon speed" id="btn-speed" type="button" title="Ускорить (F)" aria-label="Ускорить" aria-pressed="false">×2</button>
+    <button class="chip" id="btn-restart" type="button" title="R" aria-label="Заново"><i class="ico ico-restart" aria-hidden="true"></i><span class="lbl">Заново</span></button>
+    <button class="chip" id="btn-levels" type="button" aria-label="Уровни"><i class="ico ico-grid" aria-hidden="true"></i><span class="lbl">Уровни</span></button>
     <button class="chip sound" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук: вкл" title="Звук: вкл"><i class="speaker" aria-hidden="true"></i></button>
   </div>
 
@@ -43,9 +45,11 @@
             <li>Потяни штифт за кольцо в сторону кольца или просто нажми на него.</li>
             <li>Золото падает и тонет в воде. Лава сжигает золото и врагов.</li>
             <li>Вода и лава вместе превращаются в камень.</li>
+            <li>Ядовитый газ поднимается вверх, душит врагов и героя, а лава его сжигает.</li>
+            <li>Бочка с порохом взрывается от лавы: взрыв пробивает камень и задевает всех рядом.</li>
             <li>Победа, когда в комнате героя достаточно золота и путь к выходу свободен.</li>
             <li>★ за победу, ещё ★ если все враги повержены и ★ за полтора запаса золота.</li>
-            <li>Клавиши: <kbd>1</kbd>–<kbd>5</kbd> штифты, <kbd>R</kbd> заново.</li>
+            <li>Клавиши: <kbd>1</kbd>–<kbd>5</kbd> штифты, <kbd>R</kbd> заново, <kbd>H</kbd> подсказка, <kbd>F</kbd> ускорение.</li>
           </ul>
         </details>
       </div>
