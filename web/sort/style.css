@@ -19,9 +19,18 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body {
+  /* a soft studio backdrop: a lit middle, a few out-of-focus lights (bokeh) and a deep violet falloff */
   background:
-    radial-gradient(ellipse 80% 45% at 50% 0%, rgba(195, 139, 255, .16), transparent 70%),
-    linear-gradient(var(--bg-2), var(--bg));
+    radial-gradient(circle at 14% 24%, rgba(255, 111, 208, .16) 0, rgba(255, 111, 208, .1) 34px, transparent 46px),
+    radial-gradient(circle at 86% 16%, rgba(74, 163, 255, .15) 0, rgba(74, 163, 255, .09) 26px, transparent 36px),
+    radial-gradient(circle at 80% 70%, rgba(255, 211, 77, .1) 0, rgba(255, 211, 77, .06) 42px, transparent 56px),
+    radial-gradient(circle at 22% 82%, rgba(40, 194, 180, .12) 0, rgba(40, 194, 180, .07) 30px, transparent 42px),
+    radial-gradient(circle at 62% 8%, rgba(195, 139, 255, .14) 0, rgba(195, 139, 255, .08) 20px, transparent 28px),
+    radial-gradient(ellipse 70% 40% at 50% 52%, rgba(150, 110, 255, .2), transparent 70%),
+    radial-gradient(ellipse 90% 45% at 50% 0%, rgba(195, 139, 255, .18), transparent 70%),
+    radial-gradient(ellipse 120% 60% at 50% 115%, rgba(8, 4, 20, .7), transparent 70%),
+    linear-gradient(#2a2152, #1b1536 55%, #120e24);
+  background-attachment: fixed;
   color: var(--fg);
   font: 15px/1.45 var(--font);
   -webkit-tap-highlight-color: transparent;
