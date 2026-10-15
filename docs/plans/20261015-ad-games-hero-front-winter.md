@@ -645,9 +645,9 @@
 - Create: `web/hero/content.js`
 - Create: `tests/hero/core.test.js`
 
-- [ ] `content.js` (UMD `root.HeroContent`): item templates, enemies, elites, bosses with phases, perks, blessings,
+- [x] `content.js` (UMD `root.HeroContent`): item templates, enemies, elites, bosses with phases, perks, blessings,
   titles, meta upgrades.
-- [ ] `core.js` (UMD `root.HeroCore`):
+- [x] `core.js` (UMD `root.HeroCore`):
   - rng and state;
   - hero stats and the XP curve, level-ups with perk offers, titles;
   - the damage formula with types, resistances and the traits `dodge`/`keen`, `regen` stopped by fire, `thorns`,
@@ -657,7 +657,7 @@
   - `swapWeapon` with the 0.8 s delay, `usePotion`;
   - boss phases;
   - `status`, `drain` events.
-- [ ] write tests:
+- [x] write tests:
   - the damage formula per type and resistance;
   - dodge, and `keen` ignoring it;
   - regen paused by fire;
@@ -668,9 +668,9 @@
   - boss phase changes and their new resistances;
   - level-ups and titles at boundaries;
   - determinism; `dt` slicing gives the same result.
-- [ ] write tests for errors: an unknown item for a swap, a swap outside battle, a potion with none left,
+- [x] write tests for errors: an unknown item for a swap, a swap outside battle, a potion with none left,
   `step` with bad `dt`.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 2: «Путь героя» — map, nodes, runs, permanent progression and saving
 
@@ -679,18 +679,18 @@
 - Create: `tests/hero/map.test.js`
 - Create: `tests/hero/run.test.js`
 
-- [ ] map: a seeded 8-row graph per act with non-crossing edges and the generation rules from Technical Details > Map.
-- [ ] nodes: `choose`, and the effects of chest/forge/shop/shrine/camp/elite/boss.
+- [x] map: a seeded 8-row graph per act with non-crossing edges and the generation rules from Technical Details > Map.
+- [x] nodes: `choose`, and the effects of chest/forge/shop/shrine/camp/elite/boss.
   The bag limit and `equip`; gold, XP and potion rewards.
-- [ ] runs: acts 1→3, the final boss, `glory`, run end. Meta: `buyMeta` with prices and caps, `armory` unlock order,
+- [x] runs: acts 1→3, the final boss, `glory`, run end. Meta: `buyMeta` with prices and caps, `armory` unlock order,
   trials and their multipliers.
-- [ ] saves: `snapshot`/`restore` at node boundaries; a reload during a battle restarts it with the same enemies;
+- [x] saves: `snapshot`/`restore` at node boundaries; a reload during a battle restarts it with the same enemies;
   `loadSave`/`storeSave` tolerant of broken data and blocked storage; «Слава» written at run end.
-- [ ] write `map.test.js`:
+- [x] write `map.test.js`:
   - the rules hold on 200 seeds: no crossings, every node reachable (≥ 1 incoming edge), a forge and a chest on every
     path, no early elites, no two shops one after another, a camp before the boss;
   - the same seed gives the same map.
-- [ ] write `run.test.js`:
+- [x] write `run.test.js`:
   - every node kind;
   - a full bag: a reward is refused until `discard`, and skipping works; `pickPerk` and the pending offer in snapshots;
   - forge upgrade and reforge;
@@ -699,7 +699,7 @@
   - trial multipliers;
   - snapshot/restore round-trips at every node kind;
   - broken saves fall back to defaults.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 3: «Путь героя» — bots and balance
 
