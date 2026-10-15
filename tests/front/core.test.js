@@ -111,6 +111,8 @@ test('building costs, refusals and construction time', () => {
 
 test('recruiting: barracks and forge unlock units, the worker cap and the queue', () => {
   const g = F.newGame(level(), 1);
+  assert.equal(F.canRecruit(g, 'soldier'), 'locked');
+  assert.equal(F.canRecruit(g, 'worker'), 'ok');
   assert.equal(F.recruit(g, 'soldier'), 'locked');
   assert.equal(F.recruit(g, 'dragon'), 'bad');
   assert.equal(F.recruit(g, 'worker'), 'ok');

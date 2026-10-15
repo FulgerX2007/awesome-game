@@ -249,6 +249,8 @@ test('the save: records, stars, the harsh winter unlocked by a win; broken or bl
   save.dawn = save.current;
   assert.ok(C.storeSave(storage, save));
   assert.deepEqual(C.loadSave(storage), save);
+  assert.deepEqual(C.parseSave(JSON.stringify(save)), save);
+  assert.deepEqual(C.parseSave(42), C.newSave());
   mem.set(C.SAVE_KEY, '{oops');
   assert.deepEqual(C.loadSave(storage), C.newSave());
   mem.set(C.SAVE_KEY, JSON.stringify({ v: 1, best: { normal: 99, harsh: 4 }, stars: { normal: 5 }, unlocked: 'yes', current: { v: 2 } }));

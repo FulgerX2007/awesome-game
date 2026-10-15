@@ -1046,29 +1046,29 @@
 - Create: `web/winter/lang.js`
 - Create: `tests/winter/view.test.js`
 
-- [ ] `view.js` (UMD):
+- [x] `view.js` (UMD):
   - the camera following the hero, clamped to the map;
   - `toScreen`/`toWorld`;
   - `tileAt`;
   - the light map helper (radii of fires and torches);
   - offscreen markers for survivors;
   - clock formatting.
-- [ ] `game.js` drawing:
+- [x] `game.js` drawing:
   - snow tiles with soft noise, trees with snow caps, rocks, bushes, the lake and ice holes;
   - the hut by stage, buildings, the palisade, torches, the fire with flames and smoke;
   - the hero and survivors with walking and work poses, footprints;
   - wolves;
   - falling snow, the night darkness with light circles, the blizzard veil.
-- [ ] screens:
+- [x] screens:
   - menu: «Новая зима» with the difficulty choice, «Продолжить», records, sound, RU/RO;
   - HUD: three stat bars, health, the clock and the day number, resources and the hint;
   - build and workbench panels;
   - pause;
   - result (win or death) with «Начать день заново».
-- [ ] input: keyboard and touch from Technical Details; the phone action and eat buttons.
-- [ ] saving every 10 s, on `pagehide`, on pause and at dawn; starting a new winter while one is saved asks first.
-- [ ] `lang.js` with RO; `index.html` with no external URLs.
-- [ ] write `view.test.js`:
+- [x] input: keyboard and touch from Technical Details; the phone action and eat buttons.
+- [x] saving every 10 s, on `pagehide`, on pause and at dawn; starting a new winter while one is saved asks first.
+- [x] `lang.js` with RO; `index.html` with no external URLs.
+- [x] write `view.test.js`:
   - the camera clamps;
   - `toScreen`/`toWorld` round-trip;
   - `tileAt`;
@@ -1076,7 +1076,7 @@
   - offscreen markers sit on the screen edge;
   - clock formatting;
   - the layout at 320/360 px.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 14: «Долгая зима» — sound, hub registration, offline check, smoke
 
@@ -1089,44 +1089,49 @@
 - Modify: `main_test.go`
 - Modify: `tests/{rush,parking,sort,castle,hero,front}/build.test.js`
 
-- [ ] `audio.js` (`window.WinterAudio`) with the sounds from Shared (the crackle and wind loops stop when sound is off);
+- [x] `audio.js` (`window.WinterAudio`) with the sounds from Shared (the crackle and wind loops stop when sound is off);
   the toggle is in `winter.audio`.
-- [ ] hub card (`--winter`, RO), first among the ad games; `/winter/*` paths in `main_test.go`; the card-order
+- [x] hub card (`--winter`, RO), first among the ad games; `/winter/*` paths in `main_test.go`; the card-order
   assertions become `slice(0, 8)` with `winter, front, hero, castle, sort, parking, rush, pins`.
-- [ ] write `audio.test.js` and `build.test.js`.
-- [ ] write `tests/winter/smoke.cjs`:
+- [x] write `audio.test.js` and `build.test.js`.
+- [x] write `tests/winter/smoke.cjs`:
   - a new winter: walk with keys to a tree, chop, feed the fire, eat berries;
   - a seeded save at night shows the darkness and a wolf, and the hero sleeps in a repaired hut;
   - reload restores the state;
   - death leads to the result screen and «Начать день заново» restores dawn;
+  - ➕ `game.js` exposes `window.winterDebugGame()` and `window.winterDebugCam()` (read-only) for the smoke;
   - RO on a 360 px phone with touch and the action button;
   - no console errors, no external requests.
-- [ ] run `node --test`, `go vet ./... && go test ./...`, the winter smoke and all ad-game smokes — must pass before next task
+- [x] run `node --test`, `go vet ./... && go test ./...`, the winter smoke and all ad-game smokes — must pass before next task
 
 ### Task 15: Verify acceptance criteria
-- [ ] verify every requirement from the Overview in all three games: menu, levels or modes, progress saving,
+- [x] verify every requirement from the Overview in all three games: menu, levels or modes, progress saving,
   sound toggle, RU/RO, phone control, offline play.
-- [ ] verify edge cases:
+- [x] verify edge cases:
   - broken or blocked `localStorage`;
   - reload mid-battle (hero), mid-level (front), mid-night (winter);
   - 360 px and 320 px screens, portrait and landscape;
   - switching language on every screen;
   - pause and tab switch (no time jumps beyond `MAX_DT`).
-- [ ] run the full test suite: `node --test 'tests/**/*.test.js'` and `go vet ./... && go test ./...`.
-- [ ] run the e2e smoke of every ad game:
+- [x] run the full test suite: `node --test 'tests/**/*.test.js'` and `go vet ./... && go test ./...`.
+- [x] run the e2e smoke of every ad game:
   `NODE_PATH=/opt/node22/lib/node_modules node tests/{pins,rush,parking,sort,castle,hero,front,winter}/smoke.cjs`.
-- [ ] verify every export of the new `core.js`/`view.js`/`audio.js` is exercised by tests (a call-recording hook,
+- [x] verify every export of the new `core.js`/`view.js`/`audio.js` is exercised by tests (a call-recording hook,
   as in the previous plan).
+- ➕ Verified: 161 exported functions of the nine new modules are all called while `node --test` runs (tests were added
+  for `front.canRecruit`, `winter.afford`, `stockTotal`, `parseSave` and the audio loops in Node). A scratch Chromium
+  script ran 32 edge checks, all passing: blocked and broken storage in each game, no horizontal scroll and no Russian
+  left on the menu, the play screen and the panels at 320 px in RO, no missing RO keys, no page errors.
 
 ### Task 16: [Final] Update documentation
-- [ ] `README.md`:
+- [x] `README.md`:
   - first line «Двадцать браузерных игр…»;
   - the intro of «## Игры из рекламы» (eight games; modes per game);
   - three new subsections describing what was actually built: rules, controls, saving keys, how balance is verified.
-- [ ] `docs/roadmap.md`: the «Последними вышли…» line names the three new games; the ad-games list is done,
+- [x] `docs/roadmap.md`: the «Последними вышли…» line names the three new games; the ad-games list is done,
   so the section is removed or says so.
-- [ ] update CLAUDE.md if new patterns were found (there is no file now; only if needed).
-- [ ] move this plan to `docs/plans/completed/`.
+- [x] update CLAUDE.md if new patterns were found (there is no file — not needed: the patterns are the ones the README describes).
+- [x] move this plan to `docs/plans/completed/`.
 
 ## Post-Completion
 *Items requiring manual intervention or external systems — no checkboxes, informational only*

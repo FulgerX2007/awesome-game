@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1622">
+<title>Долгая зима</title>
+<meta name="description" content="Выживание в зимнем лесу: держи тепло, сытость и силы, поддерживай огонь, чини хижину, спасай выживших и доживи до весны.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Долгая зима</h1>
+    <div class="top-actions" id="top-actions"></div>
+  </header>
+
+  <div class="hud" id="hud" hidden>
+    <span class="stat warmth" title="Тепло"><i id="bar-warmth"></i></span>
+    <span class="stat food" title="Сытость"><i id="bar-food"></i></span>
+    <span class="stat energy" title="Силы"><i id="bar-energy"></i></span>
+    <span class="stat health" title="Здоровье"><i id="bar-health"></i></span>
+    <span class="pill day" id="hud-day">День 1 · 06:00</span>
+    <span class="spacer"></span>
+    <span class="pill res wood" id="res-wood" title="Дерево">0</span>
+    <span class="pill res stone" id="res-stone" title="Камень">0</span>
+    <span class="pill res metal" id="res-metal" title="Металл">0</span>
+    <span class="pill res meal" id="res-food" title="Еда">0</span>
+    <button class="chip sound" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук: вкл" title="Звук: вкл"><i class="speaker" aria-hidden="true"></i></button>
+  </div>
+  <p class="hint" id="hint" hidden></p>
+
+  <main class="stage" id="stage">
+    <canvas id="field" tabindex="0" aria-label="Зимний лес: нажми, куда идти или что делать"></canvas>
+    <p class="banner" id="banner" hidden></p>
+
+    <section class="screen" id="menu" aria-labelledby="menu-title">
+      <div class="panel">
+        <h2 id="menu-title">Долгая зима</h2>
+        <p class="lead">Тридцать дней до весны. Огонь, хижина, еда — и люди, которых ещё можно спасти.</p>
+        <div class="stack">
+          <button class="btn primary big" id="btn-continue" type="button" hidden>Продолжить</button>
+          <button class="btn primary big" id="btn-normal" type="button">Обычная зима</button>
+          <button class="btn" id="btn-harsh" type="button">Лютая зима</button>
+          <button class="btn" id="btn-sound-menu" type="button" aria-pressed="true">Звук: вкл</button>
+        </div>
+        <p class="records" id="records"></p>
+        <details class="rules">
+          <summary>Как играть</summary>
+          <ul>
+            <li>Нажми на дерево, камень, куст или прорубь — герой подойдёт и займётся делом. Нажми на землю — пойдёт туда.</li>
+            <li>Следи за теплом, сытостью и силами. Если одно из них кончилось, тает здоровье.</li>
+            <li>Костёр греет, пока в нём есть дрова. В лютый холод спасает только печь в починенной хижине.</li>
+            <li>Ночью приходят волки. Они боятся огня и факелов, частокол не пускает их в лагерь.</li>
+            <li>Спаси пятерых выживших: каждому нужно своё. В лагере они работают сами.</li>
+            <li>Клавиши: <kbd>WASD</kbd> — идти, <kbd>E</kbd> — действие, <kbd>F</kbd> — поесть, <kbd>B</kbd> — постройки, <kbd>T</kbd> — верстак, <kbd>Пробел</kbd> — пауза, <kbd>M</kbd> — звук, <kbd>Esc</kbd> — закрыть.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section class="screen" id="confirm" hidden aria-labelledby="confirm-title">
+      <div class="panel">
+        <h2 id="confirm-title">Начать заново?</h2>
+        <p class="lead">Текущая зима пропадёт.</p>
+        <div class="row">
+          <button class="btn" id="btn-confirm-no" type="button">Нет</button>
+          <button class="btn primary" id="btn-confirm-yes" type="button">Да, начать</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="build" hidden aria-labelledby="build-title">
+      <div class="panel wide">
+        <h2 id="build-title">Постройки</h2>
+        <p class="lead" id="build-lead"></p>
+        <div class="list" id="build-list"></div>
+        <div class="row"><button class="btn primary" id="btn-build-close" type="button">Закрыть</button></div>
+      </div>
+    </section>
+
+    <section class="screen" id="bench" hidden aria-labelledby="bench-title">
+      <div class="panel wide">
+        <h2 id="bench-title">Верстак</h2>
+        <p class="lead" id="bench-lead"></p>
+        <div class="list" id="bench-list"></div>
+        <div class="row"><button class="btn primary" id="btn-bench-close" type="button">Закрыть</button></div>
+      </div>
+    </section>
+
+    <section class="screen" id="result" hidden aria-labelledby="res-title" aria-live="polite">
+      <div class="panel">
+        <h2 id="res-title"></h2>
+        <p class="stars" id="res-stars"></p>
+        <p class="res-main" id="res-main"></p>
+        <p class="res-note" id="res-note"></p>
+        <div class="row">
+          <button class="btn" id="btn-res-menu" type="button">Меню</button>
+          <button class="btn" id="btn-res-retry" type="button">Начать день заново</button>
+          <button class="btn primary" id="btn-res-again" type="button">Новая зима</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen pause" id="pause" hidden aria-labelledby="pause-title">
+      <div class="panel">
+        <h2 id="pause-title">Пауза</h2>
+        <div class="row">
+          <button class="btn" id="btn-pause-menu" type="button">Меню</button>
+          <button class="btn primary" id="btn-resume" type="button">Продолжить</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="actionbar" id="actionbar" hidden>
+    <button class="chip act" id="btn-act" type="button" title="E">Действие</button>
+    <button class="chip" id="btn-eat" type="button" title="F">Поесть</button>
+    <button class="chip" id="btn-build" type="button" title="B">Постройки</button>
+    <button class="chip" id="btn-bench" type="button" title="T">Верстак</button>
+    <button class="chip" id="btn-pause" type="button" title="Пробел">Пауза</button>
+  </div>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="view.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

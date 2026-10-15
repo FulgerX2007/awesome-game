@@ -195,6 +195,9 @@ test('away from the camp the hero carries at most 40; the camp stores 200 materi
   assert.equal(g.hero.load, 0, 'unloaded in the camp');
   g.stock.berries = C.FOOD_CAP;
   assert.equal(C.foodTotal(g) >= C.FOOD_CAP, true);
+  assert.equal(C.stockTotal(g), g.stock.wood + g.stock.stone + g.stock.metal, 'materials are counted apart from food');
+  assert.ok(C.afford(g, { wood: 1 }));
+  assert.equal(C.afford(g, { metal: 999 }), false);
 });
 
 test('the fire burns a log in 12 s and goes out; feeding it from the stock; cooking raw food on it', () => {

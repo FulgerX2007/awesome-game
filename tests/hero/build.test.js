@@ -117,7 +117,7 @@ test('the hub has the «Путь героя» card among the ad games', () => {
   assert.match(hub, new RegExp(`'${esc(card[1])}': 'Drumul eroului'`));
   assert.match(hub, new RegExp(`'${esc(card[2])}': '[^']+'`), 'the description has a RO string');
   const order = [...hub.matchAll(/<a href="([a-z]+)\/"/g)].map((m) => m[1]);
-  assert.deepEqual(order.slice(0, 7), ['front', 'hero', 'castle', 'sort', 'parking', 'rush', 'pins'], 'the ad games come first, newest first');
+  assert.deepEqual(order.slice(0, 8), ['winter', 'front', 'hero', 'castle', 'sort', 'parking', 'rush', 'pins'], 'the ad games come first, newest first');
 });
 
 test('main_test.go serves every hero file', () => {
