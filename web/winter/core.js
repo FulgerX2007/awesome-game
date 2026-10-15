@@ -15,7 +15,8 @@
   const SPEED = 3;                          // tiles per second
   const DEEP = 1.7;                         // deep snow costs (and slows) this much
   const CARRY = 40;                         // what the hero carries away from the base before he must go back
-  const STORE_CAP = 200;
+  const STORE_CAP = 200;                     // wood, stone and metal in the camp
+  const FOOD_CAP = 150;                      // and the food, counted apart
   const FIRE = { burn: 12, cap: 20, radius: 3, warm: 1.2 };
   const STOVE = { burn: 15, cap: 30 };
   const TORCH = { cost: 2, radius: 3, max: 12 };
@@ -27,7 +28,7 @@
   const COOK_TIME = 2;
   const HIT_CD = 0.7;                       // seconds between hits on a node
   const FISH_TIME = 6;
-  const BITE = 8, WOLF_HP = 4, WOLF_SPEED = 3.2, WOLF_CD = 1.5, WOLF_FLEE = 0.3, WOLF_SAFE = 14;
+  const BITE = 8, GNAW = 2, WOLF_HP = 4, WOLF_SPEED = 3.2, WOLF_CD = 1.5, WOLF_FLEE = 0.3, WOLF_SAFE = 14;
   const DIFF = { normal: { cold: 1, wolves: 1, bite: 1 }, harsh: { cold: 1.4, wolves: 1.6, bite: 1.5 } };
   const SURVIVOR_FOOD = 0.08, SURVIVOR_EAT_AT = 50;
 
@@ -134,7 +135,7 @@
       taken.add(idx(x, y));
       nodes.push({ id: nodes.length, kind, x, y, amount, max: amount, regrowAt: 0 });
     };
-    const AMOUNT = { tree: 8, rock: 8, bush: 6, scrap: 6 };
+    const AMOUNT = { tree: 12, rock: 10, bush: 6, scrap: 6 };
     // guaranteed resources near the base: trees, rocks, bushes, and scrap worth ≥ 20 metal on this side of the lake
     const near = [['tree', 8], ['rock', 3], ['bush', 3], ['scrap', 4]];
     for (const [kind, n] of near) {
@@ -220,7 +221,7 @@
   }
 
   // Warmth lost per second outside any heat.
-  const chill = (g) => (Math.max(0, -temperature(g)) / 20) * DIFF[g.difficulty].cold;
+  const chill = (g) => (Math.max(0, -temperature(g)) / 15) * DIFF[g.difficulty].cold;
 
   // ── Tiles and walking ──
   function nodeAt(g, x, y) {
@@ -229,9 +230,10 @@
   }
   let nodeIndex = null, nodeIndexOf = null; // a cache of standing nodes by tile, rebuilt when it goes stale
   function blockedByNode(g, x, y) {
-    if (nodeIndexOf !== g || !nodeIndex || nodeIndex.stamp !== g.nodeStamp) {
+    if (nodeIndexOf !== g || !nodeIndex || nodeIndex.stamp !== g.nodeStamp || nodeIndex.nodes !== g.nodes) {
       nodeIndex = new Uint8Array(W * H);
       nodeIndex.stamp = g.nodeStamp;
+      nodeIndex.nodes = g.nodes;
       nodeIndexOf = g;
       for (const n of g.nodes) if (n.amount > 0) nodeIndex[idx(n.x, n.y)] = 1;
     }
@@ -251,7 +253,7 @@
   const tileCost = (g, x, y) => { const c = g.tiles[idx(x, y)]; return c === ':' ? DEEP : c === 'D' ? 3 : 1; };
 
   // A* over tiles with costs; goal(x, y) decides the end. → [{x, y}] (without the start) or null.
-  function astar(g, from, goal, h, tools) {
+  function astar(g, from, goal, h, tools, pass, limit = W * H * 4) {
     const sx = Math.floor(from.x), sy = Math.floor(from.y);
     if (!inMap(sx, sy)) return null;
     const dist = new Float64Array(W * H).fill(Infinity);
@@ -289,7 +291,7 @@
     dist[start] = 0;
     push(h(sx, sy), start);
     let guard = 0;
-    while (heap.length && guard++ < W * H * 4) {
+    while (heap.length && guard++ < limit) {
       const i = pop()[2];
       if (closed[i]) continue;
       closed[i] = 1;
@@ -301,7 +303,7 @@
       }
       for (const [dx, dy] of DIRS4) {
         const nx = x + dx, ny = y + dy;
-        if (!walkable(g, nx, ny, tools)) continue;
+        if (pass ? !pass(nx, ny) : !walkable(g, nx, ny, tools)) continue;
         const j = idx(nx, ny), c = dist[i] + tileCost(g, nx, ny);
         if (closed[j] || c >= dist[j]) continue;
         dist[j] = c;
@@ -352,18 +354,22 @@
   // ── Stock ──
   const afford = (g, cost) => Object.keys(cost).every((k) => (g.stock[k] || 0) >= cost[k]);
   const pay = (g, cost) => { for (const k of Object.keys(cost)) g.stock[k] -= cost[k]; };
-  const stockTotal = (g) => ITEMS.reduce((a, k) => a + (g.stock[k] || 0), 0);
+  const stockTotal = (g) => RES.reduce((a, k) => a + (g.stock[k] || 0), 0);
+  const foodTotal = (g) => FOOD_ITEMS.reduce((a, k) => a + (g.stock[k] || 0), 0);
+  const roomFor = (g, item) => Math.max(0, FOOD_ITEMS.includes(item) ? FOOD_CAP - foodTotal(g) : STORE_CAP - stockTotal(g));
 
-  // Adds gathered items: the hero carries up to CARRY away from the base, and the store holds STORE_CAP.
+  // Adds gathered items: the hero carries up to CARRY away from the base; the camp holds STORE_CAP of materials
+  // and FOOD_CAP of food.
   function gain(g, item, n) {
-    const room = Math.max(0, STORE_CAP - stockTotal(g));
+    const room = roomFor(g, item);
     const carry = inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) ? Infinity : CARRY - g.hero.load;
     const k = Math.max(0, Math.min(n, room, carry));
     g.stock[item] += k;
     if (!inBase(Math.floor(g.hero.x), Math.floor(g.hero.y))) g.hero.load += k;
     return k;
   }
-  const full = (g) => stockTotal(g) >= STORE_CAP || (!inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) && g.hero.load >= CARRY);
+  const full = (g, item) => (item ? roomFor(g, item) <= 0 : false) || (!inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) && g.hero.load >= CARRY);
+  const ITEM_OF = { tree: 'wood', rock: 'stone', bush: 'berries', scrap: 'metal' };
 
   // ── Heat ──
   const near = (e, p, r) => Math.hypot(e.x - (p.x + 0.5), e.y - (p.y + 0.5)) <= r;
@@ -507,12 +513,12 @@
       case 'walk': clearOrder(h); return;
       case 'node': {
         const n = g.nodes[tg.id];
-        if (!n || n.amount <= 0 || full(g)) { clearOrder(h); return; }
+        if (!n || n.amount <= 0 || full(g, ITEM_OF[n.kind])) { clearOrder(h); return; }
         if (h.cd > 0) return;
         h.cd = n.kind === 'bush' ? 1 : n.kind === 'scrap' ? 1.5 : HIT_CD;
         h.energy = Math.max(0, h.energy - WORK_ENERGY);
-        const item = { tree: 'wood', rock: 'stone', bush: 'berries', scrap: 'metal' }[n.kind];
-        const per = n.kind === 'tree' && g.tools.ironAxe ? 2 : 1;
+        const item = ITEM_OF[n.kind];
+        const per = n.kind === 'tree' ? (g.tools.ironAxe ? 3 : 2) : n.kind === 'bush' ? 1 : 2;
         const got = gain(g, item, Math.min(per, n.amount));
         n.amount -= got;
         g.events.push({ type: 'gather', kind: n.kind, item, n: got, x: n.x, y: n.y });
@@ -524,7 +530,7 @@
         return;
       }
       case 'hole':
-        if (full(g)) { clearOrder(h); return; }
+        if (full(g, 'fish')) { clearOrder(h); return; }
         h.work += dt;
         if (h.work >= FISH_TIME) {
           h.work = 0;
@@ -637,9 +643,13 @@
     return true;
   }
 
+  const atBase = (g) => inBase(Math.floor(g.hero.x), Math.floor(g.hero.y));
+
+  // The workbench stands in the camp: tools are made there.
   function craft(g, tool) {
     if (!has(TOOLS, tool) || g.status !== 'playing') return 'bad';
     if (g.tools[tool]) return 'have';
+    if (!atBase(g)) return 'far';
     if (!afford(g, TOOLS[tool].cost)) return 'nores';
     pay(g, TOOLS[tool].cost);
     g.tools[tool] = true;
@@ -668,6 +678,7 @@
     const need = needOf(g, id);
     if (need === undefined) return 'bad';
     if (need === null) return 'built';
+    if (!atBase(g)) return 'far';
     let put = 0, left = 0;
     for (const k of Object.keys(need.cost)) {
       const want = need.cost[k] - (need.paid[k] || 0);
@@ -764,7 +775,7 @@
       const w = WORK[sv.id];
       if (sv.work >= w.every) {
         sv.work = 0;
-        for (const k of Object.keys(w.give)) if (stockTotal(g) < STORE_CAP) g.stock[k] += w.give[k];
+        for (const k of Object.keys(w.give)) if (roomFor(g, k) > 0) g.stock[k] += w.give[k];
         if (sv.id === 'herbalist' && (g.stock.meat > 0 || g.stock.fish > 0) && fireOn(g)) {
           if (g.stock.meat > 0) { g.stock.meat--; g.stock.cookedMeat++; } else { g.stock.fish--; g.stock.cookedFish++; }
         }
@@ -835,11 +846,38 @@
   }
 
   // A person the wolf can reach: outside a standing palisade, or anyone when it's broken.
+  // Survivors at home sleep behind the hut's door once it hangs.
   function prey(g, e) {
+    if (e !== g.hero && e.state === 'home' && g.hut.stage >= 3) return false;
+    if (e === g.hero && g.hut.stage >= 3 && inHut(e)) return false; // the hero behind the hut's door, too
     return !(palisadeUp(g) && inBase(Math.floor(e.x), Math.floor(e.y)));
   }
 
+  // The tiles wolves may use this tick (no trees, rocks, ice holes or drifts) and the lit ones.
+  function wolfMasks(g) {
+    const open = new Uint8Array(W * H), light = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = idx(x, y);
+      open[i] = 'oD'.includes(g.tiles[i]) || blockedByNode(g, x, y) ? 0 : 1;
+    }
+    const mark = (c, r) => {
+      for (let y = Math.floor(c.y - r); y <= Math.ceil(c.y + r); y++) for (let x = Math.floor(c.x - r); x <= Math.ceil(c.x + r); x++) {
+        if (inMap(x, y) && Math.hypot(x - c.x, y - c.y) <= r) light[idx(x, y)] = 1;
+      }
+    };
+    if (fireOn(g)) mark(SPOT.fire, FIRE.radius);
+    if (stoveOn(g)) mark({ x: HUT.x + 1, y: HUT.y }, 3);
+    for (const t of g.torches) mark(t, TORCH.radius);
+    return { open, light };
+  }
+
+  // The masks change slowly (a torch, a fire going out): they are rebuilt twice a second.
+  let maskCache = null;
   function wolvesTick(g, dt) {
+    if (!g.wolves.length) return;
+    if (!maskCache || maskCache.g !== g || g.t - maskCache.t >= 0.5 || g.t < maskCache.t) maskCache = { g, t: g.t, M: wolfMasks(g) };
+    const M = maskCache.M;
+    const fence = palisadeUp(g);
     for (const w of g.wolves) {
       w.cd = Math.max(0, w.cd - dt);
       if (w.hp < w.maxHp * WOLF_FLEE) w.flee = true;
@@ -864,7 +902,7 @@
               if (w.cd <= 0) {
                 w.cd = WOLF_CD;
                 const p = g.palisade[seg];
-                p.hp -= BITE;
+                p.hp -= GNAW;
                 g.events.push({ type: 'gnaw', segment: seg });
                 if (p.hp <= 0) { p.hp = 0; g.events.push({ type: 'palisadeBroken', segment: seg }); }
               }
@@ -879,7 +917,11 @@
           const bite = BITE * DIFF[g.difficulty].bite;
           if (target === g.hero) {
             g.hero.health = Math.max(0, g.hero.health - bite);
-            g.hero.sleeping = false;
+            // bitten awake: the hero turns on the wolf unless he is busy with something else
+            if (g.hero.sleeping || !g.hero.target || g.hero.target.type === 'bed' || g.hero.target.type === 'walk') {
+              g.hero.sleeping = false;
+              order(g, { type: 'wolf', id: w.id }, []);
+            }
             g.events.push({ type: 'bite', who: 'hero' });
           } else {
             target.hp = Math.max(0, target.hp - bite);
@@ -893,24 +935,36 @@
         }
         continue;
       } else { gx = target.x; gy = target.y; }
-      // one step toward the goal on the tile grid, avoiding lit tiles and the palisade
-      const sp = WOLF_SPEED * dt;
-      const dx = gx - w.x, dy = gy - w.y, d = Math.hypot(dx, dy);
-      if (d < 0.01) continue;
-      const tryMove = (mx, my) => {
-        const nx = w.x + mx, ny = w.y + my, tx = Math.floor(nx), ty = Math.floor(ny);
-        if (!inMap(tx, ty) || g.tiles[idx(tx, ty)] === 'o' || g.tiles[idx(tx, ty)] === 'D' || blockedByNode(g, tx, ty)) return false;
-        if (lit(g, tx, ty) && !lit(g, Math.floor(w.x), Math.floor(w.y))) return false;
-        if (palisadeUp(g) && inBase(tx, ty) && !inBase(Math.floor(w.x), Math.floor(w.y))) return false;
-        w.x = nx; w.y = ny;
-        return true;
+      // a path toward the goal (re-planned every second) around trees and rocks, out of the light and the palisade
+      const wx = Math.floor(w.x), wy = Math.floor(w.y);
+      const inLight = inMap(wx, wy) && M.light[idx(wx, wy)] === 1, outside = !inBase(wx, wy);
+      const pass = (x, y) => {
+        if (!inMap(x, y)) return false;
+        const i = idx(x, y);
+        return M.open[i] === 1 && (M.light[i] === 0 || inLight) && !(fence && outside && inBase(x, y));
       };
-      if (!tryMove((dx / d) * sp, (dy / d) * sp)) {
-        if (!tryMove(Math.sign(dx) * sp, 0)) tryMove(0, Math.sign(dy) * sp);
+      const tx = clamp(Math.floor(gx), 0, W - 1), ty = clamp(Math.floor(gy), 0, H - 1);
+      w.plan = (w.plan || 0) - dt;
+      if (w.plan <= 0 || !w.path) {
+        w.plan = 1;
+        w.path = astar(g, w, (x, y) => Math.abs(x - tx) + Math.abs(y - ty) <= 1, manhattan(tx, ty), null, pass, 700);
+      }
+      if (w.path && w.path.length) {
+        const n = w.path[0];
+        if (!pass(n.x, n.y)) { w.path = null; continue; }
+        const cx = n.x + 0.5, cy = n.y + 0.5, d = Math.hypot(cx - w.x, cy - w.y), sp = WOLF_SPEED * dt;
+        if (d <= sp) { w.x = cx; w.y = cy; w.path.shift(); } else { w.x += ((cx - w.x) / d) * sp; w.y += ((cy - w.y) / d) * sp; }
+      } else {
+        // the last stretch to the goal (or no path): straight, if the tile allows
+        const d = Math.hypot(gx - w.x, gy - w.y), sp = Math.min(d, WOLF_SPEED * dt);
+        if (d > 0.01) {
+          const nx = w.x + ((gx - w.x) / d) * sp, ny = w.y + ((gy - w.y) / d) * sp;
+          if (pass(Math.floor(nx), Math.floor(ny)) || (Math.floor(nx) === wx && Math.floor(ny) === wy)) { w.x = nx; w.y = ny; }
+        }
       }
     }
     // a lit wolf runs: wolves inside the light flee
-    for (const w of g.wolves) if (lit(g, Math.floor(w.x), Math.floor(w.y))) w.flee = true;
+    for (const w of g.wolves) { const i = idx(clamp(Math.floor(w.x), 0, W - 1), clamp(Math.floor(w.y), 0, H - 1)); if (M.light[i]) w.flee = true; }
   }
 
   const nearestSegment = (w) => {
@@ -1027,6 +1081,7 @@
     o.events = [];
     o.acc = 0;
     delete o.dawnDue;
+    delete o.nodeStamp;
     return o;
   }
 
@@ -1107,13 +1162,13 @@
   }
 
   const api = {
-    TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, STORE_CAP, FIRE, STOVE, TORCH, STAT_MAX,
+    TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
     FOOD_DRAIN, ENERGY_DRAIN, WORK_ENERGY, SLEEP_ENERGY, HEALTH_LOSS, HEALTH_GAIN, FOOD, RAW_MEAT_ENERGY, COOK_TIME,
-    FISH_TIME, BITE, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
+    FISH_TIME, BITE, GNAW, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
     PALISADE_REPAIR, BUNK_COST, SURVIVORS, SURVIVOR_IDS, WORK, RES, FOOD_ITEMS, ITEMS, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
     clamp, rand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
-    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, warmthRate, lit, inHut, stoveOn,
-    fireOn, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,
+    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, warmthRate, lit, inHut, stoveOn,
+    fireOn, atBase, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,
     wolvesTonight, step, stars, nextTask, snapshot, restore, newSave, parseSave, loadSave, storeSave, recordGame,
     retryDay,
   };

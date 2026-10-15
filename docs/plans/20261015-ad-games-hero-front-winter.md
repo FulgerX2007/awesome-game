@@ -577,6 +577,13 @@
 - A campfire alone gives warmth +1.2/s within 3 tiles. That covers the chill of days 1–10 but not the nights when
   the outside temperature drops below −20 °C (from about day 11): then only the inside of the hut with a fed stove
   keeps warmth up.
+- ➕ Chill (warmth lost per second outside) = −temperature / 15 (×1.4 in «Лютая»); a roof cuts it to 40% inside the
+  hut; a fed stove inside gives +2/s. (Task 12: with /20 the hero without a stove lived through the whole winter.)
+- ➕ Gathering: a tree gives 2 wood a blow (3 with the iron axe), a rock or scrap 2, a bush 1 berry; trees hold 12,
+  rocks 10. (Task 12: at 1 a blow the hut wasn't standing before the deep cold.)
+- ➕ The camp holds 200 materials and, apart, 150 food (Task 12: berries from the herbalist filled a shared store
+  and stopped all chopping).
+- ➕ Building and crafting happen in the camp (`'far'` elsewhere).
 - Buildings (with partial contributions, as in village):
 
 | id | RU | Cost | Effect |
@@ -589,6 +596,9 @@
 **Wolves**
 - They spawn at night more than 14 tiles from any person, more on later days and in «Лютая зима».
 - They hunt the nearest person outside the palisade and bite. They flee from fire and torches and when hurt below 30%.
+- ➕ Wolves walk A* paths around trees and rocks and never step into light. Survivors at home and the hero inside
+  the hut are safe once the door hangs (stage 3). A bitten hero fights back unless he is busy. Wolves gnaw a
+  standing palisade for 2 a bite (100 HP a segment); the carpenter and the smith mend it.
 
 **Survivors**
 - Food at the base is a pool of points: items put into it are converted at their eat values (cooked meat 35,
@@ -631,7 +641,14 @@
 - Casual survives «Обычная» on ≥ 3/5.
 - No shelter (no stove, no palisade, no torches) dies before day 24 on 5/5.
 - Days 1–3 never kill the greedy bot (a gentle start).
-- A winter takes 30 × 150 s = 75 min of game time; with nights slept through it is about 50–60 min of real time at ×1.
+- A winter takes 30 × 150 s = 75 min of game time; with nights slept through it is 30–65 min of real time at ×1
+  (➕ measured ~38 min for the greedy bot, who also sleeps the last minutes of each day).
+- ➕ Measured after tuning (5 seeds; won/lost @ day / survivors alive):
+  - greedy, ordinary: won on 5/5 with 4–5 alive; timeline on seed 1: hut walls and roof day 1, door and stove day 2,
+    palisade days 3–5, the child and the herbalist day 5, the carpenter day 6, the smith day 8, bunks days 6–8;
+  - greedy, harsh: won 3/5 (lost on days 20 and 23);
+  - casual, ordinary: won 5/5;
+  - no shelter: dead on day 14 on every seed.
 
 **Client**
 - Top-down tile rendering with soft snow, footprints, falling snow, a dark night with light circles around fires
@@ -950,15 +967,15 @@
 - Create: `web/winter/core.js`
 - Create: `tests/winter/core.test.js`
 
-- [ ] UMD `root.WinterCore`:
+- [x] UMD `root.WinterCore`:
   - the map from the base strings plus a seeded forest, with guaranteed resources near the base;
   - `newGame(difficulty, seed)`;
   - `step` with 1/20 s ticks, at most 0.25 s per call, bad `dt` ignored.
-- [ ] movement and A* pathfinding over tiles (deep snow costs more, dug tiles get cheaper); click-to-act targets.
-- [ ] the day cycle, the temperature curve, blizzard days, chill.
-- [ ] stats: warmth/food/energy/health with the rates from Technical Details; sleep and the ×6 night fast-forward.
-- [ ] actions: chop/mine/berries/hunt/fish/cook/eat/feed fire/scrap; the workbench tools; the fire's fuel burn.
-- [ ] write tests:
+- [x] movement and A* pathfinding over tiles (deep snow costs more, dug tiles get cheaper); click-to-act targets.
+- [x] the day cycle, the temperature curve, blizzard days, chill.
+- [x] stats: warmth/food/energy/health with the rates from Technical Details; sleep and the ×6 night fast-forward.
+- [x] actions: chop/mine/berries/hunt/fish/cook/eat/feed fire/scrap; the workbench tools; the fire's fuel burn.
+- [x] write tests:
   - stat rates near and away from heat;
   - the whole tech tree is reachable from the start state on 20 seeds (no recipe needs what it unlocks);
   - night and blizzard chill;
@@ -968,7 +985,7 @@
   - sleep fast-forward only with a fed fire and a bed;
   - pathfinding through deep snow before and after digging;
   - determinism.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 11: «Долгая зима» — buildings, wolves, survivors, win/loss and saving
 
@@ -976,24 +993,24 @@
 - Modify: `web/winter/core.js`
 - Create: `tests/winter/base.test.js`
 
-- [ ] buildings with partial contributions: the hut stages, palisade segments, bunks, torches.
-- [ ] wolves:
+- [x] buildings with partial contributions: the hut stages, palisade segments, bunks, torches.
+- [x] wolves:
   - night spawns by day and difficulty;
   - hunting and biting, fleeing from fire and torches and when hurt;
   - palisade segments block them and are damaged.
-- [ ] survivors:
+- [x] survivors:
   - the five rescue conditions;
   - following the hero and joining the base;
   - needs (food, bunk, warmth), work loops per role;
   - death with a message.
-- [ ] win at the morning of day 31, loss at health 0; stars; difficulties and their unlocks.
-- [ ] saves:
+- [x] win at the morning of day 31, loss at health 0; stars; difficulties and their unlocks.
+- [x] saves:
   - `snapshot`/`restore`;
   - the dawn snapshot and `retryDay`;
   - `loadSave`/`storeSave`, tolerant of broken data and blocked storage;
   - the best result per difficulty written at the moment of the win.
-- [ ] the «Следующее дело» hint function (`nextTask(state)`), as in village.
-- [ ] write `base.test.js`:
+- [x] the «Следующее дело» hint function (`nextTask(state)`), as in village.
+- [x] write `base.test.js`:
   - building stages and partial contributions;
   - the palisade keeps wolves out;
   - wolves avoid torches;
@@ -1003,7 +1020,7 @@
   - `retryDay` returns the dawn state;
   - save round-trips and broken saves;
   - `nextTask` on key states.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 12: «Долгая зима» — bots and balance
 
@@ -1013,11 +1030,11 @@
 - Create: `tests/winter/balance-normal.test.js`
 - Create: `tests/winter/balance-harsh.test.js`
 
-- [ ] `bot.js`: the greedy, casual and no-shelter bots from Technical Details, core API only, re-planning every 1 s.
-- [ ] the balance files cover the targets from Technical Details > Balance. Log the timeline of the greedy bot on seed 1:
+- [x] `bot.js`: the greedy, casual and no-shelter bots from Technical Details, core API only, re-planning every 1 s.
+- [x] the balance files cover the targets from Technical Details > Balance. Log the timeline of the greedy bot on seed 1:
   the hut done on day N, the palisade on day N, each rescue on day N. Keep each file under ~60 s.
-- [ ] tune the numbers until the targets hold; update the tables; ⚠️ and the fallback rule if needed.
-- [ ] run tests — must pass before next task
+- [x] tune the numbers until the targets hold; update the tables; ⚠️ and the fallback rule if needed.
+- [x] run tests — must pass before next task
 
 ### Task 13: «Долгая зима» — page, rendering, input, screens and saving
 
