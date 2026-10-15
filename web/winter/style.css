@@ -194,3 +194,6 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 @media (prefers-reduced-motion: reduce) {
   .panel, .banner { animation: none; }
 }
+
+/* ───── 2.5D frame: the forest sits in a soft, lifted frame ───── */
+.stage canvas { box-shadow: 0 12px 28px rgba(2, 6, 18, .5), 0 0 0 1px rgba(200, 220, 255, .08); }
