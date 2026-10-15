@@ -159,7 +159,8 @@
   - `ward`: the same formula for magic (fire/ice/holy) damage;
   - `crit` (5% start, ×1.5);
   - `dodge` (0 start).
-- A level-up gives +8 max HP, +1 atk, a full heal of 25% and the pick of 1 of 3 small perks.
+- A level-up gives +8 max HP, +1 atk, heals 25% of max HP and offers 1 of 3 small perks. The perk choice is shown
+  after the battle (`pickPerk(run, index)`); a pending offer is part of the snapshot.
 - Title by level, shown on the HUD and in the result:
 
 | Levels | RU | RO |
@@ -202,6 +203,9 @@
   - Outside battle the player can equip anything from the bag.
   - During battle only the weapon can be swapped, from the bag's weapons. A swap takes 0.8 s, during which the hero
     doesn't attack. The renderer shows it.
+  - Up to 4 weapons sit in the battle quick slots (the first 4 weapons in bag order; the bag panel reorders them).
+  - A full bag never blocks a reward: `discard(run, itemId)` drops an item (at a shop it sells for 30% of its price),
+    and any reward can be skipped.
 - Items have a tier from 1 to 5. The forge raises a tier by 1 (+30% to the item's numbers) or reforges a weapon's
   damage type.
 - About 24 item templates in `content.js`. Examples:
@@ -231,27 +235,36 @@
 | `golem` | Лавовый голем | 3 | phys 0.5, fire 0, ice 2, thorns |
 | `knight` | Чёрный рыцарь | 3 | shield 3, phys 0.6 |
 
+- Enemies deal `phys` damage unless listed otherwise: the ghost deals `ice`, the imp and the golem `fire`;
+  the final boss deals the type of its phase (P1 `phys`, P2 `fire`, P3 `ice`). So the hero's `ward` matters in acts 2–3.
 - Elites are a stronger variant of the act's enemies with one extra trait.
 - **Bosses:**
   - act 1 «Король волков»: summons wolves;
   - act 2 «Костяной лорд»: phys 0.3, holy 2, raises skeletons;
-  - act 3, the final boss «Повелитель пепла». Three phases at 100% / 66% / 33% HP:
-    1. armoured: phys 0.3, fire 1, ice 1.5;
-    2. a flame body: fire 0, phys 1, ice 2;
-    3. a shadow body: phys 0.2, fire 0.5, ice 0.5, holy 2.
+  - act 3, the final boss «Повелитель пепла». Three phases at 100% / 66% / 33% HP, each with a different best type,
+    and every type is at ≤ 0.25 in at least one phase:
 
-    Every phase change is announced and shows the new defence icons. Only a bag that holds two or three damage types
-    wins, plus mid-battle swaps.
+| Phase | phys | fire | ice | holy |
+|---|---|---|---|---|
+| 1, armoured | 0.25 | 2 | 1 | 0.25 |
+| 2, a flame body | 1 | 0 | 2 | 0.5 |
+| 3, a shadow body | 0.25 | 1 | 0.25 | 2 |
+
+    Relative time to kill over three equal thirds: phys only 3.0, fire only ∞, ice only 1.83, holy only 2.17;
+    the best two-type bag 0.67, three types 0.5. Every phase change is announced and shows the new defence icons.
+    A multiplier of 0 is a true immunity: the `max(1, …)` floor applies only to non-zero multipliers.
 
 **Map**
-- Each act is a seeded graph of 8 rows: row 0 is a battle, rows 1–6 hold 2–4 nodes, row 7 is a camp, then the boss.
-- Every node links to 1–2 nodes of the next row, and edges never cross.
-- Node kinds: `battle`, `elite`, `chest` (pick 1 of 3 items), `forge`, `shrine` (pick 1 of 3 blessings), `camp`
+- Each act is a seeded graph of 8 rows: row 0 holds 2–3 battle nodes and the player picks the start, rows 1–6 hold
+  2–4 nodes, row 7 is a single camp, then the boss.
+- Every node links to 1–2 nodes of the next row (row 6 links to the camp), every node has ≥ 1 incoming edge,
+  and edges never cross.
+- Node kinds: `battle`, `elite`, `chest` (pick 1 of 3 items), `forge`, `shrine` (pick 1 of 3 perks from the level-up pool, one tier higher), `camp`
   (heal 40% or train for +1 level), `shop` (gold for items and potions).
 - Generation rules, as in classic map roguelites:
   - no elites in the first two rows;
   - at least one forge and one chest on every path from start to boss;
-  - no two shops in a row.
+  - no two shops one after another on any path.
 - Gold and XP come from battles. Potions (up to 3) are used with a tap at any moment: +35% HP.
 
 **Battle**
@@ -271,7 +284,7 @@
 | `potion` | +1 start potion | 2 | 60·2ⁿ |
 | `armory` | a start weapon of another type: fire → ice → holy, unlocked in that order | 3 | 70·1.8ⁿ |
 
-- Difficulty «Испытания» 1–5 unlock after the first win: enemies ×1.2ⁿ HP and damage, +20% «Слава» per tier.
+- Difficulty «Испытания» 1–3 unlock one by one after a win: enemies ×1.2ⁿ HP and damage, +20% «Слава» per tier.
 - `hero.save` holds `{v:1, glory, meta:{…}, wins, bestDepth, trial, trialsUnlocked, current}`. `current` is the run
   snapshot at the last node boundary.
   - Snapshot points: entering a node, after a chest/shop/forge/shrine/camp choice, after a battle is won.
@@ -282,8 +295,8 @@
 - `newRun(save, seed, trial)`;
 - `mapOf(run)`, `choose(run, nodeId)`;
 - `startBattle(run)`, `step(run, dt)`, `swapWeapon(run, itemId)`, `usePotion(run)`;
-- `equip(run, itemId)`, `pickReward(run, index)`, `forge(run, itemId, 'upgrade'|'reforge', type?)`, `buy(run, index)`,
-  `camp(run, 'rest'|'train')`;
+- `equip(run, itemId)`, `discard(run, itemId)`, `pickReward(run, index | null)` (null skips), `pickPerk(run, index)`,
+  `forge(run, itemId, 'upgrade'|'reforge', type?)`, `buy(run, index)`, `sell(run, itemId)`, `camp(run, 'rest'|'train')`;
 - `status(run)`, `drain(run)`;
 - `glory(run)`, `buyMeta(save, id)`, `snapshot`/`restore`, `loadSave`/`storeSave`.
 
@@ -293,17 +306,24 @@
   - before every battle and at every boss phase change, equips the weapon with the best expected DPS against
     the current target;
   - spends «Слава» on the cheapest useful upgrade.
-- **Casual:** random branches, random rewards, never swaps during a battle, uses potions below 25% HP.
-- **One weapon:** competent with full permanent upgrades, but keeps only `phys` weapons.
+- **Casual:** random branches, random rewards, uses potions below 25% HP. It does not swap in normal battles;
+  after a boss phase change it waits 2.5 s and then, with 50% chance, swaps to the quick slot whose type the new
+  icons favour.
+- **Single type:** competent with full permanent upgrades, but only weapons of one damage type and no typed charm
+  spells (fireball, smite); run once for each of the 4 types.
+- Run seeds are `seed·1000 + runIndex`.
 
 **Balance targets**
 - Competent with no permanent upgrades:
   - beats the act 1 boss on ≥ 8/10 seeds;
-  - beats the final boss on ≤ 3/10 (the first run is rarely a win, as in the ads).
-- Competent with «Слава» carried between runs: the first win comes within 3–8 runs on all 5 seeds.
+  - beats the final boss on ≤ 2/10 (the first run is rarely a win, as in the ads).
+- Competent with «Слава» carried between runs: the first win comes within 2–8 runs on all 5 seeds.
 - Casual with «Слава» carried: the first win comes within 15 runs on ≥ 3/5 seeds.
-- One weapon: loses to the final boss on ≥ 4/5 seeds.
-- A run takes 12–25 minutes of game time at ×1 (measured by the bot: battle ticks plus 10 s per node).
+- Single type, each of the 4 types: loses to the final boss on ≥ 4/5 seeds.
+- A competent winning run ends at level ≥ 12 («Герой»), and «Легенда» is reached in at least one winning run.
+  The level reached at the end of each act is logged.
+- Competent with full meta wins «Испытание 1» on ≥ 3/5 seeds.
+- A winning run takes 12–25 minutes of game time at ×1 (measured by the bot: battle ticks plus 10 s per node).
 - If a target is still unreachable after tuning:
   - log ⚠️ with the measured numbers and the closest targets reached;
   - loosen that target by at most one step.
@@ -321,10 +341,11 @@
   - enemy HP and defence icons;
   - weapon quick-slot buttons (the bag's weapons), the potion button, ×2, pause.
 - Keyboard:
-  - 1–4 swap weapons;
+  - 1–4 swap weapons (the quick slots);
   - Q potion;
   - Space pause;
   - arrows plus Enter pick map nodes;
+  - M sound;
   - Esc menu.
 
 ### 2. «Рубеж» (`/front/`)
@@ -343,14 +364,15 @@
 | `M` | mine: a metal node |
 | `#` | a build plot |
 
-- Nodes are inexhaustible but slow. Each node has a work rate.
+- Nodes are inexhaustible. Each node serves at most 2 workers at a time; more workers queue next to it.
 
 **Economy**
 - Resources: `wood`, `stone`, `metal`. The start values depend on the level.
 - Workers walk to the nearest reachable node of the requested resource, gather 5 units in 3 s and carry them to the keep.
   A bridge over a chasm makes the nodes beyond it reachable.
-- The «Добыча» panel sets the share of workers per resource with three sliders; the default is wood-heavy.
-- Food is not modelled: the worker cap comes from houses.
+- The «Добыча» panel sets the number of workers per resource with +/− buttons; new workers go to wood.
+- Food is not modelled. The worker cap is 3 + 3 per house; a level starts with 2 workers.
+- Levels 1–4 give metal at the start and have a reachable `M`; from level 5 the metal sits beyond a chasm.
 
 **Buildings**, all on plots `#`; a bridge goes over a chasm:
 
@@ -362,7 +384,6 @@
 | `tower` | Башня | 50 wood, 40 stone | arrows, range 22 m |
 | `barracks` | Казарма | 60 wood, 30 stone | unlocks soldiers and archers |
 | `forge` | Кузница | 40 stone, 40 metal | unlocks knights, +25% soldier damage |
-| `catapult` | Катапульта | 80 wood, 40 metal | required to break the fortress gate fast; counts as a unit |
 
 **Units**
 
@@ -372,6 +393,11 @@
 | `soldier` | Мечник | 20 wood, 10 metal | 60 | 8 | 1.2 | 1.4 |
 | `archer` | Лучник | 25 wood, 5 metal | 35 | 6 | 16 | 1.4 |
 | `knight` | Рыцарь | 30 metal | 140 | 14 | 1.3 | 1.6 |
+| `catapult` | Катапульта | 80 wood, 40 metal | 80 | 30, ×4 against the fortress and walls | 20 | 0.8 |
+
+- Soldiers and archers need a barracks; knights and catapults need a forge as well.
+- Own units pass through own walls; enemies stop at them.
+- The seed drives attack-timer jitter and a ±10% damage spread, so seeds differ while waves stay level data.
 
 - The army has two orders, «Держать рубеж» and «В атаку».
   - Hold: soldiers stand just in front of the frontmost own wall (or the keep).
@@ -386,10 +412,12 @@
   - `ogre`: a boss with wall damage ×3.
 - The fortress also has towers that shoot in range.
 - Enemies attack the first own object in their way: a unit, a wall, a building on a plot, then the keep.
-- After the last scheduled wave the fortress keeps sending small patrols every 40 s, so waiting forever does not win.
+- After the last scheduled wave the fortress keeps sending patrols every 40 s, each 15% stronger than the last,
+  so a passive keep eventually falls.
 
 **Win, loss, stars**
 - Win: the fortress HP reaches 0. Loss: the keep HP reaches 0.
+- In tests, a bot that has not won within 3× the level's `par` of game time counts as lost (a time cap, so no test hangs).
 - Stars:
   - ★ any win;
   - ★★ the keep keeps ≥ 60% HP;
@@ -402,7 +430,7 @@
 
 | # | Idea |
 |---|---|
-| 1 | gather, build a house and a barracks, attack |
+| 1 | gather, build a house and a barracks, attack; short: `par` ≤ 2 min |
 | 2 | the first chasm and bridge |
 | 3 | walls hold a wave |
 | 4 | towers |
@@ -440,9 +468,10 @@
 - A reload continues the level from the snapshot.
 
 **Client**
-- A side-scrolling field with parallax hills and the ground strip. The camera pans by drag or ←/→, with a minimap bar
-  at the top showing units, walls and the fortress.
-- Tap a plot or a chasm → a radial build menu with prices; impossible options are greyed with the missing resources shown.
+- A side-scrolling field with parallax hills and the ground strip. The camera pans by drag or ←/→.
+- Tap a plot or a chasm → a build panel listing options with prices; impossible options are greyed with the missing
+  resources shown.
+- The menu has «Играть» (the level select), sound and RU/RO, like the other ad games.
 - The bottom bar:
   - resources;
   - recruit buttons with queue counts;
@@ -450,8 +479,9 @@
   - ×2 speed and pause.
 - Keyboard:
   - ←/→ pan;
-  - 1–4 recruit;
+  - 1–5 recruit (worker, soldier, archer, knight, catapult);
   - A attack, H hold;
+  - M sound;
   - B the build menu at the camera's nearest plot;
   - Space pause;
   - Esc menu.
@@ -463,7 +493,7 @@
 - Tiles: snow, deep snow (movement ×0.6), trees, rocks, bushes, ice (the frozen lake), the hut ruin, base plots.
 - 5 survivors stand at fixed spots on the map edges, each at a camp marker with its own short need:
   - «Охотник» needs 3 meat to come;
-  - «Плотник» needs a path through deep snow: a shovel;
+  - «Плотник» is behind deep snow: needs the shovel;
   - «Травница» is found only by day;
   - «Кузнец» is beyond the frozen lake: an ice pick;
   - «Ребёнок» is reached only after the palisade is built, for safety.
@@ -472,7 +502,7 @@
 
 **Day cycle**
 - A day is 150 s of game time at ×1: 100 s day, 50 s night.
-- Sleeping in a repaired bed with a fed fire fast-forwards the night ×6.
+- The hut's bed comes with stage 2 (the roof). Sleeping in it while the hut stove is fed fast-forwards the night ×6.
 - The outside temperature follows a curve over 30 days: mild at the start, the deepest cold on days 15–24, a thaw on 28–30.
 - Blizzards on scheduled days drop it further and cut visibility.
 
@@ -481,11 +511,12 @@
 | Stat | Falls | Restored by |
 |---|---|---|
 | `warmth` | by `chill` (from the outside temperature, night, blizzard) when outside a heat source | fire within 3 tiles, the inside of a hut with a fed stove |
-| `food` | 0.12/s | eating: cooked meat +35, fish +25, berries +8 (raw meat +10, but −10 strength) |
+| `food` | 0.12/s | eating: cooked meat +35, fish +25, berries +8 (raw meat +10, but −10 energy) |
 | `energy` | with work, 0.04/s otherwise | sleep (+), sitting by the fire (slow) |
 
 - Health (0–100) falls while any stat is at 0 and recovers while all are above 40.
 - At health 0 the run is lost: «Начать день заново» from the dawn save, or a new game.
+- A wolf bite takes 8 health directly (×1.5 in «Лютая зима»).
 
 **Actions and items**
 - Chop (axe), mine stone (pick), gather berries, hunt (rabbit: a quick chase; deer: 2 hits), fish at an ice hole
@@ -495,35 +526,40 @@
 | Tool | Cost | Gives |
 |---|---|---|
 | Каменный топор | — (start) | chopping |
+| Кирка | wood 12 | mining |
 | Железный топор | stone 10, metal 4 | chopping ×1.8 |
-| Кирка | wood 10, stone 6 | mining |
 | Лопата | wood 12 | deep snow → snow tiles where dug |
 | Ледоруб | metal 6 | the way across the lake |
 | Копьё | wood 8, stone 4 | wolf damage ×2, deer hunting |
 
-- Metal comes from scrap piles found on the map.
+- Metal comes from scrap piles found on the map. At least 20 metal of scrap lies within reach without crossing
+  the lake or deep snow.
+- The workbench stands at the base from the start (a fixed object, not a building).
+- A core test proves the whole tech tree is reachable from the start state.
 
 **Fire and buildings**
 - The campfire burns 1 wood per 12 s (×1.5 in a blizzard) and goes out at 0 fuel; the fuel bar holds 20.
+- The hut stove has its own fuel: 1 wood per 15 s, capacity 30. A "fed stove" means fuel > 0.
+- A campfire alone gives warmth +1.2/s within 3 tiles. That covers the chill of days 1–10 but not the nights when
+  the outside temperature drops below −20 °C (from about day 11): then only the inside of the hut with a fed stove
+  keeps warmth up.
 - Buildings (with partial contributions, as in village):
 
 | id | RU | Cost | Effect |
 |---|---|---|---|
 | `hut` | Хижина | 4 stages: walls 40 wood → roof 30 wood + 10 stone → door 20 wood → stove 30 stone + 6 metal | the stove keeps the inside warm while fed; the bed restores energy |
-| `rack` | Коптильня | 25 wood, 10 stone | stores food, smoked meat does not spoil |
-| `store` | Склад | 30 wood | the carry limit for the base, from 40 to 120 |
 | `palisade` | Частокол | 4 segments × 25 wood | wolves cannot enter the base while the segments stand; they attack segments |
 | `bunk` | Нары | 20 wood each, up to 3 | sleeping places for survivors, 2 each |
 | `torches` | Факелы | 2 wood each | light; wolves avoid lit tiles |
-| `tower` | Вышка | 30 wood, 10 stone | shows wolves and survivors on the minimap at night |
 
 **Wolves**
-- They spawn at night beyond the visible area, more on later days and in «Лютая зима».
+- They spawn at night more than 14 tiles from any person, more on later days and in «Лютая зима».
 - They hunt the nearest person outside the palisade and bite. They flee from fire and torches and when hurt below 30%.
-- Food spoils: raw meat outside the coptilnya loses 1 portion per day.
 
 **Survivors**
-- Each survivor eats 0.08 food/s from the store and needs a bunk and warmth (the hut stove, or the fire).
+- Food at the base is a pool of points: items put into it are converted at their eat values (cooked meat 35,
+  fish 25, berries 8). Each survivor eats 0.08 points/s from the pool and needs a bunk and warmth (the hut stove,
+  or a fed campfire). The hero carries up to 40 items; the base storage is fixed at 200 items.
 - When cold or hungry they stop working and lose health. They die at 0, with a message. The run goes on.
 - Roles by who they are:
   - Охотник brings meat;
@@ -550,7 +586,7 @@
 **Bots** (in tests):
 - **Greedy:**
   - a priority list: keep the fire ≥ 6 fuel, eat at food < 40, sleep at night, repair the hut stage by stage,
-    rack, palisade, tools, then rescue survivors one by one;
+    the pick, the palisade, tools, then rescue survivors one by one;
   - plays only through the core API, re-plans every 1 s.
 - **Casual:** acts with a 3 s delay and a 25% chance to pick a random action from the list.
 - **No shelter:** never builds the hut stove or the palisade.
@@ -559,9 +595,9 @@
 - Greedy survives 30 days on «Обычная» on 5/5 seeds with ≥ 4 survivors alive.
 - Greedy survives «Лютая» on ≥ 3/5 seeds.
 - Casual survives «Обычная» on ≥ 3/5.
-- No shelter dies by day 14 on 5/5.
+- No shelter (no stove, no palisade, no torches) dies before day 24 on 5/5.
 - Days 1–3 never kill the greedy bot (a gentle start).
-- The whole run is 75–95 minutes of game time.
+- A winter takes 30 × 150 s = 75 min of game time; with nights slept through it is about 50–60 min of real time at ×1.
 
 **Client**
 - Top-down tile rendering with soft snow, footprints, falling snow, a dark night with light circles around fires
@@ -577,7 +613,8 @@
   - Z sleep;
   - M sound;
   - Esc close.
-  - Click or tap a tile: walk there and act. On a phone there is an action button and an eat button.
+  - Click or tap a tile: walk there and act. On a phone there are an action button and an eat button, plus HUD chips
+    «Постройки» and «Верстак» (as village's `#btn-buildings`/`#btn-tools`); sleep is the context action at the bed.
 
 ### Shared
 - Storage keys:
@@ -589,6 +626,10 @@
   - front: chop, mine, build, recruit, clash, arrow, wall hit, horn (wave), fortress hit, win, lose;
   - winter: chop, mine, crunch steps, fire crackle loop, eat, wolf howl, bite, build, rescue, dawn chime, blizzard
     wind loop, lose, win.
+- Every game has an M key for sound.
+- Script order: hero `lang, content, core, view, audio, game`; front `lang, levels, core, view, audio, game`;
+  winter `lang, core, view, audio, game`. `build.test.js` checks every Russian literal for RO in `game.js`,
+  `index.html` and also in hero `content.js`, front `levels.js` (level names) and winter `core.js` (`nextTask`).
 - Hub colours: `--hero: #ff6f91`, `--front: #b9c26b`, `--winter: #a9c7ff`. System font stack.
 
 ## What Goes Where
@@ -646,11 +687,12 @@
 - [ ] saves: `snapshot`/`restore` at node boundaries; a reload during a battle restarts it with the same enemies;
   `loadSave`/`storeSave` tolerant of broken data and blocked storage; «Слава» written at run end.
 - [ ] write `map.test.js`:
-  - the rules hold on 200 seeds (no crossings, a forge and a chest on every path, no early elites, a camp before the boss);
+  - the rules hold on 200 seeds: no crossings, every node reachable (≥ 1 incoming edge), a forge and a chest on every
+    path, no early elites, no two shops one after another, a camp before the boss;
   - the same seed gives the same map.
 - [ ] write `run.test.js`:
   - every node kind;
-  - bag overflow is refused;
+  - a full bag: a reward is refused until `discard`, and skipping works; `pickPerk` and the pending offer in snapshots;
   - forge upgrade and reforge;
   - shop prices and refusals;
   - meta prices and caps;
@@ -667,10 +709,10 @@
 - Create: `tests/hero/balance-first.test.js`
 - Create: `tests/hero/balance-meta.test.js`
 
-- [ ] `tests/hero/bot.js`: the competent, casual and one-weapon bots from Technical Details, core API only.
-- [ ] `balance-first.test.js`: competent bot without meta, 10 seeds; the run-length bounds.
-- [ ] `balance-meta.test.js`: repeated runs with «Слава» carried over (competent, casual); the one-weapon bot
-  with full meta against the final boss.
+- [ ] `tests/hero/bot.js`: the competent, casual and single-type bots from Technical Details, core API only.
+- [ ] `balance-first.test.js`: competent bot without meta, 10 seeds; the run-length bounds; the level reached.
+- [ ] `balance-meta.test.js`: repeated runs with «Слава» carried over (competent, casual); the single-type bots
+  with full meta against the final boss (4 types); «Испытание 1».
 - [ ] tune content until the balance targets hold; update the tables in this plan; ⚠️ and the fallback rule if needed.
   Keep each balance file under ~60 s.
 - [ ] run tests — must pass before next task
@@ -724,15 +766,15 @@
 
 - [ ] `audio.js` (`window.HeroAudio`) with the sounds from Shared; the toggle is in `hero.audio`. Load it before `game.js`.
 - [ ] hub card (`--hero`, RO string), first among the ad games; `/hero/*` paths in `main_test.go`.
-  The card-order assertions become `slice(0, 6)` with hero first (Tasks 10 and 15 extend them).
+  The card-order assertions become `slice(0, 6)` with hero first (Tasks 9 and 14 extend them).
 - [ ] write `audio.test.js` and `build.test.js`, as in castle (no network at all: no `fetch(`).
 - [ ] write `tests/hero/smoke.cjs`:
   - a new run;
   - choose a node, win a battle with a mid-battle weapon swap via the quick slot;
   - pick a chest reward;
   - reload on the map restores the run, and a reload mid-battle restarts the battle;
-  - a seeded save at the final boss's phase 3 (built in the page by `HeroCore`) wins or loses to the result screen;
-    «Слава» lands in `hero.save`;
+  - a seeded save at the final boss node, built in the page by `HeroCore` with the test-only `restore` field
+    `bossHp` preset just above 33%, plays into phase 3 and ends on the result screen; «Слава» lands in `hero.save`;
   - RO on a 360 px phone with touch, no console errors, no external requests.
 - [ ] run `node --test`, `go vet ./... && go test ./...`, the hero smoke, and re-run the other ad-game smokes — must pass before next task
 
@@ -813,8 +855,7 @@
   - `camera(viewport, L)` with clamped pan;
   - `toScreen`/`toWorld`;
   - `plotAt`;
-  - `minimap`;
-  - `buildMenu(plot, state)` listing options with affordability and missing resources;
+  - `buildMenu(plot, state)` listing options with affordability and missing resources (a list panel);
   - formatting.
 - [ ] `game.js` drawing:
   - parallax sky and hills;
@@ -839,7 +880,6 @@
   - the camera clamps at both ends;
   - `toScreen`/`toWorld` round-trip;
   - `plotAt` hits and misses;
-  - the minimap;
   - the build menu at 320/360 px.
 - [ ] run tests — must pass before next task
 
@@ -859,7 +899,8 @@
   become `slice(0, 7)` with `front, hero, …`.
 - [ ] write `audio.test.js` and `build.test.js`.
 - [ ] write `tests/front/smoke.cjs`:
-  - level 1 played by real taps: build a house and a barracks, recruit, attack, win; 3★ in the UI and in `front.progress`;
+  - level 1 played by real taps at ×2: build a house and a barracks, recruit, attack; then a seeded near-win snapshot
+    finishes the fortress, and 3★ lands in the UI and in `front.progress`;
   - level 2 with a bridge;
   - reload mid-level restores units and resources;
   - RO on a 360 px phone with touch and drag panning;
@@ -882,6 +923,7 @@
 - [ ] actions: chop/mine/berries/hunt/fish/cook/eat/feed fire/scrap; the workbench tools; the fire's fuel burn.
 - [ ] write tests:
   - stat rates near and away from heat;
+  - the whole tech tree is reachable from the start state on 20 seeds (no recipe needs what it unlocks);
   - night and blizzard chill;
   - health loss and recovery;
   - each action's yield and tool requirements;
@@ -897,7 +939,7 @@
 - Modify: `web/winter/core.js`
 - Create: `tests/winter/base.test.js`
 
-- [ ] buildings with partial contributions: the hut stages, rack, store, palisade segments, bunks, torches, tower.
+- [ ] buildings with partial contributions: the hut stages, palisade segments, bunks, torches.
 - [ ] wolves:
   - night spawns by day and difficulty;
   - hunting and biting, fleeing from fire and torches and when hurt;
@@ -907,7 +949,6 @@
   - following the hero and joining the base;
   - needs (food, bunk, warmth), work loops per role;
   - death with a message.
-- [ ] food spoiling outside the rack.
 - [ ] win at the morning of day 31, loss at health 0; stars; difficulties and their unlocks.
 - [ ] saves:
   - `snapshot`/`restore`;
@@ -921,7 +962,6 @@
   - wolves avoid torches;
   - each rescue condition;
   - survivors' needs and work;
-  - spoiling;
   - win/loss and stars at boundaries;
   - `retryDay` returns the dawn state;
   - save round-trips and broken saves;
