@@ -343,6 +343,15 @@ test('invalid levels throw', () => {
     level({ obstacles: [{ z: 10, kind: 'lava', x0: 0, x1: 1 }] }),
     level({ obstacles: [{ z: 10, kind: 'saw', x0: 0.5, x1: 0.2 }] }),
     level({ obstacles: [{ z: 10, kind: 'saw', x0: -2, x1: 0.2 }] }),
+    level({ obstacles: [{ z: 10, kind: 'wall', x0: -0.2, x1: 0.2, A: 0.3, omega: 1, phi: 0 }] }),
+    level({ obstacles: [{ z: 10, kind: 'saw', x0: -0.2, x1: 0.2, A: 0.9, omega: 1, phi: 0 }] }),
+    level({ obstacles: [{ z: 10, kind: 'saw', x0: -0.2, x1: 0.2, A: -0.1, omega: 1, phi: 0 }] }),
+    level({ obstacles: [{ z: 10, kind: 'saw', x0: -0.2, x1: 0.2, A: 0.3, phi: 0 }] }),
+    level({ recruits: [{ z: 0, x: 0, n: 5 }] }),
+    level({ recruits: [{ z: 10, x: 1.5, n: 5 }] }),
+    level({ recruits: [{ z: 10, x: 0, n: 0 }] }),
+    level({ recruits: [{ z: 10, x: 0, n: 2.5 }] }),
+    level({ recruits: {} }),
     level({ platforms: [{ z0: 30, z1: 20, w: 0.5, A: 0.2, omega: 1, phi: 0 }] }),
     level({ platforms: [{ z0: 20, z1: 30, w: 0, A: 0.2, omega: 1, phi: 0 }] }),
     level({ platforms: [{ z0: 20, z1: 30, w: 0.5, A: -1, omega: 1, phi: 0 }] }),
@@ -425,6 +434,76 @@ test('pilotTarget: the better (or worse) gate side, around obstacles, onto platf
   on.z = 30;
   const want = plat.A * Math.sin(plat.omega * (on.ticks / HZ + TICK) + plat.phi);
   assert.ok(Math.abs(R.pilotTarget(on, 'best') - want) < 1e-12, 'rides the platform where it will be next tick');
+});
+
+test('recruits join when the crowd comes close enough and are left behind otherwise', () => {
+  const def = level({ recruits: [{ z: 20, x: 0.7, n: 8 }] });
+  const near = driveTo(runAt(def, 0.7), 21);
+  assert.equal(near.count, 18);
+  assert.deepEqual(near.events.filter((e) => e.type === 'recruit'), [{ type: 'recruit', z: 20, x: 0.7, n: 8, taken: true }]);
+  const reach = R.radius(10) + R.RECRUIT_REACH;
+  assert.equal(driveTo(runAt(def, 0.7 - reach + 0.01), 21).count, 18, 'the edge of the crowd is enough');
+  const far = driveTo(runAt(def, 0.7 - reach - 0.01), 21);
+  assert.equal(far.count, 10, 'just out of reach: nobody joins');
+  assert.equal(far.events.find((e) => e.type === 'recruit').taken, false);
+  assert.equal(driveTo(runAt(def, -0.7), 60).count, 10, 'they are passed once');
+  const big = runAt(def, 0.7, R.MAX_COUNT - 3);
+  assert.equal(driveTo(big, 21).count, R.MAX_COUNT, 'capped like a gate');
+});
+
+test('at one z a gate comes first, then an obstacle, then the recruits', () => {
+  const def = level({
+    gates: [{ z: 20, full: { op: 'mul', n: 2 } }],
+    obstacles: [{ z: 20, kind: 'saw', x0: -1, x1: 1 }],
+    recruits: [{ z: 20, x: 0, n: 5 }],
+  });
+  const run = driveTo(runAt(def, 0), 21);
+  assert.deepEqual(run.events.map((e) => e.type), ['gate', 'hit', 'recruit']);
+  assert.equal(run.count, 20 - 10 + 5);
+});
+
+test('a moving saw slides across the track; where it is when the crowd crosses decides the loss', () => {
+  const saw = { z: 30, kind: 'saw', x0: -0.25, x1: 0.25, A: 0.6, omega: 2, phi: 0 };
+  const t = R.crossTime(30);
+  assert.equal(t, 150 / HZ, 'the crowd crosses 30 m on tick 150');
+  const [x0, x1] = R.obstacleSpan(saw, t);
+  const shift = 0.6 * Math.sin(2 * t);
+  assert.ok(Math.abs(x0 + 0.25 - shift) < 1e-12 && Math.abs(x1 - 0.25 - shift) < 1e-12);
+  assert.deepEqual(R.obstacleSpan({ x0: -1, x1: 0 }, 5), [-1, 0], 'a fixed obstacle stays put');
+  const def = level({ obstacles: [saw] });
+  const centre = (x0 + x1) / 2;
+  const under = driveTo(runAt(def, centre), 31);
+  assert.ok(under.count < 10, 'right under the saw: soldiers are lost');
+  const away = driveTo(runAt(def, centre > 0 ? -0.6 : 0.6), 31);
+  assert.equal(away.count, 10, 'where the saw is not: nobody is lost');
+  assert.equal(R.parseLevel(def).obstacles[0].A, 0.6, 'parseLevel keeps the motion');
+});
+
+test('pilotTarget: dodges a moving saw where it will be, and picks up recruits (or leaves them for the worst)', () => {
+  const saw = { z: 30, kind: 'saw', x0: -0.25, x1: 0.25, A: 0.6, omega: 2, phi: 0 };
+  const run = runAt(level({ obstacles: [saw] }));
+  const [x0, x1] = R.obstacleSpan(saw, R.crossTime(30));
+  const goal = R.pilotTarget(run, 'best');
+  assert.equal(R.spanOverlap(goal, run.count, x0, x1), 0, 'the crowd will clear the saw');
+  const rec = runAt(level({ recruits: [{ z: 20, x: -0.6, n: 5 }] }));
+  assert.equal(R.pilotTarget(rec, 'best'), -0.6);
+  assert.equal(R.pilotTarget(rec, 'worst'), 1);
+});
+
+test('generated levels bring recruits from level 4 and moving saws from level 8, never before', () => {
+  const has = (n, f) => f(R.levelDef(n));
+  const recruits = (d) => d.recruits.length > 0;
+  const moving = (d) => d.obstacles.some((o) => o.A > 0);
+  for (let n = 1; n <= 3; n++) assert.ok(!has(n, recruits) && !has(n, moving), `level ${n}`);
+  for (let n = 4; n <= 7; n++) assert.ok(!has(n, moving), `level ${n}`);
+  const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  assert.ok(range(4, 10).filter((n) => has(n, recruits)).length >= 3);
+  assert.ok(range(8, 30).filter((n) => has(n, moving)).length >= 15);
+  for (const n of range(8, 45)) {
+    for (const o of R.levelDef(n).obstacles.filter((x) => x.A)) {
+      assert.ok(o.x0 - o.A >= -1 - 1e-9 && o.x1 + o.A <= 1 + 1e-9, `level ${n}: a saw stays on the track`);
+    }
+  }
 });
 
 test('enemyPower grows 8% a level from 1 and is capped at 9.9; levels use it', () => {

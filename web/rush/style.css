@@ -73,6 +73,10 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
   border-left: 0; border-top-color: transparent; border-bottom-color: transparent; border-radius: 0 50% 50% 0;
 }
 .sound.off { color: var(--dim); }
+.pause-btn { width: 38px; padding: 0; display: inline-grid; place-items: center; }
+.pause-ico { width: 12px; height: 14px; display: inline-block; border-left: 4px solid currentColor; border-right: 4px solid currentColor; }
+.star { width: 14px; height: 14px; display: inline-block; flex: none; background: rgba(0, 0, 0, .35); clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+.star.on { background: var(--gold); }
 .sound.off .speaker::after { border: 0; width: 2px; height: 16px; top: -1px; left: 8px; background: var(--bad); border-radius: 1px; transform: rotate(45deg); }
 
 /* ───── Stage ───── */
@@ -83,8 +87,9 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 }
 .stage canvas:focus { outline: none; }
 .stage.dim canvas { filter: brightness(.6) saturate(.85); }
+/* The tip sits under the duel bar the canvas draws at the top. */
 .tip {
-  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); margin: 0; max-width: calc(100% - 24px);
+  position: absolute; left: 50%; top: 42px; transform: translateX(-50%); margin: 0; max-width: calc(100% - 24px);
   padding: 6px 14px; border-radius: 999px; background: rgba(8, 22, 38, .82); border: 1px solid var(--accent-deep);
   color: #d9ffe6; font-weight: 700; font-size: 14px; text-align: center; pointer-events: none; z-index: 1;
   animation: tip-in .4s ease-out;
@@ -153,6 +158,8 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 .lvl-btn:hover:not(:disabled) { border-color: var(--accent); }
 .lvl-btn.done { background: linear-gradient(#2c6a4a, var(--panel-2)); }
 .lvl-btn.done small { color: var(--good); }
+.lvl-btn .stars { display: flex; gap: 1px; }
+.lvl-btn .star { width: 11px; height: 11px; }
 .lvl-btn.boss { border-color: #b8504a; }
 .lvl-btn.current { box-shadow: 0 0 0 2px var(--accent); }
 .lvl-btn.locked { cursor: default; opacity: .5; }
@@ -167,6 +174,12 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 .res-coins { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 0 4px; font: 800 30px/1.1 var(--font); color: var(--gold); }
 .res-coins .coin { width: 26px; height: 26px; }
 .res-hint { color: var(--accent); font-weight: 700; margin: 6px 0 0; }
+.res-stars { display: flex; justify-content: center; gap: 8px; margin: 4px 0 8px; }
+.res-stars .star { width: 38px; height: 38px; }
+.res-stars.reveal .star { animation: star-in .35s ease-out backwards; }
+.res-stars.reveal .star:nth-child(2) { animation-delay: .2s; }
+.res-stars.reveal .star:nth-child(3) { animation-delay: .4s; }
+@keyframes star-in { from { opacity: 0; transform: scale(2.2) rotate(-30deg); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 420px) {
   .app { padding-left: 6px; padding-right: 6px; }
@@ -176,12 +189,13 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
   .hud-stat { padding: 2px 6px; font-size: 14px; }
   .track-bar { min-width: 28px; }
   .sound { width: 34px; }
-  .tip { font-size: 13px; padding: 5px 12px; top: 10px; }
+  .tip { font-size: 13px; padding: 5px 12px; top: 40px; }
+  .pause-btn { width: 34px; }
   .level-grid { gap: 6px; }
   .panel { padding: 16px 12px; }
   .upg { padding: 8px 10px; }
   .upg .buy { min-width: 80px; padding: 8px 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .panel, .tip, .upg.bought { animation: none; }
+  .panel, .tip, .upg.bought, .res-stars.reveal .star { animation: none; }
 }

@@ -15,6 +15,10 @@ I18n.add({ ro: {
   'Уровни': 'Niveluri',
   'Звук: вкл': 'Sunet: pornit',
   'Звук: выкл': 'Sunet: oprit',
+  'Подсказка': 'Indiciu',
+  'Подсказка (H)': 'Indiciu (H)',
+  'Ускорить': 'Accelerează',
+  'Ускорить (F)': 'Accelerează (F)',
 
   // ── Menu ──
   'Вытаскивай штифты в нужном порядке. Золото должно упасть к герою, а лава и враги не должны до него добраться.':
@@ -25,6 +29,10 @@ I18n.add({ ro: {
   'Потяни штифт за кольцо в сторону кольца или просто нажми на него.': 'Trage știftul de inel spre partea inelului sau doar apasă pe el.',
   'Золото падает и тонет в воде. Лава сжигает золото и врагов.': 'Aurul cade și se scufundă în apă. Lava arde aurul și dușmanii.',
   'Вода и лава вместе превращаются в камень.': 'Apa și lava împreună se transformă în piatră.',
+  'Ядовитый газ поднимается вверх, душит врагов и героя, а лава его сжигает.':
+    'Gazul otrăvitor urcă în sus, sufocă dușmanii și eroul, iar lava îl arde.',
+  'Бочка с порохом взрывается от лавы: взрыв пробивает камень и задевает всех рядом.':
+    'Butoiul cu praf de pușcă explodează de la lavă: explozia sparge piatra și îi lovește pe toți din jur.',
   'Победа, когда в комнате героя достаточно золота и путь к выходу свободен.':
     'Câștigi când în camera eroului e destul aur și drumul spre ieșire e liber.',
   '★ за победу, ещё ★ если все враги повержены и ★ за полтора запаса золота.':
@@ -32,12 +40,18 @@ I18n.add({ ro: {
   'Клавиши:': 'Taste:',
   'штифты,': 'știfturile,',
   'заново.': 'de la capăt.',
+  'заново,': 'de la capăt,',
+  'подсказка,': 'indiciu,',
+  'ускорение.': 'accelerare.',
 
   // ── Level select ──
   'Назад': 'Înapoi',
   'Звёзд: {n} из {total}': 'Stele: {n} din {total}',
   'Уровень {n}, звёзды: {s} из 3': 'Nivelul {n}, stele: {s} din 3',
   'Уровень {n} закрыт': 'Nivelul {n} e blocat',
+  'Подземелье': 'Subteranul',
+  'Ядовитый газ': 'Gaz otrăvitor',
+  'Пороховые бочки': 'Butoaie cu praf de pușcă',
 
   // ── Tips for the teaching levels ──
   'Потяни штифт, чтобы золото упало к герою': 'Trage un știft ca aurul să cadă la erou',
@@ -45,12 +59,21 @@ I18n.add({ ro: {
   'Лава сжигает золото. Успей уронить его раньше': 'Lava arde aurul. Lasă-l să cadă înainte de ea',
   'Сожги врага лавой, пока он не добрался до героя': 'Arde dușmanul cu lavă până nu ajunge la erou',
   'Вода и лава вместе дают камень': 'Apa și lava împreună fac piatră',
+  'Газ поднимается вверх и душит врагов': 'Gazul urcă în sus și sufocă dușmanii',
+  'Лава взрывает бочку, а взрыв пробивает камень': 'Lava aruncă butoiul în aer, iar explozia sparge piatra',
+
+  // ── Hint ──
+  'Так уже не выйти. Начни заново': 'Așa nu se mai poate. Începe de la capăt',
+  'Всё получится, просто подожди': 'Totul va ieși, doar așteaptă',
 
   // ── Result ──
   'Уровень пройден!': 'Nivel trecut!',
   'Неудача': 'Eșec',
   'Лава добралась до героя': 'Lava a ajuns la erou',
   'Лава преградила путь к выходу': 'Lava a blocat drumul spre ieșire',
+  'Газ отравил героя': 'Gazul l-a otrăvit pe erou',
+  'Газ преградил путь к выходу': 'Gazul a blocat drumul spre ieșire',
+  'Героя задело взрывом': 'Eroul a fost prins de explozie',
   'Враг добрался до героя': 'Dușmanul a ajuns la erou',
   'Золота не хватило': 'Aurul nu a ajuns',
   'Звёзды: {n} из 3': 'Stele: {n} din 3',

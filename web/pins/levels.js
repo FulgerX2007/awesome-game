@@ -1,5 +1,5 @@
-// Тяни штифт — the 30 levels. A level is written compactly as the chambers carved out of solid rock plus
-// pins, fills and entities; make() turns it into the definition PinsCore.buildLevel() takes, with the walls
+// Тяни штифт — the 42 levels in three chapters. A level is written compactly as the chambers carved out of solid rock
+// plus pins, fills and entities; make() turns it into the definition PinsCore.buildLevel() takes, with the walls
 // as rectangles covering everything that is not carved. Every level is checked by the solver in the tests.
 (function (root) {
   'use strict';
@@ -45,7 +45,7 @@
   //   open:    [[x, y, w, h]]                       chambers (everything else is rock)
   //   pins:    [[id, x, y, w, h, handle]]           pins are carved too, and so is the cell of each handle
   //                                                (a pocket in the rock, so pulling a pin opens nothing else)
-  //   fills:   [[type, x, y, w, h]]
+  //   fills:   [[type, x, y, w, h]]                type: gold, water, lava, gas or bomb (a powder keg)
   //   hero:    [x, y], enemies: [[x, y]]            3×5 boxes, (x, y) is the top-left cell
   //   room:    [x, y, w, h], exit: [x, y]           the exit door is 3×5 too
   function make(src) {
@@ -319,11 +319,124 @@
         ['water', 23, 10, 9, 11]],
       hero: [26, 48], enemies: [[4, 27]], room: [2, 33, 32, 20], exit: [3, 48], goldTarget: 42,
     },
+    // 31. Gas rises: let it up beside the enemy, then drop the gold.
+    {
+      open: [[3, 14, 14, 18], [17, 19, 3, 3], [20, 16, 9, 6], [23, 23, 6, 7], [2, 33, 16, 20]],
+      pins: [[1, 23, 22, 6, 1, 'right'], [2, 3, 32, 14, 1, 'left']],
+      fills: [['gold', 3, 24, 14, 8], ['gas', 23, 25, 6, 5]],
+      hero: [3, 48], enemies: [[20, 17]], room: [2, 33, 16, 20], exit: [14, 48], goldTarget: 70,
+    },
+    // 32. Gas bubbles up through water: open the water tank from either side, then drop the gold.
+    {
+      open: [[3, 14, 14, 18], [17, 19, 3, 3], [20, 16, 9, 6], [23, 23, 6, 3], [23, 27, 6, 4], [2, 33, 16, 20]],
+      pins: [[1, 23, 22, 6, 1, 'right'], [2, 23, 26, 6, 1, 'right'], [3, 3, 32, 14, 1, 'left']],
+      fills: [['gold', 3, 24, 14, 8], ['water', 23, 23, 6, 3], ['gas', 23, 27, 6, 4]],
+      hero: [3, 48], enemies: [[20, 17]], room: [2, 33, 16, 20], exit: [14, 48], goldTarget: 70,
+    },
+    // 33. A low corridor: gas let into it reaches the hero's head. Gas belongs to the enemy.
+    {
+      open: [[6, 20, 10, 14], [16, 22, 3, 3], [19, 20, 9, 6], [22, 27, 6, 6], [6, 35, 10, 12], [2, 47, 26, 6],
+        [29, 47, 5, 6]],
+      pins: [[1, 22, 26, 6, 1, 'right'], [2, 6, 34, 10, 1, 'left'], [3, 28, 47, 1, 6, 'top']],
+      fills: [['gold', 6, 26, 10, 8], ['gas', 22, 28, 6, 5], ['gas', 29, 47, 5, 3]],
+      hero: [22, 48], enemies: [[19, 21]], room: [2, 47, 26, 6], exit: [3, 48], goldTarget: 40,
+    },
+    // 34. Lava would burn the enemy and then the gold next door; gas from below kills it cleanly.
+    {
+      open: [[3, 14, 14, 18], [17, 26, 3, 3], [20, 20, 9, 9], [20, 12, 9, 7], [23, 30, 6, 3], [2, 33, 16, 20]],
+      pins: [[1, 20, 19, 9, 1, 'right'], [2, 23, 29, 6, 1, 'right'], [3, 3, 32, 14, 1, 'left']],
+      fills: [['gold', 3, 24, 14, 8], ['lava', 20, 15, 9, 4], ['gas', 23, 30, 6, 3]],
+      hero: [3, 48], enemies: [[20, 24]], room: [2, 33, 16, 20], exit: [14, 48], goldTarget: 70,
+    },
+    // 35. Two enemies, a gas tank under each; the third gas tank opens into the corridor.
+    {
+      open: [[13, 18, 10, 15], [13, 34, 10, 13], [2, 47, 27, 6], [30, 47, 4, 6],
+        [4, 20, 6, 6], [10, 22, 3, 3], [7, 27, 3, 5], [26, 20, 6, 6], [23, 22, 3, 3], [26, 27, 3, 5]],
+      pins: [[1, 7, 26, 3, 1, 'right'], [2, 26, 26, 3, 1, 'left'], [3, 13, 33, 10, 1, 'left'],
+        [4, 29, 47, 1, 6, 'top']],
+      fills: [['gold', 13, 25, 10, 8], ['gas', 30, 47, 4, 3], ['gas', 7, 27, 3, 5], ['gas', 26, 27, 3, 5]],
+      hero: [24, 48], enemies: [[4, 21], [29, 21]], room: [2, 47, 27, 6], exit: [2, 48], goldTarget: 40,
+    },
+    // 36. Gas for the enemy, water for the lava strip on the long pin; lava over the gold stays shut.
+    {
+      open: [[3, 14, 10, 18], [3, 6, 10, 7], [15, 24, 10, 8], [15, 10, 10, 13], [25, 9, 2, 3], [27, 8, 7, 6],
+        [30, 15, 4, 5], [2, 33, 30, 20]],
+      pins: [[1, 30, 14, 4, 1, 'right'], [2, 15, 23, 10, 1, 'right'], [3, 3, 32, 22, 1, 'left'],
+        [4, 3, 13, 10, 1, 'left']],
+      fills: [['gold', 3, 24, 10, 8], ['lava', 3, 9, 10, 4], ['lava', 15, 31, 10, 1], ['water', 15, 13, 10, 10],
+        ['gas', 30, 15, 4, 5]],
+      hero: [27, 48], enemies: [[27, 9]], room: [2, 33, 30, 20], exit: [3, 48], goldTarget: 45,
+    },
+    // 37. A keg under the gold: lava sets it off and the blast opens the gold chamber. Water would spoil it.
+    {
+      open: [[8, 14, 8, 10], [9, 24, 7, 1], [10, 25, 6, 1], [11, 26, 5, 1], [12, 27, 4, 1], [13, 28, 3, 3],
+        [17, 4, 2, 29], [20, 14, 9, 8], [2, 34, 30, 19]],
+      pins: [[1, 17, 10, 2, 1, 'left'], [2, 19, 18, 1, 4, 'top']],
+      fills: [['gold', 8, 16, 8, 8], ['lava', 17, 5, 2, 3], ['bomb', 17, 31, 2, 2], ['water', 20, 18, 9, 4]],
+      hero: [26, 48], room: [2, 34, 30, 19], exit: [29, 48], goldTarget: 36,
+    },
+    // 38. Two kegs: one blows up the enemy, the other one hangs over the hero.
+    {
+      open: [[13, 20, 10, 12], [13, 33, 10, 14], [2, 47, 30, 6], [23, 21, 3, 3], [26, 20, 7, 8], [27, 14, 2, 5],
+        [3, 36, 2, 4], [3, 41, 2, 5]],
+      pins: [[1, 27, 19, 2, 1, 'right'], [2, 3, 40, 2, 1, 'right'], [3, 13, 32, 10, 1, 'right']],
+      fills: [['gold', 13, 24, 10, 8], ['lava', 27, 16, 2, 3], ['bomb', 27, 20, 2, 2], ['lava', 3, 37, 2, 3],
+        ['bomb', 3, 44, 2, 2]],
+      hero: [3, 48], enemies: [[29, 23]], room: [2, 47, 30, 6], exit: [28, 48], goldTarget: 40,
+    },
+    // 39. A chain of kegs runs from the shaft to the sealed gold chamber. Water spoils the fuse, lava over the gold
+    //     burns it.
+    {
+      open: [[3, 14, 9, 10], [4, 24, 7, 1], [5, 25, 5, 1], [6, 26, 3, 3], [30, 4, 2, 24], [24, 10, 5, 6],
+        [3, 6, 9, 7], [2, 34, 32, 19],
+        [6, 30, 2, 2], [11, 30, 2, 2], [16, 30, 2, 2], [21, 30, 2, 2], [26, 30, 2, 2], [30, 28, 2, 2]],
+      pins: [[1, 30, 8, 2, 1, 'left'], [2, 29, 12, 1, 4, 'top'], [3, 3, 13, 9, 1, 'right']],
+      fills: [['gold', 3, 16, 9, 8], ['lava', 30, 5, 2, 3], ['water', 24, 12, 5, 4], ['lava', 3, 9, 9, 4],
+        ['bomb', 6, 30, 2, 2], ['bomb', 11, 30, 2, 2], ['bomb', 16, 30, 2, 2], ['bomb', 21, 30, 2, 2],
+        ['bomb', 26, 30, 2, 2], ['bomb', 30, 28, 2, 2]],
+      hero: [28, 48], room: [2, 34, 32, 19], exit: [3, 48], goldTarget: 30,
+    },
+    // 40. Lava for the left enemy, a keg for the right one; the right chamber's floor is a trap while it lives.
+    {
+      open: [[12, 14, 12, 18], [3, 14, 6, 18], [9, 14, 3, 3], [3, 4, 6, 9], [27, 14, 6, 8], [24, 14, 3, 3],
+        [27, 9, 2, 4], [27, 23, 6, 10], [2, 33, 32, 20]],
+      pins: [[1, 3, 13, 6, 1, 'left'], [2, 27, 13, 2, 1, 'right'], [3, 27, 22, 6, 1, 'right'],
+        [4, 12, 32, 12, 1, 'left']],
+      fills: [['gold', 12, 24, 12, 8], ['lava', 3, 8, 6, 5], ['lava', 27, 10, 2, 3], ['bomb', 27, 15, 2, 2]],
+      hero: [16, 48], enemies: [[3, 27], [30, 17]], room: [2, 33, 32, 20], exit: [30, 48], goldTarget: 60,
+    },
+    // 41. Gas for the enemy over the gold, then the keg; water in the shaft spoils it.
+    {
+      open: [[8, 14, 8, 10], [9, 24, 7, 1], [10, 25, 6, 1], [11, 26, 5, 1], [12, 27, 4, 1], [13, 28, 3, 3],
+        [3, 6, 13, 7], [12, 13, 3, 1], [3, 14, 4, 6], [17, 4, 2, 29], [20, 14, 9, 8], [2, 34, 30, 19]],
+      pins: [[1, 3, 13, 4, 1, 'left'], [2, 17, 10, 2, 1, 'right'], [3, 19, 18, 1, 4, 'top']],
+      fills: [['gold', 8, 16, 8, 8], ['gas', 3, 15, 4, 5], ['lava', 17, 5, 2, 3], ['bomb', 17, 31, 2, 2],
+        ['water', 20, 18, 9, 4]],
+      hero: [27, 48], enemies: [[7, 8]], room: [2, 34, 30, 19], exit: [3, 48], goldTarget: 36,
+    },
+    // 42. Everything at once: a keg for the enemy over the gold, gas for the other one, water for the lava strip
+    //     on the long pin — and a drain that wastes the water.
+    {
+      open: [[3, 14, 10, 18], [3, 4, 10, 8], [5, 12, 2, 2], [4, 1, 2, 2], [15, 24, 10, 8], [15, 10, 10, 13],
+        [25, 9, 2, 3], [27, 8, 7, 6], [30, 15, 4, 3], [26, 19, 8, 13], [2, 33, 30, 20]],
+      pins: [[1, 30, 14, 4, 1, 'right'], [2, 15, 23, 10, 1, 'left'], [3, 4, 3, 2, 1, 'left'], [4, 3, 32, 22, 1, 'left'],
+        [5, 25, 19, 1, 4, 'top']],
+      fills: [['gold', 3, 24, 10, 8], ['lava', 4, 1, 2, 2], ['bomb', 4, 4, 2, 2], ['lava', 15, 31, 10, 1],
+        ['water', 15, 17, 10, 6], ['gas', 30, 15, 4, 3]],
+      hero: [27, 48], enemies: [[8, 7], [27, 9]], room: [2, 33, 30, 20], exit: [3, 48], goldTarget: 45,
+    },
   ];
 
   const LEVELS = SRC.map(make);
 
-  const api = { LEVELS, SRC, make, rock };
+  // Chapters of the level select: the first level (0-based) of each and its title (a Russian source string).
+  const CHAPTERS = [
+    { from: 0, title: 'Подземелье' },
+    { from: 30, title: 'Ядовитый газ' },
+    { from: 36, title: 'Пороховые бочки' },
+  ];
+
+  const api = { LEVELS, SRC, CHAPTERS, make, rock };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PinsLevels = api;
 })(typeof window !== 'undefined' ? window : globalThis);
