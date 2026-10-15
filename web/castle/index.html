@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1610">
+<title>Последняя крепость</title>
+<meta name="description" content="Оборона крепости: стреляй из лука со стены по волнам монстров, выбирай улучшения между волнами и чини стену.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Последняя крепость</h1>
+    <div class="top-actions" id="top-actions"></div>
+  </header>
+
+  <div class="hud" id="hud" hidden>
+    <span class="hud-wave" id="hud-wave">Волна 1</span>
+    <span class="wall-bar" id="wall-bar" title="Стена"><i id="wall-fill"></i><b id="wall-text">100</b></span>
+    <span class="pill gold" id="hud-gold" title="Золото">0</span>
+    <span class="pill ward" id="hud-ward" title="Оберег от летунов">1</span>
+    <span class="spacer"></span>
+    <button class="chip pause-btn" id="btn-pause" type="button" title="P" aria-label="Пауза"><i class="pause-ico" aria-hidden="true"></i><span id="pause-label">Пауза</span></button>
+    <button class="chip sound" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук: вкл" title="Звук: вкл"><i class="speaker" aria-hidden="true"></i></button>
+  </div>
+
+  <main class="stage" id="stage">
+    <canvas id="field" tabindex="0" aria-label="Поле боя: потяни назад, чтобы целиться, и держи, чтобы стрелять"></canvas>
+    <p class="tip" id="tip" hidden></p>
+
+    <section class="screen" id="menu" aria-labelledby="menu-title">
+      <div class="panel">
+        <h2 id="menu-title">Последняя крепость</h2>
+        <p class="lead">Монстры идут к стене. Ты — последний лучник. Держись.</p>
+        <div class="stack">
+          <button class="btn primary big" id="btn-campaign" type="button">Кампания</button>
+          <button class="btn" id="btn-endless" type="button">Бесконечный режим</button>
+          <button class="btn" id="btn-sound-menu" type="button" aria-pressed="true">Звук: вкл</button>
+        </div>
+        <p class="records" id="records"></p>
+        <details class="rules">
+          <summary>Как играть</summary>
+          <ul>
+            <li>Потяни назад от любой точки поля — стрела полетит в другую сторону. Чем длиннее оттяжка, тем дальше выстрел.</li>
+            <li>Пока держишь — лук стреляет сам. Пунктир показывает полёт стрелы.</li>
+            <li>Щитоносцы прикрыты спереди: издалека бей навесом сверху.</li>
+            <li>Нетопыри летят к лучнику: оберег сбивает одного за волну.</li>
+            <li>Между волнами выбери одно улучшение и почини стену за золото.</li>
+            <li>Клавиши: стрелки — угол и сила, <kbd>Пробел</kbd> — стрелять, <kbd>P</kbd> — пауза, <kbd>Esc</kbd> — меню.</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <section class="screen" id="confirm" hidden aria-labelledby="confirm-title">
+      <div class="panel">
+        <h2 id="confirm-title">Начать заново?</h2>
+        <p class="lead">Текущий забег пропадёт.</p>
+        <div class="row">
+          <button class="btn" id="btn-confirm-no" type="button">Нет</button>
+          <button class="btn primary" id="btn-confirm-yes" type="button">Да, начать</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="between" hidden aria-labelledby="between-title">
+      <div class="panel wide">
+        <h2 id="between-title">Волна отбита!</h2>
+        <p class="lead" id="between-lead"></p>
+        <h3 class="sub" id="cards-title">Выбери улучшение</h3>
+        <div class="cards" id="cards"></div>
+        <h3 class="sub">Стена</h3>
+        <div class="shop">
+          <button class="btn" id="btn-repair" type="button"></button>
+          <button class="btn" id="btn-fortify" type="button"></button>
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-between-menu" type="button">Меню</button>
+          <button class="btn primary big" id="btn-fight" type="button">В бой</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="result" hidden aria-labelledby="res-title" aria-live="polite">
+      <div class="panel">
+        <h2 id="res-title"></h2>
+        <p class="res-main" id="res-main"></p>
+        <p class="res-note" id="res-note"></p>
+        <form class="submit" id="submit" hidden>
+          <label for="name">Имя для таблицы рекордов</label>
+          <div class="row tight">
+            <input id="name" maxlength="16" autocomplete="nickname" placeholder="Аноним">
+            <button class="btn primary" id="btn-submit" type="submit">Отправить</button>
+          </div>
+          <p class="submit-status" id="submit-status" aria-live="polite"></p>
+        </form>
+        <div class="row">
+          <button class="btn" id="btn-res-menu" type="button">Меню</button>
+          <button class="btn primary" id="btn-again" type="button">Ещё раз</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen pause" id="pause" hidden aria-labelledby="pause-title">
+      <div class="panel">
+        <h2 id="pause-title">Пауза</h2>
+        <div class="row">
+          <button class="btn" id="btn-pause-menu" type="button">Меню</button>
+          <button class="btn primary" id="btn-resume" type="button">Продолжить</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="view.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
