@@ -8,7 +8,6 @@
   const { clamp } = V;
   const $ = (id) => document.getElementById(id);
   const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
-  const rrect = (g, x, y, w, h, r) => (g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h));
 
   // Storage access itself may throw (blocked site data); core's save functions tolerate a null storage.
   let storage = null;
@@ -34,11 +33,11 @@
   const SOLDIER = 0.72;      // figure size, in metres-ish units of the projection's scale
   const DRAG_GAIN = 1.4;    // a finger drag across the track's width moves the crowd 1.4× as far
   const COL = {
-    skyTop: [82, 170, 238], skyLow: [206, 238, 255],
-    waterNear: [24, 92, 170], waterFar: [70, 165, 228],
-    trackA: [233, 238, 247], trackB: [214, 222, 236], arenaA: [247, 220, 214], arenaB: [236, 202, 196],
-    side: [96, 112, 140], good: [47, 211, 106], bad: [255, 75, 75],
+    trackA: [240, 243, 251], trackB: [224, 230, 244], arenaA: [250, 224, 216], arenaB: [240, 206, 198],
+    side: [92, 104, 168], sideLit: [120, 136, 200], sideDark: [62, 70, 128], trim: [255, 214, 92],
+    curbA: [236, 64, 64], curbB: [250, 250, 255],
   };
+  const FOG = [214, 234, 248]; // the haze far things melt into
   const rgb = (c, a) => (a === undefined ? `rgb(${c[0]}, ${c[1]}, ${c[2]})` : `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`);
   const mix = (a, b, f) => [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * f));
   const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -101,7 +100,6 @@
   let floats = [];
   let pops = new Map();     // gate z → { side, t }: the panel the crowd went through bursts
   let joined = new Map();   // recruits z → { taken, t }: recruits the crowd has passed
-  let shake = 0;
   let soldiers = [];        // eased positions of the drawn soldiers { dx, dy }
   let layoutKey = '';
   let layout = [];
@@ -130,9 +128,32 @@
     canvas.height = Math.round(h * ratio);
   }
 
-  const P = (x, z, camZ, h) => V.project(x, z, camZ, vp, h);
+  // ───────────── Art kit, camera and baked layers ─────────────
+  // Everything below only draws. The camera's drift (camX), roll, zoom and shake move the picture, never the
+  // input: a pointer still maps to the track through V.unproject, exactly as before.
+  const Fx = window.Fx;
+  const WATER_H = -1.15;    // the sea, metres below the track's surface
+  const SKIRT = 0.3;        // the slab widens this much (track units) down to the sea, so its sides show
+  const TRIM = 0.3;         // metres: the bright trim under the track's rim
+  const RAIL = 0.2;         // the curbs stand this high (m)
+  const RAIL_W = 0.055;     // and are this wide (track units)
+  const GOOD = '#22cf63';
+  const BAD = '#ff4545';
+  let camX = 0;
+  let camRoll = 0;
+  let lastCrowdX = 0;
+  let flash = null;         // { color, t }: a gate's flash over the scene
+  let endT = -1;            // seconds since a won battle ended (confetti, rays, push-in), -1 while not
+  let endBurst = false;     // the confetti of this win has been thrown
+  let loseT = 0;            // seconds the run has been lost (red grade, pull-out)
+  const shakeFx = new Fx.Shake(10, 1.8);
+  const confetti = new Fx.Particles(160);
+
+  const P = (x, z, camZ, h) => V.project(x - camX, z, camZ, vp, h);
   // Objects fade in at the far end and fade out as they come between the camera and the crowd.
   const fade = (d) => clamp((d - 1.2) / 3.3, 0, 1) * clamp((V.FAR - d) / 30, 0, 1);
+  const fogK = (d) => clamp((d - 40) / 120, 0, 1) * 0.75;
+  const fogged = (c, d) => rgb(mix(c, FOG, fogK(d)));
 
   function poly(pts) {
     ctx.beginPath();
@@ -140,73 +161,160 @@
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].sx, pts[i].sy);
     ctx.closePath();
   }
+  const quad = (pts) => { if (pts.every(Boolean)) { poly(pts); return true; } return false; };
+
+  function layer(w, h) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w));
+    c.height = Math.max(1, Math.round(h));
+    return c;
+  }
+
+  // Sky, sun, far islands, sea and the horizon haze: baked once per canvas size.
+  let backdrop = null;
+  let haze = null;
+  let backdropKey = '';
+  function bakeBackdrop() {
+    const key = `${vp.w}|${vp.h}|${dpr}`;
+    if (key === backdropKey) return;
+    backdropKey = key;
+    const W = vp.w;
+    const H = vp.h;
+    const hy = V.horizonY(vp);
+    const c = layer(W * dpr, H * dpr);
+    const g = c.getContext('2d');
+    g.scale(dpr, dpr);
+    let gr = g.createLinearGradient(0, 0, 0, hy);
+    gr.addColorStop(0, '#3a86dc');
+    gr.addColorStop(0.5, '#86c3f0');
+    gr.addColorStop(1, '#e2f2fc');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, W, hy + 2);
+    // The sun sits top left: the light every object in the scene is shaded with.
+    const sx = W * 0.16;
+    const sy = hy * 0.26;
+    gr = g.createRadialGradient(sx, sy, 0, sx, sy, Math.max(W, hy) * 0.75);
+    gr.addColorStop(0, 'rgba(255, 252, 232, 1)');
+    gr.addColorStop(0.06, 'rgba(255, 247, 212, .95)');
+    gr.addColorStop(0.22, 'rgba(255, 238, 196, .35)');
+    gr.addColorStop(1, 'rgba(255, 238, 196, 0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, W, hy);
+    // Far islands: a hazy back range and a nearer green one with a sandy rim.
+    const range = (amp, f1, f2, ph, top, low, lift) => {
+      g.beginPath();
+      g.moveTo(0, hy + 1);
+      for (let x = 0; x <= W + 8; x += 6) {
+        const u = x / W;
+        const bump = Math.max(0, Math.sin(u * f1 + ph)) * amp + Math.max(0, Math.sin(u * f2 + ph * 2.1)) * amp * 1.5;
+        g.lineTo(x, hy - (bump + lift) * Math.min(1, H / 640));
+      }
+      g.lineTo(W, hy + 1);
+      g.closePath();
+      const lg = g.createLinearGradient(0, hy - amp * 3, 0, hy);
+      lg.addColorStop(0, top);
+      lg.addColorStop(1, low);
+      g.fillStyle = lg;
+      g.fill();
+    };
+    range(9, 7.3, 3.1, 0.4, 'rgba(150, 190, 205, .75)', 'rgba(200, 228, 240, .9)', 0);
+    range(8, 9, 4.3, 1.3, 'rgba(70, 150, 112, .95)', 'rgba(150, 196, 180, .95)', -3);
+    // The sea: light at the horizon, deep blue at the bottom.
+    gr = g.createLinearGradient(0, hy, 0, H);
+    gr.addColorStop(0, '#9ad6f0');
+    gr.addColorStop(0.05, '#3fa6dd');
+    gr.addColorStop(0.35, '#1876c6');
+    gr.addColorStop(1, '#083f86');
+    g.fillStyle = gr;
+    g.fillRect(0, hy, W, H - hy);
+    // The sun's glitter path on the sea, under the sun.
+    g.save();
+    g.translate(sx, hy);
+    g.scale(1, 4.5);
+    gr = g.createRadialGradient(0, 0, 0, 0, 0, W * 0.32);
+    gr.addColorStop(0, 'rgba(255, 250, 225, .4)');
+    gr.addColorStop(1, 'rgba(255, 250, 225, 0)');
+    g.fillStyle = gr;
+    g.fillRect(-W * 0.32, 0, W * 0.64, W * 0.32);
+    g.restore();
+    backdrop = c;
+    // The haze over the horizon: drawn over the far track so it melts into the sea and the sky.
+    const hz = layer(4, 128);
+    const hg = hz.getContext('2d');
+    gr = hg.createLinearGradient(0, 0, 0, 128);
+    gr.addColorStop(0, 'rgba(226, 242, 252, 0)');
+    gr.addColorStop(0.45, 'rgba(226, 242, 252, .65)');
+    gr.addColorStop(1, 'rgba(226, 242, 252, 0)');
+    hg.fillStyle = gr;
+    hg.fillRect(0, 0, 4, 128);
+    haze = hz;
+  }
+
+  // A puffy cloud lit from the top left, baked once.
+  let cloud = null;
+  function cloudSprite() {
+    if (cloud) return cloud;
+    const c = layer(256, 112);
+    const g = c.getContext('2d');
+    const puffs = [[70, 70, 38], [112, 52, 46], [158, 60, 40], [196, 74, 30], [40, 80, 24], [130, 82, 36]];
+    g.fillStyle = '#ffffff';
+    for (const [x, y, r] of puffs) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+    g.globalCompositeOperation = 'source-atop';
+    const gr = g.createLinearGradient(0, 10, 0, 112);
+    gr.addColorStop(0, 'rgba(255, 255, 255, 0)');
+    gr.addColorStop(0.55, 'rgba(190, 214, 238, .25)');
+    gr.addColorStop(1, 'rgba(150, 180, 220, .7)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 256, 112);
+    const hl = g.createRadialGradient(90, 30, 4, 90, 30, 90);
+    hl.addColorStop(0, 'rgba(255, 250, 235, .6)');
+    hl.addColorStop(1, 'rgba(255, 250, 235, 0)');
+    g.fillStyle = hl;
+    g.fillRect(0, 0, 256, 112);
+    cloud = c;
+    return c;
+  }
 
   // ───────────── Backdrop ─────────────
   function drawSky() {
+    bakeBackdrop();
+    ctx.drawImage(backdrop, 0, 0, vp.w, vp.h);
     const hy = V.horizonY(vp);
-    const g = ctx.createLinearGradient(0, 0, 0, hy);
-    g.addColorStop(0, rgb(COL.skyTop));
-    g.addColorStop(1, rgb(COL.skyLow));
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, vp.w, hy + 1);
-    // Sun
-    const sx = vp.w * 0.8;
-    const sy = hy * 0.32;
-    const sun = ctx.createRadialGradient(sx, sy, 0, sx, sy, hy * 0.6);
-    sun.addColorStop(0, 'rgba(255, 252, 225, .95)');
-    sun.addColorStop(0.12, 'rgba(255, 246, 200, .8)');
-    sun.addColorStop(1, 'rgba(255, 246, 200, 0)');
-    ctx.fillStyle = sun;
-    ctx.fillRect(0, 0, vp.w, hy);
-    // Clouds drift slowly
-    ctx.fillStyle = 'rgba(255, 255, 255, .85)';
+    const cs = cloudSprite();
     for (let i = 0; i < 5; i++) {
-      const span = vp.w + 240;
-      const x = ((hash(i) * span + time * (6 + 4 * hash(i + 9))) % span) - 120;
-      const y = hy * (0.15 + 0.55 * hash(i + 3));
-      const s = (0.6 + hash(i + 5) * 0.7) * Math.min(1, vp.w / 400);
-      ctx.beginPath();
-      ctx.ellipse(x, y, 46 * s, 14 * s, 0, 0, Math.PI * 2);
-      ctx.ellipse(x - 22 * s, y + 3 * s, 26 * s, 11 * s, 0, 0, Math.PI * 2);
-      ctx.ellipse(x + 18 * s, y - 8 * s, 24 * s, 15 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
+      const span = vp.w + 300;
+      const x = ((hash(i) * span + time * (5 + 4 * hash(i + 9))) % span) - 150;
+      const y = hy * (0.12 + 0.52 * hash(i + 3));
+      const s = (0.45 + hash(i + 5) * 0.55) * Math.min(1, vp.w / 400) * (0.6 + 0.4 * (y / hy));
+      ctx.globalAlpha = 0.75 + 0.25 * (1 - y / hy);
+      ctx.drawImage(cs, x - 128 * s, y - 56 * s, 256 * s, 112 * s);
     }
-    // Far islands on the horizon
-    ctx.fillStyle = 'rgba(64, 140, 120, .55)';
-    ctx.beginPath();
-    ctx.moveTo(0, hy + 1);
-    for (let x = 0; x <= vp.w; x += 8) {
-      const u = x / vp.w;
-      const bump = Math.max(0, Math.sin(u * 9 + 1.3)) * 10 + Math.max(0, Math.sin(u * 4.3 + 4)) * 16;
-      ctx.lineTo(x, hy - bump * Math.min(1, vp.h / 640));
-    }
-    ctx.lineTo(vp.w, hy + 1);
-    ctx.fill();
+    ctx.globalAlpha = 1;
   }
 
   function drawWater(camZ) {
-    const hy = V.horizonY(vp);
-    const g = ctx.createLinearGradient(0, hy, 0, vp.h);
-    g.addColorStop(0, rgb(COL.waterFar));
-    g.addColorStop(1, rgb(COL.waterNear));
-    ctx.fillStyle = g;
-    ctx.fillRect(0, hy, vp.w, vp.h - hy);
-    // Shimmer dashes fixed to the world, so they stream past as the crowd runs
-    ctx.strokeStyle = 'rgba(220, 245, 255, .35)';
+    // Glints on the swell, fixed to the world so they stream past as the crowd runs.
     ctx.lineCap = 'round';
-    const z0 = Math.ceil((camZ + 2) / 5) * 5;
-    for (let z = z0; z < camZ + 90; z += 5) {
-      for (let k = 0; k < 5; k++) {
-        const x = -5 + 10 * hash(z * 0.37 + k * 7.1) + Math.sin(time * 0.8 + k + z) * 0.08;
-        const p = P(x, z, camZ);
+    ctx.strokeStyle = '#e6f7ff';
+    const z0 = Math.ceil((camZ + 2) / 4) * 4;
+    for (let z = z0; z < camZ + 110; z += 4) {
+      const d = z - camZ;
+      ctx.globalAlpha = 0.45 * clamp(1 - d / 110, 0, 1);
+      for (let k = 0; k < 6; k++) {
+        const x = -6 + 12 * hash(z * 0.37 + k * 7.1) + Math.sin(time * 0.8 + k + z) * 0.06;
+        if (Math.abs(x) < 1 + SKIRT) continue;
+        const p = P(x, z + hash(k + z) * 3, camZ, WATER_H);
         if (!p) continue;
-        ctx.lineWidth = Math.max(1, p.scale * 0.08);
+        const len = p.scale * (0.5 + 0.5 * Math.sin(time * 2 + k * 2 + z));
+        if (len < 0.5) continue;
+        ctx.lineWidth = Math.max(1, p.scale * 0.07);
         ctx.beginPath();
-        ctx.moveTo(p.sx - p.scale * 0.6, p.sy);
-        ctx.lineTo(p.sx + p.scale * 0.6, p.sy);
+        ctx.moveTo(p.sx - len, p.sy);
+        ctx.lineTo(p.sx + len, p.sy);
         ctx.stroke();
       }
     }
+    ctx.globalAlpha = 1;
   }
 
   // ───────────── Track ─────────────
@@ -226,35 +334,86 @@
     const zFrom = camZ + V.NEAR;
     const zTo = camZ + V.FAR;
     const pieces = trackPieces(L, zFrom, zTo).reverse();
+    const trimR = mix(COL.trim, [60, 40, 90], 0.3);
+    const lx0 = P(-1, camZ + 6, camZ).sx;
+    const lx1 = P(1, camZ + 6, camZ).sx;
+    const k = TRIM / -WATER_H;  // share of the skirt the trim takes
     for (const [s, e, start] of pieces) {
-      // Strips from far to near, cut at stripe boundaries
+      // The slab's shadow on the sea, cast to the right.
+      ctx.fillStyle = 'rgba(4, 28, 70, .3)';
+      if (quad([P(-0.7, s, camZ, WATER_H), P(1 + SKIRT + 0.45, s, camZ, WATER_H), P(1 + SKIRT + 0.45, e, camZ, WATER_H), P(-0.7, e, camZ, WATER_H)])) ctx.fill();
+      // Foam where the slab meets the sea
+      for (const sg of [-1, 1]) {
+        const xb = sg * (1 + SKIRT);
+        const f0 = P(xb, s, camZ, WATER_H);
+        const f1 = P(xb, e, camZ, WATER_H);
+        if (f0 && f1) {
+          ctx.strokeStyle = 'rgba(235, 250, 255, .55)';
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(f0.sx, f0.sy); ctx.lineTo(f1.sx, f1.sy); ctx.stroke();
+        }
+      }
+      // The surface, from far to near, cut at stripe boundaries
       let b = e;
       while (b > s) {
         const a = Math.max(s, (Math.ceil(b / STRIP) - 1) * STRIP);
-        const pa = [P(-1, a, camZ), P(1, a, camZ)];
-        const pb = [P(1, b, camZ), P(-1, b, camZ)];
         const idx = Math.floor((a + 0.01) / STRIP);
         const arena = a >= L.length;
         const base = arena ? (idx % 2 ? COL.arenaA : COL.arenaB) : (idx % 2 ? COL.trackA : COL.trackB);
-        const fog = clamp((b - camZ - 50) / 110, 0, 1) * 0.7;
-        ctx.fillStyle = rgb(mix(base, COL.skyLow, fog));
-        poly([pa[0], pa[1], pb[0], pb[1]]);
-        ctx.fill();
-        // Curbs and the centre line
-        const curb = idx % 2 ? '#e8463c' : '#ffffff';
-        for (const [x0, x1, col] of [[-1, -0.93, curb], [0.93, 1, curb], [-0.012, 0.012, idx % 2 ? 'rgba(120, 140, 175, .55)' : null]]) {
-          if (!col) continue;
-          ctx.fillStyle = col;
-          poly([P(x0, a, camZ), P(x1, a, camZ), P(x1, b, camZ), P(x0, b, camZ)]);
-          ctx.fill();
+        const d = b - camZ;
+        // The sloped sides down to the sea: a bright trim along the rim, then the body; the left one faces the light.
+        for (const sg of [-1, 1]) {
+          const xt = sg * (1 + SKIRT * k);
+          const xb = sg * (1 + SKIRT);
+          ctx.fillStyle = fogged(sg < 0 ? COL.trim : trimR, d);
+          quad([P(sg, a, camZ), P(sg, b, camZ), P(xt, b, camZ, -TRIM), P(xt, a, camZ, -TRIM)]) && ctx.fill();
+          ctx.fillStyle = fogged(sg < 0 ? COL.sideLit : COL.sideDark, d);
+          quad([P(xt, a, camZ, -TRIM), P(xt, b, camZ, -TRIM), P(xb, b, camZ, WATER_H), P(xb, a, camZ, WATER_H)]) && ctx.fill();
+          // a darker band near the waterline
+          ctx.fillStyle = 'rgba(10, 20, 70, .25)';
+          const xw = sg * (1 + SKIRT * 0.8);
+          quad([P(xw, a, camZ, WATER_H * 0.8), P(xw, b, camZ, WATER_H * 0.8), P(xb, b, camZ, WATER_H), P(xb, a, camZ, WATER_H)]) && ctx.fill();
+        }
+        if (d < 45) { // near stripes catch the light from the left
+          const lg = ctx.createLinearGradient(lx0, 0, lx1, 0);
+          lg.addColorStop(0, fogged(mix(base, [255, 250, 235], 0.5), d));
+          lg.addColorStop(0.5, fogged(base, d));
+          lg.addColorStop(1, fogged(mix(base, [60, 60, 120], 0.12), d));
+          ctx.fillStyle = lg;
+        } else ctx.fillStyle = fogged(base, d);
+        if (quad([P(-1, a, camZ), P(1, a, camZ), P(1, b, camZ), P(-1, b, camZ)])) ctx.fill();
+        // Tile seams: a thin darker line at the near edge of every stripe
+        if (d < 60) {
+          ctx.fillStyle = fogged(mix(base, [90, 100, 140], 0.25), d);
+          quad([P(-1, a, camZ), P(1, a, camZ), P(1, a + 0.08, camZ), P(-1, a + 0.08, camZ)]) && ctx.fill();
+        }
+        if (idx % 2) { // the centre dashes
+          ctx.fillStyle = fogged([168, 182, 210], d);
+          quad([P(-0.012, a + 0.6, camZ), P(0.012, a + 0.6, camZ), P(0.012, b - 0.6, camZ), P(-0.012, b - 0.6, camZ)]) && ctx.fill();
+        }
+        // Raised curbs: the inner face (towards the camera's middle) and the top, red and white
+        const curb = idx % 2 ? COL.curbA : COL.curbB;
+        for (const sg of [-1, 1]) {
+          const xo = sg;
+          const xi = sg * (1 - RAIL_W);
+          ctx.fillStyle = fogged(mix(curb, [30, 20, 70], sg < 0 ? 0.32 : 0.42), d);
+          quad([P(xi, a, camZ), P(xi, b, camZ), P(xi, b, camZ, RAIL), P(xi, a, camZ, RAIL)]) && ctx.fill();
+          ctx.fillStyle = fogged(mix(curb, [255, 252, 240], sg < 0 ? 0.18 : 0), d);
+          quad([P(xo, a, camZ, RAIL), P(xi, a, camZ, RAIL), P(xi, b, camZ, RAIL), P(xo, b, camZ, RAIL)]) && ctx.fill();
         }
         b = a;
       }
+      // Soft ambient occlusion next to the curbs and the light falling from the left
+      ctx.fillStyle = 'rgba(30, 30, 90, .09)';
+      for (const sg of [-1, 1]) {
+        quad([P(sg * (1 - RAIL_W), s, camZ), P(sg * (1 - RAIL_W * 2.6), s, camZ), P(sg * (1 - RAIL_W * 2.6), e, camZ), P(sg * (1 - RAIL_W), e, camZ)]) && ctx.fill();
+      }
       // The slab's front face where the track starts after a gap
       if (start === s && s > zFrom) {
-        ctx.fillStyle = rgb(COL.side);
-        poly([P(-1, s, camZ), P(1, s, camZ), P(1, s, camZ, -SLAB), P(-1, s, camZ, -SLAB)]);
-        ctx.fill();
+        ctx.fillStyle = fogged(COL.trim, s - camZ);
+        quad([P(-1, s, camZ), P(1, s, camZ), P(1 + SKIRT * k, s, camZ, -TRIM), P(-1 - SKIRT * k, s, camZ, -TRIM)]) && ctx.fill();
+        ctx.fillStyle = fogged(COL.side, s - camZ);
+        quad([P(-1 - SKIRT * k, s, camZ, -TRIM), P(1 + SKIRT * k, s, camZ, -TRIM), P(1 + SKIRT, s, camZ, WATER_H), P(-1 - SKIRT, s, camZ, WATER_H)]) && ctx.fill();
       }
     }
     // Start and finish lines: checkered bands
@@ -263,25 +422,100 @@
       const cols = 10;
       for (let r = 0; r < 2; r++) {
         for (let c = 0; c < cols; c++) {
-          ctx.fillStyle = (r + c) % 2 ? '#1d2230' : '#ffffff';
-          const x0 = -1 + (2 * c) / cols;
-          const x1 = x0 + 2 / cols;
+          ctx.fillStyle = fogged((r + c) % 2 ? [29, 34, 48] : [255, 255, 255], z - camZ);
+          const x0 = -1 + RAIL_W + ((2 - 2 * RAIL_W) * c) / cols;
+          const x1 = x0 + (2 - 2 * RAIL_W) / cols;
           const z0 = z + r * 0.8;
-          poly([P(x0, z0, camZ), P(x1, z0, camZ), P(x1, z0 + 0.8, camZ), P(x0, z0 + 0.8, camZ)]);
-          ctx.fill();
+          quad([P(x0, z0, camZ), P(x1, z0, camZ), P(x1, z0 + 0.8, camZ), P(x0, z0 + 0.8, camZ)]) && ctx.fill();
         }
       }
     }
+    // The horizon haze over the far end of the track
+    const hy = V.horizonY(vp);
+    ctx.drawImage(haze, -10, hy - 40, vp.w + 20, 90);
+  }
+
+  // ───────────── Volumes ─────────────
+  // A box standing on the track (x in track units, z and h in metres), lit from the top left: the top face is the
+  // brightest, the side that faces the light is lit, the other one is in shade, the front darkens to the ground.
+  // Returns the front face's screen rectangle { x, y, w, h, s } (null if it isn't drawn).
+  function box(x0, x1, z0, z1, h0, h1, camZ, color, o = {}) {
+    const A = P(x0, z0, camZ, h0);
+    const B = P(x1, z0, camZ, h0);
+    const D = P(x0, z0, camZ, h1);
+    const E = P(x0, z1, camZ, h1);
+    const F = P(x1, z1, camZ, h1);
+    if (!E || !F) return null;
+    if (camX < x0) {
+      ctx.fillStyle = Fx.shade(color, 0.08);
+      quad([A || P(x0, z0 + 0.7, camZ, h0), D || P(x0, z0 + 0.7, camZ, h1), E, P(x0, z1, camZ, h0)]) && ctx.fill();
+    }
+    if (camX > x1) {
+      ctx.fillStyle = Fx.shade(color, -0.32);
+      quad([B, P(x1, z0, camZ, h1), F, P(x1, z1, camZ, h0)]) && ctx.fill();
+    }
+    let rect = null;
+    if (A && B && D && o.front !== false) {
+      rect = { x: A.sx, y: D.sy, w: B.sx - A.sx, h: A.sy - D.sy, s: A.scale };
+      const g = ctx.createLinearGradient(0, D.sy, 0, A.sy);
+      g.addColorStop(0, Fx.shade(color, 0.06));
+      g.addColorStop(1, Fx.shade(color, -0.24));
+      ctx.fillStyle = g;
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      // a bevel of light along the top edge
+      ctx.fillStyle = 'rgba(255, 255, 255, .28)';
+      ctx.fillRect(rect.x, rect.y, rect.w, Math.max(0.6, Math.min(rect.h * 0.08, A.scale * 0.04)));
+    }
+    if (D || o.front === false) {
+      const Dt = D || P(x0, z0 + 0.7, camZ, h1);
+      const Ct = P(x1, z0, camZ, h1) || P(x1, z0 + 0.7, camZ, h1);
+      ctx.fillStyle = o.top || Fx.shade(color, 0.3);
+      quad([Dt, Ct, F, E]) && ctx.fill();
+    }
+    return rect;
+  }
+
+  // A soft shadow on the track: a darker core inside a fainter wider band.
+  function groundShadow(x0, x1, z0, z1, camZ, alpha, h = 0) {
+    ctx.fillStyle = `rgba(16, 20, 60, ${alpha * 0.5})`;
+    quad([P(x0 - 0.03, z0 - 0.15, camZ, h), P(x1 + 0.05, z0 - 0.15, camZ, h), P(x1 + 0.05, z1 + 0.3, camZ, h), P(x0 - 0.03, z1 + 0.3, camZ, h)]) && ctx.fill();
+    ctx.fillStyle = `rgba(16, 20, 60, ${alpha})`;
+    quad([P(x0, z0, camZ, h), P(x1, z0, camZ, h), P(x1, z1, camZ, h), P(x0, z1, camZ, h)]) && ctx.fill();
+  }
+
+  // Chunky extruded numbers: a dark extrusion under an outlined, glossy face.
+  function chunky(str, x, y, size, deep, face) {
+    ctx.font = `900 ${size}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    const ex = Math.max(1, size * 0.07);
+    ctx.lineWidth = Math.max(1.5, size * 0.17);
+    ctx.strokeStyle = deep;
+    ctx.fillStyle = deep;
+    ctx.strokeText(str, x, y + ex);
+    ctx.fillText(str, x, y + ex);
+    ctx.strokeText(str, x, y);
+    const g = ctx.createLinearGradient(0, y - size * 0.45, 0, y + size * 0.45);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.5, face);
+    g.addColorStop(0.52, Fx.shade(face, -0.08));
+    g.addColorStop(1, Fx.shade(face, -0.2));
+    ctx.fillStyle = g;
+    ctx.fillText(str, x, y);
   }
 
   // ───────────── Track objects ─────────────
+  const GATE_POST = 0.042;  // half the width of a gate post (track units)
   function drawGate(g, camZ) {
     const base = P(0, g.z, camZ);
     if (!base) return;
-    let a = fade(base.d);
+    const a = fade(base.d);
     const crossed = g.z <= run.z;
     const pop = pops.get(g.z);
     const sides = g.full ? [['full', -1, 1]] : [['left', -1, 0], ['right', 0, 1]];
+    let postA = 0;
+    const panels = [];
     for (const [side, x0, x1] of sides) {
       const op = g[side];
       let al = a;
@@ -292,55 +526,87 @@
         al *= 1 - k;
         if (pop && pop.side === side) grow = k * 0.25;
       }
-      if (al <= 0.01) continue;
-      const col = V.goodOp(op) ? COL.good : COL.bad;
-      const l = P(x0 + 0.05 - grow, g.z, camZ);
-      const r = P(x1 - 0.05 + grow, g.z, camZ);
-      const top = P(0, g.z, camZ, GATE_H * (1 + grow));
+      postA = Math.max(postA, al);
+      panels.push({ side, x0, x1, op, al, grow });
+    }
+    if (postA <= 0.01) return;
+    // Coloured light spilling on the track in front of each panel
+    for (const p of panels) {
+      if (p.al <= 0.01) continue;
+      const col = V.goodOp(p.op) ? GOOD : BAD;
+      const q0 = P(p.x0 + 0.04, g.z, camZ);
+      const q1 = P(p.x0 + 0.08, g.z - 1.8, camZ);
+      if (!q0 || !q1) continue;
+      ctx.globalAlpha = p.al;
+      const lg = ctx.createLinearGradient(0, q0.sy, 0, q1.sy);
+      lg.addColorStop(0, Fx.withAlpha(col, 0.32));
+      lg.addColorStop(1, Fx.withAlpha(col, 0));
+      ctx.fillStyle = lg;
+      quad([q1, P(p.x1 - 0.08, g.z - 1.8, camZ), P(p.x1 - 0.04, g.z, camZ), q0]) && ctx.fill();
+    }
+    // Glass panels with their numbers
+    for (const p of panels) {
+      if (p.al <= 0.01) continue;
+      const good = V.goodOp(p.op);
+      const col = good ? GOOD : BAD;
+      const l = P(p.x0 + GATE_POST - p.grow, g.z, camZ);
+      const r = P(p.x1 - GATE_POST + p.grow, g.z, camZ);
+      const top = P(0, g.z, camZ, GATE_H * (1 + p.grow));
       const s = l.scale;
       const w = r.sx - l.sx;
       const h = l.sy - top.sy;
-      ctx.globalAlpha = al;
+      ctx.globalAlpha = p.al;
       const grd = ctx.createLinearGradient(0, top.sy, 0, l.sy);
-      grd.addColorStop(0, rgb(col, 0.62));
-      grd.addColorStop(1, rgb(col, 0.28));
+      grd.addColorStop(0, Fx.withAlpha(Fx.shade(col, 0.1), 0.72));
+      grd.addColorStop(0.6, Fx.withAlpha(col, 0.5));
+      grd.addColorStop(1, Fx.withAlpha(Fx.shade(col, -0.2), 0.32));
       ctx.fillStyle = grd;
       ctx.fillRect(l.sx, top.sy, w, h);
-      // Top bar and posts
-      ctx.fillStyle = rgb(col);
-      ctx.fillRect(l.sx, top.sy, w, Math.max(2, 0.28 * s));
-      ctx.fillStyle = '#f7fbff';
-      const pw = Math.max(1.5, 0.13 * s);
-      ctx.fillRect(l.sx - pw / 2, top.sy, pw, h);
-      ctx.fillRect(r.sx - pw / 2, top.sy, pw, h);
-      // The number
       const cx = (l.sx + r.sx) / 2;
-      const size = clamp(1.05 * s, 6, 160);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.lineJoin = 'round';
+      const label = V.opLabel(p.op);
+      const size = clamp(Math.min(1.45 * s, (w * 1.45) / (label.length + 0.6)), 6, 180);
       let ty = top.sy + h * 0.55;
-      if (op.op === 'pow') {
+      if (s > 3) Fx.glow(ctx, cx, ty, Math.min(w, h) * 0.55, Fx.shade(col, 0.4), 0.45);
+      if (s > 2) Fx.glass(ctx, l.sx, top.sy, w, h, 0, { tint: 'rgba(255, 255, 255, .05)', rim: 'rgba(255, 255, 255, .55)', lineWidth: Math.max(0.8, s * 0.03) });
+      if (size < 5) continue;
+      const deep = good ? '#0a5a2b' : '#7a0c12';
+      const face = good ? '#e9fff0' : '#fff0ee';
+      if (p.op.op === 'pow') {
         const small = Math.max(5, size * 0.42);
         ctx.font = `800 ${small}px ${FONT}`;
-        ctx.lineWidth = Math.max(1, small * 0.18);
-        ctx.strokeStyle = 'rgba(0, 40, 10, .7)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = Math.max(1, small * 0.2);
+        ctx.strokeStyle = deep;
         ctx.fillStyle = '#ffffff';
-        ctx.strokeText(t('ОРУЖИЕ'), cx, top.sy + h * 0.3);
-        ctx.fillText(t('ОРУЖИЕ'), cx, top.sy + h * 0.3);
+        ctx.strokeText(t('ОРУЖИЕ'), cx, top.sy + h * 0.28);
+        ctx.fillText(t('ОРУЖИЕ'), cx, top.sy + h * 0.28);
         drawGunIcon(cx - size * 0.95, top.sy + h * 0.62, size * 0.5);
         ty = top.sy + h * 0.62;
       }
-      ctx.font = `900 ${size}px ${FONT}`;
-      ctx.lineWidth = Math.max(1, size * 0.14);
-      ctx.strokeStyle = V.goodOp(op) ? 'rgba(0, 60, 20, .75)' : 'rgba(90, 0, 0, .75)';
-      ctx.fillStyle = '#ffffff';
-      const label = V.opLabel(op);
-      const lx = op.op === 'pow' ? cx + size * 0.25 : cx;
-      ctx.strokeText(label, lx, ty);
-      ctx.fillText(label, lx, ty);
-      ctx.globalAlpha = 1;
+      chunky(label, p.op.op === 'pow' ? cx + size * 0.25 : cx, ty, size, deep, face);
     }
+    // Posts and the coloured beams on top: dimensional frames
+    const posts = g.full ? [-1, 1] : [-1, 0, 1];
+    for (const p of panels) {
+      if (p.al <= 0.01) continue;
+      ctx.globalAlpha = p.al;
+      const col = V.goodOp(p.op) ? GOOD : BAD;
+      const f = box(p.x0 + GATE_POST, p.x1 - GATE_POST, g.z - 0.16, g.z + 0.16, GATE_H, GATE_H + 0.55, camZ, col);
+      if (f && f.s > 3) { // a glossy streak along the beam
+        ctx.fillStyle = 'rgba(255, 255, 255, .3)';
+        ctx.fillRect(f.x + f.w * 0.04, f.y + f.h * 0.22, f.w * 0.92, Math.max(0.6, f.h * 0.14));
+      }
+    }
+    ctx.globalAlpha = postA;
+    for (const x of posts) {
+      const f = box(x - GATE_POST, x + GATE_POST, g.z - 0.2, g.z + 0.2, 0, GATE_H + 0.62, camZ, '#eef2fa');
+      if (f && f.s > 3) { // a post cap
+        ctx.fillStyle = 'rgba(255, 255, 255, .5)';
+        ctx.fillRect(f.x + f.w * 0.2, f.y + f.h * 0.04, f.w * 0.18, f.h * 0.9);
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   function drawGunIcon(x, y, s) {
@@ -351,119 +617,176 @@
     ctx.fillRect(x + s * 0.2, y - s * 0.12, s * 0.38, s * 0.12);
   }
 
+  // A circular saw blade: polished steel with teeth, a groove ring and a red hub, baked once and rotated.
+  let saw = null;
+  function sawSprite() {
+    if (saw) return saw;
+    const N = 160;
+    const c = layer(N, N);
+    const g = c.getContext('2d');
+    const m = N / 2;
+    const R = m - 2;
+    const teeth = 18;
+    g.beginPath();
+    for (let i = 0; i < teeth * 3; i++) {
+      const ang = (i * Math.PI * 2) / (teeth * 3);
+      const rad = i % 3 === 0 ? R : i % 3 === 1 ? R * 0.9 : R * 0.82;
+      g.lineTo(m + Math.cos(ang) * rad, m + Math.sin(ang) * rad);
+    }
+    g.closePath();
+    let gr = g.createRadialGradient(m - R * 0.35, m - R * 0.4, R * 0.05, m, m, R);
+    gr.addColorStop(0, '#ffffff');
+    gr.addColorStop(0.35, '#d9e0ea');
+    gr.addColorStop(0.75, '#8d99ab');
+    gr.addColorStop(1, '#5b6678');
+    g.fillStyle = gr;
+    g.fill();
+    g.strokeStyle = 'rgba(40, 48, 64, .55)';
+    g.lineWidth = 2;
+    g.stroke();
+    // Brushed-metal sheen: two bright wedges
+    g.save();
+    g.beginPath(); g.arc(m, m, R * 0.8, 0, Math.PI * 2); g.clip();
+    for (const a0 of [-2.4, 0.75]) {
+      g.beginPath();
+      g.moveTo(m, m);
+      g.arc(m, m, R * 0.8, a0, a0 + 0.55);
+      g.closePath();
+      g.fillStyle = 'rgba(255, 255, 255, .35)';
+      g.fill();
+    }
+    g.restore();
+    g.strokeStyle = 'rgba(60, 70, 90, .5)';
+    g.lineWidth = 3;
+    g.beginPath(); g.arc(m, m, R * 0.6, 0, Math.PI * 2); g.stroke();
+    // holes
+    g.fillStyle = '#4a5466';
+    for (let i = 0; i < 5; i++) {
+      const ang = (i * Math.PI * 2) / 5;
+      g.beginPath(); g.arc(m + Math.cos(ang) * R * 0.42, m + Math.sin(ang) * R * 0.42, R * 0.07, 0, Math.PI * 2); g.fill();
+    }
+    Fx.sphere(g, m, m, R * 0.24, '#e0393a');
+    g.fillStyle = '#2a2f3a';
+    g.beginPath(); g.arc(m, m, R * 0.07, 0, Math.PI * 2); g.fill();
+    saw = c;
+    return c;
+  }
+
   function drawSaw(o, camZ, a) {
     // A slot in the track with spinning blades half sunk into it; a moving saw's slot spans all of its travel
     ctx.globalAlpha = a;
-    ctx.fillStyle = '#39404d';
     const A = o.A || 0;
-    const slot = [P(o.x0 - A, o.z - 0.18, camZ), P(o.x1 + A, o.z - 0.18, camZ), P(o.x1 + A, o.z + 0.18, camZ), P(o.x0 - A, o.z + 0.18, camZ)];
+    const slot = [P(o.x0 - A, o.z - 0.2, camZ), P(o.x1 + A, o.z - 0.2, camZ), P(o.x1 + A, o.z + 0.2, camZ), P(o.x0 - A, o.z + 0.2, camZ)];
     if (slot.every(Boolean)) {
       poly(slot);
+      const sg = ctx.createLinearGradient(0, slot[2].sy, 0, slot[0].sy);
+      sg.addColorStop(0, '#141824');
+      sg.addColorStop(1, '#3a4252');
+      ctx.fillStyle = sg;
       ctx.fill();
+      // A steel lip on the near edge of the slot
+      ctx.fillStyle = '#aab4c4';
+      quad([P(o.x0 - A, o.z - 0.26, camZ), P(o.x1 + A, o.z - 0.26, camZ), P(o.x1 + A, o.z - 0.2, camZ), P(o.x0 - A, o.z - 0.2, camZ)]) && ctx.fill();
       if (A) { // warning chevrons at both ends of the rail
-        ctx.fillStyle = '#ffd34d';
         for (const x of [o.x0 - A, o.x1 + A]) {
-          const e = [P(x - 0.03, o.z - 0.3, camZ), P(x + 0.03, o.z - 0.3, camZ), P(x + 0.03, o.z + 0.3, camZ), P(x - 0.03, o.z + 0.3, camZ)];
-          if (e.every(Boolean)) { poly(e); ctx.fill(); }
+          for (let i = 0; i < 2; i++) {
+            ctx.fillStyle = i ? '#1d2230' : '#ffd34d';
+            const w0 = i ? 0.012 : 0.035;
+            quad([P(x - w0, o.z - 0.34, camZ), P(x + w0, o.z - 0.34, camZ), P(x + w0, o.z + 0.34, camZ), P(x - w0, o.z + 0.34, camZ)]) && ctx.fill();
+          }
         }
       }
     }
     const [x0, x1] = C.obstacleSpan(o, runTime());
-    o = { ...o, x0, x1 };
-    const g = P(0, o.z, camZ);
-    const span = (o.x1 - o.x0) * V.HALF_M;
+    const gp = P(0, o.z, camZ);
+    const span = (x1 - x0) * V.HALF_M;
     const nb = Math.max(1, Math.round(span / 1.6));
     const R = Math.min(0.75, (span / nb) * 0.47);
+    const sp = sawSprite();
     ctx.save();
     ctx.beginPath();
-    ctx.rect(-10, -10, vp.w + 20, g.sy + 10);
+    ctx.rect(-10, -10, vp.w + 20, gp.sy + 10);
     ctx.clip();
     for (let k = 0; k < nb; k++) {
-      const xc = o.x0 + ((k + 0.5) * (o.x1 - o.x0)) / nb;
+      const xc = x0 + ((k + 0.5) * (x1 - x0)) / nb;
       const c = P(xc, o.z, camZ, R * 0.45);
       const rr = R * c.scale;
       if (rr < 0.8) continue;
+      Fx.shadow(ctx, c.sx + rr * 0.15, gp.sy, rr * 1.05, rr * 0.22, 0.45);
       const rot = time * 14 + k * 1.3;
-      const teeth = 14;
-      ctx.beginPath();
-      for (let i = 0; i < teeth * 2; i++) {
-        const ang = rot + (i * Math.PI) / teeth;
-        const rad = i % 2 ? rr * 0.84 : rr;
-        const px = c.sx + Math.cos(ang) * rad;
-        const py = c.sy + Math.sin(ang) * rad;
-        if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
-      }
-      ctx.closePath();
-      const grd = ctx.createRadialGradient(c.sx - rr * 0.3, c.sy - rr * 0.3, rr * 0.1, c.sx, c.sy, rr);
-      grd.addColorStop(0, '#ffffff');
-      grd.addColorStop(0.5, '#c4ccd6');
-      grd.addColorStop(1, '#7c8796');
-      ctx.fillStyle = grd;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(40, 46, 58, .6)';
-      ctx.lineWidth = Math.max(0.5, rr * 0.05);
-      ctx.stroke();
-      ctx.fillStyle = '#d63b35';
-      ctx.beginPath();
-      ctx.arc(c.sx, c.sy, rr * 0.28, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#2a2f3a';
-      ctx.beginPath();
-      ctx.arc(c.sx, c.sy, rr * 0.1, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.save();
+      ctx.translate(c.sx, c.sy);
+      ctx.rotate(rot);
+      ctx.drawImage(sp, -rr, -rr, rr * 2, rr * 2);
+      ctx.globalAlpha = a * 0.35; // motion blur: a ghost a little behind
+      ctx.rotate(-0.13);
+      ctx.drawImage(sp, -rr, -rr, rr * 2, rr * 2);
+      ctx.restore();
+      ctx.globalAlpha = a;
+      // Sparks where the teeth bite into the slot
+      const flick = 0.5 + 0.5 * Math.sin(time * 37 + k * 3);
+      Fx.glow(ctx, c.sx - rr * 0.55, gp.sy - rr * 0.05, rr * 0.45, '#ffb347', 0.35 + 0.4 * flick);
     }
     ctx.restore();
     ctx.globalAlpha = 1;
   }
 
   function drawWall(o, camZ, a) {
-    const f0 = P(o.x0, o.z, camZ);
-    const f1 = P(o.x1, o.z, camZ);
-    const t0 = P(o.x0, o.z, camZ, WALL_H);
-    const b0 = P(o.x0, o.z + WALL_D, camZ, WALL_H);
-    const b1 = P(o.x1, o.z + WALL_D, camZ, WALL_H);
-    if (!f0 || !b0) return;
     ctx.globalAlpha = a;
-    // The side that faces the middle of the track
-    if (o.x1 < 0 || o.x0 > 0) {
-      const x = o.x1 < 0 ? o.x1 : o.x0;
-      ctx.fillStyle = '#a84a24';
-      poly([P(x, o.z, camZ), P(x, o.z + WALL_D, camZ), P(x, o.z + WALL_D, camZ, WALL_H), P(x, o.z, camZ, WALL_H)]);
-      ctx.fill();
-    }
-    ctx.fillStyle = '#f59a5c';
-    poly([t0, P(o.x1, o.z, camZ, WALL_H), b1, b0]);
-    ctx.fill();
-    const w = f1.sx - f0.sx;
-    const h = f0.sy - t0.sy;
-    ctx.fillStyle = '#e06a33';
-    ctx.fillRect(f0.sx, t0.sy, w, h);
-    // Bricks
-    const s = f0.scale;
-    if (s > 4) {
+    groundShadow(o.x0 + 0.03, o.x1 + 0.06, o.z + 0.2, o.z + WALL_D + 1.4, camZ, 0.22);
+    groundShadow(o.x0 - 0.02, o.x1 + 0.04, o.z - 0.25, o.z + 0.05, camZ, 0.12);
+    const f = box(o.x0, o.x1, o.z, o.z + WALL_D, 0, WALL_H, camZ, '#e66a35', { top: '#f69a62' });
+    if (f && f.s > 4) {
+      // Bricks with lit top edges and dark mortar
       ctx.save();
       ctx.beginPath();
-      ctx.rect(f0.sx, t0.sy, w, h);
+      ctx.rect(f.x, f.y, f.w, f.h);
       ctx.clip();
-      ctx.strokeStyle = 'rgba(110, 40, 15, .55)';
-      ctx.lineWidth = Math.max(1, s * 0.04);
-      const bh = 0.3 * s;
-      const bw = 0.7 * s;
+      const bh = 0.3 * f.s;
+      const bw = 0.7 * f.s;
+      ctx.lineWidth = Math.max(1, f.s * 0.035);
+      ctx.strokeStyle = 'rgba(105, 34, 12, .55)';
       ctx.beginPath();
-      for (let r = 0, y = t0.sy; y < f0.sy; r++, y += bh) {
-        ctx.moveTo(f0.sx, y);
-        ctx.lineTo(f1.sx, y);
-        for (let x = f0.sx + (r % 2 ? bw / 2 : 0); x < f1.sx; x += bw) {
+      for (let r = 0, y = f.y + bh; y < f.y + f.h; r++, y += bh) {
+        ctx.moveTo(f.x, y);
+        ctx.lineTo(f.x + f.w, y);
+      }
+      for (let r = 0, y = f.y; y < f.y + f.h; r++, y += bh) {
+        for (let x = f.x + (r % 2 ? bw / 2 : 0); x < f.x + f.w; x += bw) {
           ctx.moveTo(x, y);
           ctx.lineTo(x, y + bh);
         }
       }
       ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 200, 160, .35)';
+      ctx.lineWidth = Math.max(0.6, f.s * 0.02);
+      ctx.beginPath();
+      for (let y = f.y + bh + ctx.lineWidth * 1.5; y < f.y + f.h; y += bh) {
+        ctx.moveTo(f.x, y);
+        ctx.lineTo(f.x + f.w, y);
+      }
+      ctx.stroke();
       ctx.restore();
     }
-    // Hazard stripe along the top edge
-    ctx.fillStyle = '#ffd34d';
-    ctx.fillRect(f0.sx, t0.sy, w, Math.max(1, 0.12 * s));
+    // A yellow-black hazard cap
+    const cap = box(o.x0 - 0.008, o.x1 + 0.008, o.z - 0.04, o.z + WALL_D + 0.04, WALL_H, WALL_H + 0.18, camZ, '#ffcc33');
+    if (cap && cap.s > 4) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cap.x, cap.y, cap.w, cap.h);
+      ctx.clip();
+      ctx.fillStyle = 'rgba(29, 34, 48, .85)';
+      const st = 0.35 * cap.s;
+      ctx.beginPath();
+      for (let x = cap.x - cap.h; x < cap.x + cap.w; x += st * 2) {
+        ctx.moveTo(x, cap.y + cap.h);
+        ctx.lineTo(x + st, cap.y + cap.h);
+        ctx.lineTo(x + st + cap.h, cap.y);
+        ctx.lineTo(x + cap.h, cap.y);
+      }
+      ctx.fill();
+      ctx.restore();
+    }
     ctx.globalAlpha = 1;
   }
 
@@ -477,12 +800,19 @@
     const x0 = px - p.w / 2;
     const x1 = px + p.w / 2;
     ctx.globalAlpha = a;
-    ctx.fillStyle = '#f2b544';
-    poly([P(x0, zs, camZ), P(x1, zs, camZ), P(x1, p.z1, camZ), P(x0, p.z1, camZ)]);
-    ctx.fill();
-    // Planks across
-    ctx.strokeStyle = 'rgba(140, 80, 10, .45)';
+    // Its shadow and a ring of ripples on the sea
+    ctx.fillStyle = 'rgba(4, 28, 70, .32)';
+    quad([P(x0 + 0.05, zs, camZ, WATER_H), P(x1 + 0.2, zs, camZ, WATER_H), P(x1 + 0.2, p.z1, camZ, WATER_H), P(x0 + 0.05, p.z1, camZ, WATER_H)]) && ctx.fill();
+    ctx.strokeStyle = 'rgba(235, 250, 255, .35)';
+    const wob = Math.sin(time * 3) * 0.02;
+    if (quad([P(x0 - 0.05 + wob, zs, camZ, WATER_H), P(x1 + 0.05 - wob, zs, camZ, WATER_H), P(x1 + 0.05 - wob, p.z1, camZ, WATER_H), P(x0 - 0.05 + wob, p.z1, camZ, WATER_H)])) {
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    box(x0, x1, zs, p.z1, -0.45, 0, camZ, '#d98f2e', { top: '#f2b544', front: p.z0 >= camZ + V.NEAR });
+    // Planks across, each with a lit edge
     ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(130, 70, 10, .5)';
     ctx.beginPath();
     for (let z = Math.ceil(zs); z < p.z1; z += 1) {
       const l = P(x0, z, camZ);
@@ -493,94 +823,172 @@
     ctx.stroke();
     // Yellow-black edges
     for (const [e0, e1] of [[x0, x0 + 0.05], [x1 - 0.05, x1]]) {
-      ctx.fillStyle = '#2b2b2b';
-      poly([P(e0, zs, camZ), P(e1, zs, camZ), P(e1, p.z1, camZ), P(e0, p.z1, camZ)]);
-      ctx.fill();
-    }
-    if (p.z0 >= camZ + V.NEAR) {
-      ctx.fillStyle = '#b4761b';
-      poly([P(x0, p.z0, camZ), P(x1, p.z0, camZ), P(x1, p.z0, camZ, -SLAB * 0.7), P(x0, p.z0, camZ, -SLAB * 0.7)]);
-      ctx.fill();
+      for (let z = Math.floor(zs); z < p.z1; z += 1) {
+        ctx.fillStyle = Math.floor(z) % 2 ? '#1d2230' : '#ffcc33';
+        quad([P(e0, Math.max(z, zs), camZ), P(e1, Math.max(z, zs), camZ), P(e1, Math.min(z + 1, p.z1), camZ), P(e0, Math.min(z + 1, p.z1), camZ)]) && ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
   }
 
-  // Finish arch: two posts and a checkered banner.
+  // Finish arch: two pillars and a checkered banner with depth.
   function drawArch(L, camZ) {
     const z = L.length;
     const l = P(-1.02, z, camZ);
     if (!l) return;
     const a = fade(l.d) * clamp((l.d - 3) / 4, 0, 1); // out of the way before the crowd runs under it
     if (a <= 0.01) return;
-    const r = P(1.02, z, camZ);
-    const top = P(0, z, camZ, 3.4);
-    const s = l.scale;
     ctx.globalAlpha = a;
-    ctx.fillStyle = '#eef3fa';
-    const pw = Math.max(2, 0.22 * s);
-    ctx.fillRect(l.sx - pw / 2, top.sy, pw, l.sy - top.sy);
-    ctx.fillRect(r.sx - pw / 2, top.sy, pw, l.sy - top.sy);
-    const bh = 0.7 * s;
-    const n = 16;
-    const cw = (r.sx - l.sx) / n;
-    for (let row = 0; row < 2; row++) {
-      for (let c = 0; c < n; c++) {
-        ctx.fillStyle = (row + c) % 2 ? '#1d2230' : '#ffffff';
-        ctx.fillRect(l.sx + c * cw, top.sy + (row * bh) / 2, cw + 0.5, bh / 2 + 0.5);
+    for (const x of [-1.09, 0.97]) box(x, x + 0.12, z - 0.25, z + 0.25, 0, 3.4, camZ, '#eef2fa');
+    const f = box(-1.09, 1.09, z - 0.2, z + 0.2, 3.0, 4.0, camZ, '#ffffff');
+    if (f) {
+      const n = 16;
+      const cw = f.w / n;
+      for (let row = 0; row < 2; row++) {
+        for (let c = 0; c < n; c++) {
+          if ((row + c) % 2) continue;
+          ctx.fillStyle = 'rgba(29, 34, 48, .92)';
+          ctx.fillRect(f.x + c * cw, f.y + (row * f.h) / 2, cw + 0.5, f.h / 2 + 0.5);
+        }
       }
+      ctx.fillStyle = 'rgba(255, 255, 255, .22)';
+      ctx.fillRect(f.x, f.y, f.w, f.h * 0.3);
     }
     ctx.globalAlpha = 1;
   }
 
   // ───────────── Figures ─────────────
+  // Every figure is a baked lit sprite (one per team and gear) stretched with drawImage: a big crowd costs a
+  // shadow, two strokes and one image per soldier, no gradients.
   const TEAM = {
-    ours: { body: '#2f7bff', head: '#9fcbff', legs: '#1b4fb0' },
-    enemy: { body: '#e43f3a', head: '#ffad9c', legs: '#9c1f1b' },
-    recruit: { body: '#2bb35f', head: '#c4f5d3', legs: '#17773b' },
+    ours: { body: '#2f7bff', legs: '#1b4fb0', face: false },
+    enemy: { body: '#e43f3a', legs: '#9c1f1b', face: true },
+    recruit: { body: '#2bb35f', legs: '#17773b', face: true },
   };
+  const FIG = { w: 0.7, top: 0.82, bottom: 0.12 }; // sprite box in figure units around the hip
+  const FIG_PX = 96;                                // sprite px per figure unit
+  const figSprites = new Map();
+  function figSprite(team, gun) {
+    const key = team + (gun ? '+' : '');
+    let c = figSprites.get(key);
+    if (c) return c;
+    const U = FIG_PX;
+    c = layer(FIG.w * U, (FIG.top + FIG.bottom) * U);
+    const g = c.getContext('2d');
+    g.translate((FIG.w * U) / 2, FIG.top * U);
+    g.scale(U, U);
+    const col = TEAM[team].body;
+    // Body: a capsule lit from the left, with a rim of bounced light on the right
+    let gr = g.createLinearGradient(-0.2, 0, 0.2, 0);
+    gr.addColorStop(0, Fx.shade(col, 0.4));
+    gr.addColorStop(0.35, col);
+    gr.addColorStop(0.85, Fx.shade(col, -0.42));
+    gr.addColorStop(1, Fx.shade(col, -0.2));
+    g.fillStyle = gr;
+    Fx.rrect(g, -0.2, -0.5, 0.4, 0.6, 0.18);
+    g.fill();
+    gr = g.createRadialGradient(-0.08, -0.45, 0.01, -0.08, -0.45, 0.3);
+    gr.addColorStop(0, 'rgba(255, 255, 255, .45)');
+    gr.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    g.fillStyle = gr;
+    Fx.rrect(g, -0.2, -0.5, 0.4, 0.6, 0.18);
+    g.fill();
+    // a belt
+    g.fillStyle = Fx.withAlpha(Fx.shade(col, -0.55), 0.55);
+    g.fillRect(-0.2, -0.05, 0.4, 0.06);
+    if (gun) {
+      g.fillStyle = '#2a313d';
+      Fx.rrect(g, 0.1, -0.32, 0.3, 0.09, 0.03);
+      g.fill();
+      g.fillStyle = '#7d8898';
+      g.fillRect(0.14, -0.31, 0.24, 0.025);
+    }
+    // Head
+    Fx.sphere(g, 0, -0.64, 0.17, Fx.shade(col, 0.12), { shine: 0.65 });
+    if (TEAM[team].face) {
+      for (const sx of [-0.06, 0.06]) {
+        g.fillStyle = '#ffffff';
+        g.beginPath(); g.ellipse(sx, -0.64, 0.04, 0.05, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#1a1430';
+        g.beginPath(); g.arc(sx + 0.008, -0.63, 0.022, 0, Math.PI * 2); g.fill();
+      }
+    }
+    figSprites.set(key, c);
+    return c;
+  }
 
-  // A little soldier standing at a projected ground point p. phase: running animation phase, or null for idle.
-  function drawSoldier(p, team, phase, power) {
-    const s = p.scale * SOLDIER;
+  // One whole figure — contact shadow, legs, arms and the lit body — painted at the feet (0, 0) in figure units.
+  // frame: a step of the run cycle, or -1 standing.
+  const FIG_FRAMES = 8;
+  const FIG_BOX = { l: 0.38, top: 1.16, bottom: 0.16 }; // the baked frame around the feet, figure units
+  function paintFigure(g, team, gun, frame, shadow) {
     const c = TEAM[team];
-    if (s < 3) {
-      ctx.fillStyle = c.body;
+    const running = frame >= 0;
+    const sn = running ? Math.sin((frame / FIG_FRAMES) * Math.PI * 2) : 0;
+    const bob = running ? Math.abs(sn) * 0.07 : 0;
+    const hip = -0.3 - bob;
+    if (shadow) Fx.shadow(g, 0.05, 0, 0.32, 0.11, 0.42);
+    // Legs: seen from behind, the feet lift in turn
+    g.lineCap = 'round';
+    g.strokeStyle = c.legs;
+    g.lineWidth = 0.14;
+    g.beginPath();
+    g.moveTo(-0.09, hip);
+    g.lineTo(-0.1 - sn * 0.03, -0.05 - Math.max(0, sn) * 0.13);
+    g.moveTo(0.09, hip);
+    g.lineTo(0.1 - sn * 0.03, -0.05 - Math.max(0, -sn) * 0.13);
+    g.stroke();
+    // Arms swing opposite the legs
+    g.strokeStyle = Fx.shade(c.body, -0.15);
+    g.lineWidth = 0.1;
+    g.beginPath();
+    g.moveTo(-0.19, hip - 0.4);
+    g.lineTo(-0.27, hip - 0.16 - Math.max(0, -sn) * 0.1);
+    g.moveTo(0.19, hip - 0.4);
+    g.lineTo(0.27, hip - 0.16 - Math.max(0, sn) * 0.1);
+    g.stroke();
+    const sq = running ? 1 + Math.abs(sn) * 0.04 : 1; // a little stretch at the top of each stride
+    g.drawImage(figSprite(team, gun), -(FIG.w / 2) / sq, hip - FIG.top * sq, FIG.w / sq, (FIG.top + FIG.bottom) * sq);
+  }
+
+  // Baked frames per size: a figure costs one unscaled drawImage, however big the crowd. Sizes are bucketed
+  // in 7% steps of device pixels, so a run uses a handful of buckets.
+  const figFrames = new Map();
+  function figFrame(team, gun, frame, shadow, px) {
+    const key = `${team}|${gun ? 1 : 0}|${frame}|${shadow ? 1 : 0}|${px}`;
+    let c = figFrames.get(key);
+    if (c) return c;
+    if (figFrames.size > 900) figFrames.clear();
+    const u = px / 100;
+    c = layer(FIG_BOX.l * 2 * u, (FIG_BOX.top + FIG_BOX.bottom) * u);
+    const g = c.getContext('2d');
+    g.translate(FIG_BOX.l * u, FIG_BOX.top * u);
+    g.scale(u, u);
+    paintFigure(g, team, gun, frame, shadow);
+    figFrames.set(key, c);
+    return c;
+  }
+
+  // A figure standing at a projected ground point p. phase: running animation phase, or null for idle;
+  // k: a pop-in scale (new soldiers spring in); shadow: false when the caller draws it (hopping recruits).
+  function drawSoldier(p, team, phase, power, k = 1, shadow = true) {
+    const s = p.scale * SOLDIER * k;
+    if (s < 2.2) {
+      ctx.fillStyle = TEAM[team].body;
       ctx.fillRect(p.sx - s * 0.2, p.sy - s, Math.max(1, s * 0.4), Math.max(1, s));
       return;
     }
-    const bob = phase === null ? 0 : Math.abs(Math.sin(phase)) * 0.08 * s;
-    const swing = phase === null ? 0 : Math.sin(phase) * 0.14 * s;
-    const hip = p.sy - 0.44 * s - bob;
-    ctx.strokeStyle = c.legs;
-    ctx.lineWidth = Math.max(1, 0.12 * s);
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(p.sx - 0.08 * s, hip);
-    ctx.lineTo(p.sx - 0.1 * s + swing, p.sy - 0.04 * s);
-    ctx.moveTo(p.sx + 0.08 * s, hip);
-    ctx.lineTo(p.sx + 0.1 * s - swing, p.sy - 0.04 * s);
-    ctx.stroke();
-    ctx.fillStyle = c.body;
-    ctx.beginPath();
-    rrect(ctx, p.sx - 0.2 * s, hip - 0.46 * s, 0.4 * s, 0.5 * s, 0.12 * s);
-    ctx.fill();
-    if (power >= 2) { // a gun shows from weapon level 2
-      ctx.fillStyle = '#28303c';
-      ctx.fillRect(p.sx + 0.08 * s, hip - 0.3 * s, 0.34 * s, 0.09 * s);
-    }
-    ctx.fillStyle = c.head;
-    ctx.beginPath();
-    ctx.arc(p.sx, hip - 0.62 * s, 0.17 * s, 0, Math.PI * 2);
-    ctx.fill();
+    const b = Math.round(Math.log(s * dpr) / Math.log(1.07) * 100) / 100;
+    const px = Math.round(Math.pow(1.07, Math.round(b)) * 100); // device px per figure unit ×100, bucketed
+    const frame = phase === null ? -1 : Math.floor((((phase / (Math.PI * 2)) % 1 + 1) % 1) * FIG_FRAMES);
+    const img = figFrame(team, power >= 2, frame, shadow, px);
+    const u = px / 100 / dpr;
+    ctx.drawImage(img, p.sx - FIG_BOX.l * u, p.sy - FIG_BOX.top * u, img.width / dpr, img.height / dpr);
   }
 
-  function shadow(p, rx) {
-    ctx.beginPath();
-    ctx.ellipse(p.sx, p.sy, rx * p.scale, rx * 0.32 * p.scale, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  const figShadow = (p, k = 1) => Fx.shadow(ctx, p.sx + 0.05 * p.scale * SOLDIER, p.sy, 0.32 * p.scale * SOLDIER * k, 0.11 * p.scale * SOLDIER * k, 0.42);
 
-  // A number bubble over a group (screen-sized, like the ads).
+  // A number bubble over a group (screen-sized, like the ads): a glossy pill with a white rim.
   function bubble(p, text, fill, small) {
     const size = small ? 15 : clamp(vp.w / 18, 16, 24);
     ctx.font = `900 ${size}px ${FONT}`;
@@ -588,27 +996,29 @@
     const h = size * 1.45;
     const x = p.sx - w / 2;
     const y = p.sy - h - 6;
-    ctx.fillStyle = 'rgba(0, 0, 0, .25)';
-    ctx.beginPath();
-    rrect(ctx, x + 1, y + 3, w, h, h / 2);
+    ctx.fillStyle = 'rgba(8, 4, 30, .25)';
+    Fx.rrect(ctx, x + 1, y + 4, w, h, h / 2);
     ctx.fill();
-    ctx.fillStyle = fill;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, Fx.shade(fill, 0.3));
+    g.addColorStop(0.5, fill);
+    g.addColorStop(1, Fx.shade(fill, -0.25));
+    ctx.fillStyle = g;
     ctx.beginPath();
-    rrect(ctx, x, y, w, h, h / 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(p.sx - 6, y + h);
-    ctx.lineTo(p.sx + 6, y + h);
-    ctx.lineTo(p.sx, y + h + 6);
+    ctx.moveTo(p.sx - 7, y + h - 1);
+    ctx.lineTo(p.sx + 7, y + h - 1);
+    ctx.lineTo(p.sx, y + h + 7);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, p.sx, y + h / 2 + 1);
+    Fx.rrect(ctx, x, y, w, h, h / 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 255, 255, .28)';
+    Fx.rrect(ctx, x + h * 0.3, y + 3, w - h * 0.6, h * 0.32, h * 0.16);
+    ctx.fill();
+    Fx.text(ctx, text, p.sx, y + h / 2 + 1, { size, color: '#ffffff', stroke: Fx.shade(fill, -0.55), outline: size * 0.14, font: FONT });
   }
 
   // Target layout of the crowd for the shown count; the drawn soldiers ease towards it, new ones from the middle.
@@ -618,7 +1028,7 @@
       layoutKey = key;
       layout = V.crowdLayout(count, C.radius(count));
     }
-    while (soldiers.length < layout.length) soldiers.push({ dx: (Math.random() - 0.5) * 0.05, dy: (Math.random() - 0.5) * 0.05 });
+    while (soldiers.length < layout.length) soldiers.push({ dx: (Math.random() - 0.5) * 0.05, dy: (Math.random() - 0.5) * 0.05, born: time });
     if (soldiers.length > layout.length) soldiers.length = layout.length;
     const k = Math.min(1, dt * 9);
     for (let i = 0; i < soldiers.length; i++) {
@@ -644,15 +1054,13 @@
       if (plat && (sx < p0 || sx > p1)) continue; // off the platform: they are falling (particles)
       const z = crowdZ + soldiers[i].dy * V.HALF_M * V.DEPTH_SQUASH;
       const p = P(sx, z, camZ);
-      if (p) pts.push({ p, i });
+      if (p) pts.push({ p, i, k: Fx.ease.outBack(clamp((time - (soldiers[i].born || 0)) / 0.28, 0, 1)) });
     }
-    pts.sort((a, b) => a.p.d - b.p.d).reverse();
-    ctx.fillStyle = 'rgba(0, 20, 60, .2)';
-    for (const { p } of pts) shadow(p, 0.26 * SOLDIER);
-    for (const { p, i } of pts) drawSoldier(p, 'ours', running ? time * 13 + i * 1.7 : null, run.power);
+    pts.sort((a, b) => b.p.d - a.p.d);
+    for (const { p, i, k } of pts) drawSoldier(p, 'ours', running ? time * 13 + i * 1.7 : null, run.power, Math.max(0.01, k));
   }
 
-  // Recruits wait in a little band, hopping and waving; taken ones vanish (they joined the crowd).
+  // Recruits wait in a little band on a glowing ring, hopping; taken ones vanish (they joined the crowd).
   function drawRecruits(rc, camZ) {
     const j = joined.get(rc.z);
     const gone = j && j.taken ? clamp(j.t / 0.25, 0, 1) : 0;
@@ -662,18 +1070,29 @@
     const a = fade(base.d) * (1 - gone);
     if (a <= 0.01) return;
     ctx.globalAlpha = a;
+    const rad = Math.min(0.35, C.radius(rc.n) * 0.8);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 4);
+    const rx = (rad + 0.08) * V.HALF_M * base.scale;
+    ctx.fillStyle = 'rgba(80, 255, 140, .16)';
+    ctx.strokeStyle = `rgba(140, 255, 180, ${0.5 + 0.4 * pulse})`;
+    ctx.lineWidth = Math.max(1, base.scale * 0.08);
+    ctx.beginPath();
+    ctx.ellipse(base.sx, base.sy, rx * (1 + pulse * 0.06), rx * 0.3 * (1 + pulse * 0.06), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
     const shown = Math.min(rc.n, 24);
-    const lay = V.crowdLayout(shown, Math.min(0.35, C.radius(rc.n) * 0.8));
+    const lay = V.crowdLayout(shown, rad);
     const pts = [];
     for (let i = 0; i < lay.length; i++) {
       const hop = Math.max(0, Math.sin(time * 7 + i * 1.9)) * 0.25;
-      const p = P(rc.x + lay[i].dx, rc.z + lay[i].dy * V.HALF_M * V.DEPTH_SQUASH, camZ, hop);
-      if (p) pts.push({ p, ground: P(rc.x + lay[i].dx, rc.z + lay[i].dy * V.HALF_M * V.DEPTH_SQUASH, camZ) });
+      const gx = rc.x + lay[i].dx;
+      const gz = rc.z + lay[i].dy * V.HALF_M * V.DEPTH_SQUASH;
+      const p = P(gx, gz, camZ, hop);
+      if (p) pts.push({ p, ground: P(gx, gz, camZ), hop });
     }
     pts.sort((u, v) => v.p.d - u.p.d);
-    ctx.fillStyle = 'rgba(0, 40, 10, .2)';
-    for (const { ground } of pts) if (ground) shadow(ground, 0.26 * SOLDIER);
-    for (const { p } of pts) drawSoldier(p, 'recruit', null, 1);
+    for (const { ground, hop } of pts) if (ground) figShadow(ground, 1 - hop);
+    for (const { p } of pts) drawSoldier(p, 'recruit', null, 1, 1, false);
     const head = P(rc.x, rc.z, camZ, 1.7);
     if (head && head.d < 60 && !(j && j.taken)) bubble(head, `+${V.fmt(rc.n)}`, '#1f9c4c', true);
     ctx.globalAlpha = 1;
@@ -695,7 +1114,6 @@
     const front = enemyFront(L);
     const lay = V.armyLayout(enemyShown);
     const charging = battle && (battle.view.phase === 'charge' || battle.view.phase === 'army');
-    ctx.fillStyle = 'rgba(60, 0, 0, .2)';
     const pts = [];
     for (let i = lay.length - 1; i >= 0; i--) {
       const jitter = charging && battle.view.phase === 'army' ? Math.sin(time * 20 + i) * 0.03 : 0;
@@ -705,11 +1123,27 @@
     if (!pts.length) return;
     const a = fade(pts[pts.length - 1].p.d);
     ctx.globalAlpha = a;
-    for (const { p } of pts) shadow(p, 0.26 * SOLDIER);
     for (const { p, i } of pts) drawSoldier(p, 'enemy', charging ? time * 13 + i : null, L.enemy.power);
     const head = P(0, front, camZ, 1.8);
     if (head && a > 0.3 && head.d < 70) bubble(head, V.fmt(enemyShown), '#d92f2a');
     ctx.globalAlpha = 1;
+  }
+
+  // A lit capsule limb from (x0, y0) to (x1, y1) of width w.
+  function limb(x0, y0, x1, y1, w, col) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const g = ctx.createLinearGradient(x0 + nx * w, y0 + ny * w, x0 - nx * w, y0 - ny * w);
+    g.addColorStop(0, Fx.shade(col, -0.35));
+    g.addColorStop(0.6, col);
+    g.addColorStop(1, Fx.shade(col, 0.3));
+    ctx.strokeStyle = g;
+    ctx.lineWidth = w;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
   }
 
   function drawBoss(camZ) {
@@ -721,70 +1155,92 @@
     const a = fade(p.d) * (1 - clamp(bossFall - 0.6, 0, 1));
     if (a <= 0.01) return;
     const s = p.scale * 2.6;
-    const hit = battle && battle.view.phase === 'boss' ? Math.sin(time * 40) * 0.04 * s : 0;
+    const fighting = battle && battle.view.phase === 'boss';
+    const hit = fighting ? Math.sin(time * 40) * 0.04 * s : 0;
+    const breathe = 1 + Math.sin(time * 2.2) * 0.015;
     ctx.globalAlpha = a;
-    ctx.fillStyle = 'rgba(40, 0, 30, .25)';
-    shadow(p, 1.8);
+    Fx.shadow(ctx, p.sx + 0.2 * s, p.sy, 1.25 * s * (1 - clamp(bossFall, 0, 1) * 0.3), 0.32 * s, 0.5);
     ctx.save();
     ctx.translate(p.sx + hit, p.sy);
     ctx.rotate(clamp(bossFall, 0, 1) * 1.3);
-    // Legs, body, arms, head with horns, a club
-    ctx.fillStyle = '#4a1d5e';
-    ctx.fillRect(-0.42 * s, -0.7 * s, 0.3 * s, 0.7 * s);
-    ctx.fillRect(0.12 * s, -0.7 * s, 0.3 * s, 0.7 * s);
-    ctx.fillStyle = '#7b2f99';
-    ctx.beginPath();
-    rrect(ctx, -0.6 * s, -1.75 * s, 1.2 * s, 1.15 * s, 0.3 * s);
-    ctx.fill();
-    ctx.fillStyle = '#9b47bd';
-    ctx.beginPath();
-    rrect(ctx, -0.85 * s, -1.65 * s, 0.28 * s, 0.85 * s, 0.12 * s);
-    rrect(ctx, 0.57 * s, -1.65 * s, 0.28 * s, 0.85 * s, 0.12 * s);
-    ctx.fill();
-    ctx.fillStyle = '#6b3b1c';
+    // Legs
+    limb(-0.27 * s, -0.75 * s, -0.3 * s, -0.12 * s, 0.32 * s, '#4a1d5e');
+    limb(0.27 * s, -0.75 * s, 0.3 * s, -0.12 * s, 0.32 * s, '#4a1d5e');
+    for (const sg of [-1, 1]) { // boots
+      Fx.block(ctx, sg * 0.3 * s - 0.22 * s, -0.2 * s, 0.44 * s, 0.22 * s, 0.1 * s, '#2c1238');
+    }
+    // The left arm hangs, the right one holds the club up
+    limb(-0.7 * s, -1.55 * s, -0.86 * s, -0.85 * s, 0.3 * s, '#8f3fb1');
     ctx.save();
-    ctx.translate(0.72 * s, -0.85 * s);
-    ctx.rotate(-0.5);
-    ctx.fillRect(-0.08 * s, -1.1 * s, 0.16 * s, 1.1 * s);
-    ctx.beginPath();
-    ctx.ellipse(0, -1.1 * s, 0.2 * s, 0.32 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.translate(0.78 * s, -0.95 * s);
+    ctx.rotate(-0.5 + (fighting ? Math.sin(time * 9) * 0.25 : 0));
+    limb(0, 0, 0, -1.1 * s, 0.17 * s, '#7a4a22');
+    Fx.sphere(ctx, 0, -1.15 * s, 0.26 * s, '#6b3b1c', { shine: 0.35 });
+    for (let i = 0; i < 5; i++) {
+      const an = -Math.PI / 2 + (i - 2) * 0.6;
+      Fx.metalBar(ctx, Math.cos(an) * 0.2 * s, -1.15 * s + Math.sin(an) * 0.2 * s, Math.cos(an) * 0.36 * s, -1.15 * s + Math.sin(an) * 0.36 * s, Math.max(1, 0.06 * s));
+    }
     ctx.restore();
-    ctx.fillStyle = '#b05ad1';
-    ctx.beginPath();
-    ctx.arc(0, -2.05 * s, 0.38 * s, 0, Math.PI * 2);
+    // Body: a big lit bean with a lighter belly
+    const bx = -0.62 * s * breathe;
+    const bw = 1.24 * s * breathe;
+    let g = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+    g.addColorStop(0, Fx.shade('#7b2f99', 0.35));
+    g.addColorStop(0.4, '#7b2f99');
+    g.addColorStop(0.9, Fx.shade('#7b2f99', -0.45));
+    g.addColorStop(1, Fx.shade('#7b2f99', -0.25));
+    ctx.fillStyle = g;
+    Fx.rrect(ctx, bx, -1.85 * s, bw, 1.25 * s, 0.5 * s);
     ctx.fill();
-    ctx.fillStyle = '#f1e6c8';
-    for (const sgn of [-1, 1]) {
+    g = ctx.createRadialGradient(-0.1 * s, -1.1 * s, 0.05 * s, 0, -1.1 * s, 0.5 * s);
+    g.addColorStop(0, 'rgba(230, 180, 255, .55)');
+    g.addColorStop(1, 'rgba(230, 180, 255, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(0, -1.12 * s, 0.42 * s, 0.45 * s, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, .28)';
+    ctx.beginPath(); ctx.ellipse(-0.35 * s, -1.55 * s, 0.1 * s, 0.22 * s, 0.3, 0, Math.PI * 2); ctx.fill();
+    // Shoulder pads
+    for (const sg of [-1, 1]) Fx.sphere(ctx, sg * 0.66 * s, -1.62 * s, 0.24 * s, '#9b47bd');
+    // Head with horns and glowing eyes
+    for (const sg of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(sgn * 0.22 * s, -2.32 * s);
-      ctx.lineTo(sgn * 0.42 * s, -2.75 * s);
-      ctx.lineTo(sgn * 0.08 * s, -2.38 * s);
+      ctx.moveTo(sg * 0.18 * s, -2.3 * s);
+      ctx.quadraticCurveTo(sg * 0.55 * s, -2.45 * s, sg * 0.46 * s, -2.85 * s);
+      ctx.quadraticCurveTo(sg * 0.38 * s, -2.5 * s, sg * 0.05 * s, -2.38 * s);
+      ctx.closePath();
+      const hg = ctx.createLinearGradient(sg * 0.1 * s, -2.3 * s, sg * 0.46 * s, -2.85 * s);
+      hg.addColorStop(0, '#f7eedb');
+      hg.addColorStop(1, '#b9a57e');
+      ctx.fillStyle = hg;
       ctx.fill();
     }
-    ctx.fillStyle = '#ffe14d';
-    ctx.fillRect(-0.2 * s, -2.12 * s, 0.13 * s, 0.08 * s);
-    ctx.fillRect(0.07 * s, -2.12 * s, 0.13 * s, 0.08 * s);
+    Fx.sphere(ctx, 0, -2.05 * s, 0.4 * s, '#b05ad1');
+    for (const sg of [-1, 1]) {
+      Fx.glow(ctx, sg * 0.14 * s, -2.08 * s, 0.16 * s, '#ffe14d', 0.9);
+      ctx.fillStyle = '#fff7b0';
+      ctx.beginPath(); ctx.ellipse(sg * 0.14 * s, -2.08 * s, 0.07 * s, 0.04 * s, sg * 0.3, 0, Math.PI * 2); ctx.fill();
+    }
+    if (fighting) Fx.glow(ctx, 0, -1.3 * s, 1.4 * s, '#ffffff', 0.18 + 0.18 * Math.sin(time * 40));
     ctx.restore();
     // HP bar
     if (bossFall < 0.3 && p.d < 50) {
       const top = P(0, z, camZ, 7.6);
       const w = Math.max(60, 2.6 * p.scale);
-      const h = 10;
+      const h = 11;
       const k = L.boss.hp > 0 ? clamp(bossShown / L.boss.hp, 0, 1) : 0;
-      ctx.fillStyle = 'rgba(0, 0, 0, .55)';
-      ctx.fillRect(top.sx - w / 2 - 2, top.sy - 2, w + 4, h + 4);
-      ctx.fillStyle = '#ff3b4f';
-      ctx.fillRect(top.sx - w / 2, top.sy, w * k, h);
-      ctx.font = `800 13px ${FONT}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = 'rgba(0, 0, 0, .6)';
-      ctx.lineWidth = 3;
-      const label = `${t('Босс')} ${V.fmt(bossShown)}`;
-      ctx.strokeText(label, top.sx, top.sy - 3);
-      ctx.fillText(label, top.sx, top.sy - 3);
+      ctx.fillStyle = 'rgba(8, 4, 30, .55)';
+      Fx.rrect(ctx, top.sx - w / 2 - 3, top.sy - 3, w + 6, h + 6, (h + 6) / 2);
+      ctx.fill();
+      if (k > 0) {
+        const hg = ctx.createLinearGradient(0, top.sy, 0, top.sy + h);
+        hg.addColorStop(0, '#ff8a96');
+        hg.addColorStop(0.5, '#ff3b4f');
+        hg.addColorStop(1, '#b81a2e');
+        ctx.fillStyle = hg;
+        Fx.rrect(ctx, top.sx - w / 2, top.sy, Math.max(h, w * k), h, h / 2);
+        ctx.fill();
+      }
+      Fx.text(ctx, `${t('Босс')} ${V.fmt(bossShown)}`, top.sx, top.sy - 11, { size: 14, color: '#ffffff', stroke: '#2a0d3a', outline: 3.5, font: FONT });
     }
     ctx.globalAlpha = 1;
   }
@@ -793,14 +1249,14 @@
   function burst(x, z, n, kind, opts = {}) {
     for (let i = 0; i < n; i++) {
       particles.push({
-        kind, x: x + (Math.random() - 0.5) * (opts.spread || 0.2), z: z + (Math.random() - 0.5) * 1.2,
-        h: opts.h === undefined ? 0.6 : opts.h,
-        vx: (Math.random() - 0.5) * (opts.vx || 1.2), vz: (Math.random() - 0.3) * (opts.vz || 6),
+        kind, x: x + (Math.random() - 0.5) * (opts.spread || 0.2), z: z + (Math.random() - 0.5) * (opts.zs === undefined ? 1.2 : opts.zs),
+        h: opts.h === undefined ? 0.6 : opts.h + (opts.hs ? Math.random() * opts.hs : 0),
+        vx: (Math.random() - 0.5) * (opts.vx || 1.2), vz: (Math.random() - 0.3) * (opts.vz || 6) + (opts.vz0 || 0),
         vh: (opts.vh || 4) * (0.6 + Math.random() * 0.8), life: 0, max: opts.life || 1.1,
         spin: (Math.random() - 0.5) * 12, color: opts.color || TEAM.ours.body, size: opts.size || 0.5,
       });
     }
-    if (particles.length > 400) particles.splice(0, particles.length - 400);
+    if (particles.length > 320) particles.splice(0, particles.length - 320);
   }
 
   function drawParticles(camZ, dt) {
@@ -810,29 +1266,64 @@
       q.x += (q.vx * dt) / V.HALF_M;
       q.z += q.vz * dt;
       q.h += q.vh * dt;
-      q.vh -= 16 * dt;
-      if (q.kind !== 'fall' && q.h < 0) { q.h = 0; q.vh *= -0.3; q.vx *= 0.6; q.vz *= 0.6; }
+      q.vh -= (q.kind === 'shard' ? 9 : 16) * dt;
+      if (q.kind === 'fall' && q.h < WATER_H) { // a splash where a falling soldier hits the sea
+        burst(q.x, q.z, 5, 'drop', { h: WATER_H, vh: 4, spread: 0.06, vx: 2, vz: 2, zs: 0.2, color: '#e8f8ff', size: 0.12, life: 0.6 });
+        burst(q.x, q.z, 1, 'ring', { h: WATER_H, vh: 0, spread: 0, vx: 0, vz: 0, zs: 0, color: '#e8f8ff', size: 0.3, life: 0.7 });
+        continue;
+      }
+      if (q.kind !== 'fall' && q.kind !== 'drop' && q.kind !== 'ring' && q.h < 0) { q.h = 0; q.vh *= -0.3; q.vx *= 0.6; q.vz *= 0.6; }
       if (q.life >= q.max || q.h < -8) continue;
       keep.push(q);
-      const p = P(q.x, q.z, camZ, q.h);
+      const p = P(q.x, q.z, camZ, q.kind === 'ring' ? WATER_H : q.h);
       if (!p) continue;
       const s = p.scale * q.size;
-      ctx.globalAlpha = clamp((q.max - q.life) / 0.3, 0, 1);
+      const al = clamp((q.max - q.life) / 0.3, 0, 1) * clamp((p.d - 1.5) / 2.5, 0, 1); // gone before they fill the lens
+      if (al <= 0.01) continue;
+      ctx.globalAlpha = al;
       if (q.kind === 'spark') {
-        ctx.fillStyle = q.color;
+        Fx.glow(ctx, p.sx, p.sy, clamp(s * 0.9, 2, 40), q.color, 0.8);
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(p.sx, p.sy, Math.max(1, s * 0.25), 0, Math.PI * 2);
+        ctx.arc(p.sx, p.sy, Math.max(0.8, s * 0.16), 0, Math.PI * 2);
         ctx.fill();
-      } else {
-        // A tumbling little soldier
+      } else if (q.kind === 'shard') { // a tumbling sliver of the gate's glass
         ctx.save();
         ctx.translate(p.sx, p.sy);
         ctx.rotate(q.spin * q.life);
+        ctx.scale(1, Math.abs(Math.cos(q.spin * q.life * 0.7)) + 0.2);
         ctx.fillStyle = q.color;
-        ctx.fillRect(-0.2 * s, -0.3 * s, 0.4 * s, 0.6 * s);
         ctx.beginPath();
-        ctx.arc(0, -0.5 * s, 0.17 * s, 0, Math.PI * 2);
+        ctx.moveTo(-s * 0.5, -s * 0.3);
+        ctx.lineTo(s * 0.5, -s * 0.5);
+        ctx.lineTo(s * 0.1, s * 0.5);
+        ctx.closePath();
         ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, .7)';
+        ctx.fillRect(-s * 0.3, -s * 0.35, s * 0.5, Math.max(0.6, s * 0.1));
+        ctx.restore();
+      } else if (q.kind === 'drop') {
+        ctx.fillStyle = q.color;
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, Math.max(0.8, s * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (q.kind === 'ring') {
+        const k = q.life / q.max;
+        const r = p.scale * (0.2 + k * 1.2);
+        ctx.strokeStyle = q.color;
+        ctx.lineWidth = Math.max(0.8, p.scale * 0.08 * (1 - k));
+        ctx.beginPath();
+        ctx.ellipse(p.sx, p.sy, r, r * 0.3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        // A tumbling little soldier
+        const team = q.color === TEAM.enemy.body ? 'enemy' : 'ours';
+        const sz = p.scale * SOLDIER;
+        if (q.kind !== 'fall') Fx.shadow(ctx, p.sx, P(q.x, q.z, camZ).sy, sz * 0.25, sz * 0.08, 0.3 * al);
+        ctx.save();
+        ctx.translate(p.sx, p.sy);
+        ctx.rotate(q.spin * q.life);
+        ctx.drawImage(figSprite(team, false), -FIG.w * sz / 2, -FIG.top * sz * 0.7, FIG.w * sz, (FIG.top + FIG.bottom) * sz);
         ctx.restore();
       }
     }
@@ -850,20 +1341,14 @@
     const base = P(crowdX, crowdZ, camZ, 2.2);
     floats = floats.filter((f) => (f.t += dt) < 1.1);
     if (!base) return;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     for (const f of floats) {
       const k = f.t / 1.1;
-      const size = clamp(vp.w / 11, 26, 44) * (1 + 0.3 * Math.max(0, 0.15 - f.t) / 0.15);
-      ctx.globalAlpha = 1 - k * k;
-      ctx.font = `900 ${size}px ${FONT}`;
-      ctx.lineWidth = size * 0.14;
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = f.good ? '#0d5a26' : '#6e0d0d';
-      ctx.fillStyle = f.good ? '#7dff9f' : '#ff8c80';
-      const y = base.sy - 60 - k * 70;
-      ctx.strokeText(f.text, base.sx + f.dx, y);
-      ctx.fillText(f.text, base.sx + f.dx, y);
+      const pop = Fx.ease.outBack(clamp(f.t / 0.22, 0, 1));
+      const size = clamp(vp.w / 10, 28, 48) * Math.max(0.05, pop);
+      ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      const y = base.sy - 60 - Fx.ease.outCubic(k) * 70;
+      if (f.t < 0.3) Fx.glow(ctx, base.sx + f.dx, y, size * 1.4, f.good ? '#7dff9f' : '#ff6a5a', (0.3 - f.t) * 2);
+      chunky(f.text, base.sx + f.dx, y, size, f.good ? '#0b5a26' : '#6e0d0d', f.good ? '#8dffaa' : '#ff9488');
     }
     ctx.globalAlpha = 1;
   }
@@ -878,29 +1363,78 @@
     const x = (vp.w - w) / 2;
     const y = 10;
     const k = ours + theirs > 0 ? clamp(ours / (ours + theirs), 0.08, 0.92) : 0.5;
-    ctx.fillStyle = 'rgba(0, 0, 0, .35)';
-    ctx.beginPath();
-    rrect(ctx, x - 2, y - 2, w + 4, h + 4, (h + 4) / 2);
+    ctx.fillStyle = 'rgba(8, 4, 30, .4)';
+    Fx.rrect(ctx, x - 3, y - 2, w + 6, h + 6, (h + 6) / 2);
     ctx.fill();
     ctx.save();
-    ctx.beginPath();
-    rrect(ctx, x, y, w, h, h / 2);
+    Fx.rrect(ctx, x, y, w, h, h / 2);
     ctx.clip();
-    ctx.fillStyle = '#2f7bff';
-    ctx.fillRect(x, y, w * k, h);
-    ctx.fillStyle = '#e43f3a';
-    ctx.fillRect(x + w * k, y, w * (1 - k), h);
-    ctx.fillStyle = 'rgba(255, 255, 255, .9)';
+    for (const [x0, ww, col] of [[x, w * k, '#2f7bff'], [x + w * k, w * (1 - k), '#e43f3a']]) {
+      const g = ctx.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0, Fx.shade(col, 0.35));
+      g.addColorStop(0.5, col);
+      g.addColorStop(1, Fx.shade(col, -0.3));
+      ctx.fillStyle = g;
+      ctx.fillRect(x0, y, ww, h);
+    }
+    ctx.fillStyle = 'rgba(255, 255, 255, .25)';
+    ctx.fillRect(x, y + 2, w, h * 0.28);
+    ctx.fillStyle = 'rgba(255, 255, 255, .95)';
     ctx.fillRect(x + w * k - 1.5, y, 3, h);
     ctx.restore();
+    ctx.strokeStyle = 'rgba(255, 255, 255, .5)';
+    ctx.lineWidth = 1.5;
+    Fx.rrect(ctx, x, y, w, h, h / 2);
+    ctx.stroke();
+    Fx.glow(ctx, x + w * k, y + h / 2, h * 0.9, '#ffffff', 0.35);
     ctx.font = `900 13px ${FONT}`;
     ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(8, 4, 30, .45)';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'left';
     const ahead = ours > theirs ? ' ✓' : '';
+    ctx.strokeText(`⚔ ${V.fmt(ours)}${ahead}`, x + 10, y + h / 2 + 1);
     ctx.fillText(`⚔ ${V.fmt(ours)}${ahead}`, x + 10, y + h / 2 + 1);
     ctx.textAlign = 'right';
+    ctx.strokeText(`${V.fmt(theirs)}${L.boss ? ' ♛' : ''}`, x + w - 10, y + h / 2 + 1);
     ctx.fillText(`${V.fmt(theirs)}${L.boss ? ' ♛' : ''}`, x + w - 10, y + h / 2 + 1);
+  }
+
+  // Golden rays behind the winning crowd, baked once.
+  let rays = null;
+  function raysSprite() {
+    if (rays) return rays;
+    const N = 256;
+    const c = layer(N, N);
+    const g = c.getContext('2d');
+    const m = N / 2;
+    const gr = g.createRadialGradient(m, m, 0, m, m, m);
+    gr.addColorStop(0, 'rgba(255, 236, 150, .9)');
+    gr.addColorStop(0.5, 'rgba(255, 220, 120, .35)');
+    gr.addColorStop(1, 'rgba(255, 220, 120, 0)');
+    g.fillStyle = gr;
+    for (let i = 0; i < 14; i++) {
+      const a0 = (i / 14) * Math.PI * 2;
+      g.beginPath();
+      g.moveTo(m, m);
+      g.arc(m, m, m, a0, a0 + 0.2);
+      g.closePath();
+      g.fill();
+    }
+    rays = c;
+    return c;
+  }
+
+  // A gate the crowd went through: the glass bursts into shards with a flash of its colour.
+  function gateBurst(e) {
+    const gate = run.level.gates.find((g) => g.z === e.z);
+    const [x0, x1] = !gate || gate.full ? [-1, 1] : e.side === 'left' ? [-1, 0] : [0, 1];
+    const col = e.good ? '#9bffbe' : '#ff9a90';
+    burst((x0 + x1) / 2, e.z, 18, 'shard', { spread: x1 - x0, h: 0.2, hs: GATE_H, vh: 3, vx: 2.5, vz: 6, vz0: 9, zs: 0.2, color: col, size: 0.3, life: 0.9 });
+    burst((x0 + x1) / 2, e.z, 10, 'spark', { spread: x1 - x0, h: 0.4, hs: 2, vh: 4, vz: 6, vz0: 8, zs: 0.2, color: e.good ? '#7dff9f' : '#ff7a6a', size: 0.5, life: 0.6 });
+    flash = { color: e.good ? '#7dff9f' : '#ff5a4a', t: 0 };
   }
 
   // ───────────── Scene ─────────────
@@ -909,13 +1443,45 @@
     if (!run) return;
     const L = run.level;
     const camZ = crowdZ - V.CAM_BACK;
-    if (shake > 0) {
-      const m = shake * 14;
-      ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
+    shakeFx.update(dt);
+    confetti.update(dt);
+    // The camera drifts a little after the crowd and banks into its turns (drawing only).
+    if (dt > 0) {
+      camX = Fx.damp(camX, crowdX * 0.12, 0.95, dt);
+      const vx = (crowdX - lastCrowdX) / dt;
+      camRoll = Fx.damp(camRoll, clamp(-vx * 0.012, -0.022, 0.022), 0.98, dt);
     }
+    lastCrowdX = crowdX;
+    const won = battle && battle.plan.won && battle.view.phase === 'done';
+    if (won) { if (endT < 0) endT = 0; endT += dt; } else if (mode !== 'end') { endT = -1; endBurst = false; }
+    else if (endT >= 0) endT += dt;
+    const lost = mode === 'lost' || (mode === 'end' && run.result && !run.result.won);
+    loseT = lost ? loseT + dt : 0;
     drawSky();
+    const off = shakeFx.offset();
+    const anchor = P(crowdX, crowdZ, camZ) || { sx: vp.w / 2, sy: V.groundY(vp) };
+    const zoom = endT >= 0 ? 1 + 0.07 * Fx.ease.inOutCubic(clamp(endT / 1.2, 0, 1))
+      : lost ? 1 - 0.05 * Fx.ease.outCubic(clamp(loseT / 1.5, 0, 1)) : 1;
+    ctx.save();
+    ctx.translate(anchor.sx + off.x, anchor.sy + off.y);
+    ctx.rotate(camRoll);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-anchor.sx, -anchor.sy);
     drawWater(camZ);
     drawTrack(L, camZ);
+    if (endT >= 0) { // golden rays behind the winners
+      const head = P(crowdX, crowdZ, camZ, 1.2);
+      if (head) {
+        const r = Math.max(vp.w, vp.h) * 0.6 * Fx.ease.outBack(clamp(endT / 0.6, 0, 1));
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.45 * clamp(endT / 0.4, 0, 1);
+        ctx.translate(head.sx, head.sy);
+        ctx.rotate(time * 0.25);
+        ctx.drawImage(raysSprite(), -r, -r, r * 2, r * 2);
+        ctx.restore();
+      }
+    }
 
     // Everything standing on the track, from far to near.
     const items = [];
@@ -938,19 +1504,37 @@
     for (const it of items) it.f();
 
     drawParticles(camZ, dt);
+    if (flash) { // the flash of a gate the crowd just went through
+      flash.t += dt;
+      const k = flash.t / 0.35;
+      if (k >= 1) flash = null;
+      else if (anchor) Fx.glow(ctx, anchor.sx, anchor.sy - 30, vp.w * (0.35 + 0.4 * k), flash.color, 0.55 * (1 - k));
+    }
     if (shownCount > 0) {
       const head = P(crowdX, crowdZ, camZ, 1.6);
       if (head) bubble(head, V.fmt(shownCount), '#1f63e0');
     }
     drawFloats(camZ, dt);
+    ctx.restore();
+
+    // Screen-space layers: confetti, the duel bar and the end-of-run grading.
+    if (endT >= 0 && !endBurst && !demo) {
+      endBurst = true;
+      const cols = ['#ffd34d', '#4fd17a', '#2f7bff', '#ff5a8a', '#ffffff'];
+      confetti.burst(vp.w * 0.2, vp.h * 0.35, 50, { speed: 260, angle: -1.1, spread: 1.4, gravity: 260, drag: 0.6, shape: 'confetti', colors: cols, size: 7, spin: 9, life: 2.2 });
+      confetti.burst(vp.w * 0.8, vp.h * 0.35, 50, { speed: 260, angle: -2.0, spread: 1.4, gravity: 260, drag: 0.6, shape: 'confetti', colors: cols, size: 7, spin: 9, life: 2.2 });
+    }
+    confetti.draw(ctx);
     if (!demo && (mode === 'play' || mode === 'pause')) drawDuel();
-    if (mode === 'lost' || (mode === 'end' && run.result && !run.result.won)) {
-      const a = Math.min(1, modeT * 2) * 0.3;
-      const vg = ctx.createRadialGradient(vp.w / 2, vp.h / 2, vp.h * 0.25, vp.w / 2, vp.h / 2, vp.h * 0.75);
-      vg.addColorStop(0, 'rgba(120, 0, 0, 0)');
-      vg.addColorStop(1, `rgba(120, 0, 0, ${a})`);
+    if (lost) {
+      const a = Math.min(1, loseT * 2) * 0.38;
+      const vg = ctx.createRadialGradient(vp.w / 2, vp.h / 2, vp.h * 0.2, vp.w / 2, vp.h / 2, vp.h * 0.75);
+      vg.addColorStop(0, 'rgba(120, 0, 20, 0)');
+      vg.addColorStop(1, `rgba(120, 0, 20, ${a})`);
       ctx.fillStyle = vg;
       ctx.fillRect(-20, -20, vp.w + 40, vp.h + 40);
+      ctx.fillStyle = `rgba(20, 10, 40, ${a * 0.35})`;
+      ctx.fillRect(0, 0, vp.w, vp.h);
     }
   }
 
@@ -966,12 +1550,13 @@
     for (const e of run.events) {
       if (e.type === 'gate') {
         pops.set(e.z, { side: e.side, t: 0 });
+        gateBurst(e);
         addFloat(V.opLabel({ op: e.op, n: e.n }), e.good);
         sfx('gate', { good: e.good });
         if (e.after < e.before) burst(run.x, run.z, Math.min(24, e.before - e.after), 'man', { spread: C.radius(e.before) * 2, vh: 5 });
         else if (e.after > e.before) burst(run.x, run.z, 10, 'spark', { color: '#7dff9f', vh: 6, spread: 0.5, size: 0.6, life: 0.7 });
       } else if (e.type === 'hit') {
-        shake = Math.max(shake, 0.25);
+        shakeFx.add(0.5);
         buzz(35);
         addFloat(`−${e.lost}`, false);
         sfx('hit');
@@ -1040,6 +1625,7 @@
     coinsWon = demo ? 0 : C.bank(storage, save, run);
     mode = 'lost';
     modeT = 0;
+    shakeFx.add(0.5);
     shownCount = 0;
     sfx('lose');
     buzz([60, 40, 90]);
@@ -1081,6 +1667,7 @@
         if (prev.ours > b.ours) burst(crowdX, crowdZ + 1, Math.min(4, prev.ours - b.ours), 'man', { vh: 5, spread: 0.6, life: 0.9 });
         if (prev.enemy > b.enemy) burst(0, enemyFront(L), Math.min(4, prev.enemy - b.enemy), 'man', { vh: 5, spread: 0.8, life: 0.9, color: TEAM.enemy.body, vz: -2 });
         sfx('clash');
+        shakeFx.add(0.12);
       }
     }
     if (b.phase === 'done' && prev.phase !== 'done') {
@@ -1091,6 +1678,7 @@
         if (coinsWon > 0) sfx('coin');
       } else {
         sfx('lose');
+        shakeFx.add(0.45);
       }
     }
     if (b.phase === 'done' && battle.plan.won && L.boss) bossFall += dt * 1.6;
@@ -1099,7 +1687,6 @@
 
   function update(dt) {
     modeT += dt;
-    shake = Math.max(0, shake - dt);
     for (const p of pops.values()) p.t += dt;
     for (const j of joined.values()) j.t += dt;
     const L = run.level;
