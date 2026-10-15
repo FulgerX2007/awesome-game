@@ -216,7 +216,10 @@ async function desktopChecks() {
   await ready(page);
   await page.click('#btn-continue');
   const back = await game(page, () => { const g = window.winterDebugGame(); return { t: Math.round(g.t), hut: g.hut.stage, wood: g.stock.wood }; });
-  check(JSON.stringify(back) === JSON.stringify(before), 'a reload restores the winter', `${JSON.stringify(before)} → ${JSON.stringify(back)}`);
+  // The game runs again from the moment Continue is clicked, and a night in bed runs fast, so the clock may
+  // already have moved on by a frame or two when it is read.
+  const restored = back.hut === before.hut && back.wood === before.wood && back.t >= before.t && back.t - before.t <= 2;
+  check(restored, 'a reload restores the winter', `${JSON.stringify(before)} → ${JSON.stringify(back)}`);
 
   // death, the result, «Начать день заново»
   await game(page, () => { const g = window.winterDebugGame(); g.hero.health = 0.5; g.hero.food = 0; g.hero.warmth = 0; g.hero.sleeping = false; });
@@ -225,7 +228,8 @@ async function desktopChecks() {
   const rec = await readSave(page);
   check(rec.current === null && !!rec.dawn, 'the end lands in winter.save at once (the dawn stays for a retry)', JSON.stringify({ c: rec.current, d: !!rec.dawn }));
   await page.click('#btn-res-retry');
-  check(await game(page, () => { const g = window.winterDebugGame(); return g && g.status === 'playing' && g.t % window.WinterCore.DAY === 0; }), '«Начать день заново» restores the dawn');
+  // as after a reload, the restored day may have run for a frame or two before it is read
+  check(await game(page, () => { const g = window.winterDebugGame(); return g && g.status === 'playing' && g.t % window.WinterCore.DAY < 1; }), '«Начать день заново» restores the dawn');
 
   check(external.length === 0, 'no requests leave the server', external.join('\n'));
   check(errors.length === 0, 'no console errors', errors.join('\n'));

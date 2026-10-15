@@ -46,6 +46,19 @@
 
 ## Tasks
 - [x] Shared kit `web/fx.js`, its tests, script tag in the eight pages, build tests and `main_test.go`.
-- [ ] One task per game: upgrade drawing in `web/<game>/game.js`, keep `node --test tests/<game>/` and
+- [x] One task per game: upgrade drawing in `web/<game>/game.js`, keep `node --test tests/<game>/` and
       `tests/<game>/smoke.cjs` green, compare before/after screenshots on a phone viewport.
-- [ ] README: note the shared kit and the 2.5D look.
+- [x] README: note the shared kit and the 2.5D look.
+
+## Outcome
+- All eight games upgraded; only `game.js` (and `style.css` in sort, winter, hero, front, castle, rush) changed per game.
+  No changes to `core.js`, `levels.js`, `content.js`, `view.js` or `lang.js`; no new strings; save formats unchanged.
+- Side changes worth knowing:
+  - `hero`: the battle canvas may now be up to 1.15× as tall as wide (was 0.75×) so portrait phones fill; DPR cap 3 → 2.
+  - `castle`: the canvas fills the whole stage; portrait gets extra sky and a foreground around the same play strip.
+  - `winter`: smoothed follow camera; a frame that runs over 40 ms (sprite baking) does not count as game time.
+  - `rush`: the vignette moved from the canvas to CSS (≈6 ms/frame saved).
+  - `tests/winter/smoke.cjs`: the reload and «Начать день заново» checks read the clock after the game has resumed,
+    so they now allow it a frame or two (≤ 2 s / < 1 s of game time) instead of an exact value.
+- Heaviest scenes in headless Chromium: rush big crowd ≈ 18 ms/frame (was 13), castle at 4× CPU throttle ≈ 30 fps
+  (was 60; the canvas now covers ~3× more pixels), pins slightly faster than before.
