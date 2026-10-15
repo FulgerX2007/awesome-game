@@ -783,19 +783,20 @@
 - Modify: `main_test.go`
 - Modify: `tests/{rush,parking,sort,castle}/build.test.js`
 
-- [ ] `audio.js` (`window.HeroAudio`) with the sounds from Shared; the toggle is in `hero.audio`. Load it before `game.js`.
-- [ ] hub card (`--hero`, RO string), first among the ad games; `/hero/*` paths in `main_test.go`.
+- [x] `audio.js` (`window.HeroAudio`) with the sounds from Shared; the toggle is in `hero.audio`. Load it before `game.js`.
+- [x] hub card (`--hero`, RO string), first among the ad games; `/hero/*` paths in `main_test.go`.
   The card-order assertions become `slice(0, 6)` with hero first (Tasks 9 and 14 extend them).
-- [ ] write `audio.test.js` and `build.test.js`, as in castle (no network at all: no `fetch(`).
-- [ ] write `tests/hero/smoke.cjs`:
+- [x] write `audio.test.js` and `build.test.js`, as in castle (no network at all: no `fetch(`).
+- [x] write `tests/hero/smoke.cjs`:
   - a new run;
   - choose a node, win a battle with a mid-battle weapon swap via the quick slot;
   - pick a chest reward;
   - reload on the map restores the run, and a reload mid-battle restarts the battle;
-  - a seeded save at the final boss node, built in the page by `HeroCore` with the test-only `restore` field
-    `bossHp` preset just above 33%, plays into phase 3 and ends on the result screen; «Слава» lands in `hero.save`;
+  - a seeded save at the final boss node, built in the page by `HeroCore` with the encounter's `hpFrac` preset
+    just above 33%, plays into phase 3, where the smoke swaps to the holy hammer on its quick slot, and ends on the
+    result screen; «Слава», the win and the first trial land in `hero.save`;
   - RO on a 360 px phone with touch, no console errors, no external requests.
-- [ ] run `node --test`, `go vet ./... && go test ./...`, the hero smoke, and re-run the other ad-game smokes — must pass before next task
+- [x] run `node --test`, `go vet ./... && go test ./...`, the hero smoke, and re-run the other ad-game smokes — must pass before next task
 
 ### Task 6: «Рубеж» — line, economy, buildings and units in core.js
 
