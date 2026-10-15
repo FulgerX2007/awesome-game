@@ -184,3 +184,74 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 @media (prefers-reduced-motion: reduce) {
   .panel, .tip { animation: none; }
 }
+
+/* ───── Premium polish: lit panels, glossy buttons, upgrade cards with badges ───── */
+.stage canvas { box-shadow: 0 10px 30px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 220, 160, .08); }
+.stage.dim canvas { filter: brightness(.55) saturate(.85); }
+.panel {
+  position: relative;
+  background:
+    radial-gradient(ellipse 90% 60% at 30% 0%, rgba(255, 214, 150, .16), transparent 70%),
+    linear-gradient(#45372a, #2a2018 70%, #231a12);
+  border: 1px solid #7a5f3d;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 230, 190, .25), inset 0 -2px 0 rgba(0, 0, 0, .35);
+  animation: pop .35s cubic-bezier(.2, 1.4, .4, 1);
+}
+.panel::before { /* a gold trim along the top edge */
+  content: ""; position: absolute; left: 18px; right: 18px; top: -1px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #f2c47f, transparent);
+}
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.92); } to { opacity: 1; transform: none; } }
+.panel h2 {
+  background: linear-gradient(#ffe7b0, #e0a552 60%, #b8742a); -webkit-background-clip: text; background-clip: text;
+  color: transparent; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .6)); letter-spacing: .01em;
+}
+.panel h2.won { background-image: linear-gradient(#e6ffd8, #7fe08e 60%, #3f9a4e); }
+.panel h2.lost { background-image: linear-gradient(#ffd6cc, #ff7a62 60%, #c43a2a); }
+.btn {
+  background: linear-gradient(#4a3b2a, #33281c); border-color: #6e5536;
+  box-shadow: inset 0 1px 0 rgba(255, 230, 190, .18), 0 3px 0 #1a120b, 0 6px 14px rgba(0, 0, 0, .35);
+  transition: border-color .15s, transform .1s, box-shadow .1s, filter .15s;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 230, 190, .18), 0 1px 0 #1a120b, 0 3px 8px rgba(0, 0, 0, .35); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.primary {
+  background: linear-gradient(#ffe0a3, #f0b65e 45%, #c47f2c); color: #2a1604; border-color: #8a5a1c;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), inset 0 -2px 0 rgba(120, 60, 0, .35), 0 3px 0 #6e430f, 0 8px 20px rgba(240, 170, 70, .3);
+  text-shadow: 0 1px 0 rgba(255, 240, 210, .6);
+}
+.cards .card {
+  position: relative; overflow: hidden;
+  background: linear-gradient(#5a4630, #3a2e20 60%, #2e2419); border-color: #7a5f3d;
+  box-shadow: inset 0 1px 0 rgba(255, 230, 190, .2), 0 4px 0 #1a120b, 0 8px 18px rgba(0, 0, 0, .35);
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+  animation: card-in .4s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.cards .card:nth-child(2) { animation-delay: .06s; }
+.cards .card:nth-child(3) { animation-delay: .12s; }
+@keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(.9); } to { opacity: 1; transform: none; } }
+.cards .card::after { /* a soft sheen across the top */
+  content: ""; position: absolute; inset: 0 0 55% 0; pointer-events: none;
+  background: linear-gradient(rgba(255, 240, 210, .1), transparent);
+}
+.cards .card:hover:not(:disabled) { transform: translateY(-3px); border-color: var(--accent); box-shadow: inset 0 1px 0 rgba(255, 230, 190, .25), 0 7px 0 #1a120b, 0 14px 24px rgba(0, 0, 0, .4); }
+.cards .card.picked {
+  border-color: #8fe39b; background: linear-gradient(#3f7a3a, #2a4a26 60%, #22361f);
+  box-shadow: 0 0 0 2px rgba(143, 227, 155, .35), 0 0 22px rgba(143, 227, 155, .35), 0 4px 0 #10200d;
+}
+.card .ico-up {
+  width: 38px; height: 38px; font-size: 20px; color: #3a2204; text-shadow: 0 1px 0 rgba(255, 255, 255, .5);
+  background: radial-gradient(circle at 35% 30%, #fff4cf, #f2c15a 45%, #a8701f 100%);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, .4), 0 0 12px rgba(242, 193, 90, .35), inset 0 -2px 0 rgba(90, 50, 0, .35);
+}
+.card.picked .ico-up { background: radial-gradient(circle at 35% 30%, #eaffe8, #8fe39b 45%, #3f9a4e 100%); }
+.shop .btn { font-variant-numeric: tabular-nums; }
+.res-main { font-size: 24px; color: #fff3dc; text-shadow: 0 2px 0 rgba(0, 0, 0, .5); }
+.wall-bar { box-shadow: inset 0 2px 4px rgba(0, 0, 0, .45); }
+.wall-bar i { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), inset 0 -2px 0 rgba(0, 0, 0, .2); }
+.pill { box-shadow: inset 0 1px 0 rgba(255, 230, 190, .1); }
+.tip { box-shadow: 0 6px 18px rgba(0, 0, 0, .4); background: linear-gradient(rgba(58, 40, 22, .92), rgba(28, 19, 10, .92)); }
+@media (prefers-reduced-motion: reduce) {
+  .cards .card { animation: none; }
+}

@@ -199,3 +199,8 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 @media (prefers-reduced-motion: reduce) {
   .panel, .tip, .upg.bought, .res-stars.reveal .star { animation: none; }
 }
+/* A soft vignette over the scene (GPU-composited, cheaper than painting it into the canvas every frame). */
+.stage::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0; border-radius: inherit;
+  background: radial-gradient(ellipse 75% 70% at 50% 52%, rgba(10, 6, 24, 0) 55%, rgba(10, 6, 24, .3) 100%);
+}
