@@ -32,7 +32,7 @@ function code(src) {
 
 test('index.html loads the scripts in order and every one exists', () => {
   const srcs = [...HTML.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', 'lang.js', 'content.js', 'core.js', 'view.js', 'audio.js', 'game.js']);
+  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', '../fx.js', 'lang.js', 'content.js', 'core.js', 'view.js', 'audio.js', 'game.js']);
   for (const s of srcs) assert.ok(fs.existsSync(path.join(DIR, s)), s);
   for (const m of HTML.matchAll(/<link [^>]*href="([^"]+)"/g)) assert.ok(fs.existsSync(path.join(DIR, m[1])), m[1]);
 });
@@ -43,7 +43,7 @@ test('index.html uses only relative paths', () => {
   for (const r of refs) {
     assert.ok(!/^[a-z]+:|^\/\//i.test(r), `no scheme or protocol-relative URL: ${r}`);
     assert.ok(!r.startsWith('/'), `no absolute path: ${r}`);
-    assert.ok(!r.startsWith('../') || ['../i18n.js', '../nav.js'].includes(r), `only shared hub scripts above the folder: ${r}`);
+    assert.ok(!r.startsWith('../') || ['../i18n.js', '../nav.js', '../fx.js'].includes(r), `only shared hub scripts above the folder: ${r}`);
   }
   assert.doesNotMatch(HTML, /@import|url\(/, 'no CSS imports or url() in the page');
 });
