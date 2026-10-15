@@ -370,7 +370,7 @@
 ### 2. «Рубеж» (`/front/`)
 
 **World**
-- A 1-D line `x ∈ [0, L]` in metres, `L` 140–260 by level.
+- A 1-D line `x ∈ [0, L]` in metres, `L` 84–276 by level (➕ level 1 is shorter so its par fits in 2 minutes).
 - The keep stands at `x = 0..6` (HP 400), the enemy fortress at `x = L−8..L` (HP by level).
 - Segments are defined by a level string. Every character is 4 m:
 
@@ -387,7 +387,7 @@
 
 **Economy**
 - Resources: `wood`, `stone`, `metal`. The start values depend on the level.
-- Workers walk to the nearest reachable node of the requested resource, gather 5 units in 3 s and carry them to the keep.
+- Workers walk (3 m/s) to the nearest reachable node of the requested resource, gather 10 units in 3 s and carry them to the keep (➕ was 5 units at 1.8 m/s: a metal trip took almost a minute).
   A bridge over a chasm makes the nodes beyond it reachable.
 - The «Добыча» panel sets the number of workers per resource with +/− buttons; new workers go to wood.
 - Food is not modelled. The worker cap is 3 + 3 per house; a level starts with 2 workers.
@@ -397,10 +397,10 @@
 
 | id | RU | Cost | Effect |
 |---|---|---|---|
-| `bridge` | Мост | 30 wood per segment | opens the way and the nodes beyond |
+| `bridge` | Мост | 30 wood per segment, paid at once for the whole chasm; 4 s per segment | opens the way and the nodes beyond |
 | `house` | Дом | 30 wood | +3 workers to the cap |
-| `wall` | Стена | 40 wood, 20 stone; upgraded to stone 60 stone | blocks enemies; 300 HP, 800 as stone |
-| `tower` | Башня | 50 wood, 40 stone | arrows, range 22 m |
+| `wall` | Стена | 30 wood, 10 stone; upgraded to stone 60 stone | blocks enemies; 400 HP, 1000 as stone |
+| `tower` | Башня | 50 wood, 40 stone | arrows, 12 damage a second, range 22 m |
 | `barracks` | Казарма | 60 wood, 30 stone | unlocks soldiers and archers |
 | `forge` | Кузница | 40 stone, 40 metal | unlocks knights, +25% soldier damage |
 
@@ -411,11 +411,17 @@
 | `worker` | Рабочий | 15 wood | 20 | 2 | 1 | 1.8 |
 | `soldier` | Мечник | 20 wood, 10 metal | 60 | 8 | 1.2 | 1.4 |
 | `archer` | Лучник | 25 wood, 5 metal | 35 | 6 | 16 | 1.4 |
-| `knight` | Рыцарь | 30 metal | 140 | 14 | 1.3 | 1.6 |
-| `catapult` | Катапульта | 80 wood, 40 metal | 80 | 30, ×4 against the fortress and walls | 20 | 0.8 |
+| `knight` | Рыцарь | 30 metal | 140 | 14, ×1.5 against the fortress | 1.3 | 1.6 |
+| `catapult` | Катапульта | 80 wood, 40 metal | 80 | 30, ×4 against the fortress | 24 (past the fortress towers' 20) | 0.8 |
 
 - Soldiers and archers need a barracks; knights and catapults need a forge as well.
 - Own units pass through own walls; enemies stop at them.
+- ➕ «Держать рубеж» puts melee units right behind the front wall (they reach over it, the wall takes the blows) and
+  archers 3 m further back. With the army in front of the wall (the first version) walls and towers were worth
+  nothing: an army-only bot did as well as the full build order.
+- ➕ Enemies climb through an open chasm at 40% speed; the player's units need the bridge.
+- ➕ A level may have an armoured fortress (`armor`): non-siege damage is cut by that share. «Кузня» has 0.5,
+  «Твердыня» 0.75; knights (×1.5) and catapults (×4) are the siege units.
 - The seed drives attack-timer jitter and a ±10% damage spread, so seeds differ while waves stay level data.
 
 - The army has two orders, «Держать рубеж» and «В атаку».
@@ -477,9 +483,18 @@
 - Competent wins all 12 levels on 3/3 seeds and gets ★★★ on ≥ 8 levels.
 - Casual wins ≥ 9/12 levels on each of 3 seeds.
 - Army only loses at least 4 of levels 5–12.
-- Each level 2–12 is lost by a bot variant that skips that level's idea (no bridge → cannot reach; no towers on 4,
-  and so on), where such a variant makes sense. The skipped idea is listed per level in `levels.test.js`.
-- Level length 4–10 minutes of game time for the competent bot.
+- ➕ (changed in Task 7) Levels 2, 5 and 8 are lost without the bridge; level 3 is lost or costs a star without walls
+  and towers. On the other levels the idea helps but doesn't gate the level (a bot without towers, the stone wall,
+  the forge or catapults still wins there), so the test checks that the competent player uses it: a tower on 4,
+  a stone wall on 7, the forge on 9 and 11.
+- Level length 2–12 minutes of game time for the competent bot (➕ was 4–10; level 1 takes 113 s by design).
+- ➕ Measured after tuning (3 seeds; stars per level 1–12, L = lost):
+  - competent: `333333332333` on every seed;
+  - casual: `23333232L3L2`, `23333232L33L`, `233332322333`;
+  - army only: `3322LLLLL2LL`, `33L2LLLLL2LL`, `33LLLLLLL2LL`;
+  - competent times: 113 195 288 301 347 255 337 312 355 409 389 609 s.
+
+  The wave sizes were scaled per level by a search (`×0.6…1.4`), and the pars are 1.1× the competent time.
 
 **Saving**
 - `front.progress` holds `{v:1, stars:[…], current}`. `current` is a full state snapshot (positions, units,
@@ -804,30 +819,30 @@
 - Create: `web/front/core.js`
 - Create: `tests/front/core.test.js`
 
-- [ ] UMD `root.FrontCore`:
+- [x] UMD `root.FrontCore`:
   - `parseLevel` with validation of map characters and data;
   - `newGame(level, seed)`;
   - `step` with 1/20 s fixed ticks, at most 0.25 s per call, bad `dt` ignored.
-- [ ] economy:
+- [x] economy:
   - workers' gather/carry loop over reachable nodes;
   - resource shares;
   - the worker cap from houses.
-- [ ] building:
+- [x] building:
   - `canBuild`/`build(plot or chasm, id)` with costs and refusals;
   - construction time;
   - bridges opening the way;
   - wall upgrade;
   - building HP.
-- [ ] units:
+- [x] units:
   - `recruit` and queues;
   - hold/attack orders;
   - melee and ranged combat on the line;
   - towers;
   - walls blocking;
   - the catapult against the fortress.
-- [ ] enemies: the wave schedule, enemy types, fortress towers, patrols after the last wave, target priority.
-- [ ] `status` (`playing`/`won`/`lost`), `stars`, `drain` events.
-- [ ] write tests:
+- [x] enemies: the wave schedule, enemy types, fortress towers, patrols after the last wave, target priority.
+- [x] `status` (`playing`/`won`/`lost`), `stars`, `drain` events.
+- [x] write tests:
   - gathering rates;
   - unreachable nodes beyond a chasm until the bridge is built;
   - costs and refusals;
@@ -839,7 +854,7 @@
   - the patrols;
   - win/loss and stars at boundaries;
   - determinism; `dt` slicing gives the same result.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 7: «Рубеж» — 12 levels, bots and balance
 
@@ -850,16 +865,16 @@
 - Create: `tests/front/balance.test.js`
 - Modify: `web/front/core.js` (tuning numbers only)
 
-- [ ] write the 12 levels from Technical Details > Levels.
-- [ ] `bot.js`: the competent, casual and army-only bots, plus the per-level "skip the idea" variants.
-- [ ] `levels.test.js`:
+- [x] write the 12 levels from Technical Details > Levels.
+- [x] `bot.js`: the competent, casual and army-only bots, plus the per-level "skip the idea" variants.
+- [x] `levels.test.js`:
   - every level parses;
   - plots and chasms are where the idea needs them;
   - the per-level "skip the idea" check.
-- [ ] `balance.test.js`: the targets from Technical Details > Balance on 3 seeds. Split it into two files if it runs
+- [x] `balance.test.js`: the targets from Technical Details > Balance on 3 seeds. Split it into two files if it runs
   longer than ~60 s.
-- [ ] tune the level data and numbers until the targets hold; update the tables; ⚠️ and the fallback rule if needed.
-- [ ] run tests — must pass before next task
+- [x] tune the level data and numbers until the targets hold; update the tables; ⚠️ and the fallback rule if needed.
+- [x] run tests — must pass before next task
 
 ### Task 8: «Рубеж» — page, rendering, input, screens and saving
 

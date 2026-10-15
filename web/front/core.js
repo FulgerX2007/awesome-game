@@ -14,7 +14,7 @@
   const KEEP_HP = 400;
   const KEEP_SHOT = { range: 14, dmg: 4, interval: 1.5 };
   const FORT_SHOT = { range: 20, dmg: 8, interval: 1.5 };
-  const GATHER = { time: 3, load: 5 };
+  const GATHER = { time: 3, load: 10 };
   const NODE_SLOTS = 2;              // workers a resource node serves at once
   const WORKER_BASE = 3, HOUSE_WORKERS = 3, START_WORKERS = 2;
   const ARMY_CAP = 30;
@@ -28,20 +28,20 @@
   const BUILD = {
     bridge: { cost: { wood: 30 }, time: 4 },
     house: { cost: { wood: 30 }, time: 6, hp: 150 },
-    wall: { cost: { wood: 40, stone: 20 }, time: 8, hp: 300 },
-    tower: { cost: { wood: 50, stone: 40 }, time: 10, hp: 250, range: 22, dmg: 7, interval: 1 },
+    wall: { cost: { wood: 30, stone: 10 }, time: 8, hp: 400 },
+    tower: { cost: { wood: 50, stone: 40 }, time: 10, hp: 250, range: 22, dmg: 12, interval: 1 },
     barracks: { cost: { wood: 60, stone: 30 }, time: 10, hp: 250 },
     forge: { cost: { stone: 40, metal: 40 }, time: 12, hp: 250 },
   };
-  const STONE_WALL = { cost: { stone: 60 }, time: 8, hp: 800 };
+  const STONE_WALL = { cost: { stone: 60 }, time: 8, hp: 1000 };
 
   // Units. need: the building that unlocks them. siege: damage multiplier against the fortress and walls.
   const UNITS = {
-    worker: { cost: { wood: 15 }, time: 4, hp: 20, dmg: 2, range: 1, interval: 1, speed: 1.8 },
+    worker: { cost: { wood: 15 }, time: 4, hp: 20, dmg: 2, range: 1, interval: 1, speed: 3 },
     soldier: { cost: { wood: 20, metal: 10 }, time: 6, hp: 60, dmg: 8, range: 1.2, interval: 1, speed: 1.4, need: 'barracks' },
     archer: { cost: { wood: 25, metal: 5 }, time: 6, hp: 35, dmg: 6, range: 16, interval: 1.2, speed: 1.4, need: 'barracks' },
-    knight: { cost: { metal: 30 }, time: 9, hp: 140, dmg: 14, range: 1.3, interval: 1, speed: 1.6, need: 'forge' },
-    catapult: { cost: { wood: 80, metal: 40 }, time: 12, hp: 80, dmg: 30, range: 20, interval: 3, speed: 0.8, need: 'forge', siege: 4 },
+    knight: { cost: { metal: 30 }, time: 9, hp: 140, dmg: 14, range: 1.3, interval: 1, speed: 1.6, need: 'forge', siege: 1.5 },
+    catapult: { cost: { wood: 80, metal: 40 }, time: 12, hp: 80, dmg: 30, range: 24, interval: 3, speed: 0.8, need: 'forge', siege: 4 },
   };
   const FORGE_BONUS = 0.25; // soldiers hit 25% harder once a forge stands
 
@@ -98,6 +98,7 @@
     return {
       name: def.name || '', map, L, plots, chasms: chasms.map(({ x0, x1, segments }) => ({ x0, x1, segments })), nodes,
       start, waves, fortressHp: def.fortressHp, towers: Math.max(0, def.towers | 0), par: finite(def.par) ? def.par : 300,
+      armor: finite(def.armor) ? clamp(def.armor, 0, 0.95) : 0,
     };
   }
 
@@ -109,7 +110,7 @@
       v: 1, seed: s, rng: s, L: lv.L, t: 0, acc: 0, status: 'playing',
       res: Object.assign({}, lv.start),
       keep: { hp: KEEP_HP, maxHp: KEEP_HP, cd: 0 },
-      fort: { hp: lv.fortressHp, maxHp: lv.fortressHp, towers: lv.towers, cd: 0 },
+      fort: { hp: lv.fortressHp, maxHp: lv.fortressHp, towers: lv.towers, armor: lv.armor, cd: 0 },
       plots: lv.plots.map((p) => ({ x: p.x, b: null })),
       chasms: lv.chasms.map((c) => ({ x0: c.x0, x1: c.x1, segments: c.segments, built: 0, bridged: false, work: 0, busy: false })),
       nodes: lv.nodes.map((n) => ({ x: n.x, res: n.res })),
@@ -256,7 +257,7 @@
       if (!c) return 'bad';
       if (c.bridged || c.busy) return 'busy';
       if (c.x0 > frontier(g)) return 'locked'; // only the nearest open chasm can be bridged
-      return afford(g, BUILD.bridge.cost) ? 'ok' : 'nores';
+      return afford(g, bridgeCost(g, target.chasm)) ? 'ok' : 'nores';
     }
     const p = g.plots[target.plot];
     if (!p) return 'bad';
@@ -270,6 +271,13 @@
     return afford(g, BUILD[id].cost) ? 'ok' : 'nores';
   }
 
+  // The whole bridge over a chasm: BUILD.bridge.cost for every 4 m segment still open.
+  function bridgeCost(g, ci) {
+    const c = g.chasms[ci], left = c ? c.segments - c.built : 0, out = {};
+    for (const r of Object.keys(BUILD.bridge.cost)) out[r] = BUILD.bridge.cost[r] * left;
+    return out;
+  }
+
   function costOf(id) {
     if (id === 'stonewall') return STONE_WALL.cost;
     return BUILD[id] ? BUILD[id].cost : UNITS[id] ? UNITS[id].cost : null;
@@ -280,7 +288,7 @@
     if (r !== 'ok') return r;
     if (id === 'bridge') {
       const c = g.chasms[target.chasm];
-      pay(g, BUILD.bridge.cost);
+      pay(g, bridgeCost(g, target.chasm));
       c.busy = true;
       c.work = 0;
     } else if (id === 'stonewall') {
@@ -301,11 +309,11 @@
       if (!c.busy) continue;
       c.work += TICK;
       if (c.work >= BUILD.bridge.time - 1e-9) {
+        // one segment after another until the whole bridge stands
         c.work = 0;
-        c.busy = false;
         c.built++;
         g.events.push({ type: 'built', id: 'bridge', x: c.x0 + (c.built - 0.5) * CELL });
-        if (c.built >= c.segments) { c.bridged = true; g.events.push({ type: 'bridged', x0: c.x0 }); }
+        if (c.built >= c.segments) { c.busy = false; c.bridged = true; g.events.push({ type: 'bridged', x0: c.x0 }); }
       }
     }
     for (const p of g.plots) {
@@ -413,7 +421,8 @@
       if (u.x >= goal - 0.05 && u.x <= fx) {
         if (u.cd <= 0) {
           u.cd += st.interval;
-          const dmg = hit(g, st.dmg * (st.siege || 1));
+          // stone fortress walls shrug off all but siege engines (level `armor`)
+          const dmg = hit(g, st.dmg * (st.siege || 1 - (g.fort.armor || 0)));
           g.fort.hp -= dmg;
           g.events.push({ type: 'fortHit', dmg: Math.round(dmg), kind: u.kind });
           if (st.range > 2) g.events.push({ type: 'shot', from: u.x, to: fx + 1, kind: u.kind });
@@ -421,8 +430,9 @@
         return;
       }
     } else {
+      // hold: right behind the front wall (melee reaches over it, the wall takes the blows), or ahead of the keep
       const w = frontWall(g);
-      const base = w >= 0 ? w + 2 : KEEP_X + 8;
+      const base = w >= 0 ? w - 0.3 : KEEP_X + 8;
       goal = st.range > 2 ? base - 3 : base;
     }
     goal = Math.min(goal, lim);
@@ -645,7 +655,7 @@
     TICK, MAX_DT, CELL, KEEP_X, FORT_W, KEEP_HP, KEEP_SHOT, FORT_SHOT, GATHER, NODE_SLOTS, WORKER_BASE, HOUSE_WORKERS,
     START_WORKERS, ARMY_CAP, PATROL, CHASM_SLOW, SPREAD, RES, BUILD, STONE_WALL, UNITS, FORGE_BONUS, ENEMIES, PROGRESS_KEY,
     clamp, rand, parseLevel, newGame, status, drain, frontier, workerCap, count, armySize, hasBuilding, reachableNodes,
-    afford, missing, costOf, setAlloc, canBuild, build, canRecruit, recruit, setOrder, frontWall, step, stars,
+    afford, missing, costOf, bridgeCost, setAlloc, canBuild, build, canRecruit, recruit, setOrder, frontWall, step, stars,
     snapshot, restore, newProgress, loadProgress, saveProgress, recordStars, unlocked, firstUnfinished,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
