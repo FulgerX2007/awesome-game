@@ -153,7 +153,7 @@ test('cheapest picks the lowest next price and skips maxed upgrades', () => {
 
 test('the save loads clean from missing, broken, foreign or blocked storage', () => {
   const clean = R.newSave();
-  assert.deepEqual(clean, { v: 1, level: 1, best: 0, coins: 0, upgrades: { start: 0, weapon: 0, shield: 0, income: 0 } });
+  assert.deepEqual(clean, { v: 1, level: 1, best: 0, coins: 0, upgrades: { start: 0, weapon: 0, shield: 0, income: 0 }, stars: [] });
   for (const raw of [null, undefined, '', '{', 'null', '42', '"x"', '[]', '{"v":2,"level":5}', '{"level":5}']) {
     assert.deepEqual(R.parseSave(raw), clean, String(raw));
   }
@@ -167,7 +167,9 @@ test('the save keeps good fields and drops junk ones', () => {
   const s = R.parseSave(JSON.stringify({
     v: 1, level: 7, best: 6, coins: 345, upgrades: { start: 2, weapon: 'x', shield: 40, income: 1.5, extra: 3 }, junk: 1,
   }));
-  assert.deepEqual(s, { v: 1, level: 7, best: 6, coins: 345, upgrades: { start: 2, weapon: 0, shield: 10, income: 0 } });
+  assert.deepEqual(s, {
+    v: 1, level: 7, best: 6, coins: 345, upgrades: { start: 2, weapon: 0, shield: 10, income: 0 }, stars: [1, 1, 1, 1, 1, 1],
+  }, 'a save from before stars: every level won has one star');
   const junk = R.parseSave(JSON.stringify({ v: 1, level: -3, best: 'a', coins: -5, upgrades: null }));
   assert.deepEqual(junk, R.newSave());
   assert.equal(R.parseSave(JSON.stringify({ v: 1, level: 9, best: 2 })).level, 3, 'no skipping past the best + 1');
@@ -182,6 +184,7 @@ test('storeSave writes rush.save and loadSave reads it back; a blocked storage g
   save.best = 3;
   save.coins = 99;
   save.upgrades.shield = 2;
+  save.stars = [3, 1, 2];
   assert.equal(R.SAVE_KEY, 'rush.save');
   assert.equal(R.storeSave(st, save), true);
   assert.deepEqual(R.loadSave(st), save);
@@ -257,4 +260,60 @@ test('a casual bot reaches level 30 whatever it buys first, and a player who nev
   }
   const { save } = campaign(30, 40, { mode: 'smart', shop: 'none' });
   assert.ok(save.best < 10, `with no upgrades the smart bot still got to level ${save.best}`);
+});
+
+test('stars in the save: one entry per level won, 1–3, junk cleaned', () => {
+  const s = R.parseSave(JSON.stringify({ v: 1, level: 5, best: 4, stars: [3, 0, 'x', 2.5, 2, 3, 3] }));
+  assert.deepEqual(s.stars, [3, 1, 1, 1], 'cut to best, junk becomes 1');
+  assert.deepEqual(R.parseSave(JSON.stringify({ v: 1, level: 3, best: 2, stars: 'abc' })).stars, [1, 1]);
+  assert.equal(R.levelStars(s, 1), 3);
+  assert.equal(R.levelStars(s, 5), 0, 'a level not won has no stars');
+  assert.equal(R.levelStars(null, 1), 0);
+  assert.equal(R.totalStars(s), 6);
+  assert.equal(R.totalStars(R.newSave()), 0);
+});
+
+test('stars of a run: strength at the finish against the autopilot on the same level with the same upgrades', () => {
+  // Plain level: +10 or ×2, then the battle. The autopilot takes ×2: 20 soldiers at the finish.
+  const def = level({
+    length: 100, gates: [{ z: 40, left: { op: 'add', n: 10 }, right: { op: 'mul', n: 2 } }], enemy: { count: 10, power: 1 },
+  });
+  const at = (count) => {
+    const run = R.newRun(def, {});
+    while (run.status === 'running') R.step(run, R.TICK, 1);
+    run.count = count;
+    R.finishBattle(run);
+    return run;
+  };
+  assert.equal(R.par(at(20)), 20);
+  assert.deepEqual([at(25), at(20), at(19), at(18), at(17), at(11)].map(R.starsFor), [3, 3, 2, 2, 1, 1]);
+  const lost = at(15);
+  lost.level.enemy.count = 100;
+  lost.result = null;
+  lost.status = 'battle';
+  R.finishBattle(lost);
+  assert.equal(R.starsFor(lost), 0, 'a loss has none');
+  assert.equal(R.starsFor(R.newRun(def, {})), 0, 'a run on the track has none');
+});
+
+test('record keeps the best stars of every level', () => {
+  const save = R.newSave();
+  const def = level({
+    num: 1, length: 100, gates: [{ z: 40, left: { op: 'add', n: 10 }, right: { op: 'mul', n: 2 } }], enemy: { count: 10, power: 1 },
+  });
+  const finish = (count) => {
+    const run = R.newRun(def, {});
+    while (run.status === 'running') R.step(run, R.TICK, 1);
+    run.count = count;
+    return run;
+  };
+  R.record(save, finish(17));
+  assert.deepEqual(save.stars, [1]);
+  R.record(save, finish(20));
+  assert.deepEqual(save.stars, [3]);
+  R.record(save, finish(18));
+  assert.deepEqual(save.stars, [3], 'a worse replay keeps the best');
+  const old = R.parseSave(JSON.stringify({ v: 1, level: 4, best: 3 }));
+  R.record(old, finish(18));
+  assert.deepEqual(old.stars, [2, 1, 1]);
 });

@@ -93,7 +93,7 @@ test('the interface game.js relies on, and every sound it plays exists', () => {
   assert.equal(typeof A.enabled, 'boolean');
   for (const fn of ['setEnabled', 'unlock', 'play']) assert.equal(typeof A[fn], 'function', fn);
   const used = new Set([...GAME.matchAll(/sfx\('([a-z]+)'/g)].map((m) => m[1]));
-  for (const n of ['gate', 'hit', 'fall', 'battle', 'clash', 'coin', 'win', 'lose']) assert.ok(used.has(n), `game.js plays ${n}`);
+  for (const n of ['gate', 'hit', 'fall', 'recruit', 'battle', 'clash', 'coin', 'win', 'lose', 'star']) assert.ok(used.has(n), `game.js plays ${n}`);
   for (const n of used) assert.ok(A.SOUND_NAMES.includes(n), `audio.js has ${n}`);
   assert.match(GAME, /sfx\('gate', \{ good: e\.good \}\)/, 'the gate sound gets the good flag');
 });

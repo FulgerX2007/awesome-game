@@ -128,6 +128,14 @@
       tone(f, { d: 0.45, vol: 0.05, to: f * 0.35 });
       noise({ at: 0.25, d: 0.2, vol: 0.06, f: 500, q: 0.8, type: 'lowpass' });
     },
+    recruit() { // recruits join: a quick rising arpeggio
+      [72, 76, 79].forEach((m, k) => tone(freq(m), { at: k * 0.05, d: 0.14, vol: 0.06, type: 'triangle' }));
+      noise({ d: 0.12, vol: 0.06, f: 3000, q: 1.5, sweep: 6000 });
+    },
+    star({ n = 1 } = {}) { // the result's stars light up one after another
+      const k = Math.max(0, Math.min(3, Math.round(Number(n) || 0)));
+      for (let i = 0; i < k; i++) tone(freq(81 + 4 * i), { at: 0.25 + 0.2 * i, d: 0.3, vol: 0.06, type: 'triangle' });
+    },
     battle() { // the charge: a low drum roll under a horn call
       for (let i = 0; i < 6; i++) noise({ at: i * 0.07, d: 0.08, vol: 0.18, f: 160, q: 0.7, type: 'lowpass' });
       [55, 60, 62].forEach((m, k) => tone(freq(m), { at: 0.1 + k * 0.12, d: 0.3, vol: 0.06, type: 'sawtooth', attack: 0.02 }));
@@ -152,7 +160,7 @@
       tone(freq(43), { at: 0.6, d: 0.8, vol: 0.06, type: 'sawtooth', to: freq(38) });
     },
   };
-  const GAPS = { gate: 60, hit: 90, fall: 250, battle: 500, clash: 110, coin: 90 };
+  const GAPS = { gate: 60, hit: 90, fall: 250, recruit: 80, battle: 500, clash: 110, coin: 90 };
 
   function play(name, opts) {
     if (!state.enabled || !Object.prototype.hasOwnProperty.call(SOUNDS, name) || !ensure()) return;

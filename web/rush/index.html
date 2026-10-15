@@ -20,7 +20,7 @@
     <span class="hud-stat" title="Бойцы"><i class="soldier" aria-hidden="true"></i><b id="hud-count">0</b></span>
     <span class="hud-stat" title="Оружие"><i class="gun" aria-hidden="true"></i><b id="hud-power">1</b></span>
     <span class="track-bar" role="progressbar" aria-label="Пройдено" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="hud-bar"><i id="hud-fill"></i></span>
-    <button class="chip" id="btn-menu" type="button">Меню</button>
+    <button class="chip pause-btn" id="btn-pause" type="button" aria-label="Пауза" title="Пауза"><i class="pause-ico" aria-hidden="true"></i></button>
     <button class="chip sound" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук: вкл" title="Звук: вкл"><i class="speaker" aria-hidden="true"></i></button>
   </div>
 
@@ -46,8 +46,11 @@
             <li>Ворота меняют число бойцов: зелёные прибавляют и умножают, красные отнимают и делят.</li>
             <li>Ворота «Оружие» повышают силу каждого бойца на 1.</li>
             <li>Пилы и стены отнимают бойцов, с движущейся платформы можно упасть.</li>
+            <li>Зелёные новобранцы присоединяются, если пробежать рядом с ними.</li>
             <li>На финише сила толпы (бойцы × оружие) должна превысить силу армии врага. Каждый 5-й уровень — ещё и босс.</li>
             <li>Монеты за забег тратятся в магазине на улучшения.</li>
+            <li>Звёзды: сравни силу на финише с автопилотом на тех же улучшениях. Три звезды — не хуже автопилота.</li>
+            <li>Пауза — <kbd>P</kbd> или <kbd>Esc</kbd>, заново — <kbd>R</kbd>.</li>
           </ul>
         </details>
       </div>
@@ -81,15 +84,28 @@
     <section class="screen" id="result" hidden aria-labelledby="res-title" aria-live="polite">
       <div class="panel">
         <h2 id="res-title"></h2>
+        <p class="res-stars" id="res-stars" role="img" hidden></p>
         <p class="reason" id="res-reason" hidden></p>
         <p class="res-line" id="res-survivors"></p>
         <p class="res-coins"><i class="coin" aria-hidden="true"></i><b id="res-coins">+0</b></p>
+        <p class="res-line dim" id="res-par" hidden></p>
         <p class="res-line dim" id="res-total"></p>
         <p class="res-hint" id="res-hint" hidden>В магазине можно купить улучшения</p>
         <div class="row">
           <button class="btn" id="btn-res-shop" type="button">Магазин</button>
           <button class="btn" id="btn-again" type="button">Ещё раз</button>
           <button class="btn primary" id="btn-next" type="button">Дальше</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="pause" hidden aria-labelledby="pause-title">
+      <div class="panel">
+        <h2 id="pause-title">Пауза</h2>
+        <div class="stack">
+          <button class="btn primary big" id="btn-resume" type="button">Продолжить</button>
+          <button class="btn" id="btn-pause-again" type="button">Заново</button>
+          <button class="btn" id="btn-pause-menu" type="button">Меню</button>
         </div>
       </div>
     </section>

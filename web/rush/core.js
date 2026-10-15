@@ -13,6 +13,7 @@
   const BASE_POWER = 1;     // weapon level at the start before upgrades
   const MAX_COUNT = 99999;
   const FALL_RATE = 4;      // share of the uncovered soldiers that fall off a platform per second
+  const RECRUIT_REACH = 0.12; // recruits join when the crowd's edge comes this close (track units)
   const EPS = 1e-9;         // float tolerance for ceil/floor/compare on soldier counts and strengths
 
   const UPGRADES = ['start', 'weapon', 'shield', 'income'];
@@ -37,9 +38,11 @@
   }
 
   // ── Level format ──
-  // { num, length, gates: [{z, left, right} | {z, full}], obstacles: [{z, x0, x1, kind}],
-  //   platforms: [{z0, z1, w, A, omega, phi}], enemy: {count, power}, boss: null | {hp} }
+  // { num, length, gates: [{z, left, right} | {z, full}], obstacles: [{z, x0, x1, kind, A?, omega?, phi?}],
+  //   platforms: [{z0, z1, w, A, omega, phi}], recruits: [{z, x, n}], enemy: {count, power}, boss: null | {hp} }
   // num is the level number (1-based, default 1): it sets the coin bonus.
+  // A saw with A > 0 slides across the track: its span is shifted by A·sin(omega·t + phi) and stays on the track.
+  // Recruits are n soldiers waiting at x: the crowd takes them in if its edge comes within RECRUIT_REACH.
   // A gate op is {op: 'add'|'sub'|'mul'|'div'|'pow', n}: add/sub take n ≥ 1, mul/div 2–3, pow is always +1.
   function checkOp(g, what) {
     if (!g || typeof g !== 'object') throw new Error(`${what}: not a gate op`);
@@ -82,7 +85,20 @@
       if (!o || !inTrack(o.z)) throw new Error(`${what}: bad z`);
       if (!KINDS.includes(o.kind)) throw new Error(`${what}: unknown kind ${o && o.kind}`);
       if (!isNum(o.x0) || !isNum(o.x1) || o.x0 < -1 || o.x1 > 1 || o.x1 <= o.x0) throw new Error(`${what}: bad x0/x1`);
-      return { z: o.z, x0: o.x0, x1: o.x1, kind: o.kind };
+      const out = { z: o.z, x0: o.x0, x1: o.x1, kind: o.kind };
+      if (o.A === undefined && o.omega === undefined && o.phi === undefined) return out;
+      for (const k of ['A', 'omega', 'phi']) if (!isNum(o[k])) throw new Error(`${what}: ${k} must be a number`);
+      if (o.kind !== 'saw') throw new Error(`${what}: only a saw moves`);
+      if (o.A < 0 || o.x0 - o.A < -1 - EPS || o.x1 + o.A > 1 + EPS) throw new Error(`${what}: moves off the track`);
+      return { ...out, A: o.A, omega: o.omega, phi: o.phi };
+    });
+
+    const recruits = list(def.recruits, 'recruits').map((r, i) => {
+      const what = `recruits ${i}`;
+      if (!r || !inTrack(r.z)) throw new Error(`${what}: bad z`);
+      if (!isNum(r.x) || r.x < -1 || r.x > 1) throw new Error(`${what}: bad x`);
+      if (!Number.isInteger(r.n) || r.n < 1 || r.n > MAX_COUNT) throw new Error(`${what}: bad n`);
+      return { z: r.z, x: r.x, n: r.n };
     });
 
     const platforms = list(def.platforms, 'platforms').map((p, i) => {
@@ -118,6 +134,7 @@
       gates: gates.sort((a, b) => a.z - b.z),
       obstacles: obstacles.sort((a, b) => a.z - b.z),
       platforms: byZ0,
+      recruits: recruits.sort((a, b) => a.z - b.z),
       enemy: { count: e.count, power: e.power },
       boss,
     };
@@ -154,6 +171,7 @@
       fallAcc: 0,    // fractional soldiers already falling off a platform
       gateIdx: 0,    // next gate / obstacle to cross: each one is crossed at most once
       obstIdx: 0,
+      recruitIdx: 0,
       status: 'running', // 'running' → 'battle' at the finish line → 'won' | 'lost' (finishBattle), or 'lost'
       reason: null,      // why it was lost: 'crowd' | 'army' | 'boss'
       result: null,      // set by finishBattle
@@ -202,8 +220,18 @@
     return overlap(x - r, x + r, x0, x1);
   }
 
+  // The span [x0, x1] an obstacle covers at time t: a moving saw slides, everything else stays put.
+  function obstacleSpan(o, t) {
+    const dx = o.A ? o.A * Math.sin(o.omega * t + o.phi) : 0;
+    return [o.x0 + dx, o.x1 + dx];
+  }
+
+  // The time of the tick on which the crowd crosses z (the run reaches z on a whole tick, see tick()).
+  const crossTime = (z) => Math.ceil((z * HZ) / SPEED - EPS) / HZ;
+
   function obstacleLoss(run, o) {
-    const share = spanOverlap(run.x, run.count, o.x0, o.x1);
+    const [x0, x1] = obstacleSpan(o, run.ticks / HZ);
+    const share = spanOverlap(run.x, run.count, x0, x1);
     return Math.min(run.count, Math.ceil(run.count * share * KIND_RATE[o.kind] * run.shield - EPS));
   }
 
@@ -213,6 +241,15 @@
     run.count -= lost;
     run.events.push({ type: 'hit', z: o.z, kind: o.kind, lost });
     if (run.count <= 0) lose(run);
+  }
+
+  // Recruits join when the crowd's edge comes within RECRUIT_REACH of them.
+  const reaches = (x, count, rx) => Math.abs(x - rx) <= radius(count) + RECRUIT_REACH + EPS;
+
+  function crossRecruits(run, rc) {
+    const taken = reaches(run.x, run.count, rc.x);
+    if (taken) run.count = Math.min(MAX_COUNT, run.count + rc.n);
+    run.events.push({ type: 'recruit', z: rc.z, x: rc.x, n: rc.n, taken });
   }
 
   const platformX = (p, t) => p.A * Math.sin(p.omega * t + p.phi);
@@ -240,14 +277,20 @@
     const max = STEER * TICK;
     run.x = clamp(run.x + clamp(d, -max, max), -(1 - r), 1 - r);
 
-    // Gates and obstacles in (prevZ, z], in order of z (a gate before an obstacle at the same z).
+    // Gates, obstacles and recruits in (prevZ, z], in order of z (at the same z: gate, obstacle, recruits).
+    const due = (it) => (it && it.z <= run.z && it.z > prevZ ? it.z : Infinity);
     while (run.status === 'running') {
       const g = L.gates[run.gateIdx];
       const o = L.obstacles[run.obstIdx];
-      const gz = g && g.z <= run.z && g.z > prevZ ? g.z : Infinity;
-      const oz = o && o.z <= run.z && o.z > prevZ ? o.z : Infinity;
-      if (gz === Infinity && oz === Infinity) break;
-      if (gz <= oz) { run.gateIdx++; crossGate(run, g); } else { run.obstIdx++; crossObstacle(run, o); }
+      const rc = L.recruits[run.recruitIdx];
+      const gz = due(g);
+      const oz = due(o);
+      const rz = due(rc);
+      const first = Math.min(gz, oz, rz);
+      if (first === Infinity) break;
+      if (gz === first) { run.gateIdx++; crossGate(run, g); }
+      else if (oz === first) { run.obstIdx++; crossObstacle(run, o); }
+      else { run.recruitIdx++; crossRecruits(run, rc); }
     }
     if (run.status !== 'running') return;
 
@@ -347,8 +390,10 @@
     return Math.round((res.survivors + bonus) * (1 + INCOME_PER_LEVEL * u.income));
   }
 
-  // Saved under SAVE_KEY: { v: 1, level: the level to play next, best: the highest level won, coins, upgrades }.
-  const newSave = () => ({ v: 1, level: 1, best: 0, coins: 0, upgrades: cleanUpgrades(null) });
+  // Saved under SAVE_KEY: { v: 1, level: the level to play next, best: the highest level won, coins, upgrades,
+  // stars: [stars of level 1, level 2, …] }. Every level up to best has been won, so stars has best entries of 1–3
+  // (a save from before stars existed gets 1 star for each level it has won).
+  const newSave = () => ({ v: 1, level: 1, best: 0, coins: 0, upgrades: cleanUpgrades(null), stars: [] });
 
   // A save from a JSON string (or null). Broken or foreign data gives a clean save, junk fields their defaults.
   function parseSave(raw) {
@@ -362,6 +407,8 @@
     s.level = Math.min(int(d.level, 1, MAX_LEVEL, 1), s.best + 1);
     s.coins = int(d.coins, 0, MAX_COINS, 0);
     s.upgrades = cleanUpgrades(d.upgrades);
+    const stars = Array.isArray(d.stars) ? d.stars : [];
+    s.stars = Array.from({ length: s.best }, (_, i) => int(stars[i], 1, 3, 1));
     return s;
   }
 
@@ -376,8 +423,8 @@
   function storeSave(storage, save) {
     try {
       if (!storage) return false;
-      const { level, best, coins, upgrades } = save;
-      storage.setItem(SAVE_KEY, JSON.stringify({ v: 1, level, best, coins, upgrades: cleanUpgrades(upgrades) }));
+      const { level, best, coins, upgrades, stars } = save;
+      storage.setItem(SAVE_KEY, JSON.stringify({ v: 1, level, best, coins, upgrades: cleanUpgrades(upgrades), stars }));
       return true;
     } catch {
       return false;
@@ -425,9 +472,16 @@
       const n = run.level.num;
       save.best = Math.max(save.best, n);
       save.level = Math.min(MAX_LEVEL, Math.max(save.level, n + 1));
+      if (!Array.isArray(save.stars)) save.stars = [];
+      while (save.stars.length < save.best) save.stars.push(1);
+      save.stars[n - 1] = Math.max(save.stars[n - 1] || 1, starsFor(run));
     }
     return coins;
   }
+
+  // Stars of a level in this save: 1–3 for a level won, 0 otherwise.
+  const levelStars = (save, n) => (save && Array.isArray(save.stars) && save.stars[n - 1]) || 0;
+  const totalStars = (save) => (save && Array.isArray(save.stars) ? save.stars.reduce((a, b) => a + b, 0) : 0);
 
   // The client's end of a run: record it and write the save at once (before the battle animation), so leaving
   // mid-animation loses nothing. Returns the coins earned.
@@ -519,9 +573,10 @@
     return { ...expMemo[n] };
   }
 
-  // Where an autopilot steers: onto the platform it is on or is coming to, away from the next obstacle, or to the
-  // side of the next gate pair with the greater ('best') or smaller ('worst') resulting strength. It looks only at
-  // the nearest thing ahead. The generator sizes the enemy with it; the client may use it for a demo run.
+  // Where an autopilot steers: onto the platform it is on or is coming to, away from the next obstacle (where a
+  // moving saw will be when the crowd gets there), to the next recruits, or to the side of the next gate pair with
+  // the greater ('best') or smaller ('worst') resulting strength. It looks only at the nearest thing ahead.
+  // The generator sizes the enemy with it, stars compare a run with it, and the client uses it for a demo run.
   function pilotTarget(run, mode) {
     const L = run.level;
     const z = run.z;
@@ -531,25 +586,56 @@
     const g = L.gates.find((x) => x.z > z && !x.full);
     const o = L.obstacles.find((x) => x.z > z);
     const p = L.platforms.find((x) => x.z0 > z);
+    const rc = L.recruits.find((x) => x.z > z);
     const gz = g ? g.z : Infinity;
     const oz = o ? o.z : Infinity;
     const pz = p ? p.z0 : Infinity;
-    if (pz < gz && pz < oz) return platformX(p, t + (pz - z) / SPEED);
-    if (oz < gz) {
+    const rz = rc ? rc.z : Infinity;
+    const first = Math.min(gz, oz, pz, rz);
+    if (first === Infinity) return run.target;
+    if (pz === first) return platformX(p, t + (pz - z) / SPEED);
+    if (oz === first) {
       const r = radius(run.count);
       const a = -(1 - r);
       const b = 1 - r;
-      const la = spanOverlap(a, run.count, o.x0, o.x1);
-      const lb = spanOverlap(b, run.count, o.x0, o.x1);
+      const [x0, x1] = obstacleSpan(o, crossTime(oz));
+      const la = spanOverlap(a, run.count, x0, x1);
+      const lb = spanOverlap(b, run.count, x0, x1);
       if (la !== lb) return la < lb ? a : b;
       return Math.abs(run.x - a) <= Math.abs(run.x - b) ? a : b;
     }
-    if (!g) return run.target;
+    if (rz === first) return mode === 'worst' ? (rc.x < 0 ? 1 : -1) : rc.x;
     const s = (side) => { const r = applyOp(run.count, run.power, g[side]); return r.count * r.power; };
     const sl = s('left');
     const sr = s('right');
     const left = mode === 'worst' ? sl <= sr : sl >= sr;
     return left ? -1 : 1;
+  }
+
+  // ── Stars ──
+  // A won run earns 1–3 stars by its strength at the finish against par: what the smart autopilot brings to the
+  // finish on the same level with the same upgrades. The autopilot looks one thing ahead, so a player who plays
+  // the whole level well can match or beat it.
+  const STAR_SHARES = [0.9, 0.98]; // share of par for 2 and for 3 stars
+
+  // Par of a run (computed once, kept on the run): the autopilot's strength at the finish, 0 if it fell on the way.
+  function par(run) {
+    if (!run) return 0;
+    if (run.par === undefined) {
+      const auto = autoplay(run.level, run.upgrades, 'best').run;
+      run.par = auto.status === 'battle' ? strength(auto) : 0;
+    }
+    return run.par;
+  }
+
+  // Stars for a settled run: 0 for a loss (or a run not settled yet), else 1–3.
+  function starsFor(run) {
+    const res = run && run.result;
+    if (!res || !res.won) return 0;
+    const p = par(run);
+    if (!(p > 0)) return 3;
+    const k = res.strength / p;
+    return k >= STAR_SHARES[1] - EPS ? 3 : k >= STAR_SHARES[0] - EPS ? 2 : 1;
   }
 
   // Runs a level with the autopilot. Returns { run, ties } where ties counts gate pairs whose two sides were
@@ -590,6 +676,8 @@
     const pObst = Math.min(0.45, 0.25 + 0.01 * n);
     const pFull = 0.1;
     const pTwoGood = 0.35;
+    const pRecruit = n >= 4 ? Math.min(0.3, 0.16 + 0.005 * n) : 0;
+    const pMoving = n >= 8 ? Math.min(0.55, 0.3 + 0.01 * n) : 0;
     const shield = shieldMul(u);
     let c = BASE_COUNT + START_PER_LEVEL * u.start;
     let pw = BASE_POWER + WEAPON_PER_LEVEL * u.weapon;
@@ -597,6 +685,7 @@
     const gates = [];
     const obstacles = [];
     const platforms = [];
+    const recruits = [];
     const end = length - 25;
     let z = 40 + Math.floor(rnd() * 10);
     let sinceGate = 0;
@@ -623,6 +712,14 @@
       if (gates.length > 0 && sinceGate < 2) {
         if (roll < pPlat) kind = 'platform';
         else if (roll < pPlat + pObst) kind = 'obstacle';
+        else if (roll < pPlat + pObst + pRecruit) kind = 'recruits';
+      }
+      if (kind === 'recruits') {
+        // A small band off to one side: worth a detour, not a level-maker
+        const side = rnd() < 0.5 ? -1 : 1;
+        const rc = { z, x: r2(side * (0.45 + rnd() * 0.35)), n: Math.max(2, nice(c * (0.15 + 0.2 * rnd()))) };
+        recruits.push(rc);
+        c = Math.min(MAX_COUNT, c + rc.n);
       }
       if (kind === 'platform') {
         const len = Math.round(8 + rnd() * Math.min(6, 2 + n / 5));
@@ -649,10 +746,17 @@
           x0 = m - w / 2;
           x1 = m + w / 2;
         }
-        const o = { z, x0: r2(x0), x1: r2(x1), kind: rnd() < 0.5 ? 'saw' : 'wall' };
+        let o = { z, x0: r2(x0), x1: r2(x1), kind: rnd() < 0.5 ? 'saw' : 'wall' };
+        if (rnd() < pMoving) {
+          // A narrower saw that sweeps across the middle of the track
+          const sw = r2(0.45 + rnd() * 0.25);
+          const A = Math.floor(100 * Math.min(1 - sw / 2, 0.3 + rnd() * 0.3 + 0.005 * n)) / 100;
+          o = { z, x0: -sw / 2, x1: sw / 2, kind: 'saw', A, omega: r2(1.2 + rnd() * 1.0), phi: r2(rnd() * 6.28) };
+        }
         obstacles.push(o);
         const r = radius(c);
-        const share = Math.min(spanOverlap(-(1 - r), c, o.x0, o.x1), spanOverlap(1 - r, c, o.x0, o.x1));
+        const [sx0, sx1] = obstacleSpan(o, crossTime(z));
+        const share = Math.min(spanOverlap(-(1 - r), c, sx0, sx1), spanOverlap(1 - r, c, sx0, sx1));
         c = Math.max(1, c - Math.ceil(c * share * KIND_RATE[o.kind] * shield));
       }
       if (kind === 'gate') {
@@ -681,7 +785,7 @@
       }
       z += Math.round(Math.max(26, 42 - 0.4 * n) + rnd() * 10);
     }
-    return { num: n, length, gates, obstacles, platforms };
+    return { num: n, length, gates, obstacles, platforms, recruits };
   }
 
   const isBossLevel = (n) => n % BOSS_EVERY === 0;
@@ -712,7 +816,7 @@
   function makeLevel(n) {
     const u = expectedUpgrades(n);
     if (n <= HAND.length) {
-      const def = sizeEnemy({ num: n, obstacles: [], platforms: [], ...HAND[n - 1] }, u, MARGIN);
+      const def = sizeEnemy({ num: n, obstacles: [], platforms: [], recruits: [], ...HAND[n - 1] }, u, MARGIN);
       if (!def) throw new Error(`hand-written level ${n} is unfair`);
       return def;
     }
@@ -740,8 +844,9 @@
     obstacleLoss, platformX, platformAt, uncovered, step, progress, strength,
     finishBattle, COIN_PER_LEVEL, INCOME_PER_LEVEL, PRICE_BASE, PRICE_GROWTH, SAVE_KEY, MAX_LEVEL, MAX_COINS,
     price, reward, newSave, parseSave, loadSave, storeSave, nextPrice, buy, cheapest, record, bank,
+    levelStars, totalStars, STAR_SHARES, par, starsFor,
     LEVEL_SEED, BOSS_EVERY, BOSS_SHARE, MARGIN, CAMPAIGN, TIE, rng, expectedUpgrades, pilotTarget, autoplay,
-    enemyPower, levelDef, isBossLevel,
+    enemyPower, levelDef, isBossLevel, RECRUIT_REACH, obstacleSpan, crossTime, reaches,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.RushCore = api;
