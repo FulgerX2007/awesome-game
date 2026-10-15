@@ -746,13 +746,13 @@
 - Create: `web/hero/lang.js`
 - Create: `tests/hero/view.test.js`
 
-- [ ] `view.js` (UMD):
+- [x] `view.js` (UMD):
   - `mapLayout(map, viewport)` and `nodeAt`;
   - `battleLayout(viewport)`;
   - `heroLook(hero)`;
   - defence icons for an enemy (`defenceIcons(enemy)`);
   - number formatting.
-- [ ] `game.js` drawing:
+- [x] `game.js` drawing:
   - an act background per act (forest, crypt, volcano) with parallax;
   - the hero assembled from `heroLook`, with walk/attack/swap/hurt poses;
   - enemies per type;
@@ -760,17 +760,17 @@
   - spell effects;
   - the boss phase change flash;
   - the map with paths and node icons.
-- [ ] screens and panels from Technical Details > Client. Progress and «Слава» are saved the moment they are earned.
+- [x] screens and panels from Technical Details > Client. Progress and «Слава» are saved the moment they are earned.
   Starting a new run while one is saved asks first.
-- [ ] input: taps on nodes, items and quick slots; the keyboard from Technical Details; nothing needs hover.
-- [ ] `lang.js` with every RO string; `index.html` with no external URLs.
-- [ ] write `view.test.js`:
+- [x] input: taps on nodes, items and quick slots; the keyboard from Technical Details; nothing needs hover.
+- [x] `lang.js` with every RO string; `index.html` with no external URLs.
+- [x] write `view.test.js`:
   - the map layout fits at 320/360/768/1280 px;
   - `nodeAt` hits and misses;
   - `heroLook` changes at title boundaries and with the armour tier;
   - `defenceIcons`;
   - formatting.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 5: «Путь героя» — sound, hub registration, offline check, smoke
 
