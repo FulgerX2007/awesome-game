@@ -15,6 +15,7 @@
   const HP_BASE = 70, ATK_BASE = 2, CRIT_BASE = 0.05, CRIT_MULT = 1.5;
   const CRIT_CAP = 0.5, DODGE_CAP = 0.4, HASTE_CAP = 0.4;
   const LEVEL_HP = 8, LEVEL_ATK = 1, LEVEL_HEAL = 0.25;
+  const META_HP = 15, META_ATK = 1.5;          // per level of the permanent «Закалённое тело» and «Крепкая рука»
   const SWAP_TIME = 0.8;            // seconds without attacks while the weapon is changed in battle
   const POTION_HEAL = 0.35, MAX_POTIONS = 3;
   const BAG_BASE = 6;
@@ -22,8 +23,11 @@
   const REGEN_STOP = 3;             // a fire hit stops regeneration for this long
   const CHILL = { slow: 0.25, time: 2 }, NOVA_SLOW = { slow: 0.4, time: 3 };
   const LIFESTEAL = 0.15, CLEAVE = 0.5, PHASE_PAUSE = 1.5;
+  // A battle that drags on (an immune enemy, a regenerating one) ends anyway: from ENRAGE_AT seconds the enemies
+  // hit harder by ENRAGE_STEP for every further second.
+  const ENRAGE_AT = 45, ENRAGE_STEP = 0.1;
   const CAMP_HEAL = 0.4, BOSS_HEAL = 0.3, WIN_HEAL = 0.15, SELL_SHARE = 0.3, POTION_PRICE = 25;
-  const TRIALS = 3, TRIAL_MUL = 1.2, TRIAL_GLORY = 0.2;
+  const TRIALS = 3, TRIAL_MUL = 1.15, TRIAL_GLORY = 0.2;
   const KINDS = ['battle', 'elite', 'chest', 'forge', 'shrine', 'camp', 'shop', 'boss'];
   const PHASES = ['map', 'battle', 'perk', 'chest', 'loot', 'shrine', 'shop', 'forge', 'camp', 'won', 'lost'];
 
@@ -44,7 +48,7 @@
   const pick = (r, list) => list[Math.floor(r() * list.length)];
 
   // ── Hero ──
-  const xpToNext = (level) => Math.round(20 * level ** 1.4);
+  const xpToNext = (level) => Math.round(12 * level ** 1.25);
 
   function title(level) {
     let t = TITLES[0].name;
@@ -80,8 +84,8 @@
     const wpn = equipped(run, 'weapon'), w = wpn ? itemStats(wpn) : null;
     const ch = equipped(run, 'charm'), c = ch ? itemStats(ch) : null;
     return {
-      maxHp: Math.round(HP_BASE + 10 * m.vigor + LEVEL_HP * (h.level - 1) + b.hp + a.hp),
-      atk: ATK_BASE + m.might + LEVEL_ATK * (h.level - 1) + b.atk,
+      maxHp: Math.round(HP_BASE + META_HP * m.vigor + LEVEL_HP * (h.level - 1) + b.hp + a.hp),
+      atk: ATK_BASE + META_ATK * m.might + LEVEL_ATK * (h.level - 1) + b.atk,
       crit: Math.min(CRIT_CAP, CRIT_BASE + b.crit),
       dodge: Math.min(DODGE_CAP, b.dodge),
       armor: a.armor + b.armor,
@@ -535,7 +539,8 @@
     const st = stats(run);
     if (st.dodge && rand(run) < st.dodge) { run.events.push({ type: 'dodge', uid: e.uid }); return; }
     const def = e.dmgType === 'phys' ? st.armor : st.ward;
-    const dmg = Math.max(1, Math.round(e.dmg * 100 / (100 + def)));
+    const rage = 1 + Math.max(0, run.battle.t - ENRAGE_AT) * ENRAGE_STEP;
+    const dmg = Math.max(1, Math.round(e.dmg * rage * 100 / (100 + def)));
     run.hero.hp -= dmg;
     run.events.push({ type: 'hurt', uid: e.uid, dmg, dmgType: e.dmgType });
   }
@@ -544,6 +549,7 @@
     const b = run.battle, st = stats(run);
     b.t += TICK;
     run.t += TICK;
+    if (!b.enraged && b.t >= ENRAGE_AT) { b.enraged = true; run.events.push({ type: 'enrage' }); }
     if (b.swapT > 0) {
       b.swapT -= TICK;
       if (b.swapT <= 1e-9) { b.swapT = 0; run.events.push({ type: 'swapped' }); }
@@ -790,7 +796,7 @@
   }
 
   // ── Score and permanent progression ──
-  const glory = (run) => Math.round((run.depth * 5 + run.kills + run.bosses * 40) * (1 + TRIAL_GLORY * run.trial));
+  const glory = (run) => Math.round((run.depth * 8 + run.kills * 2 + run.bosses * 60) * (1 + TRIAL_GLORY * run.trial));
 
   const metaPrice = (save, id) => Math.round(META[id].base * META[id].growth ** save.meta[id]);
 
@@ -918,8 +924,8 @@
 
   const api = {
     TICK, MAX_DT, ACTS, ROWS, HP_BASE, ATK_BASE, CRIT_BASE, CRIT_MULT, CRIT_CAP, DODGE_CAP, HASTE_CAP, LEVEL_HP, LEVEL_ATK,
-    LEVEL_HEAL, SWAP_TIME, POTION_HEAL, MAX_POTIONS, BAG_BASE, TIER_GROWTH, MAX_TIER, REGEN_STOP, CHILL, NOVA_SLOW,
-    LIFESTEAL, CLEAVE, PHASE_PAUSE, CAMP_HEAL, BOSS_HEAL, WIN_HEAL, SELL_SHARE, POTION_PRICE, TRIALS, TRIAL_MUL, TRIAL_GLORY,
+    LEVEL_HEAL, META_HP, META_ATK, SWAP_TIME, POTION_HEAL, MAX_POTIONS, BAG_BASE, TIER_GROWTH, MAX_TIER, REGEN_STOP, CHILL, NOVA_SLOW,
+    LIFESTEAL, CLEAVE, PHASE_PAUSE, ENRAGE_AT, ENRAGE_STEP, CAMP_HEAL, BOSS_HEAL, WIN_HEAL, SELL_SHARE, POTION_PRICE, TRIALS, TRIAL_MUL, TRIAL_GLORY,
     KINDS, PHASES, SAVE_KEY, KIND_WEIGHTS,
     clamp, rand, xpToNext, title, tierMul, itemStats, priceOf, sellPrice, stats, bagMax, quickSlots,
     genMap, validMap, everyPathHas, mapOf, reachable, newRun, status, drain, choose, startBattle, step,

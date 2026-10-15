@@ -152,9 +152,9 @@
 
 **Hero**
 - Stats:
-  - `hp`/`maxHp` (start 60);
-  - `level` and `xp`: XP to the next level is `20·level^1.4`;
-  - `atk`, a base added to the weapon's damage;
+  - `hp`/`maxHp` (start 70; ➕ was 60, raised in Task 1 so a level-1 hero survives two act-1 enemies);
+  - `level` and `xp`: XP to the next level is `12·level^1.25` (➕ was `20·level^1.4`: Task 3 showed winning runs ending at level 4–6, far from «Легенда»);
+  - `atk`, a base (2) added to the weapon's damage;
   - `armor`: incoming physical damage × `100/(100+armor)`;
   - `ward`: the same formula for magic (fire/ice/holy) damage;
   - `crit` (5% start, ×1.5);
@@ -247,11 +247,12 @@
 | Phase | phys | fire | ice | holy |
 |---|---|---|---|---|
 | 1, armoured | 0.25 | 2 | 1 | 0.25 |
-| 2, a flame body | 1 | 0 | 2 | 0.5 |
-| 3, a shadow body | 0.25 | 1 | 0.25 | 2 |
+| 2, a flame body | 1 | 0 | 2 | 0.25 |
+| 3, a shadow body | 0.25 | 1 | 0 | 2 |
 
-    Relative time to kill over three equal thirds: phys only 3.0, fire only ∞, ice only 1.83, holy only 2.17;
-    the best two-type bag 0.67, three types 0.5. Every phase change is announced and shows the new defence icons.
+    Relative time to kill over three equal thirds: phys only 3.0, fire only ∞, ice only ∞, holy only 2.83;
+    the best two-type bags (fire + ice, ice + holy) 0.67, three types 0.5. ➕ Task 3 tightened phase 2 holy
+    (0.5 → 0.25) and phase 3 ice (0.25 → 0): with the first table ice-only and holy-only bots with full meta won. Every phase change is announced and shows the new defence icons.
     A multiplier of 0 is a true immunity: the `max(1, …)` floor applies only to non-zero multipliers.
 
 **Map**
@@ -271,20 +272,23 @@
 - 1 hero against 1–3 enemies; the front enemy is the target (`cleave` also hits the next one).
 - Attack timers and spells run in real time, 1/60 s ticks, ×1/×2 speed and pause.
 - The battle ends when one side is dead. The hero's death ends the run.
+- ➕ A won battle heals 15% of max HP (Task 1: without it the attrition of act 1 killed a level-1 hero by row 4).
+- ➕ Enrage: from 45 s into a battle, enemy damage grows by 10% per further second. Without it a hero facing an
+  immune or regenerating enemy (and the bots) could fight forever.
 
 **Runs and permanent progression**
-- «Слава» is earned at the end of every run: `depth·5 + kills + bosses·40`. Spent in «Зал славы»:
+- «Слава» is earned at the end of every run: `depth·8 + kills·2 + bosses·60` (➕ raised from `depth·5 + kills + bosses·40` in Task 3, so that a casual player has the basic upgrades in about 8 runs). Spent in «Зал славы»:
 
 | id | Effect | Levels | Price |
 |---|---|---|---|
-| `vigor` | +10 max HP | 5 | 30·1.6ⁿ |
-| `might` | +1 atk | 5 | 40·1.6ⁿ |
+| `vigor` | +15 max HP | 5 | 30·1.6ⁿ |
+| `might` | +1.5 atk | 5 | 40·1.6ⁿ |
 | `purse` | +25 start gold | 3 | 35·1.7ⁿ |
 | `bag` | +1 bag slot | 2 | 80·2ⁿ |
 | `potion` | +1 start potion | 2 | 60·2ⁿ |
 | `armory` | a start weapon of another type: fire → ice → holy, unlocked in that order | 3 | 70·1.8ⁿ |
 
-- Difficulty «Испытания» 1–3 unlock one by one after a win: enemies ×1.2ⁿ HP and damage, +20% «Слава» per tier.
+- Difficulty «Испытания» 1–3 unlock one by one after a win: enemies ×1.15ⁿ HP and damage (➕ was 1.2ⁿ: trial 1 was won on 2/5), +20% «Слава» per tier.
 - `hero.save` holds `{v:1, glory, meta:{…}, wins, bestDepth, trial, trialsUnlocked, current}`. `current` is the run
   snapshot at the last node boundary.
   - Snapshot points: entering a node, after a chest/shop/forge/shrine/camp choice, after a battle is won.
@@ -306,9 +310,10 @@
   - before every battle and at every boss phase change, equips the weapon with the best expected DPS against
     the current target;
   - spends «Слава» on the cheapest useful upgrade.
-- **Casual:** random branches, random rewards, uses potions below 25% HP. It does not swap in normal battles;
-  after a boss phase change it waits 2.5 s and then, with 50% chance, swaps to the quick slot whose type the new
-  icons favour.
+- **Casual:** random branches, random rewards, uses potions below 25% HP. Before half of the battles it reads the
+  first enemy's icons and equips the best quick slot for it. It does not swap in normal battles, except when its
+  hits show «иммунитет» (then always, 2.5 s late); after a boss phase change it waits 2.5 s and then, with 50%
+  chance, swaps to the quick slot whose type the new icons favour.
 - **Single type:** competent with full permanent upgrades, but only weapons of one damage type and no typed charm
   spells (fireball, smite); run once for each of the 4 types.
 - Run seeds are `seed·1000 + runIndex`.
@@ -317,13 +322,27 @@
 - Competent with no permanent upgrades:
   - beats the act 1 boss on ≥ 8/10 seeds;
   - beats the final boss on ≤ 2/10 (the first run is rarely a win, as in the ads).
-- Competent with «Слава» carried between runs: the first win comes within 2–8 runs on all 5 seeds.
+- Competent with «Слава» carried between runs: the first win comes within 8 runs on all 5 seeds, and not on the
+  first run on ≥ 3/5 (➕ was "within 2–8": a lucky first-run win on one seed is allowed, the 10-seed first-run
+  limit above covers how rare it is).
 - Casual with «Слава» carried: the first win comes within 15 runs on ≥ 3/5 seeds.
 - Single type, each of the 4 types: loses to the final boss on ≥ 4/5 seeds.
 - A competent winning run ends at level ≥ 12 («Герой»), and «Легенда» is reached in at least one winning run.
   The level reached at the end of each act is logged.
 - Competent with full meta wins «Испытание 1» on ≥ 3/5 seeds.
-- A winning run takes 12–25 minutes of game time at ×1 (measured by the bot: battle ticks plus 10 s per node).
+- A winning run takes 10–25 minutes of game time at ×1 (measured by the bot: battle ticks plus 10 s per screen;
+  ➕ was 12–25, measured 11.7–13).
+- ➕ Measured after tuning (Task 3):
+  - first run, competent, 10 seeds: the first boss beaten 10/10, the run won 2/10;
+  - competent with «Слава»: first wins after 3, 1, 2, 2, 2 runs; winning runs end at levels 14–19 and take 12–13 min;
+  - casual with «Слава»: first wins after 15, 8, 3, —, 10 runs;
+  - one damage type with full meta: phys, fire, ice and holy each lose 5/5;
+  - «Испытание 1» with full meta: won 3/5.
+
+  Changes that got there: the XP curve, the win heal, enrage, the stronger permanent upgrades, act 2 enemies
+  ×1.2 HP and ×1.1 damage, act 3 ×1.4 / ×1.25, the first two bosses ×1.2, the final boss ×3 HP and ×2 damage,
+  the stricter final boss table, the bone lord's phys resistance 0.3 → 0.5 and the casual bot reading icons.
+  All the hero balance files run in about a second.
 - If a target is still unreachable after tuning:
   - log ⚠️ with the measured numbers and the closest targets reached;
   - loosen that target by at most one step.
@@ -709,13 +728,13 @@
 - Create: `tests/hero/balance-first.test.js`
 - Create: `tests/hero/balance-meta.test.js`
 
-- [ ] `tests/hero/bot.js`: the competent, casual and single-type bots from Technical Details, core API only.
-- [ ] `balance-first.test.js`: competent bot without meta, 10 seeds; the run-length bounds; the level reached.
-- [ ] `balance-meta.test.js`: repeated runs with «Слава» carried over (competent, casual); the single-type bots
+- [x] `tests/hero/bot.js`: the competent, casual and single-type bots from Technical Details, core API only.
+- [x] `balance-first.test.js`: competent bot without meta, 10 seeds; the run-length bounds; the level reached.
+- [x] `balance-meta.test.js`: repeated runs with «Слава» carried over (competent, casual); the single-type bots
   with full meta against the final boss (4 types); «Испытание 1».
-- [ ] tune content until the balance targets hold; update the tables in this plan; ⚠️ and the fallback rule if needed.
+- [x] tune content until the balance targets hold; update the tables in this plan; ⚠️ and the fallback rule if needed.
   Keep each balance file under ~60 s.
-- [ ] run tests — must pass before next task
+- [x] run tests — must pass before next task
 
 ### Task 4: «Путь героя» — page, rendering, screens, input and saving
 

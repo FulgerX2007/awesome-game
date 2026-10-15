@@ -53,8 +53,8 @@ test('permanent upgrades shape the start: health, attack, gold, potions and the 
   Object.assign(save.meta, { vigor: 2, might: 3, purse: 1, potion: 2, armory: 2, bag: 1 });
   const run = C.newRun(save, 1);
   const st = C.stats(run);
-  assert.equal(st.maxHp, C.HP_BASE + 20);
-  assert.equal(st.atk, C.ATK_BASE + 3);
+  assert.equal(st.maxHp, C.HP_BASE + 2 * C.META_HP);
+  assert.equal(st.atk, C.ATK_BASE + 3 * C.META_ATK);
   assert.equal(run.gold, 25);
   assert.equal(run.hero.potions, 3);
   assert.deepEqual(run.bag.map((x) => x.id), ['rusty_sword', 'flame_blade', 'frost_staff']);
@@ -305,7 +305,9 @@ test('kills pay gold and XP; level-ups raise health and attack and queue a perk'
   const ev = until(fight, (e) => of(e, 'victory').length);
   assert.equal(of(ev, 'kill')[0].gold, K.ENEMIES.wolf.gold);
   assert.equal(fight.gold, K.ENEMIES.wolf.gold);
-  assert.equal(fight.hero.xp, K.ENEMIES.wolf.xp);
+  let total = fight.hero.xp;
+  for (let l = 1; l < fight.hero.level; l++) total += C.xpToNext(l);
+  assert.equal(total, K.ENEMIES.wolf.xp);
   assert.equal(fight.kills, 1);
 });
 
@@ -313,7 +315,7 @@ test('titles change at levels 3, 6, 9, 12 and 15', () => {
   const at = (l) => C.title(l);
   assert.deepEqual([1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 30].map(at),
     ['Новичок', 'Новичок', 'Оруженосец', 'Оруженосец', 'Воин', 'Воин', 'Рыцарь', 'Рыцарь', 'Герой', 'Герой', 'Легенда', 'Легенда']);
-  assert.equal(C.xpToNext(1), 20);
+  assert.equal(C.xpToNext(1), 12);
   assert.ok(C.xpToNext(10) > C.xpToNext(9));
 });
 

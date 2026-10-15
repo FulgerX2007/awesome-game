@@ -167,6 +167,7 @@ test('battles and elites: rewards, then the elite loot; a perk comes first after
   win(run);
   assert.equal(run.phase, 'perk');
   assert.ok(C.pickPerk(run, 2));
+  while (run.phase === 'perk') C.pickPerk(run, 0);
   assert.equal(run.phase, 'loot');
   assert.equal(run.offer.length, 3);
   for (const o of run.offer) assert.equal(o.tier, 2, 'loot is one tier above the act');
@@ -231,7 +232,7 @@ test('trials make enemies tougher and pay more «Слава»', () => {
   assert.equal(hard.battle.enemies[0].maxHp, Math.round(K.ENEMIES.wolf.hp * C.TRIAL_MUL ** 2));
   plain.depth = hard.depth = 10;
   assert.ok(C.glory(hard) > C.glory(plain));
-  assert.equal(C.glory(plain), 50);
+  assert.equal(C.glory(plain), 80);
 });
 
 test('«Слава»: prices grow, levels are capped, unknown ids are refused', () => {
@@ -258,7 +259,7 @@ test('recordRun folds a finished run into the save once and unlocks the next tri
   run.phase = 'won'; run.depth = 27; run.kills = 40; run.bosses = 3;
   save.current = C.snapshot(run);
   const g = C.recordRun(save, run);
-  assert.equal(g, 27 * 5 + 40 + 120);
+  assert.equal(g, 27 * 8 + 40 * 2 + 3 * 60);
   assert.equal(save.glory, g);
   assert.equal(save.wins, 1);
   assert.equal(save.bestDepth, 27);
