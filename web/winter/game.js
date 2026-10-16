@@ -155,7 +155,11 @@
           float(e.x + 0.5, e.y, `+${e.n}`, e.item === 'wood' ? '#d9a35b' : e.item === 'stone' ? '#c8ccd2' : e.item === 'metal' ? '#e7eef5' : '#ff7a6a');
           break;
         case 'fish': float(e.x + 0.5, e.y, '+1', '#9fd0ff'); sfx('pick'); break;
-        case 'hunt': float(e.x, e.y - 0.5, e.kind === 'deer' ? '+3' : '+1', '#ff9a8a'); sfx('hit'); break;
+        case 'hunt':
+          float(e.x, e.y - 0.5, e.kind === 'deer' ? '+3' : '+1', '#ff9a8a');
+          if (e.kind === 'deer') float(e.x, e.y - 1.1, t('+1 шкура'), '#d9a86c');
+          sfx('hit');
+          break;
         case 'hitWolf': sfx('hit'); break;
         case 'wolfDead': float(e.x, e.y - 0.5, t('Волк убит'), '#cfe0ff'); break;
         case 'feed': sfx('fire'); break;

@@ -136,3 +136,8 @@ test('main_test.go serves every winter file', () => {
     assert.ok(src.includes(`"/winter/${f}"`), f);
   }
 });
+
+test('the HUD has a pill for every material the core keeps', () => {
+  const C = require(path.join(DIR, 'core.js'));
+  for (const r of C.RES) assert.match(HTML, new RegExp(`id="res-${r}"`), r);
+});

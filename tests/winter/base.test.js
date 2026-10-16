@@ -322,3 +322,27 @@ test('the hint line follows the state of the camp, and every hint is a known tex
   assert.equal(take(), 'Ты слабеешь: согрейся, поешь и отдохни');
   for (const h of hints) assert.ok(C.TASK_TEXTS.includes(h) || /^Спаси выжившего: /.test(h), h);
 });
+
+test('a snapshot from before the expansion (no second stream, no hides or smoked food) restores and plays on', () => {
+  const g = C.newGame('normal', 3);
+  sim(g, 30);
+  const old = JSON.parse(JSON.stringify(C.snapshot(g)));
+  delete old.erng;
+  for (const k of ['hide', 'smokedMeat', 'smokedFish']) delete old.stock[k];
+  const back = C.restore(old);
+  assert.ok(back, 'restored');
+  assert.equal(back.stock.hide, 0);
+  assert.equal(back.stock.smokedMeat, 0);
+  assert.ok(Number.isInteger(back.erng));
+  assert.ok(!('erng' in old), 'the input is not changed');
+  sim(back, 30);
+  assert.equal(back.status, 'playing');
+  // the old content goes on exactly as in the game it came from
+  sim(g, 30);
+  assert.deepEqual(back.animals, g.animals);
+  // broken new fields are refused
+  const snap = JSON.parse(JSON.stringify(C.snapshot(g)));
+  for (const bad of [{ ...snap, erng: 1.5 }, { ...snap, erng: 'x' }, { ...snap, stock: { ...snap.stock, hide: -1 } }, { ...snap, stock: { ...snap.stock, smokedFish: 'a' } }]) {
+    assert.equal(C.restore(bad), null, JSON.stringify(bad.stock).slice(0, 80));
+  }
+});

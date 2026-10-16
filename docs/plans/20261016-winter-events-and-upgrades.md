@@ -305,22 +305,22 @@
 - Modify: `tests/winter/base.test.js`
 - Modify: `tests/winter/build.test.js`
 
-- [ ] add `g.erng` (from the seed) and `erand(g)`; `freeTile` takes an rng argument
-- [ ] add `migrate(o)` in `restore`, working on a copy: `erng` and the new stock keys
-- [ ] add `hide` to the materials, and `smokedMeat` and `smokedFish` to `FOOD`. Smoked food goes first in `eat`, in `survivorsTick` and in the `nextTask` food list. The hunter accepts smoked meat
-- [ ] deer drop 1 hide; add the `res-hide` HUD pill (`index.html`, its RO title); the bot's `FOODS` gets the smoked keys
-- [ ] write tests:
+- [x] add `g.erng` (from the seed) and `erand(g)`; `freeTile` takes an rng argument
+- [x] add `migrate(o)` in `restore`, working on a copy: `erng` and the new stock keys
+- [x] add `hide` to the materials, and `smokedMeat` and `smokedFish` to `FOOD`. Smoked food goes first in `eat`, in `survivorsTick` and in the `nextTask` food list. The hunter accepts smoked meat
+- [x] deer drop 1 hide; add the `res-hide` HUD pill (`index.html`, its RO title); the bot's `FOODS` gets the smoked keys
+- [x] write tests:
   - a seed plays the old content the same as before, comparing a fixed-seed timeline with and without `erand` calls;
   - hides from deer;
   - the eating order;
   - caps;
   - the hunter with smoked meat.
-- [ ] write tests for saves:
+- [x] write tests for saves:
   - a v1 snapshot without the new fields restores and plays on;
   - bad new fields are refused.
 
   Also extend `build.test.js` for the `res-hide` id.
-- [ ] run the tests (`node --test` and `go test`); they must pass before Task 2
+- [x] run the tests (`node --test` and `go test`); they must pass before Task 2
 
 ### Task 2: House upgrades
 

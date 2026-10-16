@@ -134,6 +134,7 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 .pill.wood::before { background: #b07a3c; }
 .pill.stone::before { background: #a9adb3; border-radius: 50%; }
 .pill.metal::before { background: linear-gradient(135deg, #e7eef5, #7d8b99); }
+.pill.hide::before { background: linear-gradient(135deg, #c99a62, #7a4f2c); border-radius: 3px 6px; }
 .pill.meal::before { background: #d4523e; border-radius: 50%; }
 .pill.day { font-variant-numeric: tabular-nums; }
 .spacer { flex: 1; }

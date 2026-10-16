@@ -17,7 +17,7 @@ function mulberry(seed) {
   };
 }
 
-const FOODS = ['cookedMeat', 'cookedFish', 'fish', 'berries', 'meat'];
+const FOODS = C.EAT_ORDER;
 const foodStock = (g) => FOODS.reduce((a, k) => a + g.stock[k] * C.FOOD[k], 0);
 const dist = (a, x, y) => Math.abs(a.x - (x + 0.5)) + Math.abs(a.y - (y + 0.5));
 const busy = (g) => !!(g.hero.path || g.hero.target);

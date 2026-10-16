@@ -23,7 +23,9 @@
   const STAT_MAX = 100;
   const FOOD_DRAIN = 0.12, ENERGY_DRAIN = 0.04, WORK_ENERGY = 0.25, SLEEP_ENERGY = 0.6, FIRE_REST = 0.1;
   const HEALTH_LOSS = 1, HEALTH_GAIN = 0.3;
-  const FOOD = { berries: 8, meat: 10, fish: 12, cookedMeat: 35, cookedFish: 25 };
+  const FOOD = { berries: 8, meat: 10, fish: 12, cookedMeat: 35, cookedFish: 25, smokedMeat: 45, smokedFish: 35 };
+  // What is eaten first: the most filling food, raw meat last (it costs strength)
+  const EAT_ORDER = ['smokedMeat', 'cookedMeat', 'smokedFish', 'cookedFish', 'fish', 'berries', 'meat'];
   const RAW_MEAT_ENERGY = 10;
   const COOK_TIME = 2;
   const HIT_CD = 0.7;                       // seconds between hits on a node
@@ -67,7 +69,8 @@
     child: { name: 'Ребёнок', x: 28, y: 3, need: 'palisade' },
   };
   const SURVIVOR_IDS = Object.keys(SURVIVORS);
-  const HUNTER_MEAT = 3;     // pieces of meat, raw or roast, the hunter asks for
+  const HUNTER_MEAT = 3;     // pieces of meat, raw, roast or smoked, the hunter asks for
+  const MEATS = ['meat', 'cookedMeat', 'smokedMeat'];
   const WORK = {
     hunter: { every: 40, give: { meat: 1 } },
     carpenter: { every: 6, give: { wood: 1 } },
@@ -76,7 +79,7 @@
     child: { every: 10, give: {} },
   };
 
-  const RES = ['wood', 'stone', 'metal'];
+  const RES = ['wood', 'stone', 'metal', 'hide'];
   const FOOD_ITEMS = Object.keys(FOOD);
   const ITEMS = RES.concat(FOOD_ITEMS);
 
@@ -97,6 +100,15 @@
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
   const rand = (s) => next(s);
+  // The second stream, for the content added after the first release (events, the trader, the bear, snares), so
+  // the old content of a seed (animals, wolves) plays out the same as before.
+  function erand(g) {
+    const h = { rng: g.erng };
+    const v = next(h);
+    g.erng = h.rng;
+    return v;
+  }
+  const erngOf = (seed) => (seed ^ 0x9e3779b9) >>> 0;
 
   // ── The map ──
   // '.' snow, ':' deep snow (slow), 'D' drift (impassable without the shovel), '~' lake ice (only with the ice pick),
@@ -168,13 +180,13 @@
     const s = finite(seed) ? Math.floor(seed) >>> 0 : 1;
     const holder = { rng: s };
     const g = {
-      v: 1, seed: s, rng: (s ^ 0x5bd1e995) >>> 0, difficulty, t: 0, acc: 0, status: 'playing',
+      v: 1, seed: s, rng: (s ^ 0x5bd1e995) >>> 0, erng: erngOf(s), difficulty, t: 0, acc: 0, status: 'playing',
       tiles: genTiles(holder), nodes: [],
       hero: {
         x: SPOT.fire.x + 0.5, y: SPOT.fire.y + 1.5, warmth: STAT_MAX, food: 80, energy: STAT_MAX, health: STAT_MAX,
         path: null, target: null, work: 0, cd: 0, load: 0, sleeping: false, dir: null,
       },
-      stock: { wood: 10, stone: 0, metal: 0, berries: 4, meat: 0, fish: 0, cookedMeat: 2, cookedFish: 0 },
+      stock: { wood: 10, stone: 0, metal: 0, hide: 0, berries: 4, meat: 0, fish: 0, cookedMeat: 2, cookedFish: 0, smokedMeat: 0, smokedFish: 0 },
       tools: { axe: true, ironAxe: false, pick: false, shovel: false, icePick: false, spear: false },
       fire: { fuel: 12 },
       hut: { stage: 0, paid: {}, stove: 0 },
@@ -592,6 +604,7 @@
         if (a.hp <= 0) {
           g.animals = g.animals.filter((x) => x !== a);
           gain(g, 'meat', a.kind === 'deer' ? 3 : 1);
+          if (a.kind === 'deer') gain(g, 'hide', 1);
           g.events.push({ type: 'hunt', kind: a.kind, x: a.x, y: a.y });
           clearOrder(h);
         }
@@ -625,8 +638,7 @@
     if (g.status !== 'playing') return null;
     const h = g.hero;
     // the most filling food that doesn't overfill too much
-    const order = ['cookedMeat', 'cookedFish', 'fish', 'berries', 'meat'];
-    const item = order.find((k) => g.stock[k] > 0);
+    const item = EAT_ORDER.find((k) => g.stock[k] > 0);
     if (!item || h.food >= STAT_MAX - 2) return null;
     g.stock[item]--;
     h.food = clamp(h.food + FOOD[item], 0, STAT_MAX);
@@ -716,7 +728,7 @@
   // ── Survivors ──
   function canRescue(g, sv) {
     const need = SURVIVORS[sv.id].need;
-    if (need === 'meat') return g.stock.meat + g.stock.cookedMeat >= HUNTER_MEAT ? 'ok' : 'meat';
+    if (need === 'meat') return MEATS.reduce((a, k) => a + g.stock[k], 0) >= HUNTER_MEAT ? 'ok' : 'meat';
     if (need === 'day') return isNight(g) ? 'night' : 'ok';
     if (need === 'palisade') return palisadeUp(g) ? 'ok' : 'palisade';
     return 'ok'; // shovel and ice pick only gate the way there
@@ -728,10 +740,9 @@
     const r = canRescue(g, sv);
     if (r !== 'ok') { g.events.push({ type: 'needs', id: sv.id, need: r }); return r; }
     if (SURVIVORS[sv.id].need === 'meat') {
-      // raw meat first; the hero cooks it at the fire, so roast meat counts too
-      const raw = Math.min(HUNTER_MEAT, g.stock.meat);
-      g.stock.meat -= raw;
-      g.stock.cookedMeat -= HUNTER_MEAT - raw;
+      // raw meat first; the hero cooks it at the fire and the smokehouse smokes it, so those count too
+      let left = HUNTER_MEAT;
+      for (const k of MEATS) { const n = Math.min(left, g.stock[k]); g.stock[k] -= n; left -= n; }
     }
     sv.state = 'following';
     g.events.push({ type: 'rescue', id: sv.id });
@@ -761,7 +772,7 @@
       // needs: food from the stock, a bunk, warmth (the stove or a fed fire)
       sv.food = clamp(sv.food - SURVIVOR_FOOD * dt, 0, STAT_MAX);
       if (sv.food < SURVIVOR_EAT_AT) {
-        const item = ['cookedMeat', 'cookedFish', 'fish', 'berries', 'meat'].find((k) => g.stock[k] > 0);
+        const item = EAT_ORDER.find((k) => g.stock[k] > 0);
         if (item) { g.stock[item]--; sv.food = clamp(sv.food + FOOD[item], 0, STAT_MAX); }
       }
       const bunk = placed < bunksFree;
@@ -800,9 +811,9 @@
   }
 
   // ── Animals ──
-  function freeTile(g, pred) {
+  function freeTile(g, pred, rnd = rand) {
     for (let guard = 0; guard < 400; guard++) {
-      const x = Math.floor(rand(g) * W), y = Math.floor(rand(g) * H);
+      const x = Math.floor(rnd(g) * W), y = Math.floor(rnd(g) * H);
       if (g.tiles[idx(x, y)] === '.' && !blockedByNode(g, x, y) && !inBase(x, y) && x < 43 && (!pred || pred(x, y))) return { x, y };
     }
     return null;
@@ -1052,7 +1063,7 @@
   function nextTask(g) {
     const h = g.hero;
     if (h.health < 30) return 'Ты слабеешь: согрейся, поешь и отдохни';
-    if (h.food < 30 && ['cookedMeat', 'cookedFish', 'fish', 'berries', 'meat'].some((k) => g.stock[k] > 0)) return 'Поешь (F)';
+    if (h.food < 30 && EAT_ORDER.some((k) => g.stock[k] > 0)) return 'Поешь (F)';
     if (h.food < 30) return 'Найди еду: ягоды, зайцы, рыба во льду';
     if (h.warmth < 35) return g.hut.stage >= 4 ? 'Согрейся в хижине у печи' : 'Согрейся у костра';
     if (g.fire.fuel < 4) return g.stock.wood > 0 ? 'Подкинь дров в костёр' : 'Наруби дров для костра';
@@ -1094,9 +1105,19 @@
 
   const num = (v, lo, hi) => finite(v) && v >= lo && v <= hi;
 
-  function restore(o) {
+  // Fills what a snapshot from an older build lacks, on a copy; restore validates the result as usual.
+  function migrate(o) {
+    if (!o || typeof o !== 'object') return o;
+    const m = clone(o);
+    if (m.erng === undefined && Number.isInteger(m.seed)) m.erng = erngOf(m.seed);
+    if (m.stock && typeof m.stock === 'object') for (const k of ['hide', 'smokedMeat', 'smokedFish']) if (m.stock[k] === undefined) m.stock[k] = 0;
+    return m;
+  }
+
+  function restore(raw) {
+    const o = migrate(raw);
     if (!o || typeof o !== 'object' || o.v !== 1 || o.status !== 'playing' || !has(DIFF, o.difficulty)) return null;
-    if (!num(o.t, 0, DAY * (DAYS + 1)) || !Number.isInteger(o.rng) || !Array.isArray(o.tiles) || o.tiles.length !== W * H) return null;
+    if (!num(o.t, 0, DAY * (DAYS + 1)) || !Number.isInteger(o.rng) || !Number.isInteger(o.erng) || !Array.isArray(o.tiles) || o.tiles.length !== W * H) return null;
     if (!o.tiles.every((c) => typeof c === 'string' && '.:D~o'.includes(c))) return null;
     const h = o.hero;
     if (!h || !['warmth', 'food', 'energy', 'health'].every((k) => num(h[k], 0, STAT_MAX)) || !num(h.x, 0, W) || !num(h.y, 0, H)) return null;
@@ -1172,8 +1193,8 @@
     TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, HIT_CD, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
     FOOD_DRAIN, ENERGY_DRAIN, WORK_ENERGY, SLEEP_ENERGY, HEALTH_LOSS, HEALTH_GAIN, FOOD, RAW_MEAT_ENERGY, COOK_TIME,
     FISH_TIME, BITE, GNAW, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
-    PALISADE_REPAIR, BUNK_COST, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, WORK, RES, FOOD_ITEMS, ITEMS, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
-    clamp, rand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
+    PALISADE_REPAIR, BUNK_COST, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
+    clamp, rand, erand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
     temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, warmthRate, lit, inHut, stoveOn,
     fireOn, atBase, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,
     wolvesTonight, step, stars, nextTask, snapshot, restore, newSave, parseSave, loadSave, storeSave, recordGame,
