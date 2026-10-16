@@ -155,3 +155,29 @@ test('the hint: run to the camp when the bear is near', () => {
   g.bear.x = 2.5; g.bear.y = 2.5;
   assert.notEqual(C.nextTask(g), 'Медведь рядом: уходи в лагерь');
 });
+
+test('a trader and a bear on the same day (harsh day 11); a bear killed with the store full gives what fits', () => {
+  const g = quiet(4, 'harsh');
+  const day = C.TRADER_DAYS.harsh.find((d) => C.BEAR.days.harsh.includes(d));
+  assert.equal(day, 11);
+  dawnOf(g, day);
+  assert.ok(g.trader && g.bear);
+  g.hero.x = 27.5; g.hero.y = 21.5;
+  for (let t = 0; t < C.NIGHT_AT; t += 0.5) {
+    C.step(g, 0.5);
+    C.drain(g);
+    if (g.bear) assert.ok(!C.inBase(Math.floor(g.bear.x), Math.floor(g.bear.y)));
+  }
+  assert.equal(g.status, 'playing');
+  // the store full of hides and wood: the bear's drop takes only what fits
+  const h = quiet();
+  h.t = 7 * C.DAY + 5;
+  Object.assign(h.stock, { wood: C.STORE_CAP - 2, stone: 0, metal: 0, hide: 0 });
+  h.hero.x = 27.5; h.hero.y = 21.5;
+  h.bear = { id: 1, x: 28.5, y: 21.5, hp: 1, cd: 0, calm: 99, path: null, plan: 99, chase: false };
+  assert.equal(C.interact(h, 28.5, 21.5), 'fight');
+  for (let t = 0; t < 5 && h.bear; t += 0.1) C.step(h, 0.1);
+  const dead = of(C.drain(h), 'bearDead')[0];
+  assert.equal(dead.hide, 2);
+  assert.equal(C.stockTotal(h), C.STORE_CAP);
+});

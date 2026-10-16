@@ -580,22 +580,29 @@
 - [x] run `node --test`, then the smoke 3 times in a row; everything must pass
 
 ### Task 13: Verify acceptance criteria
-- [ ] verify all requirements from the Overview are implemented
-- [ ] verify edge cases:
+- [x] verify all requirements from the Overview are implemented
+- [x] verify edge cases:
   - old saves;
   - every event across a save and reload;
   - a trader and a bear on the same day;
   - the lost child when the child dies;
   - the stock full of hides;
   - an event left unanswered all day.
-- [ ] run the full suite: `node --test 'tests/**/*.test.js'` and `go vet ./... && go test ./...`
-- [ ] run every game's smoke test (`tests/*/smoke.cjs`)
-- [ ] check by hand (no automated test does this) that every new export of `core.js` and `view.js` is called by a test
+- [x] run the full suite: `node --test 'tests/**/*.test.js'` and `go vet ./... && go test ./...`
+- [x] run every game's smoke test (`tests/*/smoke.cjs`)
+- [x] check by hand (no automated test does this) that every new export of `core.js` and `view.js` is called by a test
 
 ### Task 14: [Final] Update documentation
-- [ ] update the «Долгая зима» section in `README.md`: upgrades, the workshop, hides, events, the trader, the bear
-- [ ] add a `CLAUDE.md` only if new repo-wide patterns were found (there is none today)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update the «Долгая зима» section in `README.md`: upgrades, the workshop, hides, events, the trader, the bear
+- [x] add a `CLAUDE.md` only if new repo-wide patterns were found (there is none today)
+- [x] move this plan to `docs/plans/completed/`
+- [x] ➕ edge cases covered by tests:
+  - a trader and a bear on the same harsh day (day 11);
+  - a bear killed with the store full gives what fits;
+  - the tables hold together (meats, event chances and choices, trades);
+  - the share of days with an event matches the chance.
+
+  Every new export of `core.js` and `view.js` is used by a test. 798 tests, Go, and the smoke tests of all eight games pass
 
 ## Post-Completion
 *Items requiring manual intervention or external systems; informational only.*

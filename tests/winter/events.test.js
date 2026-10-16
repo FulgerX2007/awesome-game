@@ -327,3 +327,42 @@ test('a lost child, the aurora and the ice survive a save and restore', () => {
   }
   void c;
 });
+
+test('the expansion tables hold together: meats, event chances and choices, trades, hit and hunter numbers', () => {
+  assert.deepEqual(C.MEATS, ['meat', 'cookedMeat', 'smokedMeat']);
+  assert.ok(C.MEATS.every((k) => C.FOOD_ITEMS.includes(k)));
+  assert.equal(C.HUNTER_MEAT, 3);
+  assert.ok(C.HIT_CD > 0 && C.HIT_CD < 2);
+  for (const d of ['normal', 'harsh']) assert.ok(C.EVENT_CHANCE[d] > 0 && C.EVENT_CHANCE[d] < 1);
+  assert.ok(C.EVENT_CHANCE.harsh >= C.EVENT_CHANCE.normal);
+  for (const [id, ch] of Object.entries(C.EVENT_CHOICES)) {
+    assert.ok(C.EVENT_IDS.includes(id));
+    assert.equal(ch.length, 2);
+    assert.ok(ch.includes(C.EVENT_DEFAULT[id]), `${id}: the default is one of its choices`);
+  }
+  for (const id of C.EVENT_IDS) assert.ok(C.EVENT_MAX[id] >= 1, id);
+  assert.ok(C.TRADES.length >= C.TRADE_OFFERS + 2);
+  for (const tr of C.TRADES.concat([C.TRADE_FIXED])) {
+    for (const k of Object.keys(tr.give)) assert.ok(C.ITEMS.includes(k) && tr.give[k] > 0, JSON.stringify(tr));
+    for (const k of Object.keys(tr.get)) assert.ok(k === 'tool' || (C.ITEMS.includes(k) && tr.get[k] > 0), JSON.stringify(tr));
+    assert.ok(Object.keys(tr.give).every((k) => !(k in tr.get)), 'never the same thing back');
+  }
+  // the share of days with an event is about the chance (over many seeds, days 2–29)
+  let days = 0, withEvent = 0;
+  for (let s = 1; s <= 40; s++) {
+    const g = quiet(s);
+    g.hut.stage = 4;
+    for (let d = 2; d < C.DAYS; d++) {
+      g.t = (d - 1) * C.DAY - 0.01;
+      g.event = null; g.iceDay = 0; g.lastEvent = null; g.eventsSeen = {};
+      g.hero.sleeping = false; g.wolves = [];
+      C.step(g, 0.05);
+      C.drain(g);
+      days++;
+      if (g.event) withEvent++;
+      if (g.event && g.event.phase === 'ask') C.answerEvent(g, C.EVENT_DEFAULT[g.event.id]);
+      for (const sv of g.survivors) if (sv.state === 'lost') sv.state = 'waiting';
+    }
+  }
+  assert.ok(Math.abs(withEvent / days - C.EVENT_CHANCE.normal) < 0.06, `${withEvent}/${days}`);
+});
