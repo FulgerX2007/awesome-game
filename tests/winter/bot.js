@@ -23,12 +23,17 @@ const dist = (a, x, y) => Math.abs(a.x - (x + 0.5)) + Math.abs(a.y - (y + 0.5));
 const busy = (g) => !!(g.hero.path || g.hero.target);
 const center = { x: C.SPOT.fire.x, y: C.SPOT.fire.y + 1 };
 
-// The nearest standing node of a kind that a path reaches.
+// The nearest standing node of a kind that a path reaches, away from the bear.
 function nearestNode(g, kind) {
-  const list = g.nodes.filter((n) => n.kind === kind && n.amount > 0).sort((a, b) => dist(g.hero, a.x, a.y) - dist(g.hero, b.x, b.y));
+  const safe = (n) => !g.bear || Math.hypot(g.bear.x - n.x - 0.5, g.bear.y - n.y - 0.5) > C.BEAR.sight + 3;
+  const list = g.nodes.filter((n) => n.kind === kind && n.amount > 0 && safe(n)).sort((a, b) => dist(g.hero, a.x, a.y) - dist(g.hero, b.x, b.y));
   for (const n of list.slice(0, 6)) if (C.pathNextTo(g, g.hero, n.x, n.y)) return n;
   return null;
 }
+
+// The comforts (upgrades, gear) are paid in full and leave wood for the fires.
+const WOOD_RESERVE = 30;
+const spare = (g, cost) => C.afford(g, cost) && g.stock.wood - (cost.wood || 0) >= WOOD_RESERVE;
 
 // The goals in order: what to build or make next. → { id, cost, act: () => result } | null
 function nextGoal(g, cfg) {
@@ -55,13 +60,13 @@ function nextGoal(g, cfg) {
   // the house upgrades, in the core's order, once the stove stands
   if (g.hut.stage >= C.HUT_STAGES.length) {
     const up = C.UPGRADE_IDS.find((u) => !g.upgrades[u].built);
-    if (up) return { id: `up:${up}`, cost: C.UPGRADES[up].cost, paid: g.upgrades[up].paid, act: () => C.contribute(g, `up:${up}`) };
+    if (up) return { id: `up:${up}`, cost: C.UPGRADES[up].cost, paid: g.upgrades[up].paid, reserve: WOOD_RESERVE, act: () => (spare(g, C.UPGRADES[up].cost) ? C.contribute(g, `up:${up}`) : 'wait') };
   }
   // the workshop's gear: the sled, the coat, the lantern, then snares to set around the camp
   if (C.upgradeOn(g, 'workshop')) {
     const gear = ['sled', 'coat', 'lantern'].find((id) => !g.gear[id]);
-    if (gear) return { id: gear, cost: C.GEAR[gear].cost, act: () => C.craft(g, gear) };
-    if (g.gear.snares + g.snares.length < C.SNARE.max) return { id: 'snares', cost: C.GEAR.snares.cost, act: () => C.craft(g, 'snares') };
+    if (gear) return { id: gear, cost: C.GEAR[gear].cost, reserve: WOOD_RESERVE, act: () => (spare(g, C.GEAR[gear].cost) ? C.craft(g, gear) : 'wait') };
+    if (g.gear.snares + g.snares.length < C.SNARE.max) return { id: 'snares', cost: C.GEAR.snares.cost, reserve: WOOD_RESERVE, act: () => (spare(g, C.GEAR.snares.cost) ? C.craft(g, 'snares') : 'wait') };
   }
   return null;
 }
@@ -69,7 +74,7 @@ function nextGoal(g, cfg) {
 const missing = (g, goal) => {
   const out = {};
   for (const k of Object.keys(goal.cost)) {
-    const left = goal.cost[k] - ((goal.paid && goal.paid[k]) || 0) - g.stock[k];
+    const left = goal.cost[k] + (k === 'wood' ? goal.reserve || 0 : 0) - ((goal.paid && goal.paid[k]) || 0) - g.stock[k];
     if (left > 0) out[k] = left;
   }
   return out;
@@ -88,6 +93,11 @@ function think(g, cfg, r) {
     // the roof now only with wood to spare for the fires; else later, from the build list
     if (ev.id === 'roof') { if (g.stock.wood < C.ROOF_FIX.wood + 30 || C.answerEvent(g, 'fix') !== 'ok') C.answerEvent(g, 'later'); }
     else if (ev.id === 'wanderer') { if (C.answerEvent(g, 'help') !== 'ok') C.answerEvent(g, 'ignore'); }
+  }
+  // the bear in sight: back to the camp, where he never goes
+  if (g.bear && !atBase && Math.hypot(g.bear.x - h.x, g.bear.y - h.y) <= C.BEAR.sight + 2) {
+    if (!h.target || h.target.type !== 'walk' || !h.path) C.interact(g, center.x, center.y);
+    return;
   }
   // a wolf close by: fight it
   const wolf = g.wolves.filter((w) => Math.hypot(w.x - h.x, w.y - h.y) < 2.5)[0];
@@ -111,9 +121,14 @@ function think(g, cfg, r) {
     }
     return;
   }
-  // no fire, no stove and no wood: waiting by the cold ashes only kills; fetch a log
-  if (!C.fireOn(g) && !C.stoveOn(g) && g.stock.wood < 2 && h.health > 15) {
+  // the fires dying and no wood: waiting by the ashes only kills; fetch a log
+  if (g.fire.fuel < 3 && g.hut.stove < 3 && g.stock.wood < 2 && h.health > 15) {
     if (!h.target || h.target.type !== 'node') { const n = nearestNode(g, 'tree'); if (n) C.interact(g, n.x, n.y); }
+    return;
+  }
+  // a killing frost with the stove lit: sleep it off in the warm hut (sleep there runs faster)
+  if (C.stoveOn(g) && C.chill(g) >= 1.3 && g.hut.stove > 4 && h.warmth < 95 && atBase) {
+    if (!h.target || h.target.type !== 'bed') C.interact(g, C.SPOT.bed.x, C.SPOT.bed.y);
     return;
   }
   // cold: into the hut by the stove when it burns, else to the fire; on a cold day turn back in time
@@ -122,7 +137,8 @@ function think(g, cfg, r) {
   if (h.warmth < 35 || (!atBase && h.warmth < turnBack)) {
     const there = C.stoveOn(g) ? C.inHut(h) : dist(h, C.SPOT.fire.x, C.SPOT.fire.y) <= 2.5;
     if (!there && (!h.target || h.target.type !== 'walk')) C.interact(g, warmSpot.x, warmSpot.y);
-    if (!there || h.warmth < 80) return;
+    // waiting only helps where it actually warms; by a fire that loses to the frost, go for wood instead
+    if (!there || (h.warmth < 80 && C.warmthRate(g, h) > 0)) return;
   }
   // full hands: back to the camp
   if (!atBase && h.load >= C.carryOf(g) - 2) { C.interact(g, center.x, center.y); return; }

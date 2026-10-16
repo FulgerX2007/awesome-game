@@ -461,17 +461,17 @@
 - Modify: `tests/winter/bot.js`
 - Create: `tests/winter/bear.test.js`
 
-- [ ] add `BEAR` and `g.bear` (plus `migrate` and validation)
-- [ ] `bearTick`:
+- [x] add `BEAR` and `g.bear` (plus `migrate` and validation)
+- [x] `bearTick`:
   - spawning on the bear days with `erng`;
   - wandering, and chasing within sight;
   - staying out of `BASE` and off lit tiles;
   - ignoring survivors;
   - leaving at nightfall.
-- [ ] the hero's attack through `interact`, checked right after wolves; the bite; the drop; the events
-- [ ] client: a placeholder bear drawing (a brown ellipse) so the page shows it; the hint «Медведь рядом: уходи в лагерь» with RO strings
-- [ ] bot: when the bear is within sight, go back to the camp; fight it only with the spear and high health
-- [ ] write tests:
+- [x] the hero's attack through `interact`, checked right after wolves; the bite; the drop; the events
+- [x] client: a placeholder bear drawing (a brown ellipse) so the page shows it; the hint «Медведь рядом: уходи в лагерь» with RO strings
+- [x] bot: when the bear is within sight, go back to the camp; fight it only with the spear and high health
+- [x] write tests:
   - the schedule;
   - the chase in the open;
   - the bear stops at the light and at the camp edge;
@@ -479,7 +479,16 @@
   - the kill and the drop;
   - nothing happens on other days;
   - a save and restore with the bear out.
-- [ ] run the tests, including the balance tests; they must pass before Task 8
+- [x] run the tests, including the balance tests; they must pass before Task 8
+- [x] ➕ the bear bit 22 every 1.8 s and the hero fought back on his own, so the casual bot was mauled to death. Now he bites 15 and then backs off for 4 s (`BEAR.calm`), and the hero no longer throws himself at him
+- [x] ➕ the bear lingered at the camp edge after the hero ran inside, and the bot spent the day running back and forth. Now near the camp he loses interest and drifts back into the forest, and the bot gathers from nodes away from the bear
+- [x] ➕ ⚠️ a core bug, older than this plan: a hero who lay down by day and got rested had his order cleared but stayed `sleeping`, so he slept on with no order (and in a warm hut fast-forwarded the day). The fix: he gets up. The bots' harsh balance had leaned on this. With the fix alone, the original game wins 1/5 harsh. Each greedy-bot change below is something a player can do too:
+  - in a killing frost (chill ≥ 1.3) with the stove lit, it sleeps it off in the hut;
+  - it fetches a log when the fires are dying and there is no wood;
+  - it stops waiting by a fire that loses to the frost;
+  - it pays for comforts (upgrades, gear) in full, leaving 30 wood.
+
+  Greedy now wins harsh 3/5 and normal 5/5 with all five upgrades, in about 51 real minutes
 
 ### Task 8: Rendering: camp buildings, upgrades, snares, roof hole, lantern
 

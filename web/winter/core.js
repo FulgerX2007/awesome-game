@@ -121,6 +121,14 @@
   ];
   const TRADE_FIXED = { give: { hide: 3 }, get: { metal: 5 } };
   const TRADE_OFFERS = 3, TRADE_REACH = 2.5, TRADE_NO_TOOL = { metal: 5 };
+
+  // The bear: on his days he roams the forest by day and goes for a hero he sees. He never enters the camp nor a
+  // lit tile, ignores the survivors and leaves at nightfall. A lot of meat and hides when he is killed.
+  const BEAR = {
+    hp: 14, bite: 15, speed: 2.4, cd: 1.8, sight: 7, reach: 1.2, far: 18, meat: 8, hide: 4,
+    calm: 4,                                   // after a bite he backs off for a while: a warning, not a hunt to the death
+    days: { normal: [8, 15, 21, 26], harsh: [6, 11, 15, 19, 23, 27] },
+  };
   const ROOF_FIX = { wood: 15, stone: 5 };
   const ROOF_HOLE = { stove: 1.3, chill: 0.7 };          // a hole in the roof: the stove burns faster, the hut keeps less cold out
   // the wanderer's tools never include the shovel or the ice pick: those open the way to survivors
@@ -256,7 +264,7 @@
       tools: { axe: true, ironAxe: false, pick: false, shovel: false, icePick: false, spear: false },
       fire: { fuel: 12 },
       hut: { stage: 0, paid: {}, stove: 0, roofHole: false, patchPaid: {} },
-      event: null, lastEvent: null, eventsSeen: {}, iceDay: 0, trader: null,
+      event: null, lastEvent: null, eventsSeen: {}, iceDay: 0, trader: null, bear: null,
       palisade: SEGMENTS.map(() => ({ built: false, hp: 0, paid: {} })),
       bunks: [{ built: false, paid: {} }, { built: false, paid: {} }, { built: false, paid: {} }],
       upgrades: newUpgrades(),
@@ -583,6 +591,11 @@
       order(g, { type: 'wolf', id: wolf.id }, pathNextTo(g, h, x, y) || []);
       return 'fight';
     }
+    const bear = g.bear;
+    if (bear && Math.abs(bear.x - (x + 0.5)) < 1 && Math.abs(bear.y - (y + 0.5)) < 1) {
+      order(g, { type: 'bear' }, pathNextTo(g, h, Math.floor(bear.x), Math.floor(bear.y)) || []);
+      return 'fight';
+    }
     const animal = g.animals.find((a) => Math.abs(a.x - (x + 0.5)) < 1 && Math.abs(a.y - (y + 0.5)) < 1);
     if (animal) {
       if (animal.kind === 'deer' && !g.tools.spear) return 'tool';
@@ -711,7 +724,7 @@
         return;
       }
       case 'bed':
-        if (!isNight(g) && h.energy >= STAT_MAX - 1) { clearOrder(h); return; }
+        if (!isNight(g) && h.energy >= STAT_MAX - 1) { clearOrder(h); h.sleeping = false; return; }   // rested by day: up
         if (!h.sleeping) { h.sleeping = true; g.events.push({ type: 'sleep' }); }
         return;
       case 'wanderer': {
@@ -767,8 +780,30 @@
         hitWolf(g, w, g.tools.spear ? 2 : 1);
         return;
       }
+      case 'bear': {
+        const b = g.bear;
+        if (!b) { clearOrder(h); return; }
+        const d = Math.hypot(b.x - h.x, b.y - h.y);
+        if (d > 1.3) { h.path = pathNextTo(g, h, Math.floor(b.x), Math.floor(b.y)); if (!h.path) clearOrder(h); return; }
+        if (h.cd > 0) return;
+        h.cd = 0.8;
+        h.energy = Math.max(0, h.energy - WORK_ENERGY);
+        hitBear(g, g.tools.spear ? 2 : 1);
+        return;
+      }
       default: clearOrder(h);
     }
+  }
+
+  function hitBear(g, dmg) {
+    const b = g.bear;
+    b.hp -= dmg;
+    g.events.push({ type: 'bearHit', x: b.x, y: b.y });
+    if (b.hp > 0) return;
+    g.bear = null;
+    const meat = gain(g, 'meat', BEAR.meat), hide = gain(g, 'hide', BEAR.hide);
+    g.events.push({ type: 'bearDead', x: b.x, y: b.y, meat, hide });
+    clearOrder(g.hero);
   }
 
   function hitWolf(g, w, dmg) {
@@ -1231,6 +1266,71 @@
     if (g.animals.filter((a) => a.kind === 'deer').length < 3 && rand(g) < dt / 60) spawnAnimal(g, 'deer');
   }
 
+  // ── The bear ──
+  function bearArrives(g) {
+    g.bear = null;
+    if (!BEAR.days[g.difficulty].includes(dayOf(g))) return;
+    const p = freeTile(g, (x, y) => Math.hypot(x - SPOT.fire.x, y - SPOT.fire.y) >= BEAR.far, erand);
+    if (!p) return;
+    g.bear = { id: g.nextId++, x: p.x + 0.5, y: p.y + 0.5, hp: BEAR.hp, cd: 0, calm: 0, path: null, plan: 0, chase: false };
+    g.events.push({ type: 'bear', x: p.x, y: p.y });
+  }
+
+  function bearLeaves(g) {
+    if (!g.bear) return;
+    g.bear = null;
+    g.events.push({ type: 'bearLeft' });
+  }
+
+  // The tiles the bear may step on: open ground outside the camp and out of the light.
+  const bearPass = (g, x, y) => inMap(x, y) && !'oD'.includes(g.tiles[idx(x, y)]) && !blockedByNode(g, x, y) && !inBase(x, y) && !lit(g, x, y);
+
+  function bearTick(g, dt) {
+    const b = g.bear;
+    if (!b) return;
+    b.cd = Math.max(0, b.cd - dt);
+    b.calm = Math.max(0, (b.calm || 0) - dt);
+    const h = g.hero;
+    const hx = Math.floor(h.x), hy = Math.floor(h.y);
+    const d = Math.hypot(h.x - b.x, h.y - b.y);
+    const sees = b.calm <= 0 && d <= BEAR.sight && !h.sleeping && bearPass(g, hx, hy);
+    if (sees && d <= BEAR.reach) {
+      if (b.cd <= 0) {
+        b.cd = BEAR.cd;
+        b.calm = BEAR.calm;
+        b.plan = 0;
+        h.health = Math.max(0, h.health - BEAR.bite * DIFF[g.difficulty].bite);
+        g.events.push({ type: 'bite', who: 'hero', by: 'bear' });
+      }
+      return;
+    }
+    b.plan -= dt;
+    if (b.plan <= 0 || (sees && !b.chase)) {
+      b.plan = sees ? 0.8 : 3 + erand(g) * 3;
+      b.chase = sees;
+      let tx = hx, ty = hy;
+      if (!sees) {
+        // wander: a tile within a few steps, away from the camp and the light (and from the hero while calm)
+        tx = Math.floor(b.x) + Math.floor(erand(g) * 9) - 4;
+        ty = Math.floor(b.y) + Math.floor(erand(g) * 9) - 4;
+        if (b.calm > 0) { tx = Math.floor(b.x + Math.sign(b.x - h.x) * 4); ty = Math.floor(b.y + Math.sign(b.y - h.y) * 4); }
+        // near the camp he loses interest and drifts off into the forest
+        else if (Math.hypot(b.x - SPOT.fire.x, b.y - SPOT.fire.y) < BEAR.far - 4) {
+          tx = Math.floor(b.x + Math.sign(b.x - SPOT.fire.x - 0.5) * 4); ty = Math.floor(b.y + Math.sign(b.y - SPOT.fire.y - 0.5) * 4);
+        }
+        if (!bearPass(g, tx, ty)) { b.path = null; return; }
+      }
+      const here = Math.floor(b.x), there = Math.floor(b.y);
+      const pass = (x, y) => bearPass(g, x, y) || (x === here && y === there);
+      b.path = astar(g, b, (x, y) => (sees ? Math.abs(x - tx) + Math.abs(y - ty) <= 1 : x === tx && y === ty), manhattan(tx, ty), null, pass, 500);
+    }
+    if (!b.path || !b.path.length) { b.path = null; return; }
+    const n = b.path[0];
+    if (!bearPass(g, n.x, n.y)) { b.path = null; b.plan = 0; return; }
+    const cx = n.x + 0.5, cy = n.y + 0.5, dd = Math.hypot(cx - b.x, cy - b.y), sp = BEAR.speed * dt;
+    if (dd <= sp) { b.x = cx; b.y = cy; b.path.shift(); } else { b.x += ((cx - b.x) / dd) * sp; b.y += ((cy - b.y) / dd) * sp; }
+  }
+
   // ── Wolves ──
   const wolvesTonight = (g) => Math.floor((1 + dayOf(g) / 5) * DIFF[g.difficulty].wolves);
   const people = (g) => [g.hero].concat(g.survivors.filter((s) => s.state === 'following' || s.state === 'home'));
@@ -1393,6 +1493,7 @@
       const calm = g.event && g.event.id === 'aurora';
       eventsAtNight(g);
       traderLeaves(g);
+      bearLeaves(g);
       if (!calm) spawnWolves(g);
     }
     if (now > was) {
@@ -1403,7 +1504,7 @@
       g.hero.load = inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) ? 0 : g.hero.load;
       snaresAtDawn(g);
       lostAtDawn(g);
-      if (now < DAYS) traderArrives(g); else g.trader = null;
+      if (now < DAYS) { traderArrives(g); bearArrives(g); } else { g.trader = null; g.bear = null; }
       g.events.push({ type: 'dawn', day: dayOf(g), blizzard: isBlizzard(g) });
       g.dawnDue = true;
       if (now < DAYS) pickEvent(g);
@@ -1428,6 +1529,7 @@
     statsTick(g, dtWorld);
     survivorsTick(g, dtWorld);
     animalsTick(g, dtWorld);
+    bearTick(g, dtWorld);
     wolvesTick(g, dtWorld);
     dayTick(g, before);
     if (h.health <= 0 && g.status === 'playing') {
@@ -1462,6 +1564,7 @@
   function nextTask(g) {
     const h = g.hero;
     if (h.health < 30) return 'Ты слабеешь: согрейся, поешь и отдохни';
+    if (g.bear && !atBase(g) && Math.hypot(g.bear.x - h.x, g.bear.y - h.y) <= BEAR.sight + 2) return 'Медведь рядом: уходи в лагерь';
     if (h.food < 30 && EAT_ORDER.some((k) => g.stock[k] > 0)) return 'Поешь (F)';
     if (h.food < 30) return 'Найди еду: ягоды, зайцы, рыба во льду';
     if (h.warmth < 35) return g.hut.stage >= 4 ? 'Согрейся в хижине у печи' : 'Согрейся у костра';
@@ -1495,7 +1598,7 @@
     'Согрейся у костра', 'Подкинь дров в костёр', 'Наруби дров для костра', 'Ночь: поспи в хижине', 'Почини хижину: стены',
     'Сделай кирку на верстаке', 'Почини хижину: крыша', 'Почини хижину: дверь', 'Сложи печь в хижине', 'Построй частокол вокруг лагеря',
     'Сделай лопату: к Плотнику не пройти через сугробы', 'Сделай ледоруб: Кузнец за озером', 'Спаси выжившего: {name}',
-    'Сделай нары для выживших', 'Улучши дом: {name}', 'Держись до весны', 'Помоги путнику', 'Почини крышу', 'Найди ребёнка до ночи', 'Торговец у ворот',
+    'Сделай нары для выживших', 'Улучши дом: {name}', 'Держись до весны', 'Помоги путнику', 'Почини крышу', 'Найди ребёнка до ночи', 'Торговец у ворот', 'Медведь рядом: уходи в лагерь',
   ];
 
   // ── Snapshots and the save ──
@@ -1528,6 +1631,7 @@
     if (m.eventsSeen === undefined) m.eventsSeen = {};
     if (m.iceDay === undefined) m.iceDay = 0;
     if (m.trader === undefined) m.trader = null;
+    if (m.bear === undefined) m.bear = null;
     return m;
   }
 
@@ -1550,6 +1654,7 @@
     if (o.lastEvent !== null && !EVENT_IDS.includes(o.lastEvent)) return null;
     if (!Number.isInteger(o.iceDay) || !num(o.iceDay, 0, DAYS + 1)) return null;
     if (o.trader !== null && !validTrader(o.trader)) return null;
+    if (o.bear !== null && !(o.bear && typeof o.bear === 'object' && Number.isInteger(o.bear.id) && num(o.bear.x, 0, W) && num(o.bear.y, 0, H) && num(o.bear.hp, 0.001, BEAR.hp) && num(o.bear.cd, 0, BEAR.cd) && num(o.bear.calm, 0, BEAR.calm))) return null;
     if (!o.eventsSeen || typeof o.eventsSeen !== 'object' || !Object.keys(o.eventsSeen).every((k) => EVENT_IDS.includes(k) && Number.isInteger(o.eventsSeen[k]) && o.eventsSeen[k] >= 0)) return null;
     if (o.event !== null && !validEvent(o.event)) return null;
     if (!o.fire || !num(o.fire.fuel, 0, FIRE.cap) || !Array.isArray(o.torches) || !Array.isArray(o.wolves) || !Array.isArray(o.animals)) return null;
@@ -1634,7 +1739,7 @@
     TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, HIT_CD, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
     FOOD_DRAIN, ENERGY_DRAIN, WORK_ENERGY, SLEEP_ENERGY, HEALTH_LOSS, HEALTH_GAIN, FOOD, RAW_MEAT_ENERGY, COOK_TIME,
     FISH_TIME, BITE, GNAW, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
-    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, GEAR, GEAR_IDS, COAT, SLED_CARRY, LANTERN, SNARE, EVENT_CHANCE, EVENT_CHOICES, EVENT_DEFAULT, EVENT_IDS, EVENT_MAX, LOST_CHILD, AURORA, THAW, TRADER_DAYS, TRADES, TRADE_FIXED, TRADE_OFFERS, TRADE_REACH, TRADE_NO_TOOL, ROOF_FIX, ROOF_HOLE, WANDERER, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
+    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, GEAR, GEAR_IDS, COAT, SLED_CARRY, LANTERN, SNARE, EVENT_CHANCE, EVENT_CHOICES, EVENT_DEFAULT, EVENT_IDS, EVENT_MAX, LOST_CHILD, AURORA, THAW, TRADER_DAYS, TRADES, TRADE_FIXED, TRADE_OFFERS, TRADE_REACH, TRADE_NO_TOOL, BEAR, ROOF_FIX, ROOF_HOLE, WANDERER, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
     clamp, rand, erand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
     temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, foodCap, roomFor, upgradeOn, carryOf, placeSnare, answerEvent, iceOn, trade, warmthRate, lit, inHut, stoveOn,
     fireOn, atBase, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,

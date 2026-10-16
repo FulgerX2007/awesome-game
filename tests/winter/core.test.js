@@ -401,3 +401,15 @@ test('smoked food is eaten first and fills most; the hunter takes smoked meat to
   assert.equal(C.rescue(g, s), 'ok');
   assert.deepEqual([g.stock.meat, g.stock.cookedMeat, g.stock.smokedMeat], [0, 0, 2]);
 });
+
+test('a hero who lies down by day gets up once rested, instead of sleeping on with no order', () => {
+  const g = quiet();
+  g.hut.stage = 2;
+  g.t = C.DAY + 10;
+  g.hero.energy = 90;
+  assert.equal(C.interact(g, C.SPOT.bed.x, C.SPOT.bed.y), 'bed');
+  for (let t = 0; t < 120 && (g.hero.target || g.hero.path); t += 0.25) C.step(g, 0.25);
+  assert.equal(g.hero.target, null);
+  assert.equal(g.hero.sleeping, false);
+  assert.ok(g.hero.energy >= C.STAT_MAX - 1);
+});

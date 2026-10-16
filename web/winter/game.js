@@ -204,6 +204,10 @@
         case 'trader': banner(t('Торговец на санях у южных ворот'), 2.6); break;
         case 'traderLeft': banner(t('Торговец уехал')); break;
         case 'traded': sfx('craft'); break;
+        case 'bear': banner(t('В лесу бродит медведь-шатун!'), 2.6); break;
+        case 'bearHit': sfx('hit'); break;
+        case 'bearDead': float(e.x, e.y - 0.6, `+${e.meat} / +${e.hide}`, '#ff9a8a'); banner(t('Медведь повержен!'), 2.2); break;
+        case 'bearLeft': break;
         case 'snareCaught': float(e.x + 0.5, e.y, t('+1 мясо в силках'), '#ff9a8a'); break;
         case 'scared': break;
         case 'built': sfx('build'); break;
@@ -1342,6 +1346,14 @@
     void e;
   }
 
+  // A placeholder bear (the drawing comes with the creatures' art): a big brown body and a head.
+  function drawBear(b) {
+    const ts = cam.ts, p = P(b.x, b.y);
+    ctx.fillStyle = '#5a3a22';
+    ell(ctx, p.x, p.y - ts * 0.15, ts * 0.5, ts * 0.32); ctx.fill();
+    ell(ctx, p.x + ts * 0.42, p.y - ts * 0.3, ts * 0.2, ts * 0.18); ctx.fill();
+  }
+
   function drawRabbit(a) {
     const ts = cam.ts, p = P(a.x, a.y), m = motion(a);
     if (a.tx + 0.5 !== a.x) m.face = a.tx + 0.5 > a.x ? 1 : -1;
@@ -1630,6 +1642,10 @@
       if (!vis(a.x, a.y)) continue;
       const r = a.kind === 'deer' ? 0.36 : 0.2;
       add(a.y + 0.3, a.x, () => (a.kind === 'deer' ? drawDeer(a) : drawRabbit(a)), () => { const p = P(a.x, a.y + 0.3); K.shadow(ctx, p.x + ts * 0.05, p.y, ts * r, ts * r * 0.36, 0.3); });
+    }
+    if (g.bear && vis(g.bear.x, g.bear.y)) {
+      const b = g.bear;
+      add(b.y + 0.35, b.x, () => drawBear(b), () => { const p = P(b.x, b.y + 0.35); K.shadow(ctx, p.x + ts * 0.05, p.y, ts * 0.55, ts * 0.17, 0.34); });
     }
     for (const w of g.wolves) {
       if (!vis(w.x, w.y)) continue;
