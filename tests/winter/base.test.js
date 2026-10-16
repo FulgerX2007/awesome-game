@@ -142,6 +142,34 @@ test('rescues: meat for the hunter, daylight for the herbalist, the palisade for
   assert.equal(C.rescue(g, sv('smith')), 'far');
 });
 
+test('the hunter takes roast meat too: raw first, then the rest from the roast', () => {
+  const g = quiet();
+  const s = g.survivors.find((x) => x.id === 'hunter');
+  g.hero.x = s.x + 1; g.hero.y = s.y;
+  Object.assign(g.stock, { meat: 0, cookedMeat: 2, cookedFish: 9, berries: 9 });
+  assert.equal(C.rescue(g, s), 'meat', 'two pieces and a pile of other food are not enough');
+  Object.assign(g.stock, { meat: 1, cookedMeat: 5 });
+  assert.equal(C.rescue(g, s), 'ok');
+  assert.deepEqual([g.stock.meat, g.stock.cookedMeat, g.stock.cookedFish], [0, 3, 9]);
+});
+
+test('the carpenter at home adds wood and leaves the fire to the child', () => {
+  const g = quiet();
+  const s = g.survivors.find((x) => x.id === 'carpenter');
+  s.state = 'home'; s.x = 27.5; s.y = 22.5; s.food = 100;
+  g.fire.fuel = C.FIRE.cap * 0.3;
+  g.stock.wood = 10;
+  g.t = 1;
+  const fuel = g.fire.fuel;
+  sim(g, 60);
+  assert.ok(s.busy, 'working by day');
+  assert.ok(g.stock.wood >= 10 + Math.floor(60 / C.WORK.carpenter.every) - 1, `wood ${g.stock.wood}`);
+  assert.ok(g.fire.fuel < fuel);
+  g.t = C.NIGHT_AT + 1;
+  sim(g, 1);
+  assert.equal(s.busy, false, 'resting at night');
+});
+
 test('a rescued survivor follows the hero home and then works', () => {
   const g = quiet();
   g.fire.fuel = C.FIRE.cap;

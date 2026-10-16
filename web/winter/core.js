@@ -67,6 +67,7 @@
     child: { name: 'Ребёнок', x: 28, y: 3, need: 'palisade' },
   };
   const SURVIVOR_IDS = Object.keys(SURVIVORS);
+  const HUNTER_MEAT = 3;     // pieces of meat, raw or roast, the hunter asks for
   const WORK = {
     hunter: { every: 40, give: { meat: 1 } },
     carpenter: { every: 6, give: { wood: 1 } },
@@ -715,7 +716,7 @@
   // ── Survivors ──
   function canRescue(g, sv) {
     const need = SURVIVORS[sv.id].need;
-    if (need === 'meat') return g.stock.meat >= 3 ? 'ok' : 'meat';
+    if (need === 'meat') return g.stock.meat + g.stock.cookedMeat >= HUNTER_MEAT ? 'ok' : 'meat';
     if (need === 'day') return isNight(g) ? 'night' : 'ok';
     if (need === 'palisade') return palisadeUp(g) ? 'ok' : 'palisade';
     return 'ok'; // shovel and ice pick only gate the way there
@@ -726,7 +727,12 @@
     if (Math.hypot(sv.x - g.hero.x, sv.y - g.hero.y) > 1.6) return 'far';
     const r = canRescue(g, sv);
     if (r !== 'ok') { g.events.push({ type: 'needs', id: sv.id, need: r }); return r; }
-    if (SURVIVORS[sv.id].need === 'meat') g.stock.meat -= 3;
+    if (SURVIVORS[sv.id].need === 'meat') {
+      // raw meat first; the hero cooks it at the fire, so roast meat counts too
+      const raw = Math.min(HUNTER_MEAT, g.stock.meat);
+      g.stock.meat -= raw;
+      g.stock.cookedMeat -= HUNTER_MEAT - raw;
+    }
     sv.state = 'following';
     g.events.push({ type: 'rescue', id: sv.id });
     return 'ok';
@@ -770,7 +776,8 @@
         continue;
       }
       // work by day while well
-      if (!ok || isNight(g)) continue;
+      sv.busy = ok && !isNight(g);
+      if (!sv.busy) continue;
       sv.work += dt;
       const w = WORK[sv.id];
       if (sv.work >= w.every) {
@@ -779,7 +786,7 @@
         if (sv.id === 'herbalist' && (g.stock.meat > 0 || g.stock.fish > 0) && fireOn(g)) {
           if (g.stock.meat > 0) { g.stock.meat--; g.stock.cookedMeat++; } else { g.stock.fish--; g.stock.cookedFish++; }
         }
-        if (sv.id === 'child' || sv.id === 'carpenter') {
+        if (sv.id === 'child') {
           if (g.fire.fuel < FIRE.cap * 0.6 && g.stock.wood > 0) { g.stock.wood--; g.fire.fuel = Math.min(FIRE.cap, g.fire.fuel + 1); }
           if (g.hut.stage >= 4 && g.hut.stove < STOVE.cap * 0.6 && g.stock.wood > 0) { g.stock.wood--; g.hut.stove = Math.min(STOVE.cap, g.hut.stove + 1); }
         }
@@ -1162,10 +1169,10 @@
   }
 
   const api = {
-    TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
+    TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, HIT_CD, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
     FOOD_DRAIN, ENERGY_DRAIN, WORK_ENERGY, SLEEP_ENERGY, HEALTH_LOSS, HEALTH_GAIN, FOOD, RAW_MEAT_ENERGY, COOK_TIME,
     FISH_TIME, BITE, GNAW, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
-    PALISADE_REPAIR, BUNK_COST, SURVIVORS, SURVIVOR_IDS, WORK, RES, FOOD_ITEMS, ITEMS, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
+    PALISADE_REPAIR, BUNK_COST, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, WORK, RES, FOOD_ITEMS, ITEMS, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
     clamp, rand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
     temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, warmthRate, lit, inHut, stoveOn,
     fireOn, atBase, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,

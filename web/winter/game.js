@@ -1175,6 +1175,8 @@
     const ts = cam.ts, p = P(e.x, e.y);
     if (p.x < -ts || p.y < -ts * 2 || p.x > view.w + ts || p.y > view.h + ts * 2) return;
     const m = motion(e);
+    const work = opts.work;
+    if (work && work.x !== undefined && Math.abs(work.x - e.x) > 0.05) m.face = work.x > e.x ? 1 : -1;
     const sc = look.small ? 0.8 : 1, u = ts * sc;
     const fy = p.y + ts * 0.28;          // the feet
     const walk = m.moving, ph = m.phase;
@@ -1186,9 +1188,7 @@
       ctx.fillStyle = '#2a2230';
       ell(ctx, p.x + sd * u * 0.09, fy - u * 0.03 - lift, u * 0.075, u * 0.05); ctx.fill();
     }
-    // the work swing: a tool raised and brought down towards the target
-    const tg = opts.work;
-    const swing = tg ? Math.sin(time * 9) : 0;
+    const tg = work && work.kind;
     // back arm
     const arm = (sd, ang, len) => {
       ctx.save();
@@ -1233,18 +1233,53 @@
       ctx.save();
       ctx.translate(p.x + m.face * r * 0.9, by - bh * 0.62);
       ctx.scale(m.face, 1);
-      ctx.rotate(-1.9 + (swing + 1) * 1.1);
+      ctx.rotate(swingAngle(work));
       ctx.fillStyle = K.shade(look.coat, 0.05);
       K.rrect(ctx, -u * 0.05, 0, u * 0.1, u * 0.22, u * 0.05); ctx.fill();
       ctx.strokeStyle = '#6a4224'; ctx.lineWidth = u * 0.05; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(0, u * 0.18); ctx.lineTo(0, u * 0.5); ctx.stroke();
       if (tg === 'tree' || tg === 'pick' || tg === 'rock') {
         ctx.fillStyle = '#b8c2d0';
-        if (tg === 'tree') { ctx.beginPath(); ctx.moveTo(0, u * 0.42); ctx.lineTo(u * 0.14, u * 0.38); ctx.lineTo(u * 0.14, u * 0.54); ctx.closePath(); ctx.fill(); }
-        else { ctx.lineWidth = u * 0.04; ctx.strokeStyle = '#b8c2d0'; ctx.beginPath(); ctx.moveTo(-u * 0.16, u * 0.42); ctx.quadraticCurveTo(0, u * 0.5, u * 0.16, u * 0.42); ctx.stroke(); }
+        // the blade leads the downswing, which runs towards the arm's local −x
+        if (tg === 'tree') {
+          ctx.beginPath(); ctx.moveTo(u * 0.01, u * 0.4); ctx.lineTo(-u * 0.15, u * 0.35); ctx.quadraticCurveTo(-u * 0.19, u * 0.45, -u * 0.15, u * 0.55); ctx.lineTo(u * 0.01, u * 0.5); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#e8eef6'; ctx.fillRect(-u * 0.165, u * 0.37, u * 0.025, u * 0.16);
+        } else {
+          ctx.beginPath(); ctx.moveTo(-u * 0.2, u * 0.4); ctx.quadraticCurveTo(0, u * 0.5, u * 0.2, u * 0.4);
+          ctx.quadraticCurveTo(0, u * 0.56, -u * 0.2, u * 0.4); ctx.fill();
+        }
       }
       ctx.restore();
     } else arm(m.face, -sw, u * 0.24);
+  }
+
+  // At the camp by day the carpenter splits logs on a block and the smith breaks ore on a stone.
+  const HOME_JOB = { carpenter: 'tree', smith: 'rock' };
+  function drawWorkBlock(job, x, y) {
+    const ts = cam.ts, p = P(x, y + 0.22);
+    if (job === 'tree') {
+      ctx.fillStyle = '#6a4224'; K.rrect(ctx, p.x - ts * 0.14, p.y - ts * 0.16, ts * 0.28, ts * 0.18, ts * 0.04); ctx.fill();
+      ctx.fillStyle = '#c99a62'; ell(ctx, p.x, p.y - ts * 0.16, ts * 0.14, ts * 0.05); ctx.fill();
+      ctx.strokeStyle = '#8a6038'; ctx.lineWidth = ts * 0.012;
+      ell(ctx, p.x, p.y - ts * 0.16, ts * 0.07, ts * 0.025); ctx.stroke();
+    } else {
+      K.sphere(ctx, p.x, p.y - ts * 0.08, ts * 0.13, '#8d939e', { gloss: false, shine: 0.4 });
+      ctx.fillStyle = '#c07a4a'; ell(ctx, p.x + ts * 0.04, p.y - ts * 0.13, ts * 0.03, ts * 0.02); ctx.fill();
+    }
+  }
+
+  // The tool arm's angle (radians, the arm hanging down is 0, facing right): a quick chop down to the front at each
+  // hit, a short rest on the target, then the slower lift up over the shoulder for the next one. The core resets the
+  // cooldown on the hit, so 1 − cd/period runs from 0 at the impact to 1 just before the next.
+  const STRIKE = 5.25, RAISED = 2.75;
+  const ease = (k) => k * k * (3 - 2 * k);
+  function swingAngle(w) {
+    if (!w.period) return STRIKE - 0.35 + Math.sin(time * 3) * 0.12;     // fishing: a slow jig of the line
+    const p = C.clamp(1 - w.cd / w.period, 0, 1);
+    if (p < 0.12) return STRIKE + 0.06 * Math.sin((p / 0.12) * Math.PI);   // the bite into the wood or stone
+    if (p < 0.78) return STRIKE + (RAISED - STRIKE) * ease((p - 0.12) / 0.66);
+    const k = (p - 0.78) / 0.22;
+    return RAISED + (STRIKE - RAISED) * k * k;                           // accelerating down
   }
 
   function drawSleeper(e) {
@@ -1359,12 +1394,21 @@
   }
 
   // ── The scene: decals on the ground, then everything that stands, sorted by its foot ──
-  function workKind() {
-    const tg = g.hero.target;
-    if (!tg || g.hero.path) return null;
-    if (tg.type === 'node') { const n = g.nodes[tg.id]; return n ? n.kind : 'hand'; }
-    if (tg.type === 'wolf' || tg.type === 'animal') return 'tree';
-    if (tg.type === 'hole') return 'hand';
+  // What the hero is working at: the tool, the seconds between hits (the swing keeps time with them) and where
+  // the target stands, so he turns to face it.
+  const HIT_PERIOD = { tree: C.HIT_CD, rock: C.HIT_CD, bush: 1, scrap: 1.5 };
+  function heroWork() {
+    const h = g.hero, tg = h.target;
+    if (!tg || h.path) return null;
+    if (tg.type === 'node') {
+      const n = g.nodes[tg.id];
+      return n ? { kind: n.kind, period: HIT_PERIOD[n.kind] || C.HIT_CD, cd: h.cd, x: n.x + 0.5 } : null;
+    }
+    if (tg.type === 'wolf' || tg.type === 'animal') {
+      const e = (tg.type === 'wolf' ? g.wolves : g.animals).find((a) => a.id === tg.id);
+      return e ? { kind: 'tree', period: 0.8, cd: h.cd, x: e.x } : null;
+    }
+    if (tg.type === 'hole') return { kind: 'hand', x: tg.x + 0.5 };
     return null;
   }
 
@@ -1548,11 +1592,13 @@
       if (s.state === 'waiting' && C.SURVIVORS[s.id].need === 'day' && C.isNight(g)) continue;
       if (!vis(s.x, s.y)) continue;
       const look = LOOK[s.id];
-      add(s.y + 0.28, s.x, () => drawPerson(s, look), () => { const p = P(s.x, s.y + 0.28); K.shadow(ctx, p.x + ts * 0.04, p.y, ts * 0.24, ts * 0.09, 0.32); });
+      const job = s.state === 'home' && s.busy && HOME_JOB[s.id];
+      const work = job && { kind: job, period: 1.1, cd: 1.1 - ((time + s.x) % 1.1), x: s.x + 0.45 };
+      add(s.y + 0.28, s.x, () => { if (work) drawWorkBlock(job, s.x + 0.45, s.y); drawPerson(s, look, { work }); }, () => { const p = P(s.x, s.y + 0.28); K.shadow(ctx, p.x + ts * 0.04, p.y, ts * 0.24, ts * 0.09, 0.32); });
     }
     if (!g.hero.sleeping) {
       const h = g.hero;
-      add(h.y + 0.28, h.x, () => drawPerson(h, LOOK.hero, { work: workKind() }), () => { const p = P(h.x, h.y + 0.28); K.shadow(ctx, p.x + ts * 0.04, p.y, ts * 0.25, ts * 0.09, 0.34); });
+      add(h.y + 0.28, h.x, () => drawPerson(h, LOOK.hero, { work: heroWork() }), () => { const p = P(h.x, h.y + 0.28); K.shadow(ctx, p.x + ts * 0.04, p.y, ts * 0.25, ts * 0.09, 0.34); });
     }
     items.sort((a, b) => a.y - b.y || a.x - b.x);
     return items;
