@@ -15,6 +15,11 @@ test('a greedy player survives the winter on every seed with at least 4 survivor
     assert.equal(r.status, 'won', tag(rs));
     assert.ok(r.alive >= 4, tag(rs));
     assert.ok(r.realMinutes >= 30 && r.realMinutes <= 65, `${r.realMinutes.toFixed(1)} min`);
+    // the expansion: the house upgrades give the second half of the winter its goals; the bear never kills
+    const ups = Object.keys(r.timeline).filter((k) => k.startsWith('up:'));
+    assert.ok(ups.length >= 3, `upgrades: ${ups.join(' ')}`);
+    assert.ok(ups.every((k) => r.timeline[k] >= 8), 'not all at once at the start');
+    assert.ok((r.timeline['bites:bear'] || 0) * C.BEAR.bite < C.STAT_MAX, 'the bear alone could not kill');
   }
   // the timeline of seed 1, for the plan: the hut, the palisade and every rescue happen in the first third
   const t = rs[0].timeline;
@@ -25,6 +30,8 @@ test('a greedy player survives the winter on every seed with at least 4 survivor
 test('a casual player survives the ordinary winter on at least 3 of 5 seeds', () => {
   const rs = SEEDS.map((seed) => play('casual', 'normal', seed));
   assert.ok(rs.filter((r) => r.status === 'won').length >= 3, tag(rs));
+  // he meets the bear now and then, and runs; it never mauls him to death
+  for (const r of rs) assert.ok((r.timeline['bites:bear'] || 0) <= 3, JSON.stringify(r.timeline));
 });
 
 test('the first three days never kill a greedy player', () => {

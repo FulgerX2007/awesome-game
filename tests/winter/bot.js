@@ -4,6 +4,9 @@
 //               palisade, tools, then rescue survivors one by one; gathers what the next goal needs;
 //   casual    — the same list, but thinks every 3 s and one time in four does a random useful thing instead;
 //   noShelter — greedy, but never builds the stove, the palisade or torches.
+// Since the expansion they also answer the day's events, fetch a lost child, trade with the trader, run from the
+// bear, build the house upgrades and the workshop's gear (paid in full, keeping wood for the fires), set snares,
+// and sleep off a killing frost in the warm hut. The timeline counts bites by who bit (wolf, bear, with the lantern).
 const C = require('../../web/winter/core.js');
 
 function mulberry(seed) {
@@ -246,6 +249,10 @@ function play(name, difficulty = 'normal', seed = 1, opts = {}) {
       if (e.type === 'joined') timeline[`joined:${e.id}`] = C.dayOf(g);
       if (e.type === 'eventDone') timeline[`ev:${e.id}:${e.choice}`] = (timeline[`ev:${e.id}:${e.choice}`] || 0) + 1;
       if (e.type === 'upgraded') timeline[`up:${e.id}`] = C.dayOf(g);
+      if (e.type === 'bite' && e.who === 'hero') {
+        const k = e.by === 'bear' ? 'bites:bear' : g.gear.lantern ? 'bites:lantern' : 'bites:wolf';
+        timeline[k] = (timeline[k] || 0) + 1;
+      }
       if (e.type === 'died') timeline[`died:${e.id}`] = C.dayOf(g);
     }
     if (opts.maxDays && C.dayOf(g) > opts.maxDays) break;

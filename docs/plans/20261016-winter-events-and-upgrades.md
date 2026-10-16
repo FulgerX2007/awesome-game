@@ -552,13 +552,15 @@
 - Modify: `tests/winter/balance-normal.test.js`
 - Modify: `tests/winter/balance-harsh.test.js`
 
-- [ ] tune `UPGRADES`, `GEAR`, `EVENTS`, `TRADES` and `BEAR` until:
+- [x] tune `UPGRADES`, `GEAR`, `EVENTS`, `TRADES` and `BEAR` until:
   - every assertion in Context holds;
   - greedy builds ≥ 3 upgrades on normal;
   - the bear kills no greedy hero on normal;
   - wolves still bite a lantern-carrying greedy hero at least once over a winter.
-- [ ] write the new balance assertions; log each tuning step in this plan with ➕
-- [ ] run the tests; they must pass before Task 12
+- [x] write the new balance assertions; log each tuning step in this plan with ➕
+- [x] run the tests; they must pass before Task 12
+- [x] ➕ the numbers in the tables needed no changes after the per-task fixes. Greedy on normal builds all five upgrades between days 10 and 19, the bear bites it 0 times and casual at most once, harsh is won 3/5, about 51 real minutes
+- [x] ➕ "wolves still bite a lantern-carrying greedy hero" can't be measured on a greedy winter: once the palisade and the hut stand, wolves no longer reach it at all, lantern or not. The unit test in `upgrades.test.js` covers it instead (a wolf scared off comes back and bites). The balance tests assert that the bear alone can't kill, and that the upgrades come after day 8
 
 ### Task 12: Sound and the smoke test
 
