@@ -211,7 +211,7 @@
         case 'snareCaught': float(e.x + 0.5, e.y, t('+1 мясо в силках'), '#ff9a8a'); break;
         case 'scared': break;
         case 'built': sfx('build'); break;
-        case 'upgraded': sfx('build'); banner(t('Дом стал лучше: {name}', { name: t(C.UPGRADES[e.id].name) }), 2.4); break;
+        case 'upgraded': pops['up' + e.id] = time; sfx('build'); banner(t('Дом стал лучше: {name}', { name: t(C.UPGRADES[e.id].name) }), 2.4); break;
         case 'smoked': break;
         case 'torch': sfx('fire'); break;
         case 'dig': sfx('step'); break;
@@ -1108,6 +1108,79 @@
     K.cylinder(c, u * 0.44, -u * 0.62, u * 0.045, u * 0.42, '#6e4a2c', { ry: u * 0.02 });
   });
 
+  // ── The house upgrades ──
+  // footprints in tiles (the top-left is C.SPOT[id]); insulation is drawn on the hut itself
+  const UP_SIZE = { cellar: [1, 1], smokehouse: [1, 1], annex: [2, 2], workshop: [2, 1] };
+  // the cellar: a stone rim in the snow and a double wooden hatch
+  const cellarSprite = () => sprite('cellar', 1.4, 1.3, 0.2, 0.55, (c, u) => {
+    K.prism(c, 0, u * 0.1, u, u * 0.18, u * 0.55, '#8d8f98', { r: u * 0.05 });
+    for (let k = 0; k < 2; k++) {
+      const x = u * 0.1 + k * u * 0.41;
+      c.fillStyle = lin(c, x, 0, x + u * 0.39, 0, [[0, '#a8743f'], [1, '#6e4524']]);
+      c.fillRect(x, -u * 0.38, u * 0.39, u * 0.44);
+      c.strokeStyle = 'rgba(40, 24, 10, .5)'; c.lineWidth = 1;
+      for (let j = 1; j < 3; j++) { c.beginPath(); c.moveTo(x + (j * u * 0.39) / 3, -u * 0.38); c.lineTo(x + (j * u * 0.39) / 3, u * 0.06); c.stroke(); }
+    }
+    c.fillStyle = '#2c2a2e'; c.fillRect(u * 0.1, -u * 0.2, u * 0.8, u * 0.04);
+    K.sphere(c, u * 0.45, -u * 0.08, u * 0.035, '#c9b27a'); K.sphere(c, u * 0.55, -u * 0.08, u * 0.035, '#c9b27a');
+    c.fillStyle = 'rgba(255,255,255,.9)'; ell(c, u * 0.25, -u * 0.42, u * 0.16, u * 0.04); c.fill();
+  });
+  // the smokehouse: a small log shed with a stone chimney
+  const smokehouseSprite = () => sprite('smokehouse', 1.5, 2.2, 0.25, 1.5, (c, u) => {
+    K.prism(c, 0, -u * 0.05, u, u * 0.75, u * 0.6, '#7a5434', { r: u * 0.03 });
+    logWall(c, u, 0, u, u * 0.7, u * 0.75, 0.02);
+    c.fillStyle = '#120c08'; K.rrect(c, u * 0.35, u * 0.28, u * 0.3, u * 0.42, u * 0.04); c.fill();
+    K.prism(c, -u * 0.1, -u * 0.2, u * 1.2, u * 0.16, u * 0.72, '#dfe9f5', { r: u * 0.05 });
+    K.prism(c, u * 0.62, -u * 0.95, u * 0.22, u * 0.6, u * 0.12, '#8f8a86', { r: u * 0.03 });
+    c.fillStyle = '#f7fbff'; K.rrect(c, u * 0.6, -u * 1.1, u * 0.26, u * 0.07, u * 0.03); c.fill();
+  });
+  // the annex: a log room against the hut's east wall under a snowy lean-to roof
+  const annexSprite = () => sprite('annex', 2.6, 3.4, 0.2, 1.6, (c, u) => {
+    const W = u * 2, D = u * 2, Hw = u * 0.95;
+    c.fillStyle = 'rgba(70, 60, 50, .25)'; c.fillRect(0, 0, W, D);
+    K.prism(c, 0, D - Hw, W, Hw, D - u * 0.1, '#6e4c30', { r: u * 0.03 });
+    logWall(c, u, -u * 0.04, W + u * 0.04, D, Hw, 0.03);
+    // the lean-to roof, sloping down to the front
+    const top = D - Hw - (D - u * 0.1) - u * 0.08;
+    c.beginPath(); c.moveTo(-u * 0.12, D - Hw + u * 0.05); c.lineTo(W + u * 0.12, D - Hw + u * 0.05); c.lineTo(W + u * 0.12, top); c.lineTo(-u * 0.12, top); c.closePath();
+    c.fillStyle = lin(c, 0, top, 0, D - Hw, [[0, '#b9cbe3'], [0.6, '#e6eef8'], [1, '#ffffff']]); c.fill();
+    c.strokeStyle = 'rgba(120, 145, 185, .35)'; c.lineWidth = Math.max(0.8, u * 0.025);
+    for (let k = 1; k < 4; k++) { const y = top + ((D - Hw - top) * k) / 4; c.beginPath(); c.moveTo(-u * 0.1, y); c.lineTo(W + u * 0.1, y); c.stroke(); }
+    c.strokeStyle = '#4a2f1a'; c.lineWidth = u * 0.08; c.beginPath(); c.moveTo(-u * 0.12, D - Hw + u * 0.07); c.lineTo(W + u * 0.12, D - Hw + u * 0.07); c.stroke();
+    // a door and a window
+    c.fillStyle = '#4a2f1a'; K.rrect(c, u * 1.2, D - u * 0.72, u * 0.5, u * 0.72, u * 0.06); c.fill();
+    c.fillStyle = '#7a5232'; K.rrect(c, u * 1.25, D - u * 0.67, u * 0.4, u * 0.67, u * 0.05); c.fill();
+    K.block(c, u * 0.3, D - Hw * 0.7, u * 0.5, u * 0.36, u * 0.04, '#5a3a20');
+    c.fillStyle = '#1d2433'; c.fillRect(u * 0.35, D - Hw * 0.7 + u * 0.05, u * 0.4, u * 0.26);
+    c.fillStyle = 'rgba(225, 242, 255, .9)';
+    for (let k = 0; k < 6; k++) { const x = u * 0.1 + k * u * 0.35, len = u * (0.06 + hash(k, 7) * 0.12); c.beginPath(); c.moveTo(x - u * 0.03, D - Hw + u * 0.1); c.lineTo(x, D - Hw + u * 0.1 + len); c.lineTo(x + u * 0.03, D - Hw + u * 0.1); c.fill(); }
+  });
+  // the workshop: an open shed on four posts with an anvil and a sawhorse
+  const workshopSprite = () => sprite('workshop', 2.6, 2.4, 0.3, 1.5, (c, u) => {
+    const W = u * 2;
+    for (const x of [u * 0.08, W - u * 0.08]) for (const y of [-u * 0.05, u * 0.85]) K.cylinder(c, x, y - u * 0.95, u * 0.05, u * 0.95, '#6a4528', { ry: u * 0.02 });
+    c.fillStyle = 'rgba(110, 80, 50, .35)'; c.fillRect(0, 0, W, u * 0.85);
+    // the anvil on a stump, the sawhorse with a log
+    K.cylinder(c, u * 0.55, u * 0.2, u * 0.16, u * 0.28, '#7a5232', { ry: u * 0.06 });
+    K.block(c, u * 0.35, u * 0.02, u * 0.42, u * 0.16, u * 0.04, '#4a4d58');
+    c.fillStyle = '#4a4d58'; c.beginPath(); c.moveTo(u * 0.77, u * 0.04); c.lineTo(u * 0.95, u * 0.08); c.lineTo(u * 0.77, u * 0.14); c.fill();
+    c.strokeStyle = '#6e4524'; c.lineWidth = u * 0.06; c.lineCap = 'round';
+    for (const x of [u * 1.25, u * 1.65]) { c.beginPath(); c.moveTo(x - u * 0.12, u * 0.6); c.lineTo(x + u * 0.12, u * 0.25); c.moveTo(x + u * 0.12, u * 0.6); c.lineTo(x - u * 0.12, u * 0.25); c.stroke(); }
+    K.cylinder(c, u * 1.45, u * 0.22, u * 0.32, u * 0.0, '#9a7048', { ry: u * 0.08 });
+    c.fillStyle = lin(c, 0, u * 0.3, 0, u * 0.42, [[0, '#b88a58'], [1, '#7a5232']]); K.rrect(c, u * 1.1, u * 0.24, u * 0.7, u * 0.16, u * 0.08); c.fill();
+    // the roof
+    K.prism(c, -u * 0.1, -u * 1.05, W + u * 0.2, u * 0.16, u * 0.95, '#dfe9f5', { r: u * 0.05 });
+    c.fillStyle = '#5a3a20'; c.fillRect(-u * 0.1, -u * 0.9, W + u * 0.2, u * 0.06);
+  });
+  // a snare: a peg and a loop of cord, with a rabbit in it after a catch
+  const snareSprite = () => sprite('snare', 0.8, 0.8, 0.4, 0.6, (c, u) => {
+    c.strokeStyle = '#6e4524'; c.lineWidth = u * 0.05; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-u * 0.12, 0); c.lineTo(-u * 0.12, -u * 0.32); c.stroke();
+    c.strokeStyle = '#c9a46a'; c.lineWidth = u * 0.025;
+    c.beginPath(); c.moveTo(-u * 0.12, -u * 0.25); c.quadraticCurveTo(0, -u * 0.3, u * 0.05, -u * 0.12); c.stroke();
+    c.beginPath(); ell(c, u * 0.1, -u * 0.06, u * 0.13, u * 0.07); c.stroke();
+  });
+
   // a sharpened log stake of the palisade; `bad` for a gnawed one
   const stakeSprite = (bad) => sprite('stake' + (bad ? 1 : 0), 0.4, 1, 0.2, 0.86, (c, u) => {
     const col = bad ? '#5e432c' : '#86603c', r = u * 0.085, h = u * 0.62;
@@ -1183,8 +1256,26 @@
     const ax = p.x + C.HUT.w * ts / 2, ay = p.y + C.HUT.h * ts;
     ctx.translate(ax, ay); ctx.scale(sc, 2 - sc); ctx.translate(-ax, -ay);
     blit(s, p.x, p.y);
-    ctx.restore();
     const st = g.hut.stage;
+    if (st >= 2 && C.upgradeOn(g, 'insulation')) {
+      // moss caulked between the front logs, a hide hung by the door
+      ctx.strokeStyle = 'rgba(110, 140, 70, .8)'; ctx.lineWidth = Math.max(1, ts * 0.035);
+      for (let k = 1; k < 6; k++) { const y = p.y + C.HUT.h * ts - k * ts * 0.17; ctx.beginPath(); ctx.moveTo(p.x + ts * 0.05, y); ctx.lineTo(p.x + C.HUT.w * ts - ts * 0.05, y); ctx.stroke(); }
+      ctx.fillStyle = '#9a6a3c';
+      ctx.beginPath(); ctx.moveTo(p.x + ts * 2.25, p.y + ts * 1.25); ctx.lineTo(p.x + ts * 2.75, p.y + ts * 1.2); ctx.lineTo(p.x + ts * 2.8, p.y + ts * 1.75); ctx.lineTo(p.x + ts * 2.5, p.y + ts * 1.85); ctx.lineTo(p.x + ts * 2.2, p.y + ts * 1.72); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255, 230, 190, .25)'; ell(ctx, p.x + ts * 2.48, p.y + ts * 1.45, ts * 0.14, ts * 0.18); ctx.fill();
+    }
+    if (st >= 2 && g.hut.roofHole) {
+      // a hole broken through the left slope: dark inside, snapped boards round it
+      const hx = p.x + ts * 0.9, hy = p.y - ts * 0.55;
+      ctx.fillStyle = '#1b1410';
+      ctx.beginPath();
+      for (let k = 0; k < 9; k++) { const a = (k / 9) * Math.PI * 2, r = ts * (0.26 + 0.07 * Math.sin(k * 2.7)); ctx.lineTo(hx + Math.cos(a) * r, hy + Math.sin(a) * r * 0.6); }
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#7a5232'; ctx.lineWidth = Math.max(1, ts * 0.05); ctx.lineCap = 'round';
+      for (const [a, b] of [[-0.3, 0.5], [0.2, -0.4], [0.6, 0.3]]) { ctx.beginPath(); ctx.moveTo(hx + a * ts * 0.3, hy + b * ts * 0.12); ctx.lineTo(hx + a * ts * 0.45, hy + b * ts * 0.25); ctx.stroke(); }
+    }
+    ctx.restore();
     if (st >= 2) {
       const stove = C.stoveOn(g);
       const wx = p.x + ts * 0.35, wy = p.y + C.HUT.h * ts - ts * 0.72;
@@ -1346,6 +1437,16 @@
     void e;
   }
 
+  // Smoke from the smokehouse chimney: soft puffs rising and drifting.
+  function smokePuffs(x, y) {
+    const ts = cam.ts;
+    for (let k = 0; k < 4; k++) {
+      const t2 = (time * 0.35 + k / 4) % 1, p = P(x + t2 * 0.6 + Math.sin(time + k) * 0.08, y - t2 * 1.4);
+      ctx.fillStyle = `rgba(118, 122, 134, ${0.55 * (1 - t2)})`;
+      ell(ctx, p.x, p.y, ts * (0.1 + t2 * 0.22), ts * (0.08 + t2 * 0.16)); ctx.fill();
+    }
+  }
+
   // A placeholder bear (the drawing comes with the creatures' art): a big brown body and a head.
   function drawBear(b) {
     const ts = cam.ts, p = P(b.x, b.y);
@@ -1501,6 +1602,17 @@
       K.rrect(ctx, p.x + ts * 0.08, p.y + ts * 0.25, ts * 0.84, ts * 0.5, ts * 0.08); ctx.stroke();
       ctx.setLineDash([]);
     });
+    // the upgrades not built yet, once the stove stands: their outlines on the snow
+    if (g.hut.stage >= C.HUT_STAGES.length) {
+      for (const id of Object.keys(UP_SIZE)) {
+        if (C.upgradeOn(g, id)) continue;
+        const sp = C.SPOT[id], [w, h] = UP_SIZE[id], p = P(sp.x, sp.y);
+        ctx.setLineDash([3, 4]);
+        ctx.strokeStyle = 'rgba(120, 90, 60, .45)'; ctx.lineWidth = 1.5;
+        K.rrect(ctx, p.x + ts * 0.08, p.y + ts * 0.08, w * ts - ts * 0.16, h * ts - ts * 0.16, ts * 0.08); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
     // a tap: a ring on the ground
     for (const m of fx.marks) {
       const p = P(m.x, m.y), k = m.t / 0.45;
@@ -1588,6 +1700,25 @@
         blit(bunkSprite(), p.x, p.y, pt < 0.5 ? K.ease.outBack(pt / 0.5) : 1);
       }, () => { const p = P(s.x + 0.5, s.y + 0.75); blit(lowShadow('k', 0.48, 0.5), p.x, p.y); });
     });
+    const UP_SPRITE = { cellar: cellarSprite, smokehouse: smokehouseSprite, annex: annexSprite, workshop: workshopSprite };
+    for (const id of Object.keys(UP_SIZE)) {
+      if (!C.upgradeOn(g, id)) continue;
+      const sp = C.SPOT[id], [w, h] = UP_SIZE[id], pk = 'up' + id;
+      add(sp.y + h, sp.x + w / 2, () => {
+        const p = P(sp.x, sp.y), pt = pops[pk] == null ? 9 : time - pops[pk];
+        blit(UP_SPRITE[id](), p.x, p.y, pt < 0.5 ? K.ease.outBack(pt / 0.5) : 1);
+        if (id === 'smokehouse' && g.upgrades.smokehouse.work > 0) smokePuffs(sp.x + 0.73, sp.y - 1.1);
+        if (id === 'annex' && (C.fireOn(g) || C.stoveOn(g))) {
+          const q = P(sp.x + 0.35, sp.y + 1.385), fl = 0.8 + 0.2 * Math.sin(time * 5);
+          ctx.fillStyle = `rgba(255, 176, 80, ${0.8 * fl})`; ctx.fillRect(q.x, q.y, ts * 0.4, ts * 0.26);
+          K.glow(ctx, q.x + ts * 0.2, q.y + ts * 0.13, ts * 0.5, '#ffb050', 0.35 * fl);
+        }
+      }, () => { const p = P(sp.x, sp.y + h); for (let k = 0; k <= 3; k++) K.shadow(ctx, p.x + (k / 3) * w * ts + ts * 0.2, p.y - ts * 0.3, ts * 0.45, ts * 0.5, 0.16); });
+    }
+    for (const n of g.snares) {
+      if (!vis(n.x, n.y)) continue;
+      add(n.y + 0.6, n.x + 0.5, () => { const p = P(n.x + 0.5, n.y + 0.6); blit(snareSprite(), p.x, p.y); });
+    }
     const F = C.SPOT.fire;
     add(F.y + 0.55, F.x + 0.5, () => { const p = P(F.x + 0.5, F.y + 0.55); drawFire(p.x, p.y); });
     for (const tc of g.torches) {

@@ -69,3 +69,19 @@ test('the clock: 06:00 at dawn, 22:00 at nightfall, past midnight before the mor
   g.t = C.NIGHT_AT + (C.DAY - C.NIGHT_AT) / 2; assert.equal(V.clock(g), '02:00');
   g.t = C.DAY + C.NIGHT_AT / 2; assert.equal(V.clock(g), '14:00');
 });
+
+test('lights: the lantern goes with the hero, only at night, only while he is up', () => {
+  const g = C.newGame('normal', 1);
+  g.fire.fuel = 0;
+  g.hero.x = 10.5; g.hero.y = 30.5;
+  g.t = C.NIGHT_AT + 5;
+  assert.equal(V.lights(g).length, 0, 'no lantern yet');
+  g.gear.lantern = true;
+  const l = V.lights(g);
+  assert.deepEqual(l, [{ x: 10.5, y: 30.5, r: C.LANTERN.radius + 0.5, lantern: true }]);
+  g.hero.sleeping = true;
+  assert.equal(V.lights(g).length, 0, 'not while asleep');
+  g.hero.sleeping = false;
+  g.t = 10;
+  assert.equal(V.lights(g).length, 0, 'not by day');
+});

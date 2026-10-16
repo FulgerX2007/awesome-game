@@ -498,7 +498,7 @@
 - Modify: `web/winter/lang.js`
 - Modify: `tests/winter/view.test.js`
 
-- [ ] the upgrades:
+- [x] the upgrades:
   - insulation strips on the hut;
   - the cellar hatch;
   - the smokehouse, with smoke while it works;
@@ -507,9 +507,9 @@
   - ghost outlines of unbuilt upgrades after stage 4.
 
   Also draw the hole in the roof.
-- [ ] snares, and a caught rabbit at dawn; the lantern glow on the hero; the lantern in `V.lights` at night
-- [ ] write tests for `view.js`: the lantern light only at night, and only with the lantern
-- [ ] run the tests; they must pass before Task 9
+- [x] snares, and a caught rabbit at dawn; the lantern glow on the hero; the lantern in `V.lights` at night
+- [x] write tests for `view.js`: the lantern light only at night, and only with the lantern
+- [x] run the tests; they must pass before Task 9
 
 ### Task 9: Rendering: the bear, the trader, the wanderer, the lost child, the aurora
 

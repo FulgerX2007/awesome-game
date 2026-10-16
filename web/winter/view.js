@@ -29,12 +29,14 @@
     return C.inMap(x, y) ? { x, y } : null;
   }
 
-  // The lights of the night: { x, y, r } in tiles (the fire, the stove, torches), only those burning.
+  // The lights of the night: { x, y, r } in tiles (the fire, the stove, torches, the lantern), only those burning.
   function lights(g) {
     const out = [];
     if (C.fireOn(g)) out.push({ x: C.SPOT.fire.x + 0.5, y: C.SPOT.fire.y + 0.5, r: C.FIRE.radius + 0.5 });
     if (C.stoveOn(g)) out.push({ x: C.HUT.x + 1.5, y: C.HUT.y + 0.5, r: 3 });
     for (const t of g.torches) out.push({ x: t.x + 0.5, y: t.y + 0.5, r: C.TORCH.radius });
+    // the hero's lantern, at night while he is up
+    if (g.gear && g.gear.lantern && C.isNight(g) && !g.hero.sleeping) out.push({ x: g.hero.x, y: g.hero.y, r: C.LANTERN.radius + 0.5, lantern: true });
     return out;
   }
 
