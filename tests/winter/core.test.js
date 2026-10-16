@@ -74,7 +74,10 @@ test('the whole tech tree is reachable from the start on 20 seeds: no recipe nee
     assert.deepEqual(C.TOOLS.pick.cost, { wood: 12 }, 'the pick is made of wood only');
     can.stone = !!g.nodes.find((n) => n.kind === 'rock' && C.pathNextTo(g, g.hero, n.x, n.y, { axe: true, pick: true }));
     assert.ok(can.stone, `seed ${seed}`);
-    const costs = [...Object.values(C.TOOLS).map((t) => t.cost), ...C.HUT_STAGES.map((s) => s.cost), C.PALISADE_COST, C.BUNK_COST];
+    // hides come from deer, and the spear (wood and stone) hunts them
+    can.hide = can.wood && can.stone && Object.keys(C.TOOLS.spear.cost).every((k) => can[k]) && g.animals.some((a) => a.kind === 'deer');
+    const costs = [...Object.values(C.TOOLS).map((t) => t.cost), ...C.HUT_STAGES.map((s) => s.cost), C.PALISADE_COST, C.BUNK_COST,
+      ...Object.values(C.UPGRADES).map((u) => u.cost)];
     for (const cost of costs) for (const k of Object.keys(cost)) assert.ok(can[k], `${k} reachable`);
   }
 });

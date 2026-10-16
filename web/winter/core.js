@@ -37,7 +37,11 @@
   // Base area (the palisade runs on its border) and the fixed spots inside.
   const BASE = { x0: 22, y0: 14, x1: 33, y1: 25 };
   const HUT = { x: 26, y: 16, w: 3, h: 2 };
-  const SPOT = { fire: { x: 27, y: 20 }, bench: { x: 24, y: 20 }, bed: { x: 27, y: 17 }, bunks: [{ x: 31, y: 17 }, { x: 31, y: 19 }, { x: 31, y: 21 }] };
+  const SPOT = {
+    fire: { x: 27, y: 20 }, bench: { x: 24, y: 20 }, bed: { x: 27, y: 17 }, bunks: [{ x: 31, y: 17 }, { x: 31, y: 19 }, { x: 31, y: 21 }],
+    // the upgrades: decorative, they don't block walking (like the hut)
+    cellar: { x: 23, y: 16 }, smokehouse: { x: 24, y: 23 }, annex: { x: 29, y: 16 }, workshop: { x: 31, y: 23 },
+  };
   const SEGMENTS = ['north', 'east', 'south', 'west'];
 
   // Tools from the workbench: cost and what they give.
@@ -59,6 +63,21 @@
   ];
   const PALISADE_COST = { wood: 25 }, PALISADE_HP = 100, PALISADE_REPAIR = { wood: 15 };
   const BUNK_COST = { wood: 20 };
+
+  // House upgrades, once the stove stands (hut stage 4). Paid in parts like the hut; the effects are read where the
+  // rules live (warmthRate, burnTick, roomFor, smokeTick, survivorsTick, craft).
+  const UPGRADES = {
+    insulation: { name: 'утепление', cost: { wood: 30, hide: 4 } },
+    cellar: { name: 'погреб', cost: { wood: 20, stone: 30 } },
+    smokehouse: { name: 'коптильня', cost: { wood: 25, stone: 15 } },
+    annex: { name: 'пристройка', cost: { wood: 40, stone: 20, metal: 4 } },
+    workshop: { name: 'мастерская', cost: { wood: 30, stone: 10, metal: 6 } },
+  };
+  const UPGRADE_IDS = Object.keys(UPGRADES);
+  const INSULATION = { stove: 0.6, chill: 0.15 };   // the stove burns this much as fast; the hut's chill factor
+  const CELLAR_FOOD = 100;
+  const SMOKE = { every: 15, perLog: 3 };           // one item every 15 s; a log smokes three
+  const ANNEX = { heal: 2, work: 0.75 };
 
   // The five survivors: where they wait, what they need, what they do once at the base.
   const SURVIVORS = {
@@ -192,6 +211,7 @@
       hut: { stage: 0, paid: {}, stove: 0 },
       palisade: SEGMENTS.map(() => ({ built: false, hp: 0, paid: {} })),
       bunks: [{ built: false, paid: {} }, { built: false, paid: {} }, { built: false, paid: {} }],
+      upgrades: newUpgrades(),
       torches: [],
       survivors: SURVIVOR_IDS.map((id) => ({ id, state: 'waiting', x: SURVIVORS[id].x + 0.5, y: SURVIVORS[id].y + 0.5, hp: STAT_MAX, food: 70, work: 0, path: null, cd: 0 })),
       animals: [], wolves: [], nextId: 1,
@@ -202,6 +222,15 @@
     for (let k = 0; k < 3; k++) spawnAnimal(g, 'deer');
     return g;
   }
+
+  function newUpgrades() {
+    const u = {};
+    for (const id of UPGRADE_IDS) u[id] = { built: false, paid: {} };
+    u.smokehouse.work = 0;
+    u.smokehouse.fuel = 0;
+    return u;
+  }
+  const upgradeOn = (g, id) => !!(g.upgrades && g.upgrades[id] && g.upgrades[id].built);
 
   const status = (g) => g.status;
   function drain(g) {
@@ -369,7 +398,8 @@
   const pay = (g, cost) => { for (const k of Object.keys(cost)) g.stock[k] -= cost[k]; };
   const stockTotal = (g) => RES.reduce((a, k) => a + (g.stock[k] || 0), 0);
   const foodTotal = (g) => FOOD_ITEMS.reduce((a, k) => a + (g.stock[k] || 0), 0);
-  const roomFor = (g, item) => Math.max(0, FOOD_ITEMS.includes(item) ? FOOD_CAP - foodTotal(g) : STORE_CAP - stockTotal(g));
+  const foodCap = (g) => FOOD_CAP + (upgradeOn(g, 'cellar') ? CELLAR_FOOD : 0);
+  const roomFor = (g, item) => Math.max(0, FOOD_ITEMS.includes(item) ? foodCap(g) - foodTotal(g) : STORE_CAP - stockTotal(g));
 
   // Adds gathered items: the hero carries up to CARRY away from the base; the camp holds STORE_CAP of materials
   // and FOOD_CAP of food.
@@ -394,7 +424,7 @@
   function warmthRate(g, e) {
     if (inHut(e) && stoveOn(g)) return 2;
     let loss = chill(g);
-    if (inHut(e) && g.hut.stage >= 2) loss *= 0.4;
+    if (inHut(e) && g.hut.stage >= 2) loss *= upgradeOn(g, 'insulation') ? INSULATION.chill : 0.4;
     if (fireOn(g) && near(e, SPOT.fire, FIRE.radius)) return FIRE.warm - loss;
     return -loss;
   }
@@ -413,7 +443,28 @@
       g.fire.fuel = Math.max(0, g.fire.fuel - (TICK / FIRE.burn) * blz);
       if (g.fire.fuel === 0) g.events.push({ type: 'fireOut' });
     }
-    if (g.hut.stage >= 4 && g.hut.stove > 0) g.hut.stove = Math.max(0, g.hut.stove - TICK / STOVE.burn);
+    if (g.hut.stage >= 4 && g.hut.stove > 0) g.hut.stove = Math.max(0, g.hut.stove - (TICK / STOVE.burn) * (upgradeOn(g, 'insulation') ? INSULATION.stove : 1));
+  }
+
+  // The smokehouse smokes raw meat (then fish) from the stock on its own, burning a log for every few pieces.
+  function smokeTick(g, dt) {
+    if (!upgradeOn(g, 'smokehouse')) return;
+    const sh = g.upgrades.smokehouse;
+    const raw = g.stock.meat > 0 ? 'meat' : g.stock.fish > 0 ? 'fish' : null;
+    if (!raw) { sh.work = 0; return; }
+    sh.work = Math.min(SMOKE.every, sh.work + dt);
+    if (sh.work < SMOKE.every) return;
+    if (sh.fuel <= 0) {
+      if (g.stock.wood <= 0) return;
+      g.stock.wood--;
+      sh.fuel = SMOKE.perLog;
+    }
+    sh.work = 0;
+    sh.fuel--;
+    g.stock[raw]--;
+    const out = raw === 'meat' ? 'smokedMeat' : 'smokedFish';
+    g.stock[out]++;
+    g.events.push({ type: 'smoked', item: out });
   }
 
   // ── The hero's stats ──
@@ -674,6 +725,12 @@
   // id: 'hut' | 'palisade:0'…'palisade:3' | 'bunk:0'…'bunk:2'. Puts what the stock has toward the next stage.
   // → 'done' (a stage finished) | 'part' (paid in part) | 'nores' | 'built' (nothing left) | 'bad'
   function needOf(g, id) {
+    if (typeof id !== 'string') return undefined;
+    if (id.startsWith('up:')) {
+      const u = id.slice(3);
+      if (!has(UPGRADES, u)) return undefined;
+      return g.upgrades[u].built ? null : { cost: UPGRADES[u].cost, paid: g.upgrades[u].paid };
+    }
     if (id === 'hut') return g.hut.stage < HUT_STAGES.length ? { cost: HUT_STAGES[g.hut.stage].cost, paid: g.hut.paid } : null;
     const [kind, k] = id.split(':');
     const i = Number(k);
@@ -691,6 +748,7 @@
     const need = needOf(g, id);
     if (need === undefined) return 'bad';
     if (need === null) return 'built';
+    if (id.startsWith('up:') && g.hut.stage < HUT_STAGES.length) return 'locked';
     if (!atBase(g)) return 'far';
     let put = 0, left = 0;
     for (const k of Object.keys(need.cost)) {
@@ -705,6 +763,13 @@
   }
 
   function finishStage(g, id) {
+    if (id.startsWith('up:')) {
+      const u = id.slice(3);
+      g.upgrades[u].built = true;
+      g.upgrades[u].paid = {};
+      g.events.push({ type: 'upgraded', id: u });
+      return;
+    }
     if (id === 'hut') {
       g.events.push({ type: 'built', id: 'hut', stage: HUT_STAGES[g.hut.stage].id });
       g.hut.stage++;
@@ -777,9 +842,10 @@
       }
       const bunk = placed < bunksFree;
       placed++;
-      const warm = stoveOn(g) || (fireOn(g) && chill(g) <= FIRE.warm) || (fireOn(g) && bunk);
+      const annex = upgradeOn(g, 'annex');
+      const warm = stoveOn(g) || (fireOn(g) && chill(g) <= FIRE.warm) || (fireOn(g) && (bunk || annex));
       const ok = sv.food > 0 && warm;
-      sv.hp = clamp(sv.hp + (ok ? 0.2 : -0.35) * dt, 0, STAT_MAX);
+      sv.hp = clamp(sv.hp + (ok ? 0.2 * (annex ? ANNEX.heal : 1) : -0.35) * dt, 0, STAT_MAX);
       if (sv.hp <= 0) {
         sv.state = 'dead';
         g.deaths.push({ id: sv.id, day: dayOf(g) });
@@ -791,7 +857,7 @@
       if (!sv.busy) continue;
       sv.work += dt;
       const w = WORK[sv.id];
-      if (sv.work >= w.every) {
+      if (sv.work >= w.every * (annex ? ANNEX.work : 1)) {
         sv.work = 0;
         for (const k of Object.keys(w.give)) if (roomFor(g, k) > 0) g.stock[k] += w.give[k];
         if (sv.id === 'herbalist' && (g.stock.meat > 0 || g.stock.fish > 0) && fireOn(g)) {
@@ -1026,6 +1092,7 @@
     else if (h.path) follow(g, h, SPEED, dtWorld);
     workTick(g, dtWorld);
     burnTick(g);
+    smokeTick(g, dtWorld);
     statsTick(g, dtWorld);
     survivorsTick(g, dtWorld);
     animalsTick(g, dtWorld);
@@ -1082,6 +1149,8 @@
       return `Спаси выжившего: ${sv.name}`;
     }
     if (g.bunks.some((b) => !b.built)) return 'Сделай нары для выживших';
+    const up = UPGRADE_IDS.find((id) => !g.upgrades[id].built);
+    if (up) return `Улучши дом: ${UPGRADES[up].name}`;
     return 'Держись до весны';
   }
   // The texts nextTask may return (the client translates them; tests check their RO strings).
@@ -1090,7 +1159,7 @@
     'Согрейся у костра', 'Подкинь дров в костёр', 'Наруби дров для костра', 'Ночь: поспи в хижине', 'Почини хижину: стены',
     'Сделай кирку на верстаке', 'Почини хижину: крыша', 'Почини хижину: дверь', 'Сложи печь в хижине', 'Построй частокол вокруг лагеря',
     'Сделай лопату: к Плотнику не пройти через сугробы', 'Сделай ледоруб: Кузнец за озером', 'Спаси выжившего: {name}',
-    'Сделай нары для выживших', 'Держись до весны',
+    'Сделай нары для выживших', 'Улучши дом: {name}', 'Держись до весны',
   ];
 
   // ── Snapshots and the save ──
@@ -1111,6 +1180,7 @@
     const m = clone(o);
     if (m.erng === undefined && Number.isInteger(m.seed)) m.erng = erngOf(m.seed);
     if (m.stock && typeof m.stock === 'object') for (const k of ['hide', 'smokedMeat', 'smokedFish']) if (m.stock[k] === undefined) m.stock[k] = 0;
+    if (m.upgrades === undefined) m.upgrades = newUpgrades();
     return m;
   }
 
@@ -1125,6 +1195,8 @@
     if (!Array.isArray(o.nodes) || !o.nodes.every((n) => n && ['tree', 'rock', 'bush', 'scrap'].includes(n.kind) && num(n.x, 0, W - 1) && num(n.y, 0, H - 1))) return null;
     if (!o.hut || !num(o.hut.stage, 0, HUT_STAGES.length) || !Array.isArray(o.palisade) || o.palisade.length !== 4 || !Array.isArray(o.bunks)) return null;
     if (!Array.isArray(o.survivors) || o.survivors.length !== SURVIVOR_IDS.length || !o.survivors.every((s) => SURVIVOR_IDS.includes(s.id) && ['waiting', 'following', 'home', 'dead'].includes(s.state))) return null;
+    if (!o.upgrades || typeof o.upgrades !== 'object' || !UPGRADE_IDS.every((id) => o.upgrades[id] && typeof o.upgrades[id].built === 'boolean' && o.upgrades[id].paid && typeof o.upgrades[id].paid === 'object')) return null;
+    if (!num(o.upgrades.smokehouse.work, 0, SMOKE.every) || !num(o.upgrades.smokehouse.fuel, 0, SMOKE.perLog)) return null;
     if (!o.fire || !num(o.fire.fuel, 0, FIRE.cap) || !Array.isArray(o.torches) || !Array.isArray(o.wolves) || !Array.isArray(o.animals)) return null;
     const g = clone(o);
     g.events = [];
@@ -1193,9 +1265,9 @@
     TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, HIT_CD, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
     FOOD_DRAIN, ENERGY_DRAIN, WORK_ENERGY, SLEEP_ENERGY, HEALTH_LOSS, HEALTH_GAIN, FOOD, RAW_MEAT_ENERGY, COOK_TIME,
     FISH_TIME, BITE, GNAW, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
-    PALISADE_REPAIR, BUNK_COST, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
+    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
     clamp, rand, erand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
-    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, warmthRate, lit, inHut, stoveOn,
+    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, foodCap, roomFor, upgradeOn, warmthRate, lit, inHut, stoveOn,
     fireOn, atBase, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,
     wolvesTonight, step, stars, nextTask, snapshot, restore, newSave, parseSave, loadSave, storeSave, recordGame,
     retryDay,

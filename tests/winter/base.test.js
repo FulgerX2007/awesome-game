@@ -317,10 +317,12 @@ test('the hint line follows the state of the camp, and every hint is a known tex
   assert.equal(take(), 'Сделай нары для выживших');
   rich(g);
   for (let i = 0; i < 3; i++) C.contribute(g, `bunk:${i}`);
+  assert.equal(take(), 'Улучши дом: утепление');
+  for (const id of C.UPGRADE_IDS) { Object.assign(g.stock, { wood: 60, stone: 40, metal: 10, hide: 10 }); assert.equal(C.contribute(g, `up:${id}`), 'done'); }
   assert.equal(take(), 'Держись до весны');
   g.hero.health = 10;
   assert.equal(take(), 'Ты слабеешь: согрейся, поешь и отдохни');
-  for (const h of hints) assert.ok(C.TASK_TEXTS.includes(h) || /^Спаси выжившего: /.test(h), h);
+  for (const h of hints) assert.ok(C.TASK_TEXTS.includes(h) || /^(Спаси выжившего|Улучши дом): /.test(h), h);
 });
 
 test('a snapshot from before the expansion (no second stream, no hides or smoked food) restores and plays on', () => {

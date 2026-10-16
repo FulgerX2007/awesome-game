@@ -49,6 +49,11 @@ function nextGoal(g, cfg) {
   }
   if (!g.tools.icePick) return { id: 'icePick', cost: C.TOOLS.icePick.cost, act: () => C.craft(g, 'icePick') };
   if (!g.tools.ironAxe) return { id: 'ironAxe', cost: C.TOOLS.ironAxe.cost, act: () => C.craft(g, 'ironAxe') };
+  // the house upgrades, in the core's order, once the stove stands
+  if (g.hut.stage >= C.HUT_STAGES.length) {
+    const up = C.UPGRADE_IDS.find((u) => !g.upgrades[u].built);
+    if (up) return { id: `up:${up}`, cost: C.UPGRADES[up].cost, paid: g.upgrades[up].paid, act: () => C.contribute(g, `up:${up}`) };
+  }
   return null;
 }
 
@@ -127,7 +132,7 @@ function think(g, cfg, r) {
   const need = goal ? missing(g, goal) : {};
   const order = [];
   if (wantFood) order.push('food');
-  for (const k of ['wood', 'stone', 'metal']) if (need[k]) order.push(k);
+  for (const k of ['wood', 'stone', 'metal', 'hide']) if (need[k]) order.push(k);
   if (g.stock.wood < 30) order.push('wood');
   if (!wantFood) order.push('food');
   order.push('wood');
@@ -140,6 +145,12 @@ function think(g, cfg, r) {
       if (bush && C.interact(g, bush.x, bush.y) === 'pick') return;
       // fishing from the shore
       for (const [x, y] of [[44, 8], [44, 12], [44, 16]]) if (C.interact(g, x, y) === 'fish') return;
+      continue;
+    }
+    if (what === 'hide') {
+      // hides come from deer, and deer need the spear
+      const deer = g.tools.spear && g.animals.filter((a) => a.kind === 'deer').sort((a, b) => dist(h, a.x - 0.5, a.y - 0.5) - dist(h, b.x - 0.5, b.y - 0.5))[0];
+      if (deer && C.interact(g, deer.x, deer.y) === 'hunt') return;
       continue;
     }
     const kind = { wood: 'tree', stone: 'rock', metal: 'scrap' }[what];
@@ -171,6 +182,7 @@ function play(name, difficulty = 'normal', seed = 1, opts = {}) {
     for (const e of C.drain(g)) {
       if (e.type === 'built') timeline[e.id === 'hut' ? `hut:${e.stage}` : e.id === 'palisade' ? `palisade:${e.segment}` : `bunk:${e.bunk}`] ??= C.dayOf(g);
       if (e.type === 'joined') timeline[`joined:${e.id}`] = C.dayOf(g);
+      if (e.type === 'upgraded') timeline[`up:${e.id}`] = C.dayOf(g);
       if (e.type === 'died') timeline[`died:${e.id}`] = C.dayOf(g);
     }
     if (opts.maxDays && C.dayOf(g) > opts.maxDays) break;

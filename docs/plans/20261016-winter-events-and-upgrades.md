@@ -333,24 +333,24 @@
 - Modify: `tests/winter/core.test.js`
 - Modify: `tests/winter/base.test.js`
 
-- [ ] add `UPGRADES`, `g.upgrades` (plus `migrate` and validation), the `'up:<id>'` ids in `needOf`/`contribute` (`'locked'` before stage 4), `upgradeOn(g, id)` and the `{ type: 'upgraded', id }` event
-- [ ] add the effects:
+- [x] add `UPGRADES`, `g.upgrades` (plus `migrate` and validation), the `'up:<id>'` ids in `needOf`/`contribute` (`'locked'` before stage 4), `upgradeOn(g, id)` and the `{ type: 'upgraded', id }` event
+- [x] add the effects:
   - insulation in `burnTick` and `warmthRate`;
   - the cellar in `roomFor`;
   - the smokehouse in `tick`;
   - the annex in `survivorsTick`.
 
   Add the camp spots to `SPOT`.
-- [ ] client: a minimal `upgraded` branch in `handle` (banner and sound); the «Улучши дом: {name}» hint with RO strings
-- [ ] bot: the upgrade goals after the old ones; the timeline records `up:<id>`
-- [ ] write tests:
+- [x] client: a minimal `upgraded` branch in `handle` (banner and sound); the «Улучши дом: {name}» hint with RO strings
+- [x] bot: the upgrade goals after the old ones; the timeline records `up:<id>`
+- [x] write tests:
   - each upgrade: locked, then paid in parts, then built;
   - each effect, measured against the same game without it;
   - `'nores'`, `'far'`, `'built'`;
   - a save and restore with half-paid upgrades.
 
   Also extend the reachability test (`core.test.js:68`) with the new costs and hides, and update the hint test (`base.test.js:320`).
-- [ ] run the tests, including the balance tests; they must pass before Task 3
+- [x] run the tests, including the balance tests; they must pass before Task 3
 
 ### Task 3: Workshop gear
 

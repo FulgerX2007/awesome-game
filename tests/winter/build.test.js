@@ -83,7 +83,7 @@ test('every Russian string passed to t( in game.js has a RO translation', () => 
 
 test('every hint of the core and every survivor name has a RO translation', () => {
   const C = require(path.join(DIR, 'core.js'));
-  const keys = C.TASK_TEXTS.concat(C.SURVIVOR_IDS.map((id) => C.SURVIVORS[id].name));
+  const keys = C.TASK_TEXTS.concat(C.SURVIVOR_IDS.map((id) => C.SURVIVORS[id].name), C.UPGRADE_IDS.map((id) => C.UPGRADES[id].name));
   assert.deepEqual(keys.filter((k) => !hasRo(k)), []);
   // every literal nextTask can return is listed in TASK_TEXTS
   const src = code(read('core.js'));

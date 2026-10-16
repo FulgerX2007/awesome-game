@@ -167,6 +167,8 @@
         case 'eat': sfx('eat'); break;
         case 'craft': sfx('craft'); banner(t('Готово: {tool}', { tool: t(TOOL_NAME[e.tool]) })); break;
         case 'built': sfx('build'); break;
+        case 'upgraded': sfx('build'); banner(t('Дом стал лучше: {name}', { name: t(C.UPGRADES[e.id].name) }), 2.4); break;
+        case 'smoked': break;
         case 'torch': sfx('fire'); break;
         case 'dig': sfx('step'); break;
         case 'howl': sfx('howl'); banner(t('Ночь. Волки вышли на охоту')); break;
@@ -204,8 +206,10 @@
     $('res-food').textContent = String(C.foodTotal(g));
     const task = C.nextTask(g);
     const rescueOf = /^Спаси выжившего: (.+)$/.exec(task);
+    const upOf = /^Улучши дом: (.+)$/.exec(task);
     $('hint').textContent = torchMode ? t('Нажми, где поставить факел')
-      : rescueOf ? t('Спаси выжившего: {name}', { name: t(rescueOf[1]) }) : t(task);
+      : rescueOf ? t('Спаси выжившего: {name}', { name: t(rescueOf[1]) })
+        : upOf ? t('Улучши дом: {name}', { name: t(upOf[1]) }) : t(task);
     $('btn-pause').textContent = paused ? t('Дальше') : t('Пауза');
     const a = actionTarget();
     $('btn-act').textContent = a ? t(a.label) : t('Действие');
