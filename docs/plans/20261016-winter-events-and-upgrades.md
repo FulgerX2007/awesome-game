@@ -519,11 +519,11 @@
 - Modify: `web/winter/lang.js`
 - Modify: `tests/winter/view.test.js`
 
-- [ ] the real bear: a big body, a walk cycle, a swipe on a bite, a hp bar, an edge marker when it is near
-- [ ] the trader's sled with a reindeer at the gate; the wanderer lying in the snow with a badge; the lost child with an edge marker
-- [ ] the aurora: `V.aurora(g)`, drawn as moving bands over the dark layer
-- [ ] write tests for `V.aurora`, and for edge markers covering the new targets
-- [ ] run the tests; they must pass before Task 10
+- [x] the real bear: a big body, a walk cycle, a swipe on a bite, a hp bar, an edge marker when it is near
+- [x] the trader's sled with a reindeer at the gate; the wanderer lying in the snow with a badge; the lost child with an edge marker
+- [x] the aurora: `V.aurora(g)`, drawn as moving bands over the dark layer
+- [x] write tests for `V.aurora`, and for edge markers covering the new targets
+- [x] run the tests; they must pass before Task 10
 
 ### Task 10: UI: panels, the event modal, the trade panel
 

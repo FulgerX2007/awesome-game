@@ -1447,12 +1447,89 @@
     }
   }
 
-  // A placeholder bear (the drawing comes with the creatures' art): a big brown body and a head.
+  // The bear: a heavy brown body with a shoulder hump, a round head with small ears, a swipe of the paw on a bite.
   function drawBear(b) {
-    const ts = cam.ts, p = P(b.x, b.y);
-    ctx.fillStyle = '#5a3a22';
-    ell(ctx, p.x, p.y - ts * 0.15, ts * 0.5, ts * 0.32); ctx.fill();
-    ell(ctx, p.x + ts * 0.42, p.y - ts * 0.3, ts * 0.2, ts * 0.18); ctx.fill();
+    const ts = cam.ts, p = P(b.x, b.y), m = motion(b);
+    if (!m.moving && Math.hypot(g.hero.x - b.x, g.hero.y - b.y) < C.BEAR.sight) m.face = g.hero.x >= b.x ? 1 : -1;
+    const sway = m.moving ? Math.sin(m.phase * 0.8) * ts * 0.03 : Math.sin(time * 1.5 + b.id) * ts * 0.01;
+    const swipe = b.cd > C.BEAR.cd - 0.35 ? 1 - (C.BEAR.cd - b.cd) / 0.35 : 0;
+    ctx.save(); ctx.translate(p.x, p.y + ts * 0.32); ctx.scale(m.face, 1);
+    const by = -ts * 0.42 - Math.abs(sway);
+    legs(0, by + ts * 0.12, 4, ts * 0.26, ts * 0.3, m.phase * 0.8, m.moving, '#3a2416', Math.max(2.5, ts * 0.11));
+    // the body and the hump
+    ctx.fillStyle = lin(ctx, 0, by - ts * 0.3, 0, by + ts * 0.24, [[0, '#4a2e1a'], [0.45, '#7a5232'], [1, '#a8784a']]);
+    ell(ctx, 0, by, ts * 0.5, ts * 0.27); ctx.fill();
+    ell(ctx, ts * 0.12, by - ts * 0.18, ts * 0.22, ts * 0.14); ctx.fill();
+    ctx.fillStyle = 'rgba(30, 18, 8, .3)'; ell(ctx, -ts * 0.06, by - ts * 0.14, ts * 0.36, ts * 0.08); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, .85)'; ell(ctx, -ts * 0.05, by - ts * 0.24, ts * 0.22, ts * 0.05); ctx.fill();
+    // the head: round ears, a lighter muzzle, a dark nose
+    const hx = ts * 0.46 + sway, hy = by - ts * 0.1;
+    K.sphere(ctx, hx - ts * 0.08, hy - ts * 0.17, ts * 0.07, '#5a3a22', { gloss: false });
+    K.sphere(ctx, hx + ts * 0.08, hy - ts * 0.17, ts * 0.07, '#5a3a22', { gloss: false });
+    K.sphere(ctx, hx, hy, ts * 0.19, '#7a5232', { gloss: false, shine: 0.3 });
+    ctx.fillStyle = '#c99a6a'; ell(ctx, hx + ts * 0.13, hy + ts * 0.05, ts * 0.11, ts * 0.08); ctx.fill();
+    ctx.fillStyle = '#1a120c'; ell(ctx, hx + ts * 0.21, hy + ts * 0.02, ts * 0.04, ts * 0.03); ctx.fill();
+    ell(ctx, hx + ts * 0.05, hy - ts * 0.05, ts * 0.025, ts * 0.025); ctx.fill();
+    // the swipe: a raised paw and three claw arcs
+    if (swipe > 0) {
+      ctx.fillStyle = '#5a3a22'; ell(ctx, hx + ts * 0.1, by - ts * 0.1 - swipe * ts * 0.25, ts * 0.1, ts * 0.13); ctx.fill();
+      ctx.strokeStyle = `rgba(150, 30, 24, ${0.85 * swipe})`; ctx.lineWidth = Math.max(2, ts * 0.05); ctx.lineCap = 'round';
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(hx + ts * 0.3, by + ts * 0.05, ts * (0.22 + k * 0.08), -1.2, -0.2); ctx.stroke(); }
+    }
+    ctx.restore();
+    if (b.hp < C.BEAR.hp) {
+      const bw = ts * 0.9, bx = p.x - bw / 2, bY = p.y - ts * 0.75;
+      ctx.fillStyle = 'rgba(10, 8, 20, .55)'; K.rrect(ctx, bx - 1, bY - 1, bw + 2, 6, 3); ctx.fill();
+      ctx.fillStyle = lin(ctx, 0, bY, 0, bY + 4, [[0, '#ffb0a0'], [1, '#e0483a']]);
+      K.rrect(ctx, bx, bY, bw * Math.max(0, b.hp / C.BEAR.hp), 4, 2); ctx.fill();
+    }
+  }
+
+  // The trader's sled at the gate: runners, a load under a tarp, a reindeer in harness, the trader beside it.
+  const TRADER_LOOK = { coat: '#9a3a2a', hat: '#3a2a20', pom: null, scarf: '#e0b84a', fur: true };
+  const traderStand = { x: 0, y: 0 };
+  function drawTrader(tr) {
+    const ts = cam.ts, p = P(tr.x - 0.6, tr.y + 0.75);
+    // the reindeer, to the right of the sled
+    ctx.save(); ctx.translate(p.x + ts * 2.15, p.y - ts * 0.05);
+    legs(0, -ts * 0.42, 4, ts * 0.17, ts * 0.38, time * 0.6, false, '#5a3a22', Math.max(1.5, ts * 0.05));
+    ctx.fillStyle = lin(ctx, 0, -ts * 0.62, 0, -ts * 0.3, [[0, '#7a5232'], [1, '#c99a6a']]);
+    ell(ctx, 0, -ts * 0.46, ts * 0.32, ts * 0.17); ctx.fill();
+    ctx.fillStyle = '#efe6d4'; ell(ctx, ts * 0.2, -ts * 0.42, ts * 0.12, ts * 0.12); ctx.fill();
+    K.sphere(ctx, ts * 0.36, -ts * 0.72, ts * 0.11, '#8a6040', { gloss: false });
+    ctx.strokeStyle = '#d9c6a0'; ctx.lineWidth = Math.max(1, ts * 0.03); ctx.lineCap = 'round';
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(ts * 0.33, -ts * 0.8); ctx.lineTo(ts * (0.33 + sx * 0.12), -ts * 1.02); ctx.lineTo(ts * (0.33 + sx * 0.2), -ts * 1.08); ctx.moveTo(ts * (0.33 + sx * 0.12), -ts * 1.02); ctx.lineTo(ts * (0.33 + sx * 0.06), -ts * 1.12); ctx.stroke(); }
+    ctx.fillStyle = '#d0283e'; ell(ctx, ts * 0.46, -ts * 0.7, ts * 0.03, ts * 0.03); ctx.fill();
+    ctx.restore();
+    // the harness
+    ctx.strokeStyle = '#6a4224'; ctx.lineWidth = Math.max(1, ts * 0.03);
+    ctx.beginPath(); ctx.moveTo(p.x + ts * 1.55, p.y - ts * 0.3); ctx.lineTo(p.x + ts * 1.95, p.y - ts * 0.5); ctx.stroke();
+    // the sled: two runners curling up at the front, slats, a load under a tarp tied with rope
+    ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = Math.max(2, ts * 0.06); ctx.lineCap = 'round';
+    for (const dy of [0, -ts * 0.18]) { ctx.beginPath(); ctx.moveTo(p.x, p.y + dy); ctx.lineTo(p.x + ts * 1.45, p.y + dy); ctx.quadraticCurveTo(p.x + ts * 1.65, p.y + dy, p.x + ts * 1.6, p.y + dy - ts * 0.22); ctx.stroke(); }
+    K.prism(ctx, p.x + ts * 0.05, p.y - ts * 0.32, ts * 1.4, ts * 0.12, ts * 0.3, '#9a7048', { r: ts * 0.03 });
+    ctx.fillStyle = lin(ctx, 0, p.y - ts * 1.05, 0, p.y - ts * 0.35, [[0, '#6a8a6a'], [1, '#3e5a44']]);
+    ctx.beginPath(); ctx.moveTo(p.x + ts * 0.12, p.y - ts * 0.4); ctx.quadraticCurveTo(p.x + ts * 0.25, p.y - ts * 1.1, p.x + ts * 0.75, p.y - ts * 1.05); ctx.quadraticCurveTo(p.x + ts * 1.3, p.y - ts * 1.0, p.x + ts * 1.38, p.y - ts * 0.4); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#d9c6a0'; ctx.lineWidth = Math.max(1, ts * 0.025);
+    for (const x of [0.45, 1.0]) { ctx.beginPath(); ctx.moveTo(p.x + ts * x, p.y - ts * 0.4); ctx.lineTo(p.x + ts * (x + 0.05), p.y - ts * 1.05); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; ell(ctx, p.x + ts * 0.72, p.y - ts * 1.04, ts * 0.32, ts * 0.06); ctx.fill();
+    // bells on the harness
+    for (let k = 0; k < 3; k++) K.sphere(ctx, p.x + ts * (1.62 + k * 0.1), p.y - ts * (0.36 + k * 0.05) + Math.sin(time * 8 + k) * 1.5, ts * 0.035, '#f2c84a');
+    // the trader himself, stamping his feet by the sled
+    traderStand.x = tr.x + 0.5; traderStand.y = tr.y + 1.1;
+    drawPerson(traderStand, TRADER_LOOK);
+  }
+
+  // The wounded wanderer lying in the snow, wrapped in a grey cloak, a bandage round the head.
+  function drawWanderer(ev) {
+    const ts = cam.ts, p = P(ev.x + 0.5, ev.y + 0.6);
+    const breath = 1 + 0.03 * Math.sin(time * 2);
+    ctx.fillStyle = lin(ctx, 0, p.y - ts * 0.25, 0, p.y + ts * 0.05, [[0, '#8a8f9c'], [1, '#5a5f6c']]);
+    ell(ctx, p.x - ts * 0.08, p.y - ts * 0.1, ts * 0.38, ts * 0.15 * breath); ctx.fill();
+    ctx.fillStyle = '#3e2c20'; ell(ctx, p.x - ts * 0.42, p.y - ts * 0.08, ts * 0.08, ts * 0.06); ctx.fill();
+    K.sphere(ctx, p.x + ts * 0.34, p.y - ts * 0.14, ts * 0.12, '#f0c49a', { gloss: false });
+    ctx.fillStyle = '#f2ece0'; ctx.fillRect(p.x + ts * 0.23, p.y - ts * 0.22, ts * 0.22, ts * 0.05);
+    ctx.fillStyle = 'rgba(255,255,255,.8)'; ell(ctx, p.x - ts * 0.1, p.y - ts * 0.24, ts * 0.22, ts * 0.04); ctx.fill();
   }
 
   function drawRabbit(a) {
@@ -1774,6 +1851,12 @@
       const r = a.kind === 'deer' ? 0.36 : 0.2;
       add(a.y + 0.3, a.x, () => (a.kind === 'deer' ? drawDeer(a) : drawRabbit(a)), () => { const p = P(a.x, a.y + 0.3); K.shadow(ctx, p.x + ts * 0.05, p.y, ts * r, ts * r * 0.36, 0.3); });
     }
+    if (g.trader && vis(g.trader.x + 0.5, g.trader.y + 0.5)) {
+      const tr = g.trader;
+      add(tr.y + 0.8, tr.x + 0.5, () => drawTrader(tr), () => { const p = P(tr.x + 0.5, tr.y + 0.8); K.shadow(ctx, p.x + ts * 0.3, p.y, ts * 1.3, ts * 0.22, 0.3); });
+    }
+    const wev = g.event && g.event.id === 'wanderer' ? g.event : null;
+    if (wev && vis(wev.x, wev.y)) add(wev.y + 0.6, wev.x + 0.5, () => drawWanderer(wev), () => { const p = P(wev.x + 0.5, wev.y + 0.65); K.shadow(ctx, p.x, p.y, ts * 0.42, ts * 0.12, 0.28); });
     if (g.bear && vis(g.bear.x, g.bear.y)) {
       const b = g.bear;
       add(b.y + 0.35, b.x, () => drawBear(b), () => { const p = P(b.x, b.y + 0.35); K.shadow(ctx, p.x + ts * 0.05, p.y, ts * 0.55, ts * 0.17, 0.34); });
@@ -1857,6 +1940,28 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(darkCanvas, 0, 0, canvas.width, canvas.height);
     ctx.restore();
+    // the aurora: soft bands of green and violet drifting across the top of the sky
+    const au = V.aurora(g);
+    if (au > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      // curtains: a bright lower hem waving across the sky, rays fading upward from it
+      const bands = [['60, 240, 160', 0.5, 0, 0.26], ['88, 208, 255', 0.32, 1.7, 0.2], ['176, 122, 255', 0.26, 3.1, 0.33]];
+      for (const [rgb, a, ph, base] of bands) {
+        const hem = (x) => view.h * (base + 0.07 * Math.sin(x / 170 + time * 0.35 + ph) + 0.03 * Math.sin(x / 53 - time * 0.6 + ph));
+        for (let x = 0; x <= view.w; x += 6) {
+          const y1 = hem(x), len = view.h * (0.12 + 0.07 * (0.5 + 0.5 * Math.sin(x / 31 + time * 1.3 + ph * 2)));
+          const flick = 0.6 + 0.4 * Math.sin(x / 13 + time * 2.1 + ph);
+          const gr = ctx.createLinearGradient(0, y1 - len, 0, y1);
+          gr.addColorStop(0, `rgba(${rgb}, 0)`);
+          gr.addColorStop(0.85, `rgba(${rgb}, ${a * au * flick})`);
+          gr.addColorStop(1, `rgba(${rgb}, 0)`);
+          ctx.fillStyle = gr;
+          ctx.fillRect(x, y1 - len, 6, len);
+        }
+      }
+      ctx.restore();
+    }
     // the eyes of the wolves and the flames shine through
     for (const w of g.wolves) drawWolf(w, true);
     if (C.fireOn(g)) { const p = P(C.SPOT.fire.x + 0.5, C.SPOT.fire.y + 0.4); K.glow(ctx, p.x, p.y, ts * 0.8, '#ffb050', 0.5 * d); }
@@ -1898,12 +2003,26 @@
       K.sphere(ctx, p.x, y, ts * 0.2 * sc, '#ffc53a', { shine: 0.6 });
       K.text(ctx, '!', p.x, y + 1, { size: Math.round(ts * 0.32), color: '#ffffff', stroke: '#9a5a00' });
     }
-    // survivors who still wait or follow, off screen
-    for (const s of g.survivors) {
-      if (s.state !== 'waiting' && s.state !== 'following') continue;
-      const m = V.edgeMarker(cam, s.x, s.y);
+    // a badge over the lost child, the wanderer and the trader
+    const badge = (x, y, mark, col, dark) => {
+      const p = P(x, y);
+      if (p.x < -ts || p.y < -ts || p.x > view.w + ts || p.y > view.h + ts * 2) return;
+      const by = p.y - ts * 0.95 + Math.sin(time * 4) * 3, sc = 1 + 0.08 * Math.sin(time * 8);
+      K.glow(ctx, p.x, by, ts * 0.45, col, 0.35);
+      K.sphere(ctx, p.x, by, ts * 0.2 * sc, col, { shine: 0.6 });
+      K.text(ctx, mark, p.x, by + 1, { size: Math.round(ts * 0.3), color: '#ffffff', stroke: dark });
+    };
+    const targets = [];
+    const wev = g.event && g.event.id === 'wanderer' ? g.event : null;
+    for (const s of g.survivors) if (s.state === 'lost') { badge(s.x, s.y, '?', '#ff9a3a', '#8a3a00'); targets.push([s.x, s.y, '#ff9a3a']); }
+    if (wev) { badge(wev.x + 0.5, wev.y + 0.4, '!', '#ff6a5c', '#7a1a10'); targets.push([wev.x + 0.5, wev.y + 0.5, '#ff6a5c']); }
+    if (g.trader) { badge(g.trader.x + 0.9, g.trader.y - 0.2, '$', '#f2c84a', '#7a5200'); targets.push([g.trader.x + 0.5, g.trader.y + 0.5, '#f2c84a']); }
+    if (g.bear && Math.hypot(g.bear.x - g.hero.x, g.bear.y - g.hero.y) < C.BEAR.sight * 2) targets.push([g.bear.x, g.bear.y, '#e0483a']);
+    // survivors who still wait or follow, and the targets above, off screen
+    for (const s of g.survivors.filter((x) => x.state === 'waiting' || x.state === 'following').map((x) => [x.x, x.y, x.state === 'following' ? '#8fe39a' : '#ffd34d']).concat(targets)) {
+      const m = V.edgeMarker(cam, s[0], s[1]);
       if (!m) continue;
-      const col = s.state === 'following' ? '#8fe39a' : '#ffd34d';
+      const col = s[2];
       const pulse = 1 + 0.12 * Math.sin(time * 5);
       K.glow(ctx, m.x, m.y, 16, col, 0.35);
       ctx.save();

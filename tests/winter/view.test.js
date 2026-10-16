@@ -85,3 +85,30 @@ test('lights: the lantern goes with the hero, only at night, only while he is up
   g.t = 10;
   assert.equal(V.lights(g).length, 0, 'not by day');
 });
+
+test('the aurora: only on an aurora night, rising after nightfall and fading before dawn', () => {
+  const g = C.newGame('normal', 1);
+  g.t = C.NIGHT_AT + 20;
+  assert.equal(V.aurora(g), 0, 'no event');
+  g.event = { id: 'aurora', phase: 'active', day: 1 };
+  assert.equal(V.aurora(g), 1);
+  g.t = C.NIGHT_AT + 5;
+  assert.ok(Math.abs(V.aurora(g) - 0.5) < 1e-9);
+  g.t = C.DAY - 4;
+  assert.ok(Math.abs(V.aurora(g) - 0.5) < 1e-9);
+  g.t = 30;
+  assert.equal(V.aurora(g), 0, 'not by day');
+  g.event = { id: 'thaw', phase: 'active', day: 1 };
+  g.t = C.NIGHT_AT + 20;
+  assert.equal(V.aurora(g), 0);
+});
+
+test('edge markers point at the new targets off screen: the trader, the wanderer, the lost child, the bear', () => {
+  const cam = V.camera({ w: 640, h: 360 }, { x: 27.5, y: 20.5 });
+  for (const [x, y] of [[C.SPOT.trader.x + 0.5, 39], [3, 3], [52, 36]]) {
+    const m = V.edgeMarker(cam, x, y);
+    assert.ok(m, `${x},${y}`);
+    assert.ok(m.x >= 0 && m.x <= cam.w && m.y >= 0 && m.y <= cam.h);
+  }
+  assert.equal(V.edgeMarker(cam, 27.5, 20.5), null, 'nothing for what is on screen');
+});

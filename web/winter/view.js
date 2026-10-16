@@ -48,6 +48,13 @@
     return 0.82 * clamp(k, 0, 1);
   }
 
+  // The aurora on an «aurora» night: 0 by day, rising over 10 s after nightfall, fading over the last 8 s to dawn.
+  function aurora(g) {
+    if (!g.event || g.event.id !== 'aurora' || !C.isNight(g)) return 0;
+    const t = C.timeOfDay(g);
+    return clamp(Math.min((t - C.NIGHT_AT) / 10, (C.DAY - t) / 8), 0, 1);
+  }
+
   // Markers on the screen edge pointing at things outside the view: { x, y, angle } in css px, inset by `pad`.
   function edgeMarker(cam, wx, wy, pad = 14) {
     const p = toScreen(cam, wx, wy);
@@ -66,7 +73,7 @@
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   }
 
-  const api = { MIN_TILES, camera, toScreen, toWorld, tileAt, lights, darkness, edgeMarker, clock };
+  const api = { MIN_TILES, camera, toScreen, toWorld, tileAt, lights, darkness, aurora, edgeMarker, clock };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WinterView = api;
 })(typeof window !== 'undefined' ? window : globalThis);
