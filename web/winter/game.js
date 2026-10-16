@@ -201,6 +201,9 @@
         case 'found': sfx('rescue'); banner(t('{name} снова в лагере', { name: t(C.SURVIVORS[e.id].name) }), 2.2); break;
         case 'aurora': banner(t('Северное сияние: этой ночью волки не придут'), 3); break;
         case 'ice': banner(t('Наледь: вне лагеря идти тяжелее'), 2.6); break;
+        case 'trader': banner(t('Торговец на санях у южных ворот'), 2.6); break;
+        case 'traderLeft': banner(t('Торговец уехал')); break;
+        case 'traded': sfx('craft'); break;
         case 'snareCaught': float(e.x + 0.5, e.y, t('+1 мясо в силках'), '#ff9a8a'); break;
         case 'scared': break;
         case 'built': sfx('build'); break;

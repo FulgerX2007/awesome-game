@@ -41,6 +41,7 @@
     fire: { x: 27, y: 20 }, bench: { x: 24, y: 20 }, bed: { x: 27, y: 17 }, bunks: [{ x: 31, y: 17 }, { x: 31, y: 19 }, { x: 31, y: 21 }],
     // the upgrades: decorative, they don't block walking (like the hut)
     cellar: { x: 23, y: 16 }, smokehouse: { x: 24, y: 23 }, annex: { x: 29, y: 16 }, workshop: { x: 31, y: 23 },
+    trader: { x: 27, y: 26 },          // outside the south gate; the ring around the camp has no nodes
   };
   const SEGMENTS = ['north', 'east', 'south', 'west'];
 
@@ -102,6 +103,24 @@
   const LOST_CHILD = { near: 10, far: 16, night: 40 };  // where he wanders off to; what a night in the forest costs him
   const AURORA = { energy: 20, hp: 10 };                // a calm night: no wolves, strength for the hero and the camp
   const THAW = { warm: 8, lastDay: 27, ice: 0.8 };      // a warm day, then a day of crust: the hero walks slower outside
+
+  // The trader on his sled: at the gate from dawn to nightfall on his days. Three offers rolled from TRADES (the
+  // second stream) and a fixed one; each can be taken once. `tool` gets a tool the hero lacks, or metal.
+  const TRADER_DAYS = { normal: [4, 9, 14, 19, 24], harsh: [5, 11, 17, 23] };
+  const TRADES = [
+    { give: { meat: 4 }, get: { metal: 3 } },
+    { give: { fish: 4 }, get: { stone: 12 } },
+    { give: { meat: 6 }, get: { tool: 1 } },
+    { give: { hide: 2 }, get: { smokedMeat: 3 } },
+    { give: { berries: 6 }, get: { wood: 15 } },
+    { give: { cookedFish: 3 }, get: { metal: 4 } },
+    { give: { meat: 3, fish: 3 }, get: { hide: 2 } },
+    { give: { wood: 20 }, get: { cookedMeat: 3 } },
+    { give: { stone: 15 }, get: { metal: 4 } },
+    { give: { metal: 3 }, get: { smokedFish: 4 } },
+  ];
+  const TRADE_FIXED = { give: { hide: 3 }, get: { metal: 5 } };
+  const TRADE_OFFERS = 3, TRADE_REACH = 2.5, TRADE_NO_TOOL = { metal: 5 };
   const ROOF_FIX = { wood: 15, stone: 5 };
   const ROOF_HOLE = { stove: 1.3, chill: 0.7 };          // a hole in the roof: the stove burns faster, the hut keeps less cold out
   // the wanderer's tools never include the shovel or the ice pick: those open the way to survivors
@@ -237,7 +256,7 @@
       tools: { axe: true, ironAxe: false, pick: false, shovel: false, icePick: false, spear: false },
       fire: { fuel: 12 },
       hut: { stage: 0, paid: {}, stove: 0, roofHole: false, patchPaid: {} },
-      event: null, lastEvent: null, eventsSeen: {}, iceDay: 0,
+      event: null, lastEvent: null, eventsSeen: {}, iceDay: 0, trader: null,
       palisade: SEGMENTS.map(() => ({ built: false, hp: 0, paid: {} })),
       bunks: [{ built: false, paid: {} }, { built: false, paid: {} }, { built: false, paid: {} }],
       upgrades: newUpgrades(),
@@ -584,6 +603,12 @@
       if (!path) return 'none';
       order(g, { type: 'hole', x, y }, path);
       return 'fish';
+    }
+    if (g.trader && g.trader.x === x && g.trader.y === y) {
+      const path = pathNextTo(g, h, x, y);
+      if (!path) return 'none';
+      order(g, { type: 'walk' }, path);
+      return 'trader';
     }
     const ev = g.event;
     if (ev && ev.id === 'wanderer' && ev.phase === 'active' && ev.x === x && ev.y === y) {
@@ -964,6 +989,51 @@
     g.events.push({ type: 'died', id: sv.id });
   }
 
+  // ── The trader ──
+  function traderArrives(g) {
+    g.trader = null;
+    if (!TRADER_DAYS[g.difficulty].includes(dayOf(g))) return;
+    const pool = TRADES.map((_, i) => i);
+    const offers = [];
+    for (let k = 0; k < TRADE_OFFERS; k++) {
+      const t = TRADES[pool.splice(Math.floor(erand(g) * pool.length), 1)[0]];
+      offers.push(clone(t));
+    }
+    offers.push(clone(TRADE_FIXED));
+    for (const o of offers) {
+      if (!o.get.tool) continue;
+      const lack = Object.keys(TOOLS).filter((k) => !g.tools[k]);
+      o.get = lack.length ? { tool: lack[Math.floor(erand(g) * lack.length)] } : clone(TRADE_NO_TOOL);
+    }
+    for (const o of offers) o.taken = false;
+    g.trader = { x: SPOT.trader.x, y: SPOT.trader.y, offers };
+    g.events.push({ type: 'trader' });
+  }
+
+  function traderLeaves(g) {
+    if (!g.trader) return;
+    g.trader = null;
+    g.events.push({ type: 'traderLeft' });
+  }
+
+  // One trade with the trader, standing next to his sled. → 'ok' | 'nores' | 'far' | 'taken' | 'gone' | 'bad'
+  function trade(g, i) {
+    if (g.status !== 'playing') return 'bad';
+    if (!g.trader) return 'gone';
+    const o = Number.isInteger(i) ? g.trader.offers[i] : undefined;
+    if (!o) return 'bad';
+    if (o.taken) return 'taken';
+    if (Math.hypot(g.trader.x + 0.5 - g.hero.x, g.trader.y + 0.5 - g.hero.y) > TRADE_REACH) return 'far';
+    if (!afford(g, o.give)) return 'nores';
+    pay(g, o.give);
+    const got = {};
+    if (o.get.tool) { g.tools[o.get.tool] = true; got.tool = o.get.tool; }
+    else for (const k of Object.keys(o.get)) { const n = Math.min(o.get[k], roomFor(g, k)); g.stock[k] += n; got[k] = n; }
+    o.taken = true;
+    g.events.push({ type: 'traded', i, got });
+    return 'ok';
+  }
+
   // ── Building (partial contributions) ──
   // id: 'hut' | 'palisade:0'…'palisade:3' | 'bunk:0'…'bunk:2'. Puts what the stock has toward the next stage.
   // → 'done' (a stage finished) | 'part' (paid in part) | 'nores' | 'built' (nothing left) | 'bad'
@@ -1322,6 +1392,7 @@
       g.events.push({ type: 'night', day: dayOf(g) });
       const calm = g.event && g.event.id === 'aurora';
       eventsAtNight(g);
+      traderLeaves(g);
       if (!calm) spawnWolves(g);
     }
     if (now > was) {
@@ -1332,6 +1403,7 @@
       g.hero.load = inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) ? 0 : g.hero.load;
       snaresAtDawn(g);
       lostAtDawn(g);
+      if (now < DAYS) traderArrives(g); else g.trader = null;
       g.events.push({ type: 'dawn', day: dayOf(g), blizzard: isBlizzard(g) });
       g.dawnDue = true;
       if (now < DAYS) pickEvent(g);
@@ -1397,6 +1469,7 @@
     if (isNight(g) && g.hut.stage >= 2 && h.energy < 60) return 'Ночь: поспи в хижине';
     if (g.survivors.some((s) => s.state === 'lost') && !isNight(g)) return 'Найди ребёнка до ночи';
     if (g.event && g.event.id === 'wanderer' && g.event.phase === 'active') return 'Помоги путнику';
+    if (g.trader && g.trader.offers.some((o) => !o.taken && afford(g, o.give))) return 'Торговец у ворот';
     if (g.hut.roofHole) return 'Почини крышу';
     if (g.hut.stage < 1) return 'Почини хижину: стены';
     if (!g.tools.pick) return 'Сделай кирку на верстаке';
@@ -1422,7 +1495,7 @@
     'Согрейся у костра', 'Подкинь дров в костёр', 'Наруби дров для костра', 'Ночь: поспи в хижине', 'Почини хижину: стены',
     'Сделай кирку на верстаке', 'Почини хижину: крыша', 'Почини хижину: дверь', 'Сложи печь в хижине', 'Построй частокол вокруг лагеря',
     'Сделай лопату: к Плотнику не пройти через сугробы', 'Сделай ледоруб: Кузнец за озером', 'Спаси выжившего: {name}',
-    'Сделай нары для выживших', 'Улучши дом: {name}', 'Держись до весны', 'Помоги путнику', 'Почини крышу', 'Найди ребёнка до ночи',
+    'Сделай нары для выживших', 'Улучши дом: {name}', 'Держись до весны', 'Помоги путнику', 'Почини крышу', 'Найди ребёнка до ночи', 'Торговец у ворот',
   ];
 
   // ── Snapshots and the save ──
@@ -1454,6 +1527,7 @@
     if (m.lastEvent === undefined) m.lastEvent = null;
     if (m.eventsSeen === undefined) m.eventsSeen = {};
     if (m.iceDay === undefined) m.iceDay = 0;
+    if (m.trader === undefined) m.trader = null;
     return m;
   }
 
@@ -1475,6 +1549,7 @@
     if (typeof o.hut.roofHole !== 'boolean' || !o.hut.patchPaid || typeof o.hut.patchPaid !== 'object') return null;
     if (o.lastEvent !== null && !EVENT_IDS.includes(o.lastEvent)) return null;
     if (!Number.isInteger(o.iceDay) || !num(o.iceDay, 0, DAYS + 1)) return null;
+    if (o.trader !== null && !validTrader(o.trader)) return null;
     if (!o.eventsSeen || typeof o.eventsSeen !== 'object' || !Object.keys(o.eventsSeen).every((k) => EVENT_IDS.includes(k) && Number.isInteger(o.eventsSeen[k]) && o.eventsSeen[k] >= 0)) return null;
     if (o.event !== null && !validEvent(o.event)) return null;
     if (!o.fire || !num(o.fire.fuel, 0, FIRE.cap) || !Array.isArray(o.torches) || !Array.isArray(o.wolves) || !Array.isArray(o.animals)) return null;
@@ -1483,6 +1558,13 @@
     g.acc = 0;
     touchNodes(g);
     return g;
+  }
+
+  const validBag = (b) => b && typeof b === 'object' && Object.keys(b).length > 0 && Object.keys(b).every((k) => ITEMS.includes(k) && Number.isInteger(b[k]) && b[k] > 0);
+  function validTrader(t) {
+    if (!t || typeof t !== 'object' || t.x !== SPOT.trader.x || t.y !== SPOT.trader.y || !Array.isArray(t.offers) || t.offers.length !== TRADE_OFFERS + 1) return false;
+    return t.offers.every((o) => o && typeof o.taken === 'boolean' && validBag(o.give)
+      && (o.get && typeof o.get === 'object' && (has(o.get, 'tool') ? has(TOOLS, o.get.tool) && Object.keys(o.get).length === 1 : validBag(o.get))));
   }
 
   function validEvent(e) {
@@ -1552,9 +1634,9 @@
     TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, HIT_CD, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
     FOOD_DRAIN, ENERGY_DRAIN, WORK_ENERGY, SLEEP_ENERGY, HEALTH_LOSS, HEALTH_GAIN, FOOD, RAW_MEAT_ENERGY, COOK_TIME,
     FISH_TIME, BITE, GNAW, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
-    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, GEAR, GEAR_IDS, COAT, SLED_CARRY, LANTERN, SNARE, EVENT_CHANCE, EVENT_CHOICES, EVENT_DEFAULT, EVENT_IDS, EVENT_MAX, LOST_CHILD, AURORA, THAW, ROOF_FIX, ROOF_HOLE, WANDERER, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
+    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, GEAR, GEAR_IDS, COAT, SLED_CARRY, LANTERN, SNARE, EVENT_CHANCE, EVENT_CHOICES, EVENT_DEFAULT, EVENT_IDS, EVENT_MAX, LOST_CHILD, AURORA, THAW, TRADER_DAYS, TRADES, TRADE_FIXED, TRADE_OFFERS, TRADE_REACH, TRADE_NO_TOOL, ROOF_FIX, ROOF_HOLE, WANDERER, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
     clamp, rand, erand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
-    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, foodCap, roomFor, upgradeOn, carryOf, placeSnare, answerEvent, iceOn, warmthRate, lit, inHut, stoveOn,
+    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, foodCap, roomFor, upgradeOn, carryOf, placeSnare, answerEvent, iceOn, trade, warmthRate, lit, inHut, stoveOn,
     fireOn, atBase, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,
     wolvesTonight, step, stars, nextTask, snapshot, restore, newSave, parseSave, loadSave, storeSave, recordGame,
     retryDay,

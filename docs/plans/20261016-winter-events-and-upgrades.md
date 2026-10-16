@@ -439,18 +439,18 @@
 - Modify: `tests/winter/bot.js`
 - Create: `tests/winter/trader.test.js`
 
-- [ ] add `TRADES`, `TRADER_DAYS`, `g.trader` (plus `migrate` and validation): he arrives at dawn and leaves at nightfall; his offers are rolled with `erng`
-- [ ] `trade(g, i)`: its result codes; the goods capped by `roomFor`; the tool offer and its fallback
-- [ ] client: the `trader` and `traderLeft` banners; the hint «Торговец у ворот» with RO strings
-- [ ] bot: trades hides for metal, and meat for a tool it lacks
-- [ ] write tests:
+- [x] add `TRADES`, `TRADER_DAYS`, `g.trader` (plus `migrate` and validation): he arrives at dawn and leaves at nightfall; his offers are rolled with `erng`
+- [x] `trade(g, i)`: its result codes; the goods capped by `roomFor`; the tool offer and its fallback
+- [x] client: the `trader` and `traderLeft` banners; the hint «Торговец у ворот» with RO strings
+- [x] bot: trades hides for metal, and meat for a tool it lacks
+- [x] write tests:
   - the schedule per difficulty;
   - a seed repeats the offers;
   - every `trade` result;
   - the caps;
   - the tool fallback;
   - a save and restore on a trader day.
-- [ ] run the tests, including the balance tests; they must pass before Task 7
+- [x] run the tests, including the balance tests; they must pass before Task 7
 
 ### Task 7: Bear
 

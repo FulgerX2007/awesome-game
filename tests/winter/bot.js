@@ -137,6 +137,17 @@ function think(g, cfg, r) {
     const res = goal.act();
     if (res === 'done' || res === 'ok') return;
   }
+  // the trader: hides for metal, meat for a tool, and whatever spare food buys; from next to his sled
+  if (g.trader && !cfg.casual && tod < C.NIGHT_AT - 20 && h.warmth > 50) {
+    const spareFood = foodStock(g) > 220;
+    const want = g.trader.offers.map((o, i) => ({ o, i })).filter(({ o }) => !o.taken && C.afford(g, o.give)
+      && (o.give.hide ? true : o.give.wood ? g.stock.wood >= o.give.wood + 40 : o.give.stone || o.give.metal ? false : spareFood || o.get.tool));
+    if (want.length) {
+      const near = Math.hypot(g.trader.x + 0.5 - h.x, g.trader.y + 0.5 - h.y) <= C.TRADE_REACH;
+      if (near) { for (const { i } of want) C.trade(g, i); return; }
+      if (!busy(g) || (h.target && h.target.type === 'walk')) { if (C.interact(g, g.trader.x, g.trader.y) === 'trader') return; }
+    }
+  }
   // a lost child first: bring him back before night
   const lost = g.survivors.find((s) => s.state === 'lost');
   if (lost && tod < C.NIGHT_AT - 10) {
