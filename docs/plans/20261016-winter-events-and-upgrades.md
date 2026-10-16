@@ -534,14 +534,15 @@
 - Modify: `web/winter/lang.js`
 - Modify: `tests/winter/build.test.js`
 
-- [ ] «Постройки»:
+- [x] «Постройки»:
   - an «Улучшения дома» section, locked until stage 4, paid in parts like the hut;
   - «Залатать крышу» while there is a hole.
-- [ ] «Верстак»: the gear below the tools, locked with a reason until the workshop is built; a snare placement mode like the torches
-- [ ] the event modal: the text and the choice buttons, by keyboard, mouse and touch. It replaces the Task 4 banner
-- [ ] the trade panel, opened by a tap on the sled; floats for `smoked`, `snareCaught`, `traded`
-- [ ] write `build.test.js` checks: the new ids, and no missing RO keys
-- [ ] run the tests; they must pass before Task 11
+- [x] «Верстак»: the gear below the tools, locked with a reason until the workshop is built; a snare placement mode like the torches
+- [x] the event modal: the text and the choice buttons, by keyboard, mouse and touch. It replaces the Task 4 banner
+- [x] the trade panel, opened by a tap on the sled; floats for `smoked`, `snareCaught`, `traded`
+- [x] write `build.test.js` checks: the new ids, and no missing RO keys
+- [x] run the tests; they must pass before Task 11
+- [x] ➕ the event dialog and the trade panel are overlays, so the world waits while they are open, like the build and bench panels. This changes the plan's "not paused"; the nightfall default still covers an event nobody answers. The action button also reaches the trader («Торговать»), the wanderer, a lost child and the bear
 
 ### Task 11: Balance tuning
 

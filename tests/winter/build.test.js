@@ -141,3 +141,11 @@ test('the HUD has a pill for every material the core keeps', () => {
   const C = require(path.join(DIR, 'core.js'));
   for (const r of C.RES) assert.match(HTML, new RegExp(`id="res-${r}"`), r);
 });
+
+test('the page has the event dialog and the trade panel the client opens', () => {
+  for (const id of ['event', 'event-title', 'event-text', 'btn-event-yes', 'btn-event-no', 'trade', 'trade-list', 'trade-lead', 'btn-trade-close']) {
+    assert.match(HTML, new RegExp(`id="${id}"`), id);
+  }
+  const src = read('game.js');
+  for (const id of ['event', 'trade']) assert.match(src, new RegExp(`'${id}'`), `${id} is a screen of the client`);
+});

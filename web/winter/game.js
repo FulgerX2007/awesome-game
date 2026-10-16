@@ -27,6 +27,9 @@
   let overlay = null;     // build | bench | pause | confirm | null
   let pendingDiff = null;
   let torchMode = false;
+  let snareMode = false;
+  let askDue = false;     // an event asks: the dialog opens once nothing else is on screen
+  let tradeDue = false;   // the hero walks to the sled; the trade panel opens when he gets there
   let view = { w: 640, h: 360, dpr: 1 };
   let cam = V.camera(view, null);
   let sinceSave = 0;
@@ -37,11 +40,9 @@
   let darkCanvas = null;
 
   const RES_NAME = { wood: 'Дерево', stone: 'Камень', metal: 'Металл', hide: 'Шкуры' };
-  // Events of the day: what the banner says, and the answers on Y and N (the full dialog comes with the panels)
+  // Events of the day that don't ask: what the banner says (the ones that ask open the dialog below)
   const EVENT_TEXT = {
-    roof: 'Метель проломила кровлю! Y — чинить сейчас (15 дерева, 5 камня), N — потом',
     wanderer: 'В лесу лежит раненый путник. Найди его до ночи',
-    wandererAsk: 'Путник просит две порции еды. Y — помочь, N — пройти мимо',
     lostChild: 'Ребёнок ушёл в лес и заблудился! Найди его до ночи',
     aurora: 'Ясное небо: ночью будет северное сияние',
     thaw: 'Оттепель: сегодня теплее, но завтра будет наледь',
@@ -163,13 +164,92 @@
     sfx('rescue');
   }
 
-  // Y / N answer the event that asks.
+  // The event dialog: what happened and the two answers (Y / N on the keyboard). The world waits while it is open.
+  const UP_NAME = { insulation: 'Утепление', cellar: 'Погреб', smokehouse: 'Коптильня', annex: 'Пристройка', workshop: 'Мастерская' };
+  const UP_DESC = {
+    insulation: 'Мох и шкуры: печь горит дольше, в хижине теплее даже без неё',
+    cellar: 'Ещё 100 места для еды',
+    smokehouse: 'Сама коптит сырое мясо и рыбу, копчёное сытнее',
+    annex: 'Тёплая комната: выжившие быстрее лечатся и работают',
+    workshop: 'Шуба, фонарь, сани и силки',
+  };
+  const GEAR_LABEL = { coat: 'Шуба', lantern: 'Фонарь', sled: 'Сани', snares: 'Силки' };
+  const GEAR_DESC = {
+    coat: 'Мороз пробирает слабее',
+    lantern: 'Ночью волки шарахаются от света',
+    sled: 'Уносишь из леса вдвое больше',
+    snares: 'По два за раз, ставь в лесу: утром в них зайцы',
+  };
+  const SNARE_FAIL = { base: 'Силки ставят в лесу, не в лагере', far: 'Силок ставят рядом с собой', blocked: 'Здесь силок не поставить', max: 'Больше четырёх силков не поставить' };
+  const ITEM_NAME = { wood: 'Дерево', stone: 'Камень', metal: 'Металл', hide: 'Шкуры', berries: 'Ягоды', meat: 'Сырое мясо', fish: 'Рыба', cookedMeat: 'Жареное мясо', cookedFish: 'Жареная рыба', smokedMeat: 'Копчёное мясо', smokedFish: 'Копчёная рыба' };
+  const EVENT_ASK = {
+    roof: { title: 'Метель проломила кровлю!', text: 'Через дыру уходит тепло, печь прогорает быстрее. Починить сейчас: {cost}.', yes: 'Чинить сейчас', no: 'Потом' },
+    wanderer: { title: 'Раненый путник', text: 'Он замёрз и ослаб и просит две порции еды. В благодарность он чем-нибудь поделится.', yes: 'Помочь', no: 'Пройти мимо' },
+  };
+  function openEvent() {
+    const ev = g && g.event;
+    if (!ev || ev.phase !== 'ask' || screen !== 'play') return;
+    const a = EVENT_ASK[ev.id];
+    $('event-title').textContent = t(a.title);
+    $('event-text').textContent = t(a.text, { cost: costText(C.ROOF_FIX) });
+    $('btn-event-yes').textContent = t(a.yes);
+    $('btn-event-no').textContent = t(a.no);
+    overlay = 'event';
+    show('event');
+    $('btn-event-yes').focus({ preventScroll: true });
+  }
   function answer(yes) {
     const ev = g && g.event;
     if (!ev || ev.phase !== 'ask') return false;
     const r = C.answerEvent(g, C.EVENT_CHOICES[ev.id][yes ? 0 : 1]);
-    if (r === 'nores') banner(t('Не хватает припасов'));
+    if (r === 'nores') { banner(t('Не хватает припасов')); return true; }
+    handle(C.drain(g));
+    if (overlay === 'event') closeOverlay();
+    renderHUD();
+    saveCurrent();
     return true;
+  }
+
+  // The trade panel: the trader's offers, each once.
+  function openTrade() {
+    if (!g || !g.trader || screen !== 'play') return;
+    tradeDue = false;
+    overlay = 'trade';
+    renderTrade();
+    show('trade');
+  }
+  const bagText = (bag) => Object.keys(bag).map((k) => (k === 'tool' ? t(TOOL_NAME[bag.tool]) : `${t(ITEM_NAME[k])} ×${bag[k]}`)).join(', ');
+  function renderTrade() {
+    const list = $('trade-list');
+    list.innerHTML = '';
+    if (!g.trader) { closeOverlay(); return; }
+    const near = Math.hypot(g.trader.x + 0.5 - g.hero.x, g.trader.y + 0.5 - g.hero.y) <= C.TRADE_REACH;
+    $('trade-lead').textContent = near ? t('Каждый обмен — один раз. До вечера он у ворот.') : t('Подойди к саням у южных ворот.');
+    g.trader.offers.forEach((o, i) => {
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `<b>${bagText(o.give)} → ${bagText(o.get)}</b><small>${o.taken ? t('уже обменяно') : C.afford(g, o.give) ? t('есть чем платить') : t('не хватает')}</small>`;
+      if (!o.taken) {
+        const acts = document.createElement('div');
+        acts.className = 'acts';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = t('Обменять');
+        b.disabled = !near || !C.afford(g, o.give);
+        b.addEventListener('click', () => {
+          const r = C.trade(g, i);
+          if (r !== 'ok') banner(t(r === 'nores' ? 'Не хватает' : 'Не получилось'), 1.2);
+          handle(C.drain(g));
+          renderTrade();
+          renderHUD();
+          saveCurrent();
+        });
+        acts.append(b);
+        row.append(acts);
+      }
+      list.append(row);
+    });
   }
 
   function handle(events) {
@@ -195,7 +275,7 @@
         case 'eat': sfx('eat'); break;
         case 'craft': sfx('craft'); banner(t('Готово: {tool}', { tool: t(TOOL_NAME[e.tool] || C.GEAR[e.tool].name) })); break;
         case 'snare': sfx('build'); break;
-        case 'event': banner(t(EVENT_TEXT[e.id === 'wanderer' && e.phase === 'ask' ? 'wandererAsk' : e.id]), 5); break;
+        case 'event': if (e.phase === 'ask') askDue = true; else banner(t(EVENT_TEXT[e.id]), 3.5); break;
         case 'eventDone': eventDone(e); break;
         case 'patched': sfx('build'); banner(t('Крыша залатана')); break;
         case 'found': sfx('rescue'); banner(t('{name} снова в лагере', { name: t(C.SURVIVORS[e.id].name) }), 2.2); break;
@@ -203,7 +283,8 @@
         case 'ice': banner(t('Наледь: вне лагеря идти тяжелее'), 2.6); break;
         case 'trader': banner(t('Торговец на санях у южных ворот'), 2.6); break;
         case 'traderLeft': banner(t('Торговец уехал')); break;
-        case 'traded': sfx('craft'); break;
+        case 'traded': sfx('craft'); float(g.hero.x, g.hero.y - 0.8, '✓', '#f2c84a'); break;
+        case 'smoked': if (C.SPOT.smokehouse) float(C.SPOT.smokehouse.x + 0.5, C.SPOT.smokehouse.y - 0.6, '+1', '#c9a46a'); break;
         case 'bear': banner(t('В лесу бродит медведь-шатун!'), 2.6); break;
         case 'bearHit': sfx('hit'); break;
         case 'bearDead': float(e.x, e.y - 0.6, `+${e.meat} / +${e.hide}`, '#ff9a8a'); banner(t('Медведь повержен!'), 2.2); break;
@@ -251,7 +332,8 @@
     const task = C.nextTask(g);
     const rescueOf = /^Спаси выжившего: (.+)$/.exec(task);
     const upOf = /^Улучши дом: (.+)$/.exec(task);
-    $('hint').textContent = torchMode ? t('Нажми, где поставить факел')
+    $('hint').textContent = snareMode ? t('Нажми рядом с героем, где поставить силок')
+      : torchMode ? t('Нажми, где поставить факел')
       : rescueOf ? t('Спаси выжившего: {name}', { name: t(rescueOf[1]) })
         : upOf ? t('Улучши дом: {name}', { name: t(upOf[1]) }) : t(task);
     $('btn-pause').textContent = paused ? t('Дальше') : t('Пауза');
@@ -276,6 +358,10 @@
     }
     for (const a of g.animals) consider(Math.floor(a.x), Math.floor(a.y), 'Охота');
     for (const s of g.survivors) if (s.state === 'waiting') consider(Math.floor(s.x), Math.floor(s.y), 'Позвать');
+    for (const s of g.survivors) if (s.state === 'lost') consider(Math.floor(s.x), Math.floor(s.y), 'Забрать домой');
+    if (g.event && g.event.id === 'wanderer' && g.event.phase === 'active') consider(g.event.x, g.event.y, 'К путнику');
+    if (g.trader) consider(g.trader.x, g.trader.y, 'Торговать');
+    if (g.bear) consider(Math.floor(g.bear.x), Math.floor(g.bear.y), 'Бить медведя');
     consider(C.SPOT.fire.x, C.SPOT.fire.y, 'К костру');
     if (g.hut.stage >= 2) consider(C.SPOT.bed.x, C.SPOT.bed.y, 'Спать');
     return best;
@@ -294,7 +380,15 @@
       handle(C.drain(g));
       return;
     }
+    if (snareMode) {
+      snareMode = false;
+      const sr = C.placeSnare(g, x, y);
+      if (sr !== 'ok') banner(t(SNARE_FAIL[sr] || 'Здесь силок не поставить'), 1.6);
+      handle(C.drain(g));
+      return;
+    }
     const r = C.interact(g, x, y);
+    if (r === 'trader') tradeDue = true;
     if (r === 'tool') {
       const n = C.nodeAt(g, x, y);
       banner(n ? (n.kind === 'rock' ? t('Нужна кирка (верстак)') : t('Нужен топор')) : t('Нужно копьё (верстак)'));
@@ -341,10 +435,19 @@
     g.bunks.forEach((b, i) => {
       rows.push({ id: b.built ? null : `bunk:${i}`, name: t('Нары {n}', { n: i + 1 }), desc: b.built ? t('Готовы: двое спят в тепле') : costText(C.BUNK_COST, b.paid) });
     });
+    if (g.hut.roofHole) rows.push({ id: 'patch', name: t('Залатать крышу'), desc: costText(C.ROOF_FIX, g.hut.patchPaid) });
+    // the house upgrades: after the stove
+    rows.push({ id: null, head: true, name: t('Улучшения дома'), desc: g.hut.stage < C.HUT_STAGES.length ? t('Откроются, когда в хижине будет печь') : '' });
+    if (g.hut.stage >= C.HUT_STAGES.length) {
+      for (const id of C.UPGRADE_IDS) {
+        const u = g.upgrades[id];
+        rows.push({ id: u.built ? null : `up:${id}`, name: t(UP_NAME[id]), desc: `${t(UP_DESC[id])} · ${u.built ? t('готово') : costText(C.UPGRADES[id].cost, u.paid)}` });
+      }
+    }
     rows.push({ id: 'torch', name: t('Факел'), desc: t('{n} дерева, отгоняет волков. Стоит: {k} из {m}', { n: C.TORCH.cost, k: g.torches.length, m: C.TORCH.max }) });
     for (const r of rows) {
       const row = document.createElement('div');
-      row.className = 'item';
+      row.className = r.head ? 'item head' : 'item';
       row.innerHTML = `<b>${r.name}</b><small>${r.desc}</small>`;
       if (r.id) {
         const acts = document.createElement('div');
@@ -358,6 +461,7 @@
           if (r.id === 'torch') { torchMode = true; closeOverlay(); renderHUD(); return; }
           const res = C.contribute(g, r.id);
           if (res === 'nores') banner(t('Нечего внести'), 1.2);
+          if (res === 'locked') banner(t('Сначала печь в хижине'), 1.2);
           handle(C.drain(g));
           renderBuild();
           renderHUD();
@@ -401,6 +505,41 @@
       }
       list.append(row);
     }
+    // the workshop's gear
+    const shop = C.upgradeOn(g, 'workshop');
+    const head = document.createElement('div');
+    head.className = 'item head';
+    head.innerHTML = `<b>${t('Мастерская')}</b><small>${shop ? '' : t('Построй мастерскую (улучшение дома), чтобы делать снаряжение')}</small>`;
+    list.append(head);
+    for (const id of C.GEAR_IDS) {
+      const snares = id === 'snares';
+      const have = snares ? g.gear.snares + g.snares.length >= C.SNARE.max : g.gear[id];
+      const row = document.createElement('div');
+      row.className = 'item';
+      const state = snares ? t('в руках: {n}, стоит: {k}', { n: g.gear.snares, k: g.snares.length }) : have ? t('есть') : costText(C.GEAR[id].cost);
+      row.innerHTML = `<b>${t(GEAR_LABEL[id])}</b><small>${t(GEAR_DESC[id])} · ${state}${snares && !have ? ' · ' + costText(C.GEAR[id].cost) : ''}</small>`;
+      const acts = document.createElement('div');
+      acts.className = 'acts';
+      if (!have) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = t('Сделать');
+        b.disabled = !shop || away || !C.afford(g, C.GEAR[id].cost);
+        b.addEventListener('click', () => { C.craft(g, id); handle(C.drain(g)); renderBench(); renderHUD(); saveCurrent(); });
+        acts.append(b);
+      }
+      if (snares && g.gear.snares > 0) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = t('Поставить');
+        b.addEventListener('click', () => { snareMode = true; closeOverlay(); renderHUD(); });
+        acts.append(b);
+      }
+      if (acts.childNodes.length) row.append(acts);
+      list.append(row);
+    }
   }
 
   function closeOverlay() {
@@ -410,10 +549,10 @@
   }
 
   // ───────────── Screens ─────────────
-  const SCREENS = ['menu', 'confirm', 'build', 'bench', 'result', 'pause'];
+  const SCREENS = ['menu', 'confirm', 'build', 'bench', 'event', 'trade', 'result', 'pause'];
   function show(name) {
     for (const id of SCREENS) $(id).hidden = id !== name;
-    stage.classList.toggle('dim', !!name && !['pause', 'build', 'bench'].includes(name));
+    stage.classList.toggle('dim', !!name && !['pause', 'build', 'bench', 'trade'].includes(name));
   }
 
   function showMenu() {
@@ -423,6 +562,9 @@
     overlay = null;
     paused = false;
     torchMode = false;
+    snareMode = false;
+    askDue = false;
+    tradeDue = false;
     $('hud').hidden = true;
     $('hint').hidden = true;
     $('actionbar').hidden = true;
@@ -2256,6 +2398,10 @@
       Sound.setLoop('crackle', nearFire ? 1 : 0);
       Sound.setLoop('wind', C.isBlizzard(g) ? 1 : C.isNight(g) ? 0.4 : 0.15);
       if (g.status !== 'playing') finish();
+      // an event that asks opens its dialog; reaching the trader's sled opens the trade
+      else if (askDue) { askDue = false; openEvent(); }
+      else if (tradeDue && g.trader && Math.hypot(g.trader.x + 0.5 - g.hero.x, g.trader.y + 0.5 - g.hero.y) <= C.TRADE_REACH && !g.hero.path) openTrade();
+      else if (tradeDue && (!g.trader || (!g.hero.path && !g.hero.target))) tradeDue = false;
     }
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     ctx.clearRect(0, 0, view.w, view.h);
@@ -2282,7 +2428,9 @@
     if (k === 'KeyM') { toggleSound(); return; }
     if (k === 'Escape') {
       if (torchMode) { torchMode = false; return; }
-      if (overlay === 'build' || overlay === 'bench') { closeOverlay(); return; }
+      if (snareMode) { snareMode = false; return; }
+      if (overlay === 'build' || overlay === 'bench' || overlay === 'trade') { closeOverlay(); return; }
+      if (overlay === 'event') { answer(false); return; }
       if (overlay === 'confirm') { showMenu(); return; }
       if (screen === 'play') { if (!paused) togglePause(); else showMenu(); return; }
       if (screen === 'result') showMenu();
@@ -2290,6 +2438,7 @@
     }
     if (screen !== 'play' || !g) return;
     Sound.unlock();
+    if (overlay === 'event' && (k === 'KeyY' || k === 'KeyN')) { answer(k === 'KeyY'); return; }
     if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) { keys[k] = true; e.preventDefault(); return; }
     if (k === 'Space') { togglePause(); e.preventDefault(); return; }
     if (paused) return;
@@ -2321,6 +2470,9 @@
   $('btn-bench').addEventListener('click', openBench);
   $('btn-build-close').addEventListener('click', closeOverlay);
   $('btn-bench-close').addEventListener('click', closeOverlay);
+  $('btn-trade-close').addEventListener('click', closeOverlay);
+  $('btn-event-yes').addEventListener('click', () => answer(true));
+  $('btn-event-no').addEventListener('click', () => answer(false));
   $('btn-pause').addEventListener('click', togglePause);
   $('btn-resume').addEventListener('click', togglePause);
   $('btn-pause-menu').addEventListener('click', showMenu);
