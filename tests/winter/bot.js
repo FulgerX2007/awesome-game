@@ -32,6 +32,7 @@ function nearestNode(g, kind) {
 
 // The goals in order: what to build or make next. → { id, cost, act: () => result } | null
 function nextGoal(g, cfg) {
+  const patch = { id: 'patch', cost: C.ROOF_FIX, paid: g.hut.patchPaid, act: () => C.contribute(g, 'patch') };
   if (g.hut.stage >= 1 && !g.tools.pick) return { id: 'pick', cost: C.TOOLS.pick.cost, act: () => C.craft(g, 'pick') };
   if (g.hut.stage < 3) return { id: 'hut', cost: C.HUT_STAGES[g.hut.stage].cost, paid: g.hut.paid, act: () => C.contribute(g, 'hut') };
   if (g.hut.stage < 4 && cfg.shelter) return { id: 'hut', cost: C.HUT_STAGES[g.hut.stage].cost, paid: g.hut.paid, act: () => C.contribute(g, 'hut') };
@@ -40,6 +41,8 @@ function nextGoal(g, cfg) {
     const i = g.palisade.findIndex((p) => !p.built || p.hp < C.PALISADE_HP * 0.5);
     if (i >= 0) return { id: `palisade:${i}`, cost: C.needOf(g, `palisade:${i}`).cost, paid: g.palisade[i].paid, act: () => C.contribute(g, `palisade:${i}`) };
   }
+  // a hole in the roof: patched once the camp is fenced, with wood to spare for the fires
+  if (g.hut.roofHole && g.stock.wood >= C.ROOF_FIX.wood + 10) return patch;
   if (!g.tools.shovel) return { id: 'shovel', cost: C.TOOLS.shovel.cost, act: () => C.craft(g, 'shovel') };
   const home = g.survivors.filter((s) => s.state === 'home' || s.state === 'following').length;
   const bunks = g.bunks.filter((b) => b.built).length;
@@ -79,6 +82,13 @@ function think(g, cfg, r) {
   const night = C.isNight(g), tod = C.timeOfDay(g);
   const atBase = C.atBase(g);
   if (h.food < 45) C.eat(g);
+  // events that ask: fix the roof when the stock allows, help the wanderer when food is plentiful
+  const ev = g.event;
+  if (ev && ev.phase === 'ask') {
+    // the roof now only with wood to spare for the fires; else later, from the build list
+    if (ev.id === 'roof') { if (g.stock.wood < C.ROOF_FIX.wood + 30 || C.answerEvent(g, 'fix') !== 'ok') C.answerEvent(g, 'later'); }
+    else if (ev.id === 'wanderer') { if (C.answerEvent(g, 'help') !== 'ok') C.answerEvent(g, 'ignore'); }
+  }
   // a wolf close by: fight it
   const wolf = g.wolves.filter((w) => Math.hypot(w.x - h.x, w.y - h.y) < 2.5)[0];
   if (wolf) { if (!h.target || h.target.type !== 'wolf') C.interact(g, wolf.x, wolf.y); return; }
@@ -101,6 +111,11 @@ function think(g, cfg, r) {
     }
     return;
   }
+  // no fire, no stove and no wood: waiting by the cold ashes only kills; fetch a log
+  if (!C.fireOn(g) && !C.stoveOn(g) && g.stock.wood < 2 && h.health > 15) {
+    if (!h.target || h.target.type !== 'node') { const n = nearestNode(g, 'tree'); if (n) C.interact(g, n.x, n.y); }
+    return;
+  }
   // cold: into the hut by the stove when it burns, else to the fire; on a cold day turn back in time
   const warmSpot = C.stoveOn(g) ? C.SPOT.bed : center;
   const turnBack = Math.min(70, 20 + C.chill(g) * 22);
@@ -121,6 +136,10 @@ function think(g, cfg, r) {
   if (goal && atBase) {
     const res = goal.act();
     if (res === 'done' || res === 'ok') return;
+  }
+  // the wanderer, when there's food to spare and light enough for the walk
+  if (ev && ev.id === 'wanderer' && ev.phase === 'active' && foodStock(g) > 150 && g.stock.wood >= 30 && h.warmth > 70 && tod < C.NIGHT_AT - 40 && !cfg.casual) {
+    if (C.interact(g, ev.x, ev.y) === 'wanderer') return;
   }
   // rescue: survivors whose need is met
   if (g.hut.stage >= (cfg.shelter ? 4 : 3) && (!cfg.shelter || C.palisadeUp(g))) {

@@ -382,19 +382,23 @@
 - Modify: `tests/winter/bot.js`
 - Create: `tests/winter/events.test.js`
 
-- [ ] add `EVENTS`/`EVENT_IDS`, `g.event` (plus `migrate` and validation), `pickEvent` at dawn with `erng` and the day rules, `answerEvent` and its result codes, and the default choice at nightfall
-- [ ] roof: `roofHole` and its effects; `contribute(g, 'patch')`; `{ type: 'patched' }`
-- [ ] wanderer: placed on a free reachable tile; `interact` on him; the help and ignore choices; the reward; he leaves at night
-- [ ] client: a temporary banner for an `'ask'` event, and a key (Y/N) to answer it; the full modal comes in Task 10. Add the hints «Почини крышу» and «Помоги путнику» with RO strings
-- [ ] bot: fix the roof when it can pay; help the wanderer when it has plenty of food; patch a hole later
-- [ ] write tests:
+- [x] add `EVENTS`/`EVENT_IDS`, `g.event` (plus `migrate` and validation), `pickEvent` at dawn with `erng` and the day rules, `answerEvent` and its result codes, and the default choice at nightfall
+- [x] roof: `roofHole` and its effects; `contribute(g, 'patch')`; `{ type: 'patched' }`
+- [x] wanderer: placed on a free reachable tile; `interact` on him; the help and ignore choices; the reward; he leaves at night
+- [x] client: a temporary banner for an `'ask'` event, and a key (Y/N) to answer it; the full modal comes in Task 10. Add the hints «Почини крышу» and «Помоги путнику» with RO strings
+- [x] bot: fix the roof when it can pay; help the wanderer when it has plenty of food; patch a hole later
+- [x] write tests:
   - each event starts only when its condition holds and resolves each way;
   - the nightfall default;
   - no event on day 1 or the last day, and none twice in a row;
   - a seed replays the same events;
   - `answerEvent` with no event, or with a bad choice;
   - a save and restore with an `'ask'` open.
-- [ ] run the tests, including the balance tests; they must pass before Task 5
+- [x] run the tests, including the balance tests; they must pass before Task 5
+- [x] ➕ the roof event struck on almost every blizzard of the harsh winter, and each fix or patch took wood when wood was scarcest. Now there are caps per winter (`EVENT_MAX`: roof 2, wanderer 4), and the roof only comes from day 5 with the door hung
+- [x] ➕ the hole in the roof was too harsh: no fast sleep pushed greedy past 60 real minutes, and full chill in the hut killed harsh seeds. Now the hut's chill factor is 0.7 instead of 0.4, the stove burns ×1.3, and sleep stays fast
+- [x] ➕ the wanderer's tool gift could be the shovel or the ice pick, which skips the gates on the way to the survivors. His tools are now the pick, the spear and the iron axe
+- [x] ➕ bot: it left the camp with no wood and froze by dead ashes. Now it fetches a log when there is no fire, no stove and no wood; it walks to the wanderer only with wood and warmth to spare; it fixes the roof only with 30 wood left over
 
 ### Task 5: Events: the lost child, the aurora, the thaw and the ice
 

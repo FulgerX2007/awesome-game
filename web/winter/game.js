@@ -36,7 +36,13 @@
   let time = 0, last = 0, stepT = 0;
   let darkCanvas = null;
 
-  const RES_NAME = { wood: 'Дерево', stone: 'Камень', metal: 'Металл' };
+  const RES_NAME = { wood: 'Дерево', stone: 'Камень', metal: 'Металл', hide: 'Шкуры' };
+  // Events of the day: what the banner says, and the answers on Y and N (the full dialog comes with the panels)
+  const EVENT_TEXT = {
+    roof: 'Метель проломила кровлю! Y — чинить сейчас (15 дерева, 5 камня), N — потом',
+    wanderer: 'В лесу лежит раненый путник. Найди его до ночи',
+    wandererAsk: 'Путник просит две порции еды. Y — помочь, N — пройти мимо',
+  };
   const TOOL_NAME = { axe: 'Каменный топор', ironAxe: 'Железный топор', pick: 'Кирка', shovel: 'Лопата', icePick: 'Ледоруб', spear: 'Копьё' };
   const TOOL_DESC = {
     axe: 'Рубить деревья', ironAxe: 'Рубит в полтора раза быстрее', pick: 'Добывать камень', shovel: 'Копать сугробы',
@@ -144,6 +150,24 @@
   }
   const float = (x, y, text, color) => floaters.add(text, x * cam.ts, y * cam.ts, { color, size: 16, life: 1.1, rise: 30 });
 
+  function eventDone(e) {
+    if (e.id === 'roof') { banner(t(e.choice === 'fix' ? 'Крыша починена' : 'В крыше дыра: в хижине холодно, печь прогорает быстрее'), 2.6); return; }
+    if (e.choice !== 'help') { banner(t('Путник ушёл')); return; }
+    const r = e.reward || {};
+    const gift = r.tool ? t(TOOL_NAME[r.tool]) : `${r.n} ${t(RES_NAME[r.item]).toLowerCase()}`;
+    banner(t('Путник благодарит: {gift}', { gift }), 2.6);
+    sfx('rescue');
+  }
+
+  // Y / N answer the event that asks.
+  function answer(yes) {
+    const ev = g && g.event;
+    if (!ev || ev.phase !== 'ask') return false;
+    const r = C.answerEvent(g, C.EVENT_CHOICES[ev.id][yes ? 0 : 1]);
+    if (r === 'nores') banner(t('Не хватает припасов'));
+    return true;
+  }
+
   function handle(events) {
     for (const e of events) {
       effects(e);
@@ -167,6 +191,9 @@
         case 'eat': sfx('eat'); break;
         case 'craft': sfx('craft'); banner(t('Готово: {tool}', { tool: t(TOOL_NAME[e.tool] || C.GEAR[e.tool].name) })); break;
         case 'snare': sfx('build'); break;
+        case 'event': banner(t(EVENT_TEXT[e.id === 'wanderer' && e.phase === 'ask' ? 'wandererAsk' : e.id]), 5); break;
+        case 'eventDone': eventDone(e); break;
+        case 'patched': sfx('build'); banner(t('Крыша залатана')); break;
         case 'snareCaught': float(e.x + 0.5, e.y, t('+1 мясо в силках'), '#ff9a8a'); break;
         case 'scared': break;
         case 'built': sfx('build'); break;
@@ -1992,6 +2019,8 @@
     if (paused) return;
     if (k === 'KeyE' || k === 'Enter') act();
     else if (k === 'KeyF') eat();
+    else if (k === 'KeyY') answer(true);
+    else if (k === 'KeyN') answer(false);
     else if (k === 'KeyB') { if (overlay === 'build') closeOverlay(); else openBuild(); }
     else if (k === 'KeyT') { if (overlay === 'bench') closeOverlay(); else openBench(); }
   });
