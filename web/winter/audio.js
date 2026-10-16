@@ -1,4 +1,5 @@
-// Долгая зима — synthesized sound (WebAudio, no files): the axe, the pick, crunching snow, wolves, the fire's
+// Долгая зима — synthesized sound (WebAudio, no files): the axe, the pick, crunching snow, wolves, the bear, the
+// trader's bells, snares, the aurora, the fire's
 // crackle and the blizzard's wind as two loops. Works in the browser (window.WinterAudio) and in Node (module.exports). Without an AudioContext, or before
 // the first user gesture (unlock), every call is a safe no-op: nothing autoplays. The on/off toggle is kept
 // in localStorage under STORE_KEY; broken or blocked storage keeps the default (on).
@@ -161,8 +162,31 @@
       noise({ d: 1.2, vol: 0.08, f: 300, q: 0.6, type: 'lowpass', attack: 0.2 });
       [64, 60, 57, 52].forEach((m, k) => tone(freq(m), { at: 0.2 + k * 0.2, d: 0.5, vol: 0.06, type: 'triangle', attack: 0.01 }));
     },
+    roar() { // the bear: a low growl swelling and breaking off
+      tone(vary(90, 0.06), { d: 1.1, vol: 0.09, type: 'sawtooth', to: 60, attack: 0.15 });
+      noise({ d: 1.0, vol: 0.08, f: 260, q: 0.7, type: 'lowpass', attack: 0.15, sweep: 140 });
+    },
+    bells() { // the trader's sled: harness bells
+      [88, 91, 88, 93, 88].forEach((m, k) => tone(freq(m), { at: k * 0.09, d: 0.35, vol: 0.035, type: 'triangle' }));
+    },
+    trade() { // a deal: two coins and a pleased note
+      tone(vary(2200, 0.03), { d: 0.12, vol: 0.04, type: 'square', to: 1900 });
+      tone(vary(2600, 0.03), { at: 0.08, d: 0.12, vol: 0.035, type: 'square', to: 2300 });
+      tone(freq(79), { at: 0.18, d: 0.35, vol: 0.04, type: 'triangle' });
+    },
+    snare() { // a snare set, or a catch at dawn: a taut cord's twang
+      tone(vary(520, 0.05), { d: 0.25, vol: 0.05, type: 'triangle', to: 420 });
+      noise({ d: 0.05, vol: 0.04, f: 1500, q: 2 });
+    },
+    aurora() { // the northern lights: a soft high shimmer
+      [84, 88, 91, 96].forEach((m, k) => tone(freq(m) * (1 + k * 0.003), { at: k * 0.25, d: 2.2, vol: 0.02, type: 'sine', attack: 0.6 }));
+    },
+    creak() { // the roof gives way: a wooden groan and a crack
+      tone(vary(140, 0.05), { d: 0.7, vol: 0.06, type: 'sawtooth', to: 95, attack: 0.1 });
+      noise({ at: 0.55, d: 0.18, vol: 0.12, f: 900, q: 1 });
+    },
   };
-  const GAPS = { chop: 140, mine: 140, step: 180, pick: 160, eat: 300, fire: 300, howl: 3000, bite: 200, hit: 120, build: 300, craft: 300, rescue: 800, dawn: 1500, win: 1000, lose: 1000 };
+  const GAPS = { chop: 140, mine: 140, step: 180, pick: 160, eat: 300, fire: 300, howl: 3000, bite: 200, hit: 120, build: 300, craft: 300, rescue: 800, dawn: 1500, win: 1000, lose: 1000, roar: 2000, bells: 1500, trade: 200, snare: 300, aurora: 4000, creak: 1500 };
 
   // ───────────── Loops: the fire's crackle and the wind ─────────────
   // Each loop is a looping noise buffer through a filter and a gain; setLoop(name, level) fades it to 0…1.

@@ -6,7 +6,8 @@
 // PW_CHROMIUM=/path/to/chromium picks a specific browser binary instead of Playwright's own.
 // Starts the Go server on a free port with in-memory storage. A new winter: walking with keys, chopping a tree by a
 // click, feeding the fire, eating; a seeded night with a wolf and a sleep in the repaired hut; a reload; a death and
-// «Начать день заново». Then a 360 px RO phone with touch and the action button. Exits non-zero on failure and
+// «Начать день заново». Then the expansion (an upgrade and gear from the panels, the trader, the roof event's
+// dialog, the bear), and a 360 px RO phone with touch, the action button, the event dialog and the trade panel. Exits non-zero on failure and
 // always stops the server.
 const { spawn } = require('node:child_process');
 const net = require('node:net');
@@ -236,6 +237,88 @@ async function desktopChecks() {
   await ctx.close();
 }
 
+// The expansion, with a seeded state: a house upgrade and gear from the panels, the trader's panel, the roof
+// event's dialog, the bear on screen.
+const clickRow = (page, list, name, button) => page.evaluate(([list, name, button]) => {
+  const row = [...document.querySelectorAll(`#${list} .item`)].find((r) => r.querySelector('b').textContent.startsWith(name));
+  const b = row && [...row.querySelectorAll('button')].find((x) => x.textContent === button);
+  if (!b || b.disabled) return false;
+  b.click();
+  return true;
+}, [list, name, button]);
+
+async function expansionChecks() {
+  const { ctx, page, errors, external } = await newPage({ width: 1100, height: 760 });
+  await page.goto(`${base}/winter/`);
+  await ready(page);
+  await page.click('#btn-normal');
+  await game(page, () => {
+    const g = window.winterDebugGame();
+    g.hut.stage = 4; g.hut.stove = 20; g.fire.fuel = 20; g.animals = [];
+    Object.assign(g.stock, { wood: 120, stone: 40, metal: 20, hide: 10, meat: 10, fish: 10, berries: 10 });
+    g.hero.x = 27.5; g.hero.y = 21.5;
+  });
+  // the workshop from «Постройки», the coat from «Верстак»
+  await page.click('#btn-build');
+  check(await page.evaluate(() => document.getElementById('build-list').textContent.includes('Улучшения дома')), 'the build panel lists the house upgrades');
+  check(await clickRow(page, 'build-list', 'Мастерская', 'Внести'), 'the workshop row can be paid');
+  check(await game(page, () => window.winterDebugGame().upgrades.workshop.built), 'the workshop is built from the panel');
+  await page.click('#btn-build-close');
+  await page.click('#btn-bench');
+  check(await clickRow(page, 'bench-list', 'Шуба', 'Сделать'), 'the coat row can be made');
+  check(await game(page, () => window.winterDebugGame().gear.coat), 'the coat is made at the workbench');
+  await page.click('#btn-bench-close');
+
+  // the trader on his day: the action button by the sled opens his panel; a trade goes through
+  await game(page, () => {
+    const g = window.winterDebugGame(), C = window.WinterCore;
+    g.t = 3 * C.DAY - 0.02;
+  });
+  await page.waitForFunction(() => !!window.winterDebugGame().trader, null, { timeout: 5000 }).catch(() => {});
+  check(await game(page, () => !!window.winterDebugGame().trader), 'the trader comes at dawn of day 4');
+  // an event may have rolled at that dawn: answer it so nothing covers the panels
+  await page.waitForTimeout(300);
+  if (await visible(page, 'event')) await page.click('#btn-event-no');
+  await game(page, () => { const g = window.winterDebugGame(), C = window.WinterCore; g.hero.x = C.SPOT.trader.x + 0.5; g.hero.y = C.SPOT.trader.y - 0.5; g.hero.path = null; g.hero.target = null; g.bear = null; });
+  await page.waitForTimeout(300);
+  check(await text(page, '#btn-act') === 'Торговать', 'the action button offers to trade by the sled', await text(page, '#btn-act'));
+  await page.click('#btn-act');
+  await page.waitForFunction(() => !document.getElementById('trade').hidden, null, { timeout: 5000 }).catch(() => {});
+  check(await visible(page, 'trade'), 'the trade panel opens');
+  const taken0 = await game(page, () => window.winterDebugGame().trader.offers.filter((o) => o.taken).length);
+  await page.evaluate(() => { const b = [...document.querySelectorAll('#trade-list button')].find((x) => !x.disabled); if (b) b.click(); });
+  check(await game(page, () => window.winterDebugGame().trader.offers.filter((o) => o.taken).length) === taken0 + 1, 'a trade goes through');
+  await page.click('#btn-trade-close');
+
+  // the roof event: its dialog, answered «Потом»
+  await game(page, () => {
+    const g = window.winterDebugGame();
+    g.event = { id: 'roof', phase: 'ask', day: 4 };
+    g.events.push({ type: 'event', id: 'roof', phase: 'ask' });
+  });
+  await page.waitForFunction(() => !document.getElementById('event').hidden, null, { timeout: 5000 }).catch(() => {});
+  check(await visible(page, 'event') && await text(page, '#event-title') === 'Метель проломила кровлю!', 'the roof event opens its dialog');
+  const tStop = await game(page, () => window.winterDebugGame().t);
+  await page.waitForTimeout(400);
+  check(await game(page, () => window.winterDebugGame().t) === tStop, 'the world waits while the dialog is open');
+  await page.click('#btn-event-no');
+  check(await game(page, () => window.winterDebugGame().hut.roofHole) && !(await visible(page, 'event')), '«Потом» leaves a hole and closes the dialog');
+
+  // the bear in view for a while, an aurora night
+  await game(page, () => {
+    const g = window.winterDebugGame(), C = window.WinterCore;
+    g.trader = null;
+    g.hero.x = 10.5; g.hero.y = 30.5;
+    g.bear = { id: 9999, x: 14.5, y: 30.5, hp: 10, cd: 0, calm: 0, path: null, plan: 0, chase: false };
+  });
+  await page.waitForTimeout(1500);
+  await game(page, () => { const g = window.winterDebugGame(), C = window.WinterCore; g.bear = null; g.hero.health = 100; g.event = { id: 'aurora', phase: 'active', day: 4 }; g.t = 3 * C.DAY + C.NIGHT_AT + 15; });
+  await page.waitForTimeout(800);
+  check(external.length === 0, 'no requests leave the server (expansion)', external.join('\n'));
+  check(errors.length === 0, 'no console errors (expansion)', errors.join('\n'));
+  await ctx.close();
+}
+
 async function roPhoneChecks() {
   const { ctx, page, errors, external } = await newPage({ width: 360, height: 720 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   await page.goto(`${base}/winter/?lang=ro`);
@@ -279,6 +362,29 @@ async function roPhoneChecks() {
   await page.tap('#btn-bench');
   check(await text(page, '#bench-title') === 'Bancul de lucru', 'the workbench is in RO');
   await page.tap('#btn-bench-close');
+  // the event dialog and the trade panel, in RO, by touch
+  await game(page, () => {
+    const g = window.winterDebugGame();
+    g.hut.stage = 3;
+    g.event = { id: 'roof', phase: 'ask', day: 2 };
+    g.events.push({ type: 'event', id: 'roof', phase: 'ask' });
+  });
+  await page.waitForFunction(() => !document.getElementById('event').hidden, null, { timeout: 5000 }).catch(() => {});
+  check(await text(page, '#event-title') === 'Viscolul a spart acoperișul!', 'the event dialog is in RO');
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no horizontal scroll with the dialog');
+  await page.tap('#btn-event-no');
+  await game(page, () => {
+    const g = window.winterDebugGame(), C = window.WinterCore;
+    g.trader = { x: C.SPOT.trader.x, y: C.SPOT.trader.y, offers: [{ give: { meat: 4 }, get: { metal: 3 }, taken: false }, { give: { fish: 4 }, get: { stone: 12 }, taken: false }, { give: { berries: 6 }, get: { wood: 15 }, taken: false }, { give: { hide: 3 }, get: { metal: 5 }, taken: false }] };
+    g.hero.x = C.SPOT.trader.x + 0.5; g.hero.y = C.SPOT.trader.y - 0.5; g.hero.path = null; g.hero.target = null;
+  });
+  await page.waitForTimeout(300);
+  await page.tap('#btn-act');
+  await page.waitForFunction(() => !document.getElementById('trade').hidden, null, { timeout: 5000 }).catch(() => {});
+  check(await text(page, '#trade-title') === 'Negustorul', 'the trade panel opens by touch, in RO');
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no horizontal scroll with the trade panel');
+  await page.tap('#btn-trade-close');
+  await game(page, () => { window.winterDebugGame().trader = null; });
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'no horizontal scroll');
   const hint = await text(page, '#hint');
   check(hint.length > 3 && !/[А-Яа-яЁё]/.test(hint), 'the hint line is in RO', hint);
@@ -298,6 +404,7 @@ async function main() {
   if (!up) throw new Error('server did not answer /healthz');
   browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
   await desktopChecks();
+  await expansionChecks();
   await roPhoneChecks();
 }
 

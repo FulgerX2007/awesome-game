@@ -569,15 +569,15 @@
 - Modify: `tests/winter/audio.test.js`
 - Modify: `tests/winter/smoke.cjs`
 
-- [ ] sounds: `roar`, `bells`, `trade`, `snare`, `aurora` (a soft shimmer), `creak` (the roof)
-- [ ] write audio tests for the new names
-- [ ] smoke, desktop, with a seeded state:
+- [x] sounds: `roar`, `bells`, `trade`, `snare`, `aurora` (a soft shimmer), `creak` (the roof)
+- [x] write audio tests for the new names
+- [x] smoke, desktop, with a seeded state:
   - build the workshop and craft the coat in the panel;
   - open the trader on his day and trade;
   - answer the roof event in the modal;
   - show the bear for a few seconds with no page errors.
-- [ ] smoke, phone: the event modal and the trade panel at 360 px in RO, by touch, with no horizontal scroll
-- [ ] run `node --test`, then the smoke 3 times in a row; everything must pass
+- [x] smoke, phone: the event modal and the trade panel at 360 px in RO, by touch, with no horizontal scroll
+- [x] run `node --test`, then the smoke 3 times in a row; everything must pass
 
 ### Task 13: Verify acceptance criteria
 - [ ] verify all requirements from the Overview are implemented
