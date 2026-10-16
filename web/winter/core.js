@@ -97,8 +97,11 @@
   const EVENT_CHANCE = { normal: 0.45, harsh: 0.55 };
   const EVENT_CHOICES = { roof: ['fix', 'later'], wanderer: ['help', 'ignore'] };
   const EVENT_DEFAULT = { roof: 'later', wanderer: 'ignore' };
-  const EVENT_IDS = Object.keys(EVENT_CHOICES);
-  const EVENT_MAX = { roof: 2, wanderer: 4 };            // how often each can happen in one winter
+  const EVENT_IDS = ['roof', 'wanderer', 'lostChild', 'aurora', 'thaw'];
+  const EVENT_MAX = { roof: 2, wanderer: 4, lostChild: 2, aurora: 3, thaw: 2 };   // how often each can happen in one winter
+  const LOST_CHILD = { near: 10, far: 16, night: 40 };  // where he wanders off to; what a night in the forest costs him
+  const AURORA = { energy: 20, hp: 10 };                // a calm night: no wolves, strength for the hero and the camp
+  const THAW = { warm: 8, lastDay: 27, ice: 0.8 };      // a warm day, then a day of crust: the hero walks slower outside
   const ROOF_FIX = { wood: 15, stone: 5 };
   const ROOF_HOLE = { stove: 1.3, chill: 0.7 };          // a hole in the roof: the stove burns faster, the hut keeps less cold out
   // the wanderer's tools never include the shovel or the ice pick: those open the way to survivors
@@ -234,7 +237,7 @@
       tools: { axe: true, ironAxe: false, pick: false, shovel: false, icePick: false, spear: false },
       fire: { fuel: 12 },
       hut: { stage: 0, paid: {}, stove: 0, roofHole: false, patchPaid: {} },
-      event: null, lastEvent: null, eventsSeen: {},
+      event: null, lastEvent: null, eventsSeen: {}, iceDay: 0,
       palisade: SEGMENTS.map(() => ({ built: false, hp: 0, paid: {} })),
       bunks: [{ built: false, paid: {} }, { built: false, paid: {} }, { built: false, paid: {} }],
       upgrades: newUpgrades(),
@@ -287,6 +290,7 @@
     let t = baseTemp(dayOf(g));
     if (isNight(g)) t -= 8;
     if (isBlizzard(g)) t -= 10;
+    if (g.event && g.event.id === 'thaw') t += THAW.warm;
     return t;
   }
 
@@ -396,8 +400,12 @@
   }
 
   // Moves an entity along its path; deep snow slows it. A drift on the way is dug out (the shovel).
+  const iceOn = (g) => g.iceDay === dayOf(g);
+  // The crust after a thaw slows the hero outside the camp.
+  const iceSlow = (g, e) => (e === g.hero && iceOn(g) && !inBase(Math.floor(e.x), Math.floor(e.y)) ? THAW.ice : 1);
+
   function follow(g, e, speed, dt) {
-    let left = speed * dt;
+    let left = speed * iceSlow(g, e) * dt;
     while (e.path && e.path.length && left > 0) {
       const w = e.path[0];
       if (!walkable(g, w.x, w.y, e === g.hero ? g.tools : FOLLOW_TOOLS(g))) { e.path = null; break; }
@@ -527,7 +535,7 @@
   function moveFree(g, dt) {
     const h = g.hero;
     const slow = g.tiles[idx(Math.floor(h.x), Math.floor(h.y))] === ':' ? 1 / DEEP : 1;
-    const len = Math.hypot(h.dir.x, h.dir.y), d = (SPEED * slow * dt) / len;
+    const len = Math.hypot(h.dir.x, h.dir.y), d = (SPEED * slow * iceSlow(g, h) * dt) / len;
     const fits = (x, y) => [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]].every(([ox, oy]) => walkable(g, Math.floor(x + ox), Math.floor(y + oy)));
     if (fits(h.x + h.dir.x * d, h.y)) h.x += h.dir.x * d;
     if (fits(h.x, h.y + h.dir.y * d)) h.y += h.dir.y * d;
@@ -583,6 +591,13 @@
       if (!path) return 'none';
       order(g, { type: 'wanderer' }, path);
       return 'wanderer';
+    }
+    const lost = g.survivors.find((s) => s.state === 'lost' && Math.floor(s.x) === x && Math.floor(s.y) === y);
+    if (lost) {
+      const path = pathNextTo(g, h, x, y);
+      if (!path) return 'none';
+      order(g, { type: 'fetch', id: lost.id }, path);
+      return 'fetch';
     }
     const sv = g.survivors.find((s) => s.state === 'waiting' && Math.floor(s.x) === x && Math.floor(s.y) === y);
     if (sv) {
@@ -678,6 +693,18 @@
         clearOrder(h);
         const ev = g.event;
         if (ev && ev.id === 'wanderer' && ev.phase === 'active') { ev.phase = 'ask'; g.events.push({ type: 'event', id: 'wanderer', phase: 'ask' }); }
+        return;
+      }
+      case 'fetch': {
+        const sv = g.survivors.find((s) => s.id === tg.id);
+        // he may have walked on: follow him until next to him
+        if (sv && sv.state === 'lost' && Math.hypot(sv.x - h.x, sv.y - h.y) > 1.6) { h.path = pathNextTo(g, h, Math.floor(sv.x), Math.floor(sv.y)); if (!h.path) clearOrder(h); return; }
+        clearOrder(h);
+        if (!sv || sv.state !== 'lost') return;
+        sv.state = 'following';
+        sv.back = true;
+        sv.path = null;
+        if (g.event && g.event.id === 'lostChild') { g.event = null; g.events.push({ type: 'eventDone', id: 'lostChild', choice: 'fetched' }); }
         return;
       }
       case 'survivor': {
@@ -809,6 +836,9 @@
   const EVENT_WHEN = {
     roof: (g) => isBlizzard(g) && g.hut.stage >= 3 && dayOf(g) >= 5 && !g.hut.roofHole,
     wanderer: () => true,
+    lostChild: (g) => g.survivors.some((s) => s.id === 'child' && s.state === 'home' && s.hp >= 50),
+    aurora: () => true,
+    thaw: (g) => dayOf(g) <= THAW.lastDay,
   };
   const EVENT_START = {
     roof: (g) => ({ id: 'roof', phase: 'ask' }),
@@ -820,6 +850,21 @@
       }, erand);
       return p ? { id: 'wanderer', phase: 'active', x: p.x, y: p.y } : null;
     },
+    lostChild: (g) => {
+      const sv = g.survivors.find((s) => s.id === 'child');
+      const p = freeTile(g, (x, y) => {
+        const d = Math.hypot(x - SPOT.fire.x, y - SPOT.fire.y);
+        return d >= LOST_CHILD.near && d <= LOST_CHILD.far;
+      }, erand);
+      const path = p && pathTo(g, sv, p.x, p.y, {});
+      if (!path) return null;
+      sv.state = 'lost';
+      sv.path = path;
+      sv.busy = false;
+      return { id: 'lostChild', phase: 'active', x: p.x, y: p.y };
+    },
+    aurora: () => ({ id: 'aurora', phase: 'active' }),
+    thaw: (g) => { g.iceDay = dayOf(g) + 1; return { id: 'thaw', phase: 'active' }; },
   };
 
   // At dawn: maybe one event, never on the first or the last day, never the same twice in a row.
@@ -827,6 +872,7 @@
     g.event = null;
     const day = dayOf(g);
     if (day < 2 || day >= DAYS) return;
+    if (iceOn(g)) { g.events.push({ type: 'ice' }); return; }   // the thaw's crust takes the day's slot
     if (erand(g) >= EVENT_CHANCE[g.difficulty]) return;
     const can = EVENT_IDS.filter((id) => id !== g.lastEvent && (g.eventsSeen[id] || 0) < EVENT_MAX[id] && EVENT_WHEN[id](g));
     if (!can.length) return;
@@ -844,7 +890,7 @@
     if (g.status !== 'playing') return 'bad';
     const ev = g.event;
     if (!ev || ev.phase !== 'ask') return 'none';
-    if (!EVENT_CHOICES[ev.id].includes(choice)) return 'bad';
+    if (!(EVENT_CHOICES[ev.id] || []).includes(choice)) return 'bad';
     const out = { type: 'eventDone', id: ev.id, choice };
     if (ev.id === 'roof') {
       if (choice === 'fix') {
@@ -884,6 +930,38 @@
     if (!ev) return;
     if (ev.phase === 'ask') { answerEvent(g, EVENT_DEFAULT[ev.id]); return; }
     if (ev.id === 'wanderer') { g.event = null; g.events.push({ type: 'eventDone', id: 'wanderer', choice: 'ignore' }); }
+    if (ev.id === 'lostChild') {
+      // not found by night: a night in the forest; he finds his way back at dawn
+      g.event = null;
+      g.events.push({ type: 'eventDone', id: 'lostChild', choice: 'night' });
+      for (const sv of g.survivors) {
+        if (sv.state !== 'lost') continue;
+        sv.hp = Math.max(0, sv.hp - LOST_CHILD.night);
+        if (sv.hp <= 0) killSurvivor(g, sv);
+      }
+    }
+    if (ev.id === 'aurora') {
+      g.hero.energy = clamp(g.hero.energy + AURORA.energy, 0, STAT_MAX);
+      for (const sv of g.survivors) if (sv.state === 'home') sv.hp = clamp(sv.hp + AURORA.hp, 0, STAT_MAX);
+      g.events.push({ type: 'aurora' });
+    }
+  }
+
+  // At dawn a child still lost comes home by himself.
+  function lostAtDawn(g) {
+    for (const sv of g.survivors) {
+      if (sv.state !== 'lost') continue;
+      sv.state = 'home';
+      sv.path = null;
+      sv.x = SPOT.fire.x + 0.5; sv.y = SPOT.fire.y + 2.5;
+      g.events.push({ type: 'found', id: sv.id });
+    }
+  }
+
+  function killSurvivor(g, sv) {
+    sv.state = 'dead';
+    g.deaths.push({ id: sv.id, day: dayOf(g) });
+    g.events.push({ type: 'died', id: sv.id });
   }
 
   // ── Building (partial contributions) ──
@@ -1001,10 +1079,11 @@
         if (inBase(Math.floor(sv.x), Math.floor(sv.y))) {
           sv.state = 'home';
           sv.path = null;
-          g.events.push({ type: 'joined', id: sv.id });
+          if (sv.back) { delete sv.back; g.events.push({ type: 'found', id: sv.id }); } else g.events.push({ type: 'joined', id: sv.id });
         }
         continue;
       }
+      if (sv.state === 'lost') { if (sv.path) follow(g, sv, SPEED * 0.6, dt); continue; }
       if (sv.state !== 'home') continue;
       // needs: food from the stock, a bunk, warmth (the stove or a fed fire)
       sv.food = clamp(sv.food - SURVIVOR_FOOD * dt, 0, STAT_MAX);
@@ -1018,12 +1097,7 @@
       const warm = stoveOn(g) || (fireOn(g) && chill(g) <= FIRE.warm) || (fireOn(g) && (bunk || annex));
       const ok = sv.food > 0 && warm;
       sv.hp = clamp(sv.hp + (ok ? 0.2 * (annex ? ANNEX.heal : 1) : -0.35) * dt, 0, STAT_MAX);
-      if (sv.hp <= 0) {
-        sv.state = 'dead';
-        g.deaths.push({ id: sv.id, day: dayOf(g) });
-        g.events.push({ type: 'died', id: sv.id });
-        continue;
-      }
+      if (sv.hp <= 0) { killSurvivor(g, sv); continue; }
       // work by day while well
       sv.busy = ok && !isNight(g);
       if (!sv.busy) continue;
@@ -1246,8 +1320,9 @@
     const nightWas = before % DAY >= NIGHT_AT, nightNow = isNight(g);
     if (!nightWas && nightNow && now === was) {
       g.events.push({ type: 'night', day: dayOf(g) });
+      const calm = g.event && g.event.id === 'aurora';
       eventsAtNight(g);
-      spawnWolves(g);
+      if (!calm) spawnWolves(g);
     }
     if (now > was) {
       // dawn: the wolves leave, bushes and trees regrow, the dawn save point
@@ -1256,6 +1331,7 @@
       for (const n of g.nodes) if (n.amount <= 0 && g.t >= n.regrowAt) { n.amount = n.max; touchNodes(g); }
       g.hero.load = inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) ? 0 : g.hero.load;
       snaresAtDawn(g);
+      lostAtDawn(g);
       g.events.push({ type: 'dawn', day: dayOf(g), blizzard: isBlizzard(g) });
       g.dawnDue = true;
       if (now < DAYS) pickEvent(g);
@@ -1305,7 +1381,7 @@
   // ★ survived, ★★ ≥ 3 survivors alive at the end, ★★★ all five alive and the hut fully repaired.
   function stars(g) {
     if (g.status !== 'won') return 0;
-    const alive = g.survivors.filter((s) => s.state === 'home').length;
+    const alive = g.survivors.filter((s) => s.state === 'home' || s.state === 'lost').length;
     if (alive >= 5 && g.hut.stage >= HUT_STAGES.length) return 3;
     return alive >= 3 ? 2 : 1;
   }
@@ -1319,6 +1395,7 @@
     if (h.warmth < 35) return g.hut.stage >= 4 ? 'Согрейся в хижине у печи' : 'Согрейся у костра';
     if (g.fire.fuel < 4) return g.stock.wood > 0 ? 'Подкинь дров в костёр' : 'Наруби дров для костра';
     if (isNight(g) && g.hut.stage >= 2 && h.energy < 60) return 'Ночь: поспи в хижине';
+    if (g.survivors.some((s) => s.state === 'lost') && !isNight(g)) return 'Найди ребёнка до ночи';
     if (g.event && g.event.id === 'wanderer' && g.event.phase === 'active') return 'Помоги путнику';
     if (g.hut.roofHole) return 'Почини крышу';
     if (g.hut.stage < 1) return 'Почини хижину: стены';
@@ -1345,7 +1422,7 @@
     'Согрейся у костра', 'Подкинь дров в костёр', 'Наруби дров для костра', 'Ночь: поспи в хижине', 'Почини хижину: стены',
     'Сделай кирку на верстаке', 'Почини хижину: крыша', 'Почини хижину: дверь', 'Сложи печь в хижине', 'Построй частокол вокруг лагеря',
     'Сделай лопату: к Плотнику не пройти через сугробы', 'Сделай ледоруб: Кузнец за озером', 'Спаси выжившего: {name}',
-    'Сделай нары для выживших', 'Улучши дом: {name}', 'Держись до весны', 'Помоги путнику', 'Почини крышу',
+    'Сделай нары для выживших', 'Улучши дом: {name}', 'Держись до весны', 'Помоги путнику', 'Почини крышу', 'Найди ребёнка до ночи',
   ];
 
   // ── Snapshots and the save ──
@@ -1376,6 +1453,7 @@
     if (m.event === undefined) m.event = null;
     if (m.lastEvent === undefined) m.lastEvent = null;
     if (m.eventsSeen === undefined) m.eventsSeen = {};
+    if (m.iceDay === undefined) m.iceDay = 0;
     return m;
   }
 
@@ -1389,13 +1467,14 @@
     if (!o.stock || !ITEMS.every((k) => num(o.stock[k], 0, 1e6)) || !o.tools || !Object.keys(TOOLS).every((k) => typeof o.tools[k] === 'boolean')) return null;
     if (!Array.isArray(o.nodes) || !o.nodes.every((n) => n && ['tree', 'rock', 'bush', 'scrap'].includes(n.kind) && num(n.x, 0, W - 1) && num(n.y, 0, H - 1))) return null;
     if (!o.hut || !num(o.hut.stage, 0, HUT_STAGES.length) || !Array.isArray(o.palisade) || o.palisade.length !== 4 || !Array.isArray(o.bunks)) return null;
-    if (!Array.isArray(o.survivors) || o.survivors.length !== SURVIVOR_IDS.length || !o.survivors.every((s) => SURVIVOR_IDS.includes(s.id) && ['waiting', 'following', 'home', 'dead'].includes(s.state))) return null;
+    if (!Array.isArray(o.survivors) || o.survivors.length !== SURVIVOR_IDS.length || !o.survivors.every((s) => SURVIVOR_IDS.includes(s.id) && ['waiting', 'following', 'home', 'dead', 'lost'].includes(s.state))) return null;
     if (!o.upgrades || typeof o.upgrades !== 'object' || !UPGRADE_IDS.every((id) => o.upgrades[id] && typeof o.upgrades[id].built === 'boolean' && o.upgrades[id].paid && typeof o.upgrades[id].paid === 'object')) return null;
     if (!num(o.upgrades.smokehouse.work, 0, SMOKE.every) || !num(o.upgrades.smokehouse.fuel, 0, SMOKE.perLog)) return null;
     if (!o.gear || !['coat', 'lantern', 'sled'].every((k) => typeof o.gear[k] === 'boolean') || !Number.isInteger(o.gear.snares) || !num(o.gear.snares, 0, SNARE.max)) return null;
     if (!Array.isArray(o.snares) || o.snares.length > SNARE.max || !o.snares.every((n) => n && Number.isInteger(n.x) && Number.isInteger(n.y) && inMap(n.x, n.y))) return null;
     if (typeof o.hut.roofHole !== 'boolean' || !o.hut.patchPaid || typeof o.hut.patchPaid !== 'object') return null;
     if (o.lastEvent !== null && !EVENT_IDS.includes(o.lastEvent)) return null;
+    if (!Number.isInteger(o.iceDay) || !num(o.iceDay, 0, DAYS + 1)) return null;
     if (!o.eventsSeen || typeof o.eventsSeen !== 'object' || !Object.keys(o.eventsSeen).every((k) => EVENT_IDS.includes(k) && Number.isInteger(o.eventsSeen[k]) && o.eventsSeen[k] >= 0)) return null;
     if (o.event !== null && !validEvent(o.event)) return null;
     if (!o.fire || !num(o.fire.fuel, 0, FIRE.cap) || !Array.isArray(o.torches) || !Array.isArray(o.wolves) || !Array.isArray(o.animals)) return null;
@@ -1408,8 +1487,9 @@
 
   function validEvent(e) {
     if (!e || typeof e !== 'object' || !EVENT_IDS.includes(e.id) || !['ask', 'active'].includes(e.phase) || !num(e.day, 1, DAYS)) return false;
-    if (e.id === 'wanderer') return Number.isInteger(e.x) && Number.isInteger(e.y) && inMap(e.x, e.y);
-    return e.phase === 'ask';
+    if (e.id === 'wanderer' || e.id === 'lostChild') return Number.isInteger(e.x) && Number.isInteger(e.y) && inMap(e.x, e.y) && (e.id === 'wanderer' || e.phase === 'active');
+    if (e.id === 'roof') return e.phase === 'ask';
+    return e.phase === 'active';
   }
 
   // winter.save: { v: 1, best: { normal, harsh } (days survived, 31 = won), stars: { normal, harsh }, unlocked
@@ -1472,9 +1552,9 @@
     TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, HIT_CD, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
     FOOD_DRAIN, ENERGY_DRAIN, WORK_ENERGY, SLEEP_ENERGY, HEALTH_LOSS, HEALTH_GAIN, FOOD, RAW_MEAT_ENERGY, COOK_TIME,
     FISH_TIME, BITE, GNAW, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
-    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, GEAR, GEAR_IDS, COAT, SLED_CARRY, LANTERN, SNARE, EVENT_CHANCE, EVENT_CHOICES, EVENT_DEFAULT, EVENT_IDS, EVENT_MAX, ROOF_FIX, ROOF_HOLE, WANDERER, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
+    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, GEAR, GEAR_IDS, COAT, SLED_CARRY, LANTERN, SNARE, EVENT_CHANCE, EVENT_CHOICES, EVENT_DEFAULT, EVENT_IDS, EVENT_MAX, LOST_CHILD, AURORA, THAW, ROOF_FIX, ROOF_HOLE, WANDERER, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
     clamp, rand, erand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
-    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, foodCap, roomFor, upgradeOn, carryOf, placeSnare, answerEvent, warmthRate, lit, inHut, stoveOn,
+    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, foodCap, roomFor, upgradeOn, carryOf, placeSnare, answerEvent, iceOn, warmthRate, lit, inHut, stoveOn,
     fireOn, atBase, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,
     wolvesTonight, step, stars, nextTask, snapshot, restore, newSave, parseSave, loadSave, storeSave, recordGame,
     retryDay,

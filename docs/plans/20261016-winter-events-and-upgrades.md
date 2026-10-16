@@ -409,7 +409,7 @@
 - Modify: `tests/winter/bot.js`
 - Modify: `tests/winter/events.test.js`
 
-- [ ] the lost child:
+- [x] the lost child:
   - the `'lost'` state, accepted by `restore`;
   - the `'fetch'` target;
   - the `back: true` way home without `joined`;
@@ -417,10 +417,10 @@
   - the night penalty;
   - the dawn return before the win check;
   - `stars()` and the bot count him as alive.
-- [ ] aurora: no wolf spawn that night, and the energy bonus at nightfall. Thaw: the temperature, and the ice the next day (×0.8 in `moveFree` and `follow` outside the camp)
-- [ ] client: the `found` banner (not «… в лагере» again); the hint «Найди ребёнка до ночи» with RO strings
-- [ ] bot: fetches a lost child before anything else by day
-- [ ] write tests:
+- [x] aurora: no wolf spawn that night, and the energy bonus at nightfall. Thaw: the temperature, and the ice the next day (×0.8 in `moveFree` and `follow` outside the camp)
+- [x] client: the `found` banner (not «… в лагере» again); the hint «Найди ребёнка до ночи» with RO strings
+- [x] bot: fetches a lost child before anything else by day
+- [x] write tests:
   - the child is lost, fetched and home, with no second `joined`;
   - the night penalty and the dawn return;
   - stars with a lost child at the final dawn;
@@ -428,7 +428,7 @@
   - the ice slows only outside the camp;
   - a thaw never comes on day 28 or later;
   - a save and restore with the child lost.
-- [ ] run the tests, including the balance tests; they must pass before Task 6
+- [x] run the tests, including the balance tests; they must pass before Task 6
 
 ### Task 6: Trader
 

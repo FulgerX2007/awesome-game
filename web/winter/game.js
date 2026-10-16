@@ -42,6 +42,9 @@
     roof: 'Метель проломила кровлю! Y — чинить сейчас (15 дерева, 5 камня), N — потом',
     wanderer: 'В лесу лежит раненый путник. Найди его до ночи',
     wandererAsk: 'Путник просит две порции еды. Y — помочь, N — пройти мимо',
+    lostChild: 'Ребёнок ушёл в лес и заблудился! Найди его до ночи',
+    aurora: 'Ясное небо: ночью будет северное сияние',
+    thaw: 'Оттепель: сегодня теплее, но завтра будет наледь',
   };
   const TOOL_NAME = { axe: 'Каменный топор', ironAxe: 'Железный топор', pick: 'Кирка', shovel: 'Лопата', icePick: 'Ледоруб', spear: 'Копьё' };
   const TOOL_DESC = {
@@ -133,7 +136,7 @@
     title.classList.toggle('won', won);
     title.classList.toggle('lost', !won);
     $('res-stars').textContent = won ? '★'.repeat(st) + '☆'.repeat(3 - st) : '';
-    const alive = g.survivors.filter((s) => s.state === 'home').length;
+    const alive = g.survivors.filter((s) => s.state === 'home' || s.state === 'lost').length;
     $('res-main').textContent = won ? t('Ты пережил зиму. Спасено: {n} из 5.', { n: alive }) : t('День {n}: герой не выдержал.', { n: C.dayOf(g) });
     $('res-note').textContent = t('Хижина: {s} из 4 · постройки частокола: {p} из 4', { s: g.hut.stage, p: g.palisade.filter((p) => p.built).length });
     $('btn-res-retry').hidden = won || !save.dawn;
@@ -151,6 +154,7 @@
   const float = (x, y, text, color) => floaters.add(text, x * cam.ts, y * cam.ts, { color, size: 16, life: 1.1, rise: 30 });
 
   function eventDone(e) {
+    if (e.id === 'lostChild') { if (e.choice === 'night') banner(t('Ребёнок провёл ночь в лесу'), 2.6); return; }
     if (e.id === 'roof') { banner(t(e.choice === 'fix' ? 'Крыша починена' : 'В крыше дыра: в хижине холодно, печь прогорает быстрее'), 2.6); return; }
     if (e.choice !== 'help') { banner(t('Путник ушёл')); return; }
     const r = e.reward || {};
@@ -194,6 +198,9 @@
         case 'event': banner(t(EVENT_TEXT[e.id === 'wanderer' && e.phase === 'ask' ? 'wandererAsk' : e.id]), 5); break;
         case 'eventDone': eventDone(e); break;
         case 'patched': sfx('build'); banner(t('Крыша залатана')); break;
+        case 'found': sfx('rescue'); banner(t('{name} снова в лагере', { name: t(C.SURVIVORS[e.id].name) }), 2.2); break;
+        case 'aurora': banner(t('Северное сияние: этой ночью волки не придут'), 3); break;
+        case 'ice': banner(t('Наледь: вне лагеря идти тяжелее'), 2.6); break;
         case 'snareCaught': float(e.x + 0.5, e.y, t('+1 мясо в силках'), '#ff9a8a'); break;
         case 'scared': break;
         case 'built': sfx('build'); break;

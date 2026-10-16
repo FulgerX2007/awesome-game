@@ -178,3 +178,152 @@ test('events survive a save and restore; broken ones are refused; old saves get 
   g.status = 'won';
   assert.equal(C.answerEvent(g, 'help'), 'bad');
 });
+
+// A game with the child at home, whose next dawn rolls the lost child.
+function childGame(day = 6) {
+  for (let s = 1; s < 600; s++) {
+    const g = quiet(s);
+    g.hut.stage = 4; g.hut.stove = 30;
+    const c = g.survivors.find((x) => x.id === 'child');
+    c.state = 'home'; c.x = 27.5; c.y = 22.5; c.food = 100;
+    g.t = (day - 1) * C.DAY - 0.01;
+    toDawn(g);
+    if (g.event && g.event.id === 'lostChild') return { g, c };
+  }
+  throw new Error('no seed loses the child');
+}
+
+test('the lost child: he walks off, the hero fetches him, he comes home without joining again', () => {
+  const { g, c } = childGame();
+  assert.equal(c.state, 'lost');
+  assert.equal(C.nextTask(g), 'Найди ребёнка до ночи');
+  sim(g, 20);
+  const d = Math.hypot(c.x - (C.SPOT.fire.x + 0.5), c.y - (C.SPOT.fire.y + 0.5));
+  assert.ok(d > 6, `walked off: ${d.toFixed(1)}`);
+  assert.equal(C.interact(g, c.x, c.y), 'fetch');
+  const ev = [];
+  for (let t = 0; t < 60 && c.state === 'lost'; t += 0.25) { C.step(g, 0.25); ev.push(...C.drain(g)); }
+  assert.equal(c.state, 'following');
+  assert.deepEqual(of(ev, 'eventDone').map((e) => e.choice), ['fetched']);
+  assert.equal(g.event, null);
+  C.interact(g, 27, 21);
+  for (let t = 0; t < 80 && c.state !== 'home'; t += 0.25) { C.step(g, 0.25); ev.push(...C.drain(g)); }
+  assert.equal(c.state, 'home');
+  assert.equal(of(ev, 'found').length, 1);
+  assert.equal(of(ev, 'joined').length, 0, 'no second «joined»');
+  assert.ok(!('back' in c));
+});
+
+test('the lost child: night in the forest costs him; he comes back at dawn; he can die of it', () => {
+  const { g, c } = childGame();
+  c.hp = 100;
+  g.t = (C.dayOf(g) - 1) * C.DAY + C.NIGHT_AT - 0.01;
+  C.step(g, 0.05);
+  const ev = C.drain(g);
+  assert.equal(c.hp, 100 - C.LOST_CHILD.night);
+  assert.equal(c.state, 'lost');
+  assert.equal(of(ev, 'eventDone')[0].choice, 'night');
+  // dawn brings him home
+  const dawn = toDawn(g);
+  assert.equal(c.state, 'home');
+  assert.equal(of(dawn, 'found').length, 1);
+  // weak already: the night kills him
+  const b = childGame();
+  b.g.t = (C.dayOf(b.g) - 1) * C.DAY + C.NIGHT_AT - 0.01;
+  b.c.hp = 30;
+  C.step(b.g, 0.05);
+  assert.equal(b.c.state, 'dead');
+  assert.equal(of(C.drain(b.g), 'died').length, 1);
+});
+
+test('the lost child counts as alive for the stars, and comes home before the final dawn is judged', () => {
+  const { g, c } = childGame(29);
+  for (const s of g.survivors) if (s !== c) s.state = 'home';
+  g.t = C.DAYS * C.DAY - 0.01;
+  g.hut.stage = C.HUT_STAGES.length;
+  C.step(g, 0.05);
+  assert.equal(g.status, 'won');
+  assert.equal(c.state, 'home');
+  assert.equal(C.stars(g), 3);
+  // and a still-lost one counts too
+  const w = childGame(10);
+  w.g.status = 'won';
+  for (const s of w.g.survivors) if (s !== w.c) s.state = 'home';
+  w.g.hut.stage = 4;
+  assert.equal(C.stars(w.g), 3);
+});
+
+test('the aurora: no wolves that night; strength for the hero and the camp', () => {
+  let found = null;
+  for (let s = 1; s < 600 && !found; s++) {
+    const g = quiet(s);
+    g.hut.stage = 4;
+    g.t = 7 * C.DAY - 0.01;
+    toDawn(g);
+    if (g.event && g.event.id === 'aurora') found = g;
+  }
+  const g = found;
+  const sv = g.survivors[0];
+  sv.state = 'home'; sv.hp = 50; sv.food = 100;
+  g.hero.energy = 40;
+  g.t = (C.dayOf(g) - 1) * C.DAY + C.NIGHT_AT - 0.01;
+  C.step(g, 0.05);
+  const ev = C.drain(g);
+  assert.equal(g.wolves.length, 0);
+  assert.equal(of(ev, 'howl').length, 0);
+  assert.equal(of(ev, 'aurora').length, 1);
+  assert.ok(g.hero.energy >= 40 + C.AURORA.energy - 0.1);
+  assert.ok(sv.hp >= 50 + C.AURORA.hp - 0.5);
+  assert.equal(g.event.id, 'aurora', 'it stays up for the night sky');
+});
+
+test('the thaw: a warmer day, then the crust slows the hero outside the camp only', () => {
+  let found = null;
+  for (let s = 1; s < 600 && !found; s++) {
+    const g = quiet(s);
+    g.t = 9 * C.DAY - 0.01;
+    toDawn(g);
+    if (g.event && g.event.id === 'thaw') found = g;
+  }
+  const g = found;
+  const ref = quiet(1);
+  ref.t = g.t;
+  assert.equal(C.temperature(g), C.temperature(ref) + C.THAW.warm);
+  assert.equal(g.iceDay, C.dayOf(g) + 1);
+  const ev = toDawn(g);
+  assert.ok(C.iceOn(g));
+  assert.equal(g.event, null, 'the crust takes the day');
+  assert.equal(of(ev, 'ice').length, 1);
+  assert.equal(C.temperature(g), C.temperature(Object.assign(quiet(1), { t: g.t })));
+  // walking outside is slower, inside the camp it is not
+  const walk = (x, y) => { g.hero.x = x + 0.5; g.hero.y = y + 0.5; g.hero.path = null; g.hero.target = null; C.moveDir(g, 1, 0); const x0 = g.hero.x; C.step(g, 0.5); C.moveDir(g, 0, 0); return g.hero.x - x0; };
+  const out = walk(8, 30), inside = walk(24, 21);
+  g.iceDay = 0;
+  const outDry = walk(8, 30);
+  assert.ok(Math.abs(out / outDry - C.THAW.ice) < 0.02, `${out} vs ${outDry}`);
+  assert.ok(inside > out);
+  // never late in the winter
+  for (let s = 1; s < 200; s++) {
+    const h = quiet(s);
+    h.t = C.THAW.lastDay * C.DAY - 0.01;
+    toDawn(h);
+    assert.ok(!h.event || h.event.id !== 'thaw');
+  }
+});
+
+test('a lost child, the aurora and the ice survive a save and restore', () => {
+  const { g, c } = childGame();
+  sim(g, 5);
+  const back = C.restore(JSON.parse(JSON.stringify(C.snapshot(g))));
+  const bc = back.survivors.find((x) => x.id === 'child');
+  assert.equal(bc.state, 'lost');
+  assert.deepEqual(back.event, g.event);
+  assert.equal(C.interact(back, bc.x, bc.y), 'fetch');
+  g.iceDay = C.dayOf(g);
+  assert.ok(C.iceOn(C.restore(JSON.parse(JSON.stringify(C.snapshot(g))))));
+  const snap = C.snapshot(g);
+  for (const bad of [{ ...snap, iceDay: -1 }, { ...snap, iceDay: 1.5 }, { ...snap, event: { id: 'aurora', phase: 'ask', day: 3 } }, { ...snap, event: { id: 'lostChild', phase: 'active', day: 3 } }]) {
+    assert.equal(C.restore(bad), null);
+  }
+  void c;
+});

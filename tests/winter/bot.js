@@ -137,6 +137,12 @@ function think(g, cfg, r) {
     const res = goal.act();
     if (res === 'done' || res === 'ok') return;
   }
+  // a lost child first: bring him back before night
+  const lost = g.survivors.find((s) => s.state === 'lost');
+  if (lost && tod < C.NIGHT_AT - 10) {
+    if (!h.target || h.target.type !== 'fetch') C.interact(g, lost.x, lost.y);
+    return;
+  }
   // the wanderer, when there's food to spare and light enough for the walk
   if (ev && ev.id === 'wanderer' && ev.phase === 'active' && foodStock(g) > 150 && g.stock.wood >= 30 && h.warmth > 70 && tod < C.NIGHT_AT - 40 && !cfg.casual) {
     if (C.interact(g, ev.x, ev.y) === 'wanderer') return;
@@ -211,6 +217,7 @@ function play(name, difficulty = 'normal', seed = 1, opts = {}) {
     for (const e of C.drain(g)) {
       if (e.type === 'built') timeline[e.id === 'hut' ? `hut:${e.stage}` : e.id === 'palisade' ? `palisade:${e.segment}` : `bunk:${e.bunk}`] ??= C.dayOf(g);
       if (e.type === 'joined') timeline[`joined:${e.id}`] = C.dayOf(g);
+      if (e.type === 'eventDone') timeline[`ev:${e.id}:${e.choice}`] = (timeline[`ev:${e.id}:${e.choice}`] || 0) + 1;
       if (e.type === 'upgraded') timeline[`up:${e.id}`] = C.dayOf(g);
       if (e.type === 'died') timeline[`died:${e.id}`] = C.dayOf(g);
     }
@@ -218,7 +225,7 @@ function play(name, difficulty = 'normal', seed = 1, opts = {}) {
     if (g.t === before && g.status === 'playing') break; // safety
   }
   return {
-    status: g.status, day: C.dayOf(g), alive: g.survivors.filter((s) => s.state === 'home').length,
+    status: g.status, day: C.dayOf(g), alive: g.survivors.filter((s) => s.state === 'home' || s.state === 'lost').length,
     stars: C.stars(g), timeline, realMinutes: real / 60, g,
   };
 }
