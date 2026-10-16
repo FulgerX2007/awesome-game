@@ -154,3 +154,149 @@ test('upgrades survive a save and restore half paid; an old save gets them all u
     assert.equal(C.restore(bad), null);
   }
 });
+
+// ── The workshop's gear ──
+const withWorkshop = (seed = 1) => { const g = withStove(seed); build(g, 'workshop'); return g; };
+
+test('gear is locked without the workshop, then made once at the camp; snares are counted', () => {
+  const g = withStove();
+  plenty(g);
+  for (const id of C.GEAR_IDS) assert.equal(C.craft(g, id), 'locked', id);
+  build(g, 'workshop');
+  for (const k of C.RES) g.stock[k] = 0;
+  assert.equal(C.craft(g, 'coat'), 'nores');
+  plenty(g);
+  g.hero.x = 5.5; g.hero.y = 5.5;
+  assert.equal(C.craft(g, 'coat'), 'far');
+  g.hero.x = 27.5; g.hero.y = 21.5;
+  for (const id of ['coat', 'lantern', 'sled']) {
+    assert.equal(C.craft(g, id), 'ok');
+    assert.equal(g.gear[id], true);
+    assert.equal(C.craft(g, id), 'have');
+  }
+  assert.equal(C.craft(g, 'snares'), 'ok');
+  assert.equal(g.gear.snares, C.SNARE.per);
+  assert.equal(C.craft(g, 'snares'), 'ok');
+  assert.equal(g.gear.snares, C.SNARE.max);
+  const wood = g.stock.wood;
+  assert.equal(C.craft(g, 'snares'), 'have');
+  assert.equal(g.stock.wood, wood);
+  assert.equal(C.craft(g, 'sauna'), 'bad');
+  g.status = 'lost';
+  assert.equal(C.craft(g, 'coat'), 'bad');
+});
+
+test('the coat: the hero feels less cold, survivors are not changed', () => {
+  const g = withWorkshop();
+  g.fire.fuel = 0; g.hut.stove = 0;
+  g.t = C.DAY * 18 + 1;
+  g.hero.x = 10.5; g.hero.y = 30.5;
+  const before = C.warmthRate(g, g.hero);
+  assert.equal(C.craft(g, 'coat'), 'far');
+  g.gear.coat = true;
+  assert.ok(Math.abs(C.warmthRate(g, g.hero) - before * C.COAT) < 1e-9);
+  const sv = { x: 10.5, y: 30.5 };
+  assert.equal(C.warmthRate(g, sv), before);
+});
+
+test('the sled: the hero carries twice as much away from the camp', () => {
+  const g = withWorkshop();
+  assert.equal(C.carryOf(g), C.CARRY);
+  g.gear.sled = true;
+  assert.equal(C.carryOf(g), C.SLED_CARRY);
+  g.stock.wood = 0;
+  const tree = g.nodes.filter((n) => n.kind === 'tree' && !C.inBase(n.x, n.y) && C.pathNextTo(g, g.hero, n.x, n.y))[0];
+  tree.amount = 999;
+  g.hero.load = C.CARRY + 10;
+  g.hero.x = tree.x + 1.5; g.hero.y = tree.y + 0.5;
+  if (!C.walkable(g, Math.floor(g.hero.x), Math.floor(g.hero.y))) { g.hero.x = tree.x - 0.5; }
+  assert.equal(C.interact(g, tree.x, tree.y), 'chop');
+  sim(g, 3);
+  assert.ok(g.stock.wood > 0, 'still chopping past the old limit');
+  g.hero.load = C.SLED_CARRY;
+  const w = g.stock.wood;
+  C.interact(g, tree.x, tree.y);
+  sim(g, 3);
+  assert.equal(g.stock.wood, w, 'full at the sled limit');
+});
+
+test('the lantern: a wolf that comes close at night runs, then may come back and bite', () => {
+  const g = withWorkshop();
+  g.gear.lantern = true;
+  g.fire.fuel = 0; g.hut.stove = 0;
+  g.t = C.NIGHT_AT + 5;
+  g.hero.x = 10.5; g.hero.y = 30.5; g.hero.health = 100;
+  const w = { id: g.nextId++, x: 12.5, y: 30.5, hp: C.WOLF_HP, maxHp: C.WOLF_HP, cd: 0, flee: false };
+  g.wolves.push(w);
+  const ev = [];
+  for (let t = 0; t < 1; t += 0.25) { C.step(g, 0.25); ev.push(...C.drain(g)); }
+  assert.equal(of(ev, 'scared').length, 1);
+  assert.ok(w.scared > 0 && !w.flee, 'scared, not routed for good');
+  for (let t = 0; t < 15; t += 0.25) { g.hero.health = 100; C.step(g, 0.25); ev.push(...C.drain(g)); }
+  assert.ok(of(ev, 'scared').length >= 2, 'scared again after the cooldown');
+  assert.ok(of(ev, 'bite').length >= 1, 'the lantern is no shield');
+  // by day, or without the lantern, it scares nobody
+  const d = withWorkshop();
+  d.hero.x = 10.5; d.hero.y = 30.5;
+  d.wolves.push({ id: d.nextId++, x: 11.5, y: 30.5, hp: C.WOLF_HP, maxHp: C.WOLF_HP, cd: 0, flee: false });
+  d.t = C.NIGHT_AT + 5;
+  C.step(d, 0.25);
+  assert.equal(of(C.drain(d), 'scared').length, 0);
+});
+
+test('snares: set next to the hero outside the camp, up to four; they catch at dawn', () => {
+  const g = withWorkshop();
+  assert.equal(C.placeSnare(g, 10, 30), 'none');
+  g.gear.snares = 4;
+  g.hero.x = 27.5; g.hero.y = 21.5;
+  assert.equal(C.placeSnare(g, 27, 22), 'base');
+  g.hero.x = 10.5; g.hero.y = 33.5;
+  assert.equal(C.placeSnare(g, 20, 33), 'far');
+  assert.equal(C.placeSnare(g, -1, 33), 'bad');
+  assert.equal(C.placeSnare(g, NaN, 33), 'bad');
+  const free = [];
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const x = 10 + dx, y = 33 + dy;
+    if (g.tiles[C.idx(x, y)] === '.' && !C.nodeAt(g, x, y)) free.push([x, y]); else if (free.length < 9) assert.equal(C.placeSnare(g, x, y), 'blocked');
+  }
+  assert.ok(free.length >= 4, 'enough free tiles in the test spot');
+  for (const [x, y] of free.slice(0, 4)) assert.equal(C.placeSnare(g, x, y), 'ok');
+  assert.equal(C.placeSnare(g, free[0][0], free[0][1]), 'none');
+  g.gear.snares = 1;
+  assert.equal(C.placeSnare(g, free[4] ? free[4][0] : 9, free[4] ? free[4][1] : 32), 'max');
+  // dawns: catches come from the second stream, the same for a seed
+  const catches = (seed) => {
+    const h = withWorkshop(seed);
+    h.snares = [{ x: 3, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3 }, { x: 6, y: 3 }];
+    h.stock.meat = 0;
+    const out = [];
+    for (let d = 0; d < 5; d++) {
+      h.t = C.DAY * (d + 1) - 0.01;
+      h.hero.sleeping = false;
+      C.step(h, 0.05);
+      out.push(of(C.drain(h), 'snareCaught').length);
+    }
+    return { out, meat: h.stock.meat };
+  };
+  const a = catches(5), b = catches(5);
+  assert.deepEqual(a, b);
+  const total = a.out.reduce((s, n) => s + n, 0);
+  assert.equal(a.meat, total);
+  assert.ok(total >= 6 && total <= 18, `${total} of 20`);
+});
+
+test('gear and snares survive a save; broken ones are refused', () => {
+  const g = withWorkshop();
+  g.gear.coat = true; g.gear.snares = 1;
+  g.snares = [{ x: 3, y: 3 }];
+  const back = C.restore(JSON.parse(JSON.stringify(C.snapshot(g))));
+  assert.deepEqual([back.gear, back.snares], [g.gear, g.snares]);
+  const old = JSON.parse(JSON.stringify(C.snapshot(g)));
+  delete old.gear; delete old.snares;
+  assert.deepEqual(C.restore(old).gear, { coat: false, lantern: false, sled: false, snares: 0 });
+  const snap = C.snapshot(g);
+  for (const bad of [{ ...snap, gear: { ...snap.gear, coat: 1 } }, { ...snap, gear: { ...snap.gear, snares: 9 } }, { ...snap, snares: [{ x: 99, y: 3 }] },
+    { ...snap, snares: Array.from({ length: 5 }, (_, i) => ({ x: i, y: 3 })) }, { ...snap, snares: {} }]) {
+    assert.equal(C.restore(bad), null);
+  }
+});

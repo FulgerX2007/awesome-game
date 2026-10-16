@@ -359,18 +359,19 @@
 - Modify: `tests/winter/bot.js`
 - Modify: `tests/winter/upgrades.test.js`
 
-- [ ] add `GEAR`, `g.gear` (plus `migrate` and validation); `craft` accepts it, with `'locked'` and the snare count rules
-- [ ] coat in `warmthRate`; sled through `carryOf` (`gain`, `full`, the bot)
-- [ ] lantern in `wolvesTick`: the flee within 2 tiles and the per-wolf cooldown. It doesn't touch the masks
-- [ ] snares: `placeSnare(g, x, y)` (`'far'`, `'base'`, `'blocked'`, `'none'`, `'max'`) and the dawn catches with `erng`
-- [ ] bot: the coat and the sled after the workshop; snares near the camp
-- [ ] write tests:
+- [x] add `GEAR`, `g.gear` (plus `migrate` and validation); `craft` accepts it, with `'locked'` and the snare count rules
+- [x] coat in `warmthRate`; sled through `carryOf` (`gain`, `full`, the bot)
+- [x] lantern in `wolvesTick`: the flee within 2 tiles and the per-wolf cooldown. It doesn't touch the masks
+- [x] snares: `placeSnare(g, x, y)` (`'far'`, `'base'`, `'blocked'`, `'none'`, `'max'`) and the dawn catches with `erng`
+- [x] bot: the coat and the sled after the workshop; snares near the camp
+- [x] write tests:
   - each item: locked, crafted, its effect;
   - with the lantern a wolf flees, then comes back after the cooldown and can bite;
   - the snare placement rules;
   - catches over several dawns with a fixed seed;
   - a save and restore with placed snares.
-- [ ] run the tests, including the balance tests; they must pass before Task 4
+- [x] run the tests, including the balance tests; they must pass before Task 4
+- [x] ➕ the lantern first scared a wolf for 2.5 s with a 6 s cooldown: a lone wolf came back exactly as the cooldown ended and never bit, so it acted as a shield. Now it scares for 1.2 s with an 8 s cooldown, and the wolf returns and bites between scares
 
 ### Task 4: Events: roof and wanderer
 

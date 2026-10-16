@@ -54,6 +54,12 @@ function nextGoal(g, cfg) {
     const up = C.UPGRADE_IDS.find((u) => !g.upgrades[u].built);
     if (up) return { id: `up:${up}`, cost: C.UPGRADES[up].cost, paid: g.upgrades[up].paid, act: () => C.contribute(g, `up:${up}`) };
   }
+  // the workshop's gear: the sled, the coat, the lantern, then snares to set around the camp
+  if (C.upgradeOn(g, 'workshop')) {
+    const gear = ['sled', 'coat', 'lantern'].find((id) => !g.gear[id]);
+    if (gear) return { id: gear, cost: C.GEAR[gear].cost, act: () => C.craft(g, gear) };
+    if (g.gear.snares + g.snares.length < C.SNARE.max) return { id: 'snares', cost: C.GEAR.snares.cost, act: () => C.craft(g, 'snares') };
+  }
   return null;
 }
 
@@ -104,7 +110,11 @@ function think(g, cfg, r) {
     if (!there || h.warmth < 80) return;
   }
   // full hands: back to the camp
-  if (!atBase && h.load >= C.CARRY - 2) { C.interact(g, center.x, center.y); return; }
+  if (!atBase && h.load >= C.carryOf(g) - 2) { C.interact(g, center.x, center.y); return; }
+  // snares in hand: set one beside the path, outside the camp
+  if (!atBase && g.gear.snares > 0) {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (C.placeSnare(g, h.x + dx, h.y + dy) === 'ok') break;
+  }
   if (busy(g)) return;
   // build whatever can be built now, from the camp
   const goal = nextGoal(g, cfg);

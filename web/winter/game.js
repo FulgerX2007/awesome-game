@@ -165,7 +165,10 @@
         case 'feed': sfx('fire'); break;
         case 'cook': sfx('fire'); break;
         case 'eat': sfx('eat'); break;
-        case 'craft': sfx('craft'); banner(t('Готово: {tool}', { tool: t(TOOL_NAME[e.tool]) })); break;
+        case 'craft': sfx('craft'); banner(t('Готово: {tool}', { tool: t(TOOL_NAME[e.tool] || C.GEAR[e.tool].name) })); break;
+        case 'snare': sfx('build'); break;
+        case 'snareCaught': float(e.x + 0.5, e.y, t('+1 мясо в силках'), '#ff9a8a'); break;
+        case 'scared': break;
         case 'built': sfx('build'); break;
         case 'upgraded': sfx('build'); banner(t('Дом стал лучше: {name}', { name: t(C.UPGRADES[e.id].name) }), 2.4); break;
         case 'smoked': break;

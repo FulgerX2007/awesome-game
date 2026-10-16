@@ -79,6 +79,19 @@
   const SMOKE = { every: 15, perLog: 3 };           // one item every 15 s; a log smokes three
   const ANNEX = { heal: 2, work: 0.75 };
 
+  // Gear from the workshop (an upgrade): made at the workbench like the tools.
+  const GEAR = {
+    coat: { name: 'шуба', cost: { hide: 6 } },
+    lantern: { name: 'фонарь', cost: { metal: 4, wood: 2 } },
+    sled: { name: 'сани', cost: { wood: 20, metal: 2 } },
+    snares: { name: 'силки', cost: { wood: 6 } },
+  };
+  const GEAR_IDS = Object.keys(GEAR);
+  const COAT = 0.7;                                     // the cold the hero feels in the coat
+  const SLED_CARRY = 80;
+  const LANTERN = { radius: 2, scare: 1.2, cd: 8 };     // a wolf this close at night shies off for 1.2 s, then not again for 8 s
+  const SNARE = { per: 2, max: 4, chance: 0.6 };        // a craft gives two; at most four out; a catch at dawn
+
   // The five survivors: where they wait, what they need, what they do once at the base.
   const SURVIVORS = {
     hunter: { name: 'Охотник', x: 48, y: 34, need: 'meat' },
@@ -212,6 +225,8 @@
       palisade: SEGMENTS.map(() => ({ built: false, hp: 0, paid: {} })),
       bunks: [{ built: false, paid: {} }, { built: false, paid: {} }, { built: false, paid: {} }],
       upgrades: newUpgrades(),
+      gear: { coat: false, lantern: false, sled: false, snares: 0 },
+      snares: [],
       torches: [],
       survivors: SURVIVOR_IDS.map((id) => ({ id, state: 'waiting', x: SURVIVORS[id].x + 0.5, y: SURVIVORS[id].y + 0.5, hp: STAT_MAX, food: 70, work: 0, path: null, cd: 0 })),
       animals: [], wolves: [], nextId: 1,
@@ -401,17 +416,19 @@
   const foodCap = (g) => FOOD_CAP + (upgradeOn(g, 'cellar') ? CELLAR_FOOD : 0);
   const roomFor = (g, item) => Math.max(0, FOOD_ITEMS.includes(item) ? foodCap(g) - foodTotal(g) : STORE_CAP - stockTotal(g));
 
-  // Adds gathered items: the hero carries up to CARRY away from the base; the camp holds STORE_CAP of materials
+  const carryOf = (g) => (g.gear && g.gear.sled ? SLED_CARRY : CARRY);
+
+  // Adds gathered items: the hero carries up to carryOf(g) away from the base; the camp holds STORE_CAP of materials
   // and FOOD_CAP of food.
   function gain(g, item, n) {
     const room = roomFor(g, item);
-    const carry = inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) ? Infinity : CARRY - g.hero.load;
+    const carry = inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) ? Infinity : carryOf(g) - g.hero.load;
     const k = Math.max(0, Math.min(n, room, carry));
     g.stock[item] += k;
     if (!inBase(Math.floor(g.hero.x), Math.floor(g.hero.y))) g.hero.load += k;
     return k;
   }
-  const full = (g, item) => (item ? roomFor(g, item) <= 0 : false) || (!inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) && g.hero.load >= CARRY);
+  const full = (g, item) => (item ? roomFor(g, item) <= 0 : false) || (!inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) && g.hero.load >= carryOf(g));
   const ITEM_OF = { tree: 'wood', rock: 'stone', bush: 'berries', scrap: 'metal' };
 
   // ── Heat ──
@@ -424,6 +441,7 @@
   function warmthRate(g, e) {
     if (inHut(e) && stoveOn(g)) return 2;
     let loss = chill(g);
+    if (e === g.hero && g.gear && g.gear.coat) loss *= COAT;
     if (inHut(e) && g.hut.stage >= 2) loss *= upgradeOn(g, 'insulation') ? INSULATION.chill : 0.4;
     if (fireOn(g) && near(e, SPOT.fire, FIRE.radius)) return FIRE.warm - loss;
     return -loss;
@@ -711,6 +729,7 @@
 
   // The workbench stands in the camp: tools are made there.
   function craft(g, tool) {
+    if (has(GEAR, tool) && g.status === 'playing') return craftGear(g, tool);
     if (!has(TOOLS, tool) || g.status !== 'playing') return 'bad';
     if (g.tools[tool]) return 'have';
     if (!atBase(g)) return 'far';
@@ -719,6 +738,45 @@
     g.tools[tool] = true;
     g.events.push({ type: 'craft', tool });
     return 'ok';
+  }
+
+  // The workshop's gear. Snares are counted: a craft gives SNARE.per, up to SNARE.max in hand and out together.
+  function craftGear(g, id) {
+    if (!upgradeOn(g, 'workshop')) return 'locked';
+    if (id === 'snares' ? g.gear.snares + g.snares.length >= SNARE.max : g.gear[id]) return 'have';
+    if (!atBase(g)) return 'far';
+    if (!afford(g, GEAR[id].cost)) return 'nores';
+    pay(g, GEAR[id].cost);
+    if (id === 'snares') g.gear.snares = Math.min(SNARE.max - g.snares.length, g.gear.snares + SNARE.per);
+    else g.gear[id] = true;
+    g.events.push({ type: 'craft', tool: id });
+    return 'ok';
+  }
+
+  // A snare from the hand onto a free tile next to the hero, outside the camp.
+  // → 'ok' | 'none' (no snare in hand) | 'max' | 'base' | 'far' | 'blocked' | 'bad'
+  function placeSnare(g, x, y) {
+    if (g.status !== 'playing' || !finite(x) || !finite(y)) return 'bad';
+    x = Math.floor(x); y = Math.floor(y);
+    if (!inMap(x, y)) return 'bad';
+    if (g.gear.snares <= 0) return 'none';
+    if (g.snares.length >= SNARE.max) return 'max';
+    if (inBase(x, y)) return 'base';
+    if (Math.hypot(x + 0.5 - g.hero.x, y + 0.5 - g.hero.y) > 2) return 'far';
+    if (g.tiles[idx(x, y)] !== '.' || blockedByNode(g, x, y) || g.snares.some((n) => n.x === x && n.y === y) || g.torches.some((t) => t.x === x && t.y === y)) return 'blocked';
+    g.gear.snares--;
+    g.snares.push({ x, y });
+    g.events.push({ type: 'snare', x, y });
+    return 'ok';
+  }
+
+  // At dawn every snare out may hold a rabbit; the meat goes to the camp's stock.
+  function snaresAtDawn(g) {
+    for (const n of g.snares) {
+      if (erand(g) >= SNARE.chance || roomFor(g, 'meat') <= 0) continue;
+      g.stock.meat++;
+      g.events.push({ type: 'snareCaught', x: n.x, y: n.y });
+    }
   }
 
   // ── Building (partial contributions) ──
@@ -962,9 +1020,18 @@
     if (!maskCache || maskCache.g !== g || g.t - maskCache.t >= 0.5 || g.t < maskCache.t) maskCache = { g, t: g.t, M: wolfMasks(g) };
     const M = maskCache.M;
     const fence = palisadeUp(g);
+    const lantern = g.gear && g.gear.lantern && isNight(g) && !g.hero.sleeping;
     for (const w of g.wolves) {
       w.cd = Math.max(0, w.cd - dt);
       if (w.hp < w.maxHp * WOLF_FLEE) w.flee = true;
+      // the lantern scares a wolf that comes close, for a moment; it can come back once it wears off
+      w.scared = Math.max(0, (w.scared || 0) - dt);
+      w.lanternCd = Math.max(0, (w.lanternCd || 0) - dt);
+      if (lantern && w.lanternCd <= 0 && Math.hypot(g.hero.x - w.x, g.hero.y - w.y) <= LANTERN.radius) {
+        w.scared = LANTERN.scare;
+        w.lanternCd = LANTERN.cd;
+        g.events.push({ type: 'scared', x: w.x, y: w.y });
+      }
       let target = null, td = Infinity;
       for (const e of people(g)) {
         if (!prey(g, e)) continue;
@@ -972,12 +1039,12 @@
         if (d < td) { td = d; target = e; }
       }
       let gx, gy;
-      if (w.flee || !target) {
+      if (w.flee || w.scared > 0 || !target) {
         // run from the nearest person (or stand)
         const near = people(g).reduce((a, e) => (Math.hypot(e.x - w.x, e.y - w.y) < Math.hypot(a.x - w.x, a.y - w.y) ? e : a), g.hero);
         gx = w.x + Math.sign(w.x - near.x) * 3; gy = w.y + Math.sign(w.y - near.y) * 3;
         // a wolf with nobody to hunt circles the palisade and gnaws at a segment
-        if (!w.flee && palisadeUp(g)) {
+        if (!w.flee && !(w.scared > 0) && palisadeUp(g)) {
           const inside = people(g).some((e) => inBase(Math.floor(e.x), Math.floor(e.y)));
           if (inside) {
             const seg = nearestSegment(w);
@@ -1073,6 +1140,7 @@
       g.hero.sleeping = false;
       for (const n of g.nodes) if (n.amount <= 0 && g.t >= n.regrowAt) { n.amount = n.max; touchNodes(g); }
       g.hero.load = inBase(Math.floor(g.hero.x), Math.floor(g.hero.y)) ? 0 : g.hero.load;
+      snaresAtDawn(g);
       g.events.push({ type: 'dawn', day: dayOf(g), blizzard: isBlizzard(g) });
       g.dawnDue = true;
       if (now >= DAYS) {
@@ -1181,6 +1249,8 @@
     if (m.erng === undefined && Number.isInteger(m.seed)) m.erng = erngOf(m.seed);
     if (m.stock && typeof m.stock === 'object') for (const k of ['hide', 'smokedMeat', 'smokedFish']) if (m.stock[k] === undefined) m.stock[k] = 0;
     if (m.upgrades === undefined) m.upgrades = newUpgrades();
+    if (m.gear === undefined) m.gear = { coat: false, lantern: false, sled: false, snares: 0 };
+    if (m.snares === undefined) m.snares = [];
     return m;
   }
 
@@ -1197,6 +1267,8 @@
     if (!Array.isArray(o.survivors) || o.survivors.length !== SURVIVOR_IDS.length || !o.survivors.every((s) => SURVIVOR_IDS.includes(s.id) && ['waiting', 'following', 'home', 'dead'].includes(s.state))) return null;
     if (!o.upgrades || typeof o.upgrades !== 'object' || !UPGRADE_IDS.every((id) => o.upgrades[id] && typeof o.upgrades[id].built === 'boolean' && o.upgrades[id].paid && typeof o.upgrades[id].paid === 'object')) return null;
     if (!num(o.upgrades.smokehouse.work, 0, SMOKE.every) || !num(o.upgrades.smokehouse.fuel, 0, SMOKE.perLog)) return null;
+    if (!o.gear || !['coat', 'lantern', 'sled'].every((k) => typeof o.gear[k] === 'boolean') || !Number.isInteger(o.gear.snares) || !num(o.gear.snares, 0, SNARE.max)) return null;
+    if (!Array.isArray(o.snares) || o.snares.length > SNARE.max || !o.snares.every((n) => n && Number.isInteger(n.x) && Number.isInteger(n.y) && inMap(n.x, n.y))) return null;
     if (!o.fire || !num(o.fire.fuel, 0, FIRE.cap) || !Array.isArray(o.torches) || !Array.isArray(o.wolves) || !Array.isArray(o.animals)) return null;
     const g = clone(o);
     g.events = [];
@@ -1265,9 +1337,9 @@
     TICK, MAX_DT, W, H, DAY, NIGHT_AT, DAYS, SLEEP_SPEED, SPEED, DEEP, CARRY, HIT_CD, STORE_CAP, FOOD_CAP, FIRE, STOVE, TORCH, STAT_MAX,
     FOOD_DRAIN, ENERGY_DRAIN, WORK_ENERGY, SLEEP_ENERGY, HEALTH_LOSS, HEALTH_GAIN, FOOD, RAW_MEAT_ENERGY, COOK_TIME,
     FISH_TIME, BITE, GNAW, WOLF_HP, WOLF_SAFE, DIFF, BASE, HUT, SPOT, SEGMENTS, TOOLS, HUT_STAGES, PALISADE_COST, PALISADE_HP,
-    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
+    PALISADE_REPAIR, BUNK_COST, UPGRADES, UPGRADE_IDS, INSULATION, CELLAR_FOOD, SMOKE, ANNEX, GEAR, GEAR_IDS, COAT, SLED_CARRY, LANTERN, SNARE, SURVIVORS, SURVIVOR_IDS, HUNTER_MEAT, MEATS, WORK, RES, FOOD_ITEMS, ITEMS, EAT_ORDER, BLIZZARDS, SAVE_KEY, TASK_TEXTS,
     clamp, rand, erand, idx, inMap, inBase, newGame, status, drain, dayOf, timeOfDay, isNight, isBlizzard, baseTemp,
-    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, foodCap, roomFor, upgradeOn, warmthRate, lit, inHut, stoveOn,
+    temperature, chill, nodeAt, walkable, pathTo, pathNextTo, afford, stockTotal, foodTotal, foodCap, roomFor, upgradeOn, carryOf, placeSnare, warmthRate, lit, inHut, stoveOn,
     fireOn, atBase, moveDir, interact, eat, placeTorch, craft, needOf, contribute, palisadeUp, canRescue, rescue,
     wolvesTonight, step, stars, nextTask, snapshot, restore, newSave, parseSave, loadSave, storeSave, recordGame,
     retryDay,
