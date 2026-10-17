@@ -29,12 +29,14 @@
     return C.inMap(x, y) ? { x, y } : null;
   }
 
-  // The lights of the night: { x, y, r } in tiles (the fire, the stove, torches), only those burning.
+  // The lights of the night: { x, y, r } in tiles (the fire, the stove, torches, the lantern), only those burning.
   function lights(g) {
     const out = [];
     if (C.fireOn(g)) out.push({ x: C.SPOT.fire.x + 0.5, y: C.SPOT.fire.y + 0.5, r: C.FIRE.radius + 0.5 });
     if (C.stoveOn(g)) out.push({ x: C.HUT.x + 1.5, y: C.HUT.y + 0.5, r: 3 });
     for (const t of g.torches) out.push({ x: t.x + 0.5, y: t.y + 0.5, r: C.TORCH.radius });
+    // the hero's lantern, at night while he is up
+    if (g.gear && g.gear.lantern && C.isNight(g) && !g.hero.sleeping) out.push({ x: g.hero.x, y: g.hero.y, r: C.LANTERN.radius + 0.5, lantern: true });
     return out;
   }
 
@@ -44,6 +46,13 @@
     if (t < C.NIGHT_AT - 10) return 0;
     const k = t < C.NIGHT_AT ? (t - (C.NIGHT_AT - 10)) / 10 : t > C.DAY - 8 ? (C.DAY - t) / 8 : 1;
     return 0.82 * clamp(k, 0, 1);
+  }
+
+  // The aurora on an «aurora» night: 0 by day, rising over 10 s after nightfall, fading over the last 8 s to dawn.
+  function aurora(g) {
+    if (!g.event || g.event.id !== 'aurora' || !C.isNight(g)) return 0;
+    const t = C.timeOfDay(g);
+    return clamp(Math.min((t - C.NIGHT_AT) / 10, (C.DAY - t) / 8), 0, 1);
   }
 
   // Markers on the screen edge pointing at things outside the view: { x, y, angle } in css px, inset by `pad`.
@@ -64,7 +73,7 @@
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   }
 
-  const api = { MIN_TILES, camera, toScreen, toWorld, tileAt, lights, darkness, edgeMarker, clock };
+  const api = { MIN_TILES, camera, toScreen, toWorld, tileAt, lights, darkness, aurora, edgeMarker, clock };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WinterView = api;
 })(typeof window !== 'undefined' ? window : globalThis);

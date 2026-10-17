@@ -134,6 +134,7 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 .pill.wood::before { background: #b07a3c; }
 .pill.stone::before { background: #a9adb3; border-radius: 50%; }
 .pill.metal::before { background: linear-gradient(135deg, #e7eef5, #7d8b99); }
+.pill.hide::before { background: linear-gradient(135deg, #c99a62, #7a4f2c); border-radius: 3px 6px; }
 .pill.meal::before { background: #d4523e; border-radius: 50%; }
 .pill.day { font-variant-numeric: tabular-nums; }
 .spacer { flex: 1; }
@@ -162,6 +163,8 @@ kbd { font: 600 12px/1 var(--font); border: 1px solid var(--line); border-bottom
 .item b { font-size: 15px; }
 .item small { color: var(--dim); font-size: 12px; grid-column: 1; }
 .item small.miss { color: #ffb3a8; }
+.item.head { background: none; border-color: transparent; padding: 10px 4px 2px; }
+.item.head b { color: var(--accent); font-size: 14px; letter-spacing: .3px; }
 .item .acts { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 4px; align-items: center; }
 .item .acts .chip { min-width: 38px; min-height: 36px; }
 .item .n { min-width: 2ch; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }

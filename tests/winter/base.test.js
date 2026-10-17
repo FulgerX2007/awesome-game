@@ -142,6 +142,34 @@ test('rescues: meat for the hunter, daylight for the herbalist, the palisade for
   assert.equal(C.rescue(g, sv('smith')), 'far');
 });
 
+test('the hunter takes roast meat too: raw first, then the rest from the roast', () => {
+  const g = quiet();
+  const s = g.survivors.find((x) => x.id === 'hunter');
+  g.hero.x = s.x + 1; g.hero.y = s.y;
+  Object.assign(g.stock, { meat: 0, cookedMeat: 2, cookedFish: 9, berries: 9 });
+  assert.equal(C.rescue(g, s), 'meat', 'two pieces and a pile of other food are not enough');
+  Object.assign(g.stock, { meat: 1, cookedMeat: 5 });
+  assert.equal(C.rescue(g, s), 'ok');
+  assert.deepEqual([g.stock.meat, g.stock.cookedMeat, g.stock.cookedFish], [0, 3, 9]);
+});
+
+test('the carpenter at home adds wood and leaves the fire to the child', () => {
+  const g = quiet();
+  const s = g.survivors.find((x) => x.id === 'carpenter');
+  s.state = 'home'; s.x = 27.5; s.y = 22.5; s.food = 100;
+  g.fire.fuel = C.FIRE.cap * 0.3;
+  g.stock.wood = 10;
+  g.t = 1;
+  const fuel = g.fire.fuel;
+  sim(g, 60);
+  assert.ok(s.busy, 'working by day');
+  assert.ok(g.stock.wood >= 10 + Math.floor(60 / C.WORK.carpenter.every) - 1, `wood ${g.stock.wood}`);
+  assert.ok(g.fire.fuel < fuel);
+  g.t = C.NIGHT_AT + 1;
+  sim(g, 1);
+  assert.equal(s.busy, false, 'resting at night');
+});
+
 test('a rescued survivor follows the hero home and then works', () => {
   const g = quiet();
   g.fire.fuel = C.FIRE.cap;
@@ -289,8 +317,34 @@ test('the hint line follows the state of the camp, and every hint is a known tex
   assert.equal(take(), 'Сделай нары для выживших');
   rich(g);
   for (let i = 0; i < 3; i++) C.contribute(g, `bunk:${i}`);
+  assert.equal(take(), 'Улучши дом: утепление');
+  for (const id of C.UPGRADE_IDS) { Object.assign(g.stock, { wood: 60, stone: 40, metal: 10, hide: 10 }); assert.equal(C.contribute(g, `up:${id}`), 'done'); }
   assert.equal(take(), 'Держись до весны');
   g.hero.health = 10;
   assert.equal(take(), 'Ты слабеешь: согрейся, поешь и отдохни');
-  for (const h of hints) assert.ok(C.TASK_TEXTS.includes(h) || /^Спаси выжившего: /.test(h), h);
+  for (const h of hints) assert.ok(C.TASK_TEXTS.includes(h) || /^(Спаси выжившего|Улучши дом): /.test(h), h);
+});
+
+test('a snapshot from before the expansion (no second stream, no hides or smoked food) restores and plays on', () => {
+  const g = C.newGame('normal', 3);
+  sim(g, 30);
+  const old = JSON.parse(JSON.stringify(C.snapshot(g)));
+  delete old.erng;
+  for (const k of ['hide', 'smokedMeat', 'smokedFish']) delete old.stock[k];
+  const back = C.restore(old);
+  assert.ok(back, 'restored');
+  assert.equal(back.stock.hide, 0);
+  assert.equal(back.stock.smokedMeat, 0);
+  assert.ok(Number.isInteger(back.erng));
+  assert.ok(!('erng' in old), 'the input is not changed');
+  sim(back, 30);
+  assert.equal(back.status, 'playing');
+  // the old content goes on exactly as in the game it came from
+  sim(g, 30);
+  assert.deepEqual(back.animals, g.animals);
+  // broken new fields are refused
+  const snap = JSON.parse(JSON.stringify(C.snapshot(g)));
+  for (const bad of [{ ...snap, erng: 1.5 }, { ...snap, erng: 'x' }, { ...snap, stock: { ...snap.stock, hide: -1 } }, { ...snap, stock: { ...snap.stock, smokedFish: 'a' } }]) {
+    assert.equal(C.restore(bad), null, JSON.stringify(bad.stock).slice(0, 80));
+  }
 });

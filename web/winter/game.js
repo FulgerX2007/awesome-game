@@ -27,6 +27,9 @@
   let overlay = null;     // build | bench | pause | confirm | null
   let pendingDiff = null;
   let torchMode = false;
+  let snareMode = false;
+  let askDue = false;     // an event asks: the dialog opens once nothing else is on screen
+  let tradeDue = false;   // the hero walks to the sled; the trade panel opens when he gets there
   let view = { w: 640, h: 360, dpr: 1 };
   let cam = V.camera(view, null);
   let sinceSave = 0;
@@ -36,7 +39,14 @@
   let time = 0, last = 0, stepT = 0;
   let darkCanvas = null;
 
-  const RES_NAME = { wood: 'Дерево', stone: 'Камень', metal: 'Металл' };
+  const RES_NAME = { wood: 'Дерево', stone: 'Камень', metal: 'Металл', hide: 'Шкуры' };
+  // Events of the day that don't ask: what the banner says (the ones that ask open the dialog below)
+  const EVENT_TEXT = {
+    wanderer: 'В лесу лежит раненый путник. Найди его до ночи',
+    lostChild: 'Ребёнок ушёл в лес и заблудился! Найди его до ночи',
+    aurora: 'Ясное небо: ночью будет северное сияние',
+    thaw: 'Оттепель: сегодня теплее, но завтра будет наледь',
+  };
   const TOOL_NAME = { axe: 'Каменный топор', ironAxe: 'Железный топор', pick: 'Кирка', shovel: 'Лопата', icePick: 'Ледоруб', spear: 'Копьё' };
   const TOOL_DESC = {
     axe: 'Рубить деревья', ironAxe: 'Рубит в полтора раза быстрее', pick: 'Добывать камень', shovel: 'Копать сугробы',
@@ -127,7 +137,7 @@
     title.classList.toggle('won', won);
     title.classList.toggle('lost', !won);
     $('res-stars').textContent = won ? '★'.repeat(st) + '☆'.repeat(3 - st) : '';
-    const alive = g.survivors.filter((s) => s.state === 'home').length;
+    const alive = g.survivors.filter((s) => s.state === 'home' || s.state === 'lost').length;
     $('res-main').textContent = won ? t('Ты пережил зиму. Спасено: {n} из 5.', { n: alive }) : t('День {n}: герой не выдержал.', { n: C.dayOf(g) });
     $('res-note').textContent = t('Хижина: {s} из 4 · постройки частокола: {p} из 4', { s: g.hut.stage, p: g.palisade.filter((p) => p.built).length });
     $('btn-res-retry').hidden = won || !save.dawn;
@@ -144,6 +154,104 @@
   }
   const float = (x, y, text, color) => floaters.add(text, x * cam.ts, y * cam.ts, { color, size: 16, life: 1.1, rise: 30 });
 
+  function eventDone(e) {
+    if (e.id === 'lostChild') { if (e.choice === 'night') banner(t('Ребёнок провёл ночь в лесу'), 2.6); return; }
+    if (e.id === 'roof') { banner(t(e.choice === 'fix' ? 'Крыша починена' : 'В крыше дыра: в хижине холодно, печь прогорает быстрее'), 2.6); return; }
+    if (e.choice !== 'help') { banner(t('Путник ушёл')); return; }
+    const r = e.reward || {};
+    const gift = r.tool ? t(TOOL_NAME[r.tool]) : `${r.n} ${t(RES_NAME[r.item]).toLowerCase()}`;
+    banner(t('Путник благодарит: {gift}', { gift }), 2.6);
+    sfx('rescue');
+  }
+
+  // The event dialog: what happened and the two answers (Y / N on the keyboard). The world waits while it is open.
+  const UP_NAME = { insulation: 'Утепление', cellar: 'Погреб', smokehouse: 'Коптильня', annex: 'Пристройка', workshop: 'Мастерская' };
+  const UP_DESC = {
+    insulation: 'Мох и шкуры: печь горит дольше, в хижине теплее даже без неё',
+    cellar: 'Ещё 100 места для еды',
+    smokehouse: 'Сама коптит сырое мясо и рыбу, копчёное сытнее',
+    annex: 'Тёплая комната: выжившие быстрее лечатся и работают',
+    workshop: 'Шуба, фонарь, сани и силки',
+  };
+  const GEAR_LABEL = { coat: 'Шуба', lantern: 'Фонарь', sled: 'Сани', snares: 'Силки' };
+  const GEAR_DESC = {
+    coat: 'Мороз пробирает слабее',
+    lantern: 'Ночью волки шарахаются от света',
+    sled: 'Уносишь из леса вдвое больше',
+    snares: 'По два за раз, ставь в лесу: утром в них зайцы',
+  };
+  const SNARE_FAIL = { base: 'Силки ставят в лесу, не в лагере', far: 'Силок ставят рядом с собой', blocked: 'Здесь силок не поставить', max: 'Больше четырёх силков не поставить' };
+  const ITEM_NAME = { wood: 'Дерево', stone: 'Камень', metal: 'Металл', hide: 'Шкуры', berries: 'Ягоды', meat: 'Сырое мясо', fish: 'Рыба', cookedMeat: 'Жареное мясо', cookedFish: 'Жареная рыба', smokedMeat: 'Копчёное мясо', smokedFish: 'Копчёная рыба' };
+  const EVENT_ASK = {
+    roof: { title: 'Метель проломила кровлю!', text: 'Через дыру уходит тепло, печь прогорает быстрее. Починить сейчас: {cost}.', yes: 'Чинить сейчас', no: 'Потом' },
+    wanderer: { title: 'Раненый путник', text: 'Он замёрз и ослаб и просит две порции еды. В благодарность он чем-нибудь поделится.', yes: 'Помочь', no: 'Пройти мимо' },
+  };
+  function openEvent() {
+    const ev = g && g.event;
+    if (!ev || ev.phase !== 'ask' || screen !== 'play') return;
+    const a = EVENT_ASK[ev.id];
+    $('event-title').textContent = t(a.title);
+    $('event-text').textContent = t(a.text, { cost: costText(C.ROOF_FIX) });
+    $('btn-event-yes').textContent = t(a.yes);
+    $('btn-event-no').textContent = t(a.no);
+    overlay = 'event';
+    show('event');
+    $('btn-event-yes').focus({ preventScroll: true });
+  }
+  function answer(yes) {
+    const ev = g && g.event;
+    if (!ev || ev.phase !== 'ask') return false;
+    const r = C.answerEvent(g, C.EVENT_CHOICES[ev.id][yes ? 0 : 1]);
+    if (r === 'nores') { banner(t('Не хватает припасов')); return true; }
+    handle(C.drain(g));
+    if (overlay === 'event') closeOverlay();
+    renderHUD();
+    saveCurrent();
+    return true;
+  }
+
+  // The trade panel: the trader's offers, each once.
+  function openTrade() {
+    if (!g || !g.trader || screen !== 'play') return;
+    tradeDue = false;
+    overlay = 'trade';
+    renderTrade();
+    show('trade');
+  }
+  const bagText = (bag) => Object.keys(bag).map((k) => (k === 'tool' ? t(TOOL_NAME[bag.tool]) : `${t(ITEM_NAME[k])} ×${bag[k]}`)).join(', ');
+  function renderTrade() {
+    const list = $('trade-list');
+    list.innerHTML = '';
+    if (!g.trader) { closeOverlay(); return; }
+    const near = Math.hypot(g.trader.x + 0.5 - g.hero.x, g.trader.y + 0.5 - g.hero.y) <= C.TRADE_REACH;
+    $('trade-lead').textContent = near ? t('Каждый обмен — один раз. До вечера он у ворот.') : t('Подойди к саням у южных ворот.');
+    g.trader.offers.forEach((o, i) => {
+      const row = document.createElement('div');
+      row.className = 'item';
+      row.innerHTML = `<b>${bagText(o.give)} → ${bagText(o.get)}</b><small>${o.taken ? t('уже обменяно') : C.afford(g, o.give) ? t('есть чем платить') : t('не хватает')}</small>`;
+      if (!o.taken) {
+        const acts = document.createElement('div');
+        acts.className = 'acts';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = t('Обменять');
+        b.disabled = !near || !C.afford(g, o.give);
+        b.addEventListener('click', () => {
+          const r = C.trade(g, i);
+          if (r !== 'ok') banner(t(r === 'nores' ? 'Не хватает' : 'Не получилось'), 1.2);
+          handle(C.drain(g));
+          renderTrade();
+          renderHUD();
+          saveCurrent();
+        });
+        acts.append(b);
+        row.append(acts);
+      }
+      list.append(row);
+    });
+  }
+
   function handle(events) {
     for (const e of events) {
       effects(e);
@@ -155,14 +263,37 @@
           float(e.x + 0.5, e.y, `+${e.n}`, e.item === 'wood' ? '#d9a35b' : e.item === 'stone' ? '#c8ccd2' : e.item === 'metal' ? '#e7eef5' : '#ff7a6a');
           break;
         case 'fish': float(e.x + 0.5, e.y, '+1', '#9fd0ff'); sfx('pick'); break;
-        case 'hunt': float(e.x, e.y - 0.5, e.kind === 'deer' ? '+3' : '+1', '#ff9a8a'); sfx('hit'); break;
+        case 'hunt':
+          float(e.x, e.y - 0.5, e.kind === 'deer' ? '+3' : '+1', '#ff9a8a');
+          if (e.kind === 'deer') float(e.x, e.y - 1.1, t('+1 шкура'), '#d9a86c');
+          sfx('hit');
+          break;
         case 'hitWolf': sfx('hit'); break;
         case 'wolfDead': float(e.x, e.y - 0.5, t('Волк убит'), '#cfe0ff'); break;
         case 'feed': sfx('fire'); break;
         case 'cook': sfx('fire'); break;
         case 'eat': sfx('eat'); break;
-        case 'craft': sfx('craft'); banner(t('Готово: {tool}', { tool: t(TOOL_NAME[e.tool]) })); break;
+        case 'craft': sfx('craft'); banner(t('Готово: {tool}', { tool: t(TOOL_NAME[e.tool] || C.GEAR[e.tool].name) })); break;
+        case 'snare': sfx('snare'); break;
+        case 'event': if (e.id === 'roof') sfx('creak'); if (e.phase === 'ask') askDue = true; else banner(t(EVENT_TEXT[e.id]), 3.5); break;
+        case 'eventDone': eventDone(e); break;
+        case 'patched': sfx('build'); banner(t('Крыша залатана')); break;
+        case 'found': sfx('rescue'); banner(t('{name} снова в лагере', { name: t(C.SURVIVORS[e.id].name) }), 2.2); break;
+        case 'aurora': sfx('aurora'); banner(t('Северное сияние: этой ночью волки не придут'), 3); break;
+        case 'ice': banner(t('Наледь: вне лагеря идти тяжелее'), 2.6); break;
+        case 'trader': sfx('bells'); banner(t('Торговец на санях у южных ворот'), 2.6); break;
+        case 'traderLeft': banner(t('Торговец уехал')); break;
+        case 'traded': sfx('trade'); float(g.hero.x, g.hero.y - 0.8, '✓', '#f2c84a'); break;
+        case 'smoked': if (C.SPOT.smokehouse) float(C.SPOT.smokehouse.x + 0.5, C.SPOT.smokehouse.y - 0.6, '+1', '#c9a46a'); break;
+        case 'bear': sfx('roar'); banner(t('В лесу бродит медведь-шатун!'), 2.6); break;
+        case 'bearHit': sfx('hit'); break;
+        case 'bearDead': float(e.x, e.y - 0.6, `+${e.meat} / +${e.hide}`, '#ff9a8a'); banner(t('Медведь повержен!'), 2.2); break;
+        case 'bearLeft': break;
+        case 'snareCaught': float(e.x + 0.5, e.y, t('+1 мясо в силках'), '#ff9a8a'); sfx('snare'); break;
+        case 'scared': break;
         case 'built': sfx('build'); break;
+        case 'upgraded': pops['up' + e.id] = time; sfx('build'); banner(t('Дом стал лучше: {name}', { name: t(C.UPGRADES[e.id].name) }), 2.4); break;
+        case 'smoked': break;
         case 'torch': sfx('fire'); break;
         case 'dig': sfx('step'); break;
         case 'howl': sfx('howl'); banner(t('Ночь. Волки вышли на охоту')); break;
@@ -200,8 +331,11 @@
     $('res-food').textContent = String(C.foodTotal(g));
     const task = C.nextTask(g);
     const rescueOf = /^Спаси выжившего: (.+)$/.exec(task);
-    $('hint').textContent = torchMode ? t('Нажми, где поставить факел')
-      : rescueOf ? t('Спаси выжившего: {name}', { name: t(rescueOf[1]) }) : t(task);
+    const upOf = /^Улучши дом: (.+)$/.exec(task);
+    $('hint').textContent = snareMode ? t('Нажми рядом с героем, где поставить силок')
+      : torchMode ? t('Нажми, где поставить факел')
+      : rescueOf ? t('Спаси выжившего: {name}', { name: t(rescueOf[1]) })
+        : upOf ? t('Улучши дом: {name}', { name: t(upOf[1]) }) : t(task);
     $('btn-pause').textContent = paused ? t('Дальше') : t('Пауза');
     const a = actionTarget();
     $('btn-act').textContent = a ? t(a.label) : t('Действие');
@@ -224,6 +358,10 @@
     }
     for (const a of g.animals) consider(Math.floor(a.x), Math.floor(a.y), 'Охота');
     for (const s of g.survivors) if (s.state === 'waiting') consider(Math.floor(s.x), Math.floor(s.y), 'Позвать');
+    for (const s of g.survivors) if (s.state === 'lost') consider(Math.floor(s.x), Math.floor(s.y), 'Забрать домой');
+    if (g.event && g.event.id === 'wanderer' && g.event.phase === 'active') consider(g.event.x, g.event.y, 'К путнику');
+    if (g.trader) consider(g.trader.x, g.trader.y, 'Торговать');
+    if (g.bear) consider(Math.floor(g.bear.x), Math.floor(g.bear.y), 'Бить медведя');
     consider(C.SPOT.fire.x, C.SPOT.fire.y, 'К костру');
     if (g.hut.stage >= 2) consider(C.SPOT.bed.x, C.SPOT.bed.y, 'Спать');
     return best;
@@ -242,7 +380,15 @@
       handle(C.drain(g));
       return;
     }
+    if (snareMode) {
+      snareMode = false;
+      const sr = C.placeSnare(g, x, y);
+      if (sr !== 'ok') banner(t(SNARE_FAIL[sr] || 'Здесь силок не поставить'), 1.6);
+      handle(C.drain(g));
+      return;
+    }
     const r = C.interact(g, x, y);
+    if (r === 'trader') tradeDue = true;
     if (r === 'tool') {
       const n = C.nodeAt(g, x, y);
       banner(n ? (n.kind === 'rock' ? t('Нужна кирка (верстак)') : t('Нужен топор')) : t('Нужно копьё (верстак)'));
@@ -289,10 +435,19 @@
     g.bunks.forEach((b, i) => {
       rows.push({ id: b.built ? null : `bunk:${i}`, name: t('Нары {n}', { n: i + 1 }), desc: b.built ? t('Готовы: двое спят в тепле') : costText(C.BUNK_COST, b.paid) });
     });
+    if (g.hut.roofHole) rows.push({ id: 'patch', name: t('Залатать крышу'), desc: costText(C.ROOF_FIX, g.hut.patchPaid) });
+    // the house upgrades: after the stove
+    rows.push({ id: null, head: true, name: t('Улучшения дома'), desc: g.hut.stage < C.HUT_STAGES.length ? t('Откроются, когда в хижине будет печь') : '' });
+    if (g.hut.stage >= C.HUT_STAGES.length) {
+      for (const id of C.UPGRADE_IDS) {
+        const u = g.upgrades[id];
+        rows.push({ id: u.built ? null : `up:${id}`, name: t(UP_NAME[id]), desc: `${t(UP_DESC[id])} · ${u.built ? t('готово') : costText(C.UPGRADES[id].cost, u.paid)}` });
+      }
+    }
     rows.push({ id: 'torch', name: t('Факел'), desc: t('{n} дерева, отгоняет волков. Стоит: {k} из {m}', { n: C.TORCH.cost, k: g.torches.length, m: C.TORCH.max }) });
     for (const r of rows) {
       const row = document.createElement('div');
-      row.className = 'item';
+      row.className = r.head ? 'item head' : 'item';
       row.innerHTML = `<b>${r.name}</b><small>${r.desc}</small>`;
       if (r.id) {
         const acts = document.createElement('div');
@@ -306,6 +461,7 @@
           if (r.id === 'torch') { torchMode = true; closeOverlay(); renderHUD(); return; }
           const res = C.contribute(g, r.id);
           if (res === 'nores') banner(t('Нечего внести'), 1.2);
+          if (res === 'locked') banner(t('Сначала печь в хижине'), 1.2);
           handle(C.drain(g));
           renderBuild();
           renderHUD();
@@ -349,6 +505,41 @@
       }
       list.append(row);
     }
+    // the workshop's gear
+    const shop = C.upgradeOn(g, 'workshop');
+    const head = document.createElement('div');
+    head.className = 'item head';
+    head.innerHTML = `<b>${t('Мастерская')}</b><small>${shop ? '' : t('Построй мастерскую (улучшение дома), чтобы делать снаряжение')}</small>`;
+    list.append(head);
+    for (const id of C.GEAR_IDS) {
+      const snares = id === 'snares';
+      const have = snares ? g.gear.snares + g.snares.length >= C.SNARE.max : g.gear[id];
+      const row = document.createElement('div');
+      row.className = 'item';
+      const state = snares ? t('в руках: {n}, стоит: {k}', { n: g.gear.snares, k: g.snares.length }) : have ? t('есть') : costText(C.GEAR[id].cost);
+      row.innerHTML = `<b>${t(GEAR_LABEL[id])}</b><small>${t(GEAR_DESC[id])} · ${state}${snares && !have ? ' · ' + costText(C.GEAR[id].cost) : ''}</small>`;
+      const acts = document.createElement('div');
+      acts.className = 'acts';
+      if (!have) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = t('Сделать');
+        b.disabled = !shop || away || !C.afford(g, C.GEAR[id].cost);
+        b.addEventListener('click', () => { C.craft(g, id); handle(C.drain(g)); renderBench(); renderHUD(); saveCurrent(); });
+        acts.append(b);
+      }
+      if (snares && g.gear.snares > 0) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = t('Поставить');
+        b.addEventListener('click', () => { snareMode = true; closeOverlay(); renderHUD(); });
+        acts.append(b);
+      }
+      if (acts.childNodes.length) row.append(acts);
+      list.append(row);
+    }
   }
 
   function closeOverlay() {
@@ -358,10 +549,10 @@
   }
 
   // ───────────── Screens ─────────────
-  const SCREENS = ['menu', 'confirm', 'build', 'bench', 'result', 'pause'];
+  const SCREENS = ['menu', 'confirm', 'build', 'bench', 'event', 'trade', 'result', 'pause'];
   function show(name) {
     for (const id of SCREENS) $(id).hidden = id !== name;
-    stage.classList.toggle('dim', !!name && !['pause', 'build', 'bench'].includes(name));
+    stage.classList.toggle('dim', !!name && !['pause', 'build', 'bench', 'trade'].includes(name));
   }
 
   function showMenu() {
@@ -371,6 +562,9 @@
     overlay = null;
     paused = false;
     torchMode = false;
+    snareMode = false;
+    askDue = false;
+    tradeDue = false;
     $('hud').hidden = true;
     $('hint').hidden = true;
     $('actionbar').hidden = true;
@@ -1056,6 +1250,79 @@
     K.cylinder(c, u * 0.44, -u * 0.62, u * 0.045, u * 0.42, '#6e4a2c', { ry: u * 0.02 });
   });
 
+  // ── The house upgrades ──
+  // footprints in tiles (the top-left is C.SPOT[id]); insulation is drawn on the hut itself
+  const UP_SIZE = { cellar: [1, 1], smokehouse: [1, 1], annex: [2, 2], workshop: [2, 1] };
+  // the cellar: a stone rim in the snow and a double wooden hatch
+  const cellarSprite = () => sprite('cellar', 1.4, 1.3, 0.2, 0.55, (c, u) => {
+    K.prism(c, 0, u * 0.1, u, u * 0.18, u * 0.55, '#8d8f98', { r: u * 0.05 });
+    for (let k = 0; k < 2; k++) {
+      const x = u * 0.1 + k * u * 0.41;
+      c.fillStyle = lin(c, x, 0, x + u * 0.39, 0, [[0, '#a8743f'], [1, '#6e4524']]);
+      c.fillRect(x, -u * 0.38, u * 0.39, u * 0.44);
+      c.strokeStyle = 'rgba(40, 24, 10, .5)'; c.lineWidth = 1;
+      for (let j = 1; j < 3; j++) { c.beginPath(); c.moveTo(x + (j * u * 0.39) / 3, -u * 0.38); c.lineTo(x + (j * u * 0.39) / 3, u * 0.06); c.stroke(); }
+    }
+    c.fillStyle = '#2c2a2e'; c.fillRect(u * 0.1, -u * 0.2, u * 0.8, u * 0.04);
+    K.sphere(c, u * 0.45, -u * 0.08, u * 0.035, '#c9b27a'); K.sphere(c, u * 0.55, -u * 0.08, u * 0.035, '#c9b27a');
+    c.fillStyle = 'rgba(255,255,255,.9)'; ell(c, u * 0.25, -u * 0.42, u * 0.16, u * 0.04); c.fill();
+  });
+  // the smokehouse: a small log shed with a stone chimney
+  const smokehouseSprite = () => sprite('smokehouse', 1.5, 2.2, 0.25, 1.5, (c, u) => {
+    K.prism(c, 0, -u * 0.05, u, u * 0.75, u * 0.6, '#7a5434', { r: u * 0.03 });
+    logWall(c, u, 0, u, u * 0.7, u * 0.75, 0.02);
+    c.fillStyle = '#120c08'; K.rrect(c, u * 0.35, u * 0.28, u * 0.3, u * 0.42, u * 0.04); c.fill();
+    K.prism(c, -u * 0.1, -u * 0.2, u * 1.2, u * 0.16, u * 0.72, '#dfe9f5', { r: u * 0.05 });
+    K.prism(c, u * 0.62, -u * 0.95, u * 0.22, u * 0.6, u * 0.12, '#8f8a86', { r: u * 0.03 });
+    c.fillStyle = '#f7fbff'; K.rrect(c, u * 0.6, -u * 1.1, u * 0.26, u * 0.07, u * 0.03); c.fill();
+  });
+  // the annex: a log room against the hut's east wall under a snowy lean-to roof
+  const annexSprite = () => sprite('annex', 2.6, 3.4, 0.2, 1.6, (c, u) => {
+    const W = u * 2, D = u * 2, Hw = u * 0.95;
+    c.fillStyle = 'rgba(70, 60, 50, .25)'; c.fillRect(0, 0, W, D);
+    K.prism(c, 0, D - Hw, W, Hw, D - u * 0.1, '#6e4c30', { r: u * 0.03 });
+    logWall(c, u, -u * 0.04, W + u * 0.04, D, Hw, 0.03);
+    // the lean-to roof, sloping down to the front
+    const top = D - Hw - (D - u * 0.1) - u * 0.08;
+    c.beginPath(); c.moveTo(-u * 0.12, D - Hw + u * 0.05); c.lineTo(W + u * 0.12, D - Hw + u * 0.05); c.lineTo(W + u * 0.12, top); c.lineTo(-u * 0.12, top); c.closePath();
+    c.fillStyle = lin(c, 0, top, 0, D - Hw, [[0, '#b9cbe3'], [0.6, '#e6eef8'], [1, '#ffffff']]); c.fill();
+    c.strokeStyle = 'rgba(120, 145, 185, .35)'; c.lineWidth = Math.max(0.8, u * 0.025);
+    for (let k = 1; k < 4; k++) { const y = top + ((D - Hw - top) * k) / 4; c.beginPath(); c.moveTo(-u * 0.1, y); c.lineTo(W + u * 0.1, y); c.stroke(); }
+    c.strokeStyle = '#4a2f1a'; c.lineWidth = u * 0.08; c.beginPath(); c.moveTo(-u * 0.12, D - Hw + u * 0.07); c.lineTo(W + u * 0.12, D - Hw + u * 0.07); c.stroke();
+    // a door and a window
+    c.fillStyle = '#4a2f1a'; K.rrect(c, u * 1.2, D - u * 0.72, u * 0.5, u * 0.72, u * 0.06); c.fill();
+    c.fillStyle = '#7a5232'; K.rrect(c, u * 1.25, D - u * 0.67, u * 0.4, u * 0.67, u * 0.05); c.fill();
+    K.block(c, u * 0.3, D - Hw * 0.7, u * 0.5, u * 0.36, u * 0.04, '#5a3a20');
+    c.fillStyle = '#1d2433'; c.fillRect(u * 0.35, D - Hw * 0.7 + u * 0.05, u * 0.4, u * 0.26);
+    c.fillStyle = 'rgba(225, 242, 255, .9)';
+    for (let k = 0; k < 6; k++) { const x = u * 0.1 + k * u * 0.35, len = u * (0.06 + hash(k, 7) * 0.12); c.beginPath(); c.moveTo(x - u * 0.03, D - Hw + u * 0.1); c.lineTo(x, D - Hw + u * 0.1 + len); c.lineTo(x + u * 0.03, D - Hw + u * 0.1); c.fill(); }
+  });
+  // the workshop: an open shed on four posts with an anvil and a sawhorse
+  const workshopSprite = () => sprite('workshop', 2.6, 2.4, 0.3, 1.5, (c, u) => {
+    const W = u * 2;
+    for (const x of [u * 0.08, W - u * 0.08]) for (const y of [-u * 0.05, u * 0.85]) K.cylinder(c, x, y - u * 0.95, u * 0.05, u * 0.95, '#6a4528', { ry: u * 0.02 });
+    c.fillStyle = 'rgba(110, 80, 50, .35)'; c.fillRect(0, 0, W, u * 0.85);
+    // the anvil on a stump, the sawhorse with a log
+    K.cylinder(c, u * 0.55, u * 0.2, u * 0.16, u * 0.28, '#7a5232', { ry: u * 0.06 });
+    K.block(c, u * 0.35, u * 0.02, u * 0.42, u * 0.16, u * 0.04, '#4a4d58');
+    c.fillStyle = '#4a4d58'; c.beginPath(); c.moveTo(u * 0.77, u * 0.04); c.lineTo(u * 0.95, u * 0.08); c.lineTo(u * 0.77, u * 0.14); c.fill();
+    c.strokeStyle = '#6e4524'; c.lineWidth = u * 0.06; c.lineCap = 'round';
+    for (const x of [u * 1.25, u * 1.65]) { c.beginPath(); c.moveTo(x - u * 0.12, u * 0.6); c.lineTo(x + u * 0.12, u * 0.25); c.moveTo(x + u * 0.12, u * 0.6); c.lineTo(x - u * 0.12, u * 0.25); c.stroke(); }
+    K.cylinder(c, u * 1.45, u * 0.22, u * 0.32, u * 0.0, '#9a7048', { ry: u * 0.08 });
+    c.fillStyle = lin(c, 0, u * 0.3, 0, u * 0.42, [[0, '#b88a58'], [1, '#7a5232']]); K.rrect(c, u * 1.1, u * 0.24, u * 0.7, u * 0.16, u * 0.08); c.fill();
+    // the roof
+    K.prism(c, -u * 0.1, -u * 1.05, W + u * 0.2, u * 0.16, u * 0.95, '#dfe9f5', { r: u * 0.05 });
+    c.fillStyle = '#5a3a20'; c.fillRect(-u * 0.1, -u * 0.9, W + u * 0.2, u * 0.06);
+  });
+  // a snare: a peg and a loop of cord, with a rabbit in it after a catch
+  const snareSprite = () => sprite('snare', 0.8, 0.8, 0.4, 0.6, (c, u) => {
+    c.strokeStyle = '#6e4524'; c.lineWidth = u * 0.05; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(-u * 0.12, 0); c.lineTo(-u * 0.12, -u * 0.32); c.stroke();
+    c.strokeStyle = '#c9a46a'; c.lineWidth = u * 0.025;
+    c.beginPath(); c.moveTo(-u * 0.12, -u * 0.25); c.quadraticCurveTo(0, -u * 0.3, u * 0.05, -u * 0.12); c.stroke();
+    c.beginPath(); ell(c, u * 0.1, -u * 0.06, u * 0.13, u * 0.07); c.stroke();
+  });
+
   // a sharpened log stake of the palisade; `bad` for a gnawed one
   const stakeSprite = (bad) => sprite('stake' + (bad ? 1 : 0), 0.4, 1, 0.2, 0.86, (c, u) => {
     const col = bad ? '#5e432c' : '#86603c', r = u * 0.085, h = u * 0.62;
@@ -1131,8 +1398,26 @@
     const ax = p.x + C.HUT.w * ts / 2, ay = p.y + C.HUT.h * ts;
     ctx.translate(ax, ay); ctx.scale(sc, 2 - sc); ctx.translate(-ax, -ay);
     blit(s, p.x, p.y);
-    ctx.restore();
     const st = g.hut.stage;
+    if (st >= 2 && C.upgradeOn(g, 'insulation')) {
+      // moss caulked between the front logs, a hide hung by the door
+      ctx.strokeStyle = 'rgba(110, 140, 70, .8)'; ctx.lineWidth = Math.max(1, ts * 0.035);
+      for (let k = 1; k < 6; k++) { const y = p.y + C.HUT.h * ts - k * ts * 0.17; ctx.beginPath(); ctx.moveTo(p.x + ts * 0.05, y); ctx.lineTo(p.x + C.HUT.w * ts - ts * 0.05, y); ctx.stroke(); }
+      ctx.fillStyle = '#9a6a3c';
+      ctx.beginPath(); ctx.moveTo(p.x + ts * 2.25, p.y + ts * 1.25); ctx.lineTo(p.x + ts * 2.75, p.y + ts * 1.2); ctx.lineTo(p.x + ts * 2.8, p.y + ts * 1.75); ctx.lineTo(p.x + ts * 2.5, p.y + ts * 1.85); ctx.lineTo(p.x + ts * 2.2, p.y + ts * 1.72); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(255, 230, 190, .25)'; ell(ctx, p.x + ts * 2.48, p.y + ts * 1.45, ts * 0.14, ts * 0.18); ctx.fill();
+    }
+    if (st >= 2 && g.hut.roofHole) {
+      // a hole broken through the left slope: dark inside, snapped boards round it
+      const hx = p.x + ts * 0.9, hy = p.y - ts * 0.55;
+      ctx.fillStyle = '#1b1410';
+      ctx.beginPath();
+      for (let k = 0; k < 9; k++) { const a = (k / 9) * Math.PI * 2, r = ts * (0.26 + 0.07 * Math.sin(k * 2.7)); ctx.lineTo(hx + Math.cos(a) * r, hy + Math.sin(a) * r * 0.6); }
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#7a5232'; ctx.lineWidth = Math.max(1, ts * 0.05); ctx.lineCap = 'round';
+      for (const [a, b] of [[-0.3, 0.5], [0.2, -0.4], [0.6, 0.3]]) { ctx.beginPath(); ctx.moveTo(hx + a * ts * 0.3, hy + b * ts * 0.12); ctx.lineTo(hx + a * ts * 0.45, hy + b * ts * 0.25); ctx.stroke(); }
+    }
+    ctx.restore();
     if (st >= 2) {
       const stove = C.stoveOn(g);
       const wx = p.x + ts * 0.35, wy = p.y + C.HUT.h * ts - ts * 0.72;
@@ -1175,6 +1460,8 @@
     const ts = cam.ts, p = P(e.x, e.y);
     if (p.x < -ts || p.y < -ts * 2 || p.x > view.w + ts || p.y > view.h + ts * 2) return;
     const m = motion(e);
+    const work = opts.work;
+    if (work && work.x !== undefined && Math.abs(work.x - e.x) > 0.05) m.face = work.x > e.x ? 1 : -1;
     const sc = look.small ? 0.8 : 1, u = ts * sc;
     const fy = p.y + ts * 0.28;          // the feet
     const walk = m.moving, ph = m.phase;
@@ -1186,9 +1473,7 @@
       ctx.fillStyle = '#2a2230';
       ell(ctx, p.x + sd * u * 0.09, fy - u * 0.03 - lift, u * 0.075, u * 0.05); ctx.fill();
     }
-    // the work swing: a tool raised and brought down towards the target
-    const tg = opts.work;
-    const swing = tg ? Math.sin(time * 9) : 0;
+    const tg = work && work.kind;
     // back arm
     const arm = (sd, ang, len) => {
       ctx.save();
@@ -1233,18 +1518,53 @@
       ctx.save();
       ctx.translate(p.x + m.face * r * 0.9, by - bh * 0.62);
       ctx.scale(m.face, 1);
-      ctx.rotate(-1.9 + (swing + 1) * 1.1);
+      ctx.rotate(swingAngle(work));
       ctx.fillStyle = K.shade(look.coat, 0.05);
       K.rrect(ctx, -u * 0.05, 0, u * 0.1, u * 0.22, u * 0.05); ctx.fill();
       ctx.strokeStyle = '#6a4224'; ctx.lineWidth = u * 0.05; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(0, u * 0.18); ctx.lineTo(0, u * 0.5); ctx.stroke();
       if (tg === 'tree' || tg === 'pick' || tg === 'rock') {
         ctx.fillStyle = '#b8c2d0';
-        if (tg === 'tree') { ctx.beginPath(); ctx.moveTo(0, u * 0.42); ctx.lineTo(u * 0.14, u * 0.38); ctx.lineTo(u * 0.14, u * 0.54); ctx.closePath(); ctx.fill(); }
-        else { ctx.lineWidth = u * 0.04; ctx.strokeStyle = '#b8c2d0'; ctx.beginPath(); ctx.moveTo(-u * 0.16, u * 0.42); ctx.quadraticCurveTo(0, u * 0.5, u * 0.16, u * 0.42); ctx.stroke(); }
+        // the blade leads the downswing, which runs towards the arm's local −x
+        if (tg === 'tree') {
+          ctx.beginPath(); ctx.moveTo(u * 0.01, u * 0.4); ctx.lineTo(-u * 0.15, u * 0.35); ctx.quadraticCurveTo(-u * 0.19, u * 0.45, -u * 0.15, u * 0.55); ctx.lineTo(u * 0.01, u * 0.5); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#e8eef6'; ctx.fillRect(-u * 0.165, u * 0.37, u * 0.025, u * 0.16);
+        } else {
+          ctx.beginPath(); ctx.moveTo(-u * 0.2, u * 0.4); ctx.quadraticCurveTo(0, u * 0.5, u * 0.2, u * 0.4);
+          ctx.quadraticCurveTo(0, u * 0.56, -u * 0.2, u * 0.4); ctx.fill();
+        }
       }
       ctx.restore();
     } else arm(m.face, -sw, u * 0.24);
+  }
+
+  // At the camp by day the carpenter splits logs on a block and the smith breaks ore on a stone.
+  const HOME_JOB = { carpenter: 'tree', smith: 'rock' };
+  function drawWorkBlock(job, x, y) {
+    const ts = cam.ts, p = P(x, y + 0.22);
+    if (job === 'tree') {
+      ctx.fillStyle = '#6a4224'; K.rrect(ctx, p.x - ts * 0.14, p.y - ts * 0.16, ts * 0.28, ts * 0.18, ts * 0.04); ctx.fill();
+      ctx.fillStyle = '#c99a62'; ell(ctx, p.x, p.y - ts * 0.16, ts * 0.14, ts * 0.05); ctx.fill();
+      ctx.strokeStyle = '#8a6038'; ctx.lineWidth = ts * 0.012;
+      ell(ctx, p.x, p.y - ts * 0.16, ts * 0.07, ts * 0.025); ctx.stroke();
+    } else {
+      K.sphere(ctx, p.x, p.y - ts * 0.08, ts * 0.13, '#8d939e', { gloss: false, shine: 0.4 });
+      ctx.fillStyle = '#c07a4a'; ell(ctx, p.x + ts * 0.04, p.y - ts * 0.13, ts * 0.03, ts * 0.02); ctx.fill();
+    }
+  }
+
+  // The tool arm's angle (radians, the arm hanging down is 0, facing right): a quick chop down to the front at each
+  // hit, a short rest on the target, then the slower lift up over the shoulder for the next one. The core resets the
+  // cooldown on the hit, so 1 − cd/period runs from 0 at the impact to 1 just before the next.
+  const STRIKE = 5.25, RAISED = 2.75;
+  const ease = (k) => k * k * (3 - 2 * k);
+  function swingAngle(w) {
+    if (!w.period) return STRIKE - 0.35 + Math.sin(time * 3) * 0.12;     // fishing: a slow jig of the line
+    const p = C.clamp(1 - w.cd / w.period, 0, 1);
+    if (p < 0.12) return STRIKE + 0.06 * Math.sin((p / 0.12) * Math.PI);   // the bite into the wood or stone
+    if (p < 0.78) return STRIKE + (RAISED - STRIKE) * ease((p - 0.12) / 0.66);
+    const k = (p - 0.78) / 0.22;
+    return RAISED + (STRIKE - RAISED) * k * k;                           // accelerating down
   }
 
   function drawSleeper(e) {
@@ -1257,6 +1577,101 @@
     }
     ctx.globalAlpha = 1;
     void e;
+  }
+
+  // Smoke from the smokehouse chimney: soft puffs rising and drifting.
+  function smokePuffs(x, y) {
+    const ts = cam.ts;
+    for (let k = 0; k < 4; k++) {
+      const t2 = (time * 0.35 + k / 4) % 1, p = P(x + t2 * 0.6 + Math.sin(time + k) * 0.08, y - t2 * 1.4);
+      ctx.fillStyle = `rgba(118, 122, 134, ${0.55 * (1 - t2)})`;
+      ell(ctx, p.x, p.y, ts * (0.1 + t2 * 0.22), ts * (0.08 + t2 * 0.16)); ctx.fill();
+    }
+  }
+
+  // The bear: a heavy brown body with a shoulder hump, a round head with small ears, a swipe of the paw on a bite.
+  function drawBear(b) {
+    const ts = cam.ts, p = P(b.x, b.y), m = motion(b);
+    if (!m.moving && Math.hypot(g.hero.x - b.x, g.hero.y - b.y) < C.BEAR.sight) m.face = g.hero.x >= b.x ? 1 : -1;
+    const sway = m.moving ? Math.sin(m.phase * 0.8) * ts * 0.03 : Math.sin(time * 1.5 + b.id) * ts * 0.01;
+    const swipe = b.cd > C.BEAR.cd - 0.35 ? 1 - (C.BEAR.cd - b.cd) / 0.35 : 0;
+    ctx.save(); ctx.translate(p.x, p.y + ts * 0.32); ctx.scale(m.face, 1);
+    const by = -ts * 0.42 - Math.abs(sway);
+    legs(0, by + ts * 0.12, 4, ts * 0.26, ts * 0.3, m.phase * 0.8, m.moving, '#3a2416', Math.max(2.5, ts * 0.11));
+    // the body and the hump
+    ctx.fillStyle = lin(ctx, 0, by - ts * 0.3, 0, by + ts * 0.24, [[0, '#4a2e1a'], [0.45, '#7a5232'], [1, '#a8784a']]);
+    ell(ctx, 0, by, ts * 0.5, ts * 0.27); ctx.fill();
+    ell(ctx, ts * 0.12, by - ts * 0.18, ts * 0.22, ts * 0.14); ctx.fill();
+    ctx.fillStyle = 'rgba(30, 18, 8, .3)'; ell(ctx, -ts * 0.06, by - ts * 0.14, ts * 0.36, ts * 0.08); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, .85)'; ell(ctx, -ts * 0.05, by - ts * 0.24, ts * 0.22, ts * 0.05); ctx.fill();
+    // the head: round ears, a lighter muzzle, a dark nose
+    const hx = ts * 0.46 + sway, hy = by - ts * 0.1;
+    K.sphere(ctx, hx - ts * 0.08, hy - ts * 0.17, ts * 0.07, '#5a3a22', { gloss: false });
+    K.sphere(ctx, hx + ts * 0.08, hy - ts * 0.17, ts * 0.07, '#5a3a22', { gloss: false });
+    K.sphere(ctx, hx, hy, ts * 0.19, '#7a5232', { gloss: false, shine: 0.3 });
+    ctx.fillStyle = '#c99a6a'; ell(ctx, hx + ts * 0.13, hy + ts * 0.05, ts * 0.11, ts * 0.08); ctx.fill();
+    ctx.fillStyle = '#1a120c'; ell(ctx, hx + ts * 0.21, hy + ts * 0.02, ts * 0.04, ts * 0.03); ctx.fill();
+    ell(ctx, hx + ts * 0.05, hy - ts * 0.05, ts * 0.025, ts * 0.025); ctx.fill();
+    // the swipe: a raised paw and three claw arcs
+    if (swipe > 0) {
+      ctx.fillStyle = '#5a3a22'; ell(ctx, hx + ts * 0.1, by - ts * 0.1 - swipe * ts * 0.25, ts * 0.1, ts * 0.13); ctx.fill();
+      ctx.strokeStyle = `rgba(150, 30, 24, ${0.85 * swipe})`; ctx.lineWidth = Math.max(2, ts * 0.05); ctx.lineCap = 'round';
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(hx + ts * 0.3, by + ts * 0.05, ts * (0.22 + k * 0.08), -1.2, -0.2); ctx.stroke(); }
+    }
+    ctx.restore();
+    if (b.hp < C.BEAR.hp) {
+      const bw = ts * 0.9, bx = p.x - bw / 2, bY = p.y - ts * 0.75;
+      ctx.fillStyle = 'rgba(10, 8, 20, .55)'; K.rrect(ctx, bx - 1, bY - 1, bw + 2, 6, 3); ctx.fill();
+      ctx.fillStyle = lin(ctx, 0, bY, 0, bY + 4, [[0, '#ffb0a0'], [1, '#e0483a']]);
+      K.rrect(ctx, bx, bY, bw * Math.max(0, b.hp / C.BEAR.hp), 4, 2); ctx.fill();
+    }
+  }
+
+  // The trader's sled at the gate: runners, a load under a tarp, a reindeer in harness, the trader beside it.
+  const TRADER_LOOK = { coat: '#9a3a2a', hat: '#3a2a20', pom: null, scarf: '#e0b84a', fur: true };
+  const traderStand = { x: 0, y: 0 };
+  function drawTrader(tr) {
+    const ts = cam.ts, p = P(tr.x - 0.6, tr.y + 0.75);
+    // the reindeer, to the right of the sled
+    ctx.save(); ctx.translate(p.x + ts * 2.15, p.y - ts * 0.05);
+    legs(0, -ts * 0.42, 4, ts * 0.17, ts * 0.38, time * 0.6, false, '#5a3a22', Math.max(1.5, ts * 0.05));
+    ctx.fillStyle = lin(ctx, 0, -ts * 0.62, 0, -ts * 0.3, [[0, '#7a5232'], [1, '#c99a6a']]);
+    ell(ctx, 0, -ts * 0.46, ts * 0.32, ts * 0.17); ctx.fill();
+    ctx.fillStyle = '#efe6d4'; ell(ctx, ts * 0.2, -ts * 0.42, ts * 0.12, ts * 0.12); ctx.fill();
+    K.sphere(ctx, ts * 0.36, -ts * 0.72, ts * 0.11, '#8a6040', { gloss: false });
+    ctx.strokeStyle = '#d9c6a0'; ctx.lineWidth = Math.max(1, ts * 0.03); ctx.lineCap = 'round';
+    for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(ts * 0.33, -ts * 0.8); ctx.lineTo(ts * (0.33 + sx * 0.12), -ts * 1.02); ctx.lineTo(ts * (0.33 + sx * 0.2), -ts * 1.08); ctx.moveTo(ts * (0.33 + sx * 0.12), -ts * 1.02); ctx.lineTo(ts * (0.33 + sx * 0.06), -ts * 1.12); ctx.stroke(); }
+    ctx.fillStyle = '#d0283e'; ell(ctx, ts * 0.46, -ts * 0.7, ts * 0.03, ts * 0.03); ctx.fill();
+    ctx.restore();
+    // the harness
+    ctx.strokeStyle = '#6a4224'; ctx.lineWidth = Math.max(1, ts * 0.03);
+    ctx.beginPath(); ctx.moveTo(p.x + ts * 1.55, p.y - ts * 0.3); ctx.lineTo(p.x + ts * 1.95, p.y - ts * 0.5); ctx.stroke();
+    // the sled: two runners curling up at the front, slats, a load under a tarp tied with rope
+    ctx.strokeStyle = '#4a2f1a'; ctx.lineWidth = Math.max(2, ts * 0.06); ctx.lineCap = 'round';
+    for (const dy of [0, -ts * 0.18]) { ctx.beginPath(); ctx.moveTo(p.x, p.y + dy); ctx.lineTo(p.x + ts * 1.45, p.y + dy); ctx.quadraticCurveTo(p.x + ts * 1.65, p.y + dy, p.x + ts * 1.6, p.y + dy - ts * 0.22); ctx.stroke(); }
+    K.prism(ctx, p.x + ts * 0.05, p.y - ts * 0.32, ts * 1.4, ts * 0.12, ts * 0.3, '#9a7048', { r: ts * 0.03 });
+    ctx.fillStyle = lin(ctx, 0, p.y - ts * 1.05, 0, p.y - ts * 0.35, [[0, '#6a8a6a'], [1, '#3e5a44']]);
+    ctx.beginPath(); ctx.moveTo(p.x + ts * 0.12, p.y - ts * 0.4); ctx.quadraticCurveTo(p.x + ts * 0.25, p.y - ts * 1.1, p.x + ts * 0.75, p.y - ts * 1.05); ctx.quadraticCurveTo(p.x + ts * 1.3, p.y - ts * 1.0, p.x + ts * 1.38, p.y - ts * 0.4); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#d9c6a0'; ctx.lineWidth = Math.max(1, ts * 0.025);
+    for (const x of [0.45, 1.0]) { ctx.beginPath(); ctx.moveTo(p.x + ts * x, p.y - ts * 0.4); ctx.lineTo(p.x + ts * (x + 0.05), p.y - ts * 1.05); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; ell(ctx, p.x + ts * 0.72, p.y - ts * 1.04, ts * 0.32, ts * 0.06); ctx.fill();
+    // bells on the harness
+    for (let k = 0; k < 3; k++) K.sphere(ctx, p.x + ts * (1.62 + k * 0.1), p.y - ts * (0.36 + k * 0.05) + Math.sin(time * 8 + k) * 1.5, ts * 0.035, '#f2c84a');
+    // the trader himself, stamping his feet by the sled
+    traderStand.x = tr.x + 0.5; traderStand.y = tr.y + 1.1;
+    drawPerson(traderStand, TRADER_LOOK);
+  }
+
+  // The wounded wanderer lying in the snow, wrapped in a grey cloak, a bandage round the head.
+  function drawWanderer(ev) {
+    const ts = cam.ts, p = P(ev.x + 0.5, ev.y + 0.6);
+    const breath = 1 + 0.03 * Math.sin(time * 2);
+    ctx.fillStyle = lin(ctx, 0, p.y - ts * 0.25, 0, p.y + ts * 0.05, [[0, '#8a8f9c'], [1, '#5a5f6c']]);
+    ell(ctx, p.x - ts * 0.08, p.y - ts * 0.1, ts * 0.38, ts * 0.15 * breath); ctx.fill();
+    ctx.fillStyle = '#3e2c20'; ell(ctx, p.x - ts * 0.42, p.y - ts * 0.08, ts * 0.08, ts * 0.06); ctx.fill();
+    K.sphere(ctx, p.x + ts * 0.34, p.y - ts * 0.14, ts * 0.12, '#f0c49a', { gloss: false });
+    ctx.fillStyle = '#f2ece0'; ctx.fillRect(p.x + ts * 0.23, p.y - ts * 0.22, ts * 0.22, ts * 0.05);
+    ctx.fillStyle = 'rgba(255,255,255,.8)'; ell(ctx, p.x - ts * 0.1, p.y - ts * 0.24, ts * 0.22, ts * 0.04); ctx.fill();
   }
 
   function drawRabbit(a) {
@@ -1359,12 +1774,21 @@
   }
 
   // ── The scene: decals on the ground, then everything that stands, sorted by its foot ──
-  function workKind() {
-    const tg = g.hero.target;
-    if (!tg || g.hero.path) return null;
-    if (tg.type === 'node') { const n = g.nodes[tg.id]; return n ? n.kind : 'hand'; }
-    if (tg.type === 'wolf' || tg.type === 'animal') return 'tree';
-    if (tg.type === 'hole') return 'hand';
+  // What the hero is working at: the tool, the seconds between hits (the swing keeps time with them) and where
+  // the target stands, so he turns to face it.
+  const HIT_PERIOD = { tree: C.HIT_CD, rock: C.HIT_CD, bush: 1, scrap: 1.5 };
+  function heroWork() {
+    const h = g.hero, tg = h.target;
+    if (!tg || h.path) return null;
+    if (tg.type === 'node') {
+      const n = g.nodes[tg.id];
+      return n ? { kind: n.kind, period: HIT_PERIOD[n.kind] || C.HIT_CD, cd: h.cd, x: n.x + 0.5 } : null;
+    }
+    if (tg.type === 'wolf' || tg.type === 'animal') {
+      const e = (tg.type === 'wolf' ? g.wolves : g.animals).find((a) => a.id === tg.id);
+      return e ? { kind: 'tree', period: 0.8, cd: h.cd, x: e.x } : null;
+    }
+    if (tg.type === 'hole') return { kind: 'hand', x: tg.x + 0.5 };
     return null;
   }
 
@@ -1397,6 +1821,17 @@
       K.rrect(ctx, p.x + ts * 0.08, p.y + ts * 0.25, ts * 0.84, ts * 0.5, ts * 0.08); ctx.stroke();
       ctx.setLineDash([]);
     });
+    // the upgrades not built yet, once the stove stands: their outlines on the snow
+    if (g.hut.stage >= C.HUT_STAGES.length) {
+      for (const id of Object.keys(UP_SIZE)) {
+        if (C.upgradeOn(g, id)) continue;
+        const sp = C.SPOT[id], [w, h] = UP_SIZE[id], p = P(sp.x, sp.y);
+        ctx.setLineDash([3, 4]);
+        ctx.strokeStyle = 'rgba(120, 90, 60, .45)'; ctx.lineWidth = 1.5;
+        K.rrect(ctx, p.x + ts * 0.08, p.y + ts * 0.08, w * ts - ts * 0.16, h * ts - ts * 0.16, ts * 0.08); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
     // a tap: a ring on the ground
     for (const m of fx.marks) {
       const p = P(m.x, m.y), k = m.t / 0.45;
@@ -1484,6 +1919,25 @@
         blit(bunkSprite(), p.x, p.y, pt < 0.5 ? K.ease.outBack(pt / 0.5) : 1);
       }, () => { const p = P(s.x + 0.5, s.y + 0.75); blit(lowShadow('k', 0.48, 0.5), p.x, p.y); });
     });
+    const UP_SPRITE = { cellar: cellarSprite, smokehouse: smokehouseSprite, annex: annexSprite, workshop: workshopSprite };
+    for (const id of Object.keys(UP_SIZE)) {
+      if (!C.upgradeOn(g, id)) continue;
+      const sp = C.SPOT[id], [w, h] = UP_SIZE[id], pk = 'up' + id;
+      add(sp.y + h, sp.x + w / 2, () => {
+        const p = P(sp.x, sp.y), pt = pops[pk] == null ? 9 : time - pops[pk];
+        blit(UP_SPRITE[id](), p.x, p.y, pt < 0.5 ? K.ease.outBack(pt / 0.5) : 1);
+        if (id === 'smokehouse' && g.upgrades.smokehouse.work > 0) smokePuffs(sp.x + 0.73, sp.y - 1.1);
+        if (id === 'annex' && (C.fireOn(g) || C.stoveOn(g))) {
+          const q = P(sp.x + 0.35, sp.y + 1.385), fl = 0.8 + 0.2 * Math.sin(time * 5);
+          ctx.fillStyle = `rgba(255, 176, 80, ${0.8 * fl})`; ctx.fillRect(q.x, q.y, ts * 0.4, ts * 0.26);
+          K.glow(ctx, q.x + ts * 0.2, q.y + ts * 0.13, ts * 0.5, '#ffb050', 0.35 * fl);
+        }
+      }, () => { const p = P(sp.x, sp.y + h); for (let k = 0; k <= 3; k++) K.shadow(ctx, p.x + (k / 3) * w * ts + ts * 0.2, p.y - ts * 0.3, ts * 0.45, ts * 0.5, 0.16); });
+    }
+    for (const n of g.snares) {
+      if (!vis(n.x, n.y)) continue;
+      add(n.y + 0.6, n.x + 0.5, () => { const p = P(n.x + 0.5, n.y + 0.6); blit(snareSprite(), p.x, p.y); });
+    }
     const F = C.SPOT.fire;
     add(F.y + 0.55, F.x + 0.5, () => { const p = P(F.x + 0.5, F.y + 0.55); drawFire(p.x, p.y); });
     for (const tc of g.torches) {
@@ -1539,6 +1993,16 @@
       const r = a.kind === 'deer' ? 0.36 : 0.2;
       add(a.y + 0.3, a.x, () => (a.kind === 'deer' ? drawDeer(a) : drawRabbit(a)), () => { const p = P(a.x, a.y + 0.3); K.shadow(ctx, p.x + ts * 0.05, p.y, ts * r, ts * r * 0.36, 0.3); });
     }
+    if (g.trader && vis(g.trader.x + 0.5, g.trader.y + 0.5)) {
+      const tr = g.trader;
+      add(tr.y + 0.8, tr.x + 0.5, () => drawTrader(tr), () => { const p = P(tr.x + 0.5, tr.y + 0.8); K.shadow(ctx, p.x + ts * 0.3, p.y, ts * 1.3, ts * 0.22, 0.3); });
+    }
+    const wev = g.event && g.event.id === 'wanderer' ? g.event : null;
+    if (wev && vis(wev.x, wev.y)) add(wev.y + 0.6, wev.x + 0.5, () => drawWanderer(wev), () => { const p = P(wev.x + 0.5, wev.y + 0.65); K.shadow(ctx, p.x, p.y, ts * 0.42, ts * 0.12, 0.28); });
+    if (g.bear && vis(g.bear.x, g.bear.y)) {
+      const b = g.bear;
+      add(b.y + 0.35, b.x, () => drawBear(b), () => { const p = P(b.x, b.y + 0.35); K.shadow(ctx, p.x + ts * 0.05, p.y, ts * 0.55, ts * 0.17, 0.34); });
+    }
     for (const w of g.wolves) {
       if (!vis(w.x, w.y)) continue;
       add(w.y + 0.28, w.x, () => drawWolf(w, false), () => { const p = P(w.x, w.y + 0.28); K.shadow(ctx, p.x + ts * 0.05, p.y, ts * 0.38, ts * 0.12, 0.32); });
@@ -1548,11 +2012,13 @@
       if (s.state === 'waiting' && C.SURVIVORS[s.id].need === 'day' && C.isNight(g)) continue;
       if (!vis(s.x, s.y)) continue;
       const look = LOOK[s.id];
-      add(s.y + 0.28, s.x, () => drawPerson(s, look), () => { const p = P(s.x, s.y + 0.28); K.shadow(ctx, p.x + ts * 0.04, p.y, ts * 0.24, ts * 0.09, 0.32); });
+      const job = s.state === 'home' && s.busy && HOME_JOB[s.id];
+      const work = job && { kind: job, period: 1.1, cd: 1.1 - ((time + s.x) % 1.1), x: s.x + 0.45 };
+      add(s.y + 0.28, s.x, () => { if (work) drawWorkBlock(job, s.x + 0.45, s.y); drawPerson(s, look, { work }); }, () => { const p = P(s.x, s.y + 0.28); K.shadow(ctx, p.x + ts * 0.04, p.y, ts * 0.24, ts * 0.09, 0.32); });
     }
     if (!g.hero.sleeping) {
       const h = g.hero;
-      add(h.y + 0.28, h.x, () => drawPerson(h, LOOK.hero, { work: workKind() }), () => { const p = P(h.x, h.y + 0.28); K.shadow(ctx, p.x + ts * 0.04, p.y, ts * 0.25, ts * 0.09, 0.34); });
+      add(h.y + 0.28, h.x, () => drawPerson(h, LOOK.hero, { work: heroWork() }), () => { const p = P(h.x, h.y + 0.28); K.shadow(ctx, p.x + ts * 0.04, p.y, ts * 0.25, ts * 0.09, 0.34); });
     }
     items.sort((a, b) => a.y - b.y || a.x - b.x);
     return items;
@@ -1616,6 +2082,28 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(darkCanvas, 0, 0, canvas.width, canvas.height);
     ctx.restore();
+    // the aurora: soft bands of green and violet drifting across the top of the sky
+    const au = V.aurora(g);
+    if (au > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      // curtains: a bright lower hem waving across the sky, rays fading upward from it
+      const bands = [['60, 240, 160', 0.5, 0, 0.26], ['88, 208, 255', 0.32, 1.7, 0.2], ['176, 122, 255', 0.26, 3.1, 0.33]];
+      for (const [rgb, a, ph, base] of bands) {
+        const hem = (x) => view.h * (base + 0.07 * Math.sin(x / 170 + time * 0.35 + ph) + 0.03 * Math.sin(x / 53 - time * 0.6 + ph));
+        for (let x = 0; x <= view.w; x += 6) {
+          const y1 = hem(x), len = view.h * (0.12 + 0.07 * (0.5 + 0.5 * Math.sin(x / 31 + time * 1.3 + ph * 2)));
+          const flick = 0.6 + 0.4 * Math.sin(x / 13 + time * 2.1 + ph);
+          const gr = ctx.createLinearGradient(0, y1 - len, 0, y1);
+          gr.addColorStop(0, `rgba(${rgb}, 0)`);
+          gr.addColorStop(0.85, `rgba(${rgb}, ${a * au * flick})`);
+          gr.addColorStop(1, `rgba(${rgb}, 0)`);
+          ctx.fillStyle = gr;
+          ctx.fillRect(x, y1 - len, 6, len);
+        }
+      }
+      ctx.restore();
+    }
     // the eyes of the wolves and the flames shine through
     for (const w of g.wolves) drawWolf(w, true);
     if (C.fireOn(g)) { const p = P(C.SPOT.fire.x + 0.5, C.SPOT.fire.y + 0.4); K.glow(ctx, p.x, p.y, ts * 0.8, '#ffb050', 0.5 * d); }
@@ -1657,12 +2145,26 @@
       K.sphere(ctx, p.x, y, ts * 0.2 * sc, '#ffc53a', { shine: 0.6 });
       K.text(ctx, '!', p.x, y + 1, { size: Math.round(ts * 0.32), color: '#ffffff', stroke: '#9a5a00' });
     }
-    // survivors who still wait or follow, off screen
-    for (const s of g.survivors) {
-      if (s.state !== 'waiting' && s.state !== 'following') continue;
-      const m = V.edgeMarker(cam, s.x, s.y);
+    // a badge over the lost child, the wanderer and the trader
+    const badge = (x, y, mark, col, dark) => {
+      const p = P(x, y);
+      if (p.x < -ts || p.y < -ts || p.x > view.w + ts || p.y > view.h + ts * 2) return;
+      const by = p.y - ts * 0.95 + Math.sin(time * 4) * 3, sc = 1 + 0.08 * Math.sin(time * 8);
+      K.glow(ctx, p.x, by, ts * 0.45, col, 0.35);
+      K.sphere(ctx, p.x, by, ts * 0.2 * sc, col, { shine: 0.6 });
+      K.text(ctx, mark, p.x, by + 1, { size: Math.round(ts * 0.3), color: '#ffffff', stroke: dark });
+    };
+    const targets = [];
+    const wev = g.event && g.event.id === 'wanderer' ? g.event : null;
+    for (const s of g.survivors) if (s.state === 'lost') { badge(s.x, s.y, '?', '#ff9a3a', '#8a3a00'); targets.push([s.x, s.y, '#ff9a3a']); }
+    if (wev) { badge(wev.x + 0.5, wev.y + 0.4, '!', '#ff6a5c', '#7a1a10'); targets.push([wev.x + 0.5, wev.y + 0.5, '#ff6a5c']); }
+    if (g.trader) { badge(g.trader.x + 0.9, g.trader.y - 0.2, '$', '#f2c84a', '#7a5200'); targets.push([g.trader.x + 0.5, g.trader.y + 0.5, '#f2c84a']); }
+    if (g.bear && Math.hypot(g.bear.x - g.hero.x, g.bear.y - g.hero.y) < C.BEAR.sight * 2) targets.push([g.bear.x, g.bear.y, '#e0483a']);
+    // survivors who still wait or follow, and the targets above, off screen
+    for (const s of g.survivors.filter((x) => x.state === 'waiting' || x.state === 'following').map((x) => [x.x, x.y, x.state === 'following' ? '#8fe39a' : '#ffd34d']).concat(targets)) {
+      const m = V.edgeMarker(cam, s[0], s[1]);
       if (!m) continue;
-      const col = s.state === 'following' ? '#8fe39a' : '#ffd34d';
+      const col = s[2];
       const pulse = 1 + 0.12 * Math.sin(time * 5);
       K.glow(ctx, m.x, m.y, 16, col, 0.35);
       ctx.save();
@@ -1896,6 +2398,10 @@
       Sound.setLoop('crackle', nearFire ? 1 : 0);
       Sound.setLoop('wind', C.isBlizzard(g) ? 1 : C.isNight(g) ? 0.4 : 0.15);
       if (g.status !== 'playing') finish();
+      // an event that asks opens its dialog; reaching the trader's sled opens the trade
+      else if (askDue) { askDue = false; openEvent(); }
+      else if (tradeDue && g.trader && Math.hypot(g.trader.x + 0.5 - g.hero.x, g.trader.y + 0.5 - g.hero.y) <= C.TRADE_REACH && !g.hero.path) openTrade();
+      else if (tradeDue && (!g.trader || (!g.hero.path && !g.hero.target))) tradeDue = false;
     }
     ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
     ctx.clearRect(0, 0, view.w, view.h);
@@ -1922,7 +2428,9 @@
     if (k === 'KeyM') { toggleSound(); return; }
     if (k === 'Escape') {
       if (torchMode) { torchMode = false; return; }
-      if (overlay === 'build' || overlay === 'bench') { closeOverlay(); return; }
+      if (snareMode) { snareMode = false; return; }
+      if (overlay === 'build' || overlay === 'bench' || overlay === 'trade') { closeOverlay(); return; }
+      if (overlay === 'event') { answer(false); return; }
       if (overlay === 'confirm') { showMenu(); return; }
       if (screen === 'play') { if (!paused) togglePause(); else showMenu(); return; }
       if (screen === 'result') showMenu();
@@ -1930,11 +2438,14 @@
     }
     if (screen !== 'play' || !g) return;
     Sound.unlock();
+    if (overlay === 'event' && (k === 'KeyY' || k === 'KeyN')) { answer(k === 'KeyY'); return; }
     if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) { keys[k] = true; e.preventDefault(); return; }
     if (k === 'Space') { togglePause(); e.preventDefault(); return; }
     if (paused) return;
     if (k === 'KeyE' || k === 'Enter') act();
     else if (k === 'KeyF') eat();
+    else if (k === 'KeyY') answer(true);
+    else if (k === 'KeyN') answer(false);
     else if (k === 'KeyB') { if (overlay === 'build') closeOverlay(); else openBuild(); }
     else if (k === 'KeyT') { if (overlay === 'bench') closeOverlay(); else openBench(); }
   });
@@ -1959,6 +2470,9 @@
   $('btn-bench').addEventListener('click', openBench);
   $('btn-build-close').addEventListener('click', closeOverlay);
   $('btn-bench-close').addEventListener('click', closeOverlay);
+  $('btn-trade-close').addEventListener('click', closeOverlay);
+  $('btn-event-yes').addEventListener('click', () => answer(true));
+  $('btn-event-no').addEventListener('click', () => answer(false));
   $('btn-pause').addEventListener('click', togglePause);
   $('btn-resume').addEventListener('click', togglePause);
   $('btn-pause-menu').addEventListener('click', showMenu);

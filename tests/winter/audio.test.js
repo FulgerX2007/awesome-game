@@ -97,7 +97,8 @@ test('the interface game.js relies on, and every sound it plays exists', () => {
   const used = new Set([...GAME.matchAll(/sfx\('([a-z]+)'/g)].map((m) => m[1]));
   // sounds picked by a ternary: sfx(cond ? 'win' : 'lose')
   for (const m of GAME.matchAll(/sfx\([^)?]*\?\s*'([a-z]+)'\s*:\s*'([a-z]+)'/g)) { used.add(m[1]); used.add(m[2]); }
-  for (const n of ['chop', 'mine', 'step', 'pick', 'eat', 'fire', 'howl', 'bite', 'hit', 'build', 'craft', 'rescue', 'dawn', 'win', 'lose']) {
+  for (const n of ['chop', 'mine', 'step', 'pick', 'eat', 'fire', 'howl', 'bite', 'hit', 'build', 'craft', 'rescue', 'dawn', 'win', 'lose',
+    'roar', 'bells', 'trade', 'snare', 'aurora', 'creak']) {
     assert.ok(used.has(n), `game.js plays ${n}`);
   }
   for (const n of used) assert.ok(A.SOUND_NAMES.includes(n), `audio.js has ${n}`);
@@ -262,4 +263,20 @@ test('a hidden tab suspends the context; rejected promises are swallowed', async
   await new Promise((r) => setImmediate(r));
   process.off('unhandledRejection', onUnhandled);
   assert.equal(unhandled, 0);
+});
+
+test('the expansion sounds play once unlocked and are rate-limited: the bear growls low, the bells ring high', () => {
+  for (const n of ['roar', 'bells', 'trade', 'snare', 'aurora', 'creak']) {
+    const { A, stats } = browserAudio();
+    A.unlock();
+    const before = stats.started;
+    A.play(n);
+    assert.ok(stats.started > before, `${n} starts something`);
+    const mid = stats.started;
+    A.play(n);
+    assert.equal(stats.started, mid, `${n} is rate-limited`);
+  }
+  const lo = pitchProbe(); lo.A.unlock(); lo.A.play('roar');
+  const hi = pitchProbe(); hi.A.unlock(); hi.A.play('bells');
+  assert.ok(Math.max(...lo.freqs) < 200 && Math.min(...hi.freqs) > 1000, `${lo.freqs} vs ${hi.freqs}`);
 });

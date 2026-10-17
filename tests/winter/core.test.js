@@ -74,7 +74,10 @@ test('the whole tech tree is reachable from the start on 20 seeds: no recipe nee
     assert.deepEqual(C.TOOLS.pick.cost, { wood: 12 }, 'the pick is made of wood only');
     can.stone = !!g.nodes.find((n) => n.kind === 'rock' && C.pathNextTo(g, g.hero, n.x, n.y, { axe: true, pick: true }));
     assert.ok(can.stone, `seed ${seed}`);
-    const costs = [...Object.values(C.TOOLS).map((t) => t.cost), ...C.HUT_STAGES.map((s) => s.cost), C.PALISADE_COST, C.BUNK_COST];
+    // hides come from deer, and the spear (wood and stone) hunts them
+    can.hide = can.wood && can.stone && Object.keys(C.TOOLS.spear.cost).every((k) => can[k]) && g.animals.some((a) => a.kind === 'deer');
+    const costs = [...Object.values(C.TOOLS).map((t) => t.cost), ...C.HUT_STAGES.map((s) => s.cost), C.PALISADE_COST, C.BUNK_COST,
+      ...Object.values(C.UPGRADES).map((u) => u.cost)];
     for (const cost of costs) for (const k of Object.keys(cost)) assert.ok(can[k], `${k} reachable`);
   }
 });
@@ -339,4 +342,74 @@ test('step ignores bad dt and caps a long frame; nothing runs after the end', ()
   assert.equal(C.clamp(5, 0, 1), 1);
   assert.ok(C.rand({ rng: 2 }) < 1);
   assert.ok(C.inMap(0, 0) && !C.inMap(C.W, 0));
+});
+
+test('the second rng stream: drawing from it leaves the animals and wolves of a seed where they were', () => {
+  const a = C.newGame('normal', 7), b = C.newGame('normal', 7);
+  assert.notEqual(a.erng, a.rng);
+  for (let t = 0; t < C.DAY * 1.2; t += 0.5) {
+    C.step(a, 0.5); C.step(b, 0.5);
+    C.erand(b); C.erand(b);
+  }
+  const where = (g) => JSON.stringify([g.animals.map((x) => [x.x, x.y]), g.wolves.map((w) => [w.x, w.y]), g.rng]);
+  assert.equal(where(b), where(a));
+  assert.notEqual(b.erng, a.erng);
+  // the stream itself repeats for a seed and stays in [0, 1)
+  const c = C.newGame('normal', 7), d = C.newGame('normal', 7);
+  const xs = Array.from({ length: 50 }, () => C.erand(c));
+  assert.deepEqual(Array.from({ length: 50 }, () => C.erand(d)), xs);
+  assert.ok(xs.every((x) => x >= 0 && x < 1));
+});
+
+test('hides: a deer gives one with its meat, rabbits none; hides count toward the camp store', () => {
+  const g = quiet();
+  g.tools.spear = true;
+  const deer = { id: g.nextId++, kind: 'deer', x: g.hero.x + 1, y: g.hero.y, hp: 1, tx: Math.floor(g.hero.x + 1), ty: Math.floor(g.hero.y), cd: 99 };
+  const rabbit = { id: g.nextId++, kind: 'rabbit', x: g.hero.x - 1, y: g.hero.y, hp: 1, tx: Math.floor(g.hero.x - 1), ty: Math.floor(g.hero.y), cd: 99 };
+  g.animals.push(deer, rabbit);
+  assert.equal(C.interact(g, deer.x, deer.y), 'hunt');
+  const ev = settle(g, 10);
+  assert.equal(g.stock.hide, 1);
+  assert.equal(of(ev, 'hunt')[0].kind, 'deer');
+  assert.equal(C.interact(g, rabbit.x, rabbit.y), 'hunt');
+  settle(g, 10);
+  assert.equal(g.stock.hide, 1, 'no hide from a rabbit');
+  assert.ok(C.RES.includes('hide'));
+  Object.assign(g.stock, { wood: 150, stone: 30, metal: 0, hide: 20 });
+  assert.equal(C.stockTotal(g), C.STORE_CAP);
+});
+
+test('smoked food is eaten first and fills most; the hunter takes smoked meat too', () => {
+  const g = quiet();
+  assert.deepEqual(C.EAT_ORDER.slice(0, 2), ['smokedMeat', 'cookedMeat']);
+  assert.equal(C.EAT_ORDER.at(-1), 'meat');
+  assert.deepEqual([...C.EAT_ORDER].sort(), [...C.FOOD_ITEMS].sort());
+  assert.ok(C.FOOD.smokedMeat > C.FOOD.cookedMeat && C.FOOD.smokedFish > C.FOOD.cookedFish);
+  g.hero.food = 20;
+  g.stock.smokedFish = 1;
+  assert.equal(C.eat(g), 'cookedMeat');
+  g.stock.smokedMeat = 1;
+  g.hero.food = 20;
+  assert.equal(C.eat(g), 'smokedMeat');
+  assert.equal(g.hero.food, 20 + C.FOOD.smokedMeat);
+  // the hunter: raw, then roast, then smoked
+  const s = g.survivors.find((x) => x.id === 'hunter');
+  g.hero.x = s.x + 1; g.hero.y = s.y;
+  Object.assign(g.stock, { meat: 1, cookedMeat: 0, smokedMeat: 1 });
+  assert.equal(C.canRescue(g, s), 'meat');
+  g.stock.smokedMeat = 4;
+  assert.equal(C.rescue(g, s), 'ok');
+  assert.deepEqual([g.stock.meat, g.stock.cookedMeat, g.stock.smokedMeat], [0, 0, 2]);
+});
+
+test('a hero who lies down by day gets up once rested, instead of sleeping on with no order', () => {
+  const g = quiet();
+  g.hut.stage = 2;
+  g.t = C.DAY + 10;
+  g.hero.energy = 90;
+  assert.equal(C.interact(g, C.SPOT.bed.x, C.SPOT.bed.y), 'bed');
+  for (let t = 0; t < 120 && (g.hero.target || g.hero.path); t += 0.25) C.step(g, 0.25);
+  assert.equal(g.hero.target, null);
+  assert.equal(g.hero.sleeping, false);
+  assert.ok(g.hero.energy >= C.STAT_MAX - 1);
 });

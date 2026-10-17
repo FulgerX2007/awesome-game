@@ -25,6 +25,7 @@
     <span class="pill res wood" id="res-wood" title="Дерево">0</span>
     <span class="pill res stone" id="res-stone" title="Камень">0</span>
     <span class="pill res metal" id="res-metal" title="Металл">0</span>
+    <span class="pill res hide" id="res-hide" title="Шкуры">0</span>
     <span class="pill res meal" id="res-food" title="Еда">0</span>
     <button class="chip sound" id="btn-sound" type="button" aria-pressed="true" aria-label="Звук: вкл" title="Звук: вкл"><i class="speaker" aria-hidden="true"></i></button>
   </div>
@@ -85,6 +86,26 @@
         <p class="lead" id="bench-lead"></p>
         <div class="list" id="bench-list"></div>
         <div class="row"><button class="btn primary" id="btn-bench-close" type="button">Закрыть</button></div>
+      </div>
+    </section>
+
+    <section class="screen" id="event" hidden aria-labelledby="event-title" aria-live="polite">
+      <div class="panel">
+        <h2 id="event-title"></h2>
+        <p class="lead" id="event-text"></p>
+        <div class="row">
+          <button class="btn" id="btn-event-no" type="button"></button>
+          <button class="btn primary" id="btn-event-yes" type="button"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="trade" hidden aria-labelledby="trade-title">
+      <div class="panel wide">
+        <h2 id="trade-title">Торговец</h2>
+        <p class="lead" id="trade-lead"></p>
+        <div class="list" id="trade-list"></div>
+        <div class="row"><button class="btn primary" id="btn-trade-close" type="button">Закрыть</button></div>
       </div>
     </section>
 

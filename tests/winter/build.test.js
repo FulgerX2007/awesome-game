@@ -83,7 +83,7 @@ test('every Russian string passed to t( in game.js has a RO translation', () => 
 
 test('every hint of the core and every survivor name has a RO translation', () => {
   const C = require(path.join(DIR, 'core.js'));
-  const keys = C.TASK_TEXTS.concat(C.SURVIVOR_IDS.map((id) => C.SURVIVORS[id].name));
+  const keys = C.TASK_TEXTS.concat(C.SURVIVOR_IDS.map((id) => C.SURVIVORS[id].name), C.UPGRADE_IDS.map((id) => C.UPGRADES[id].name));
   assert.deepEqual(keys.filter((k) => !hasRo(k)), []);
   // every literal nextTask can return is listed in TASK_TEXTS
   const src = code(read('core.js'));
@@ -135,4 +135,17 @@ test('main_test.go serves every winter file', () => {
   for (const f of ['', 'core.js', 'view.js', 'game.js', 'lang.js', 'audio.js']) {
     assert.ok(src.includes(`"/winter/${f}"`), f);
   }
+});
+
+test('the HUD has a pill for every material the core keeps', () => {
+  const C = require(path.join(DIR, 'core.js'));
+  for (const r of C.RES) assert.match(HTML, new RegExp(`id="res-${r}"`), r);
+});
+
+test('the page has the event dialog and the trade panel the client opens', () => {
+  for (const id of ['event', 'event-title', 'event-text', 'btn-event-yes', 'btn-event-no', 'trade', 'trade-list', 'trade-lead', 'btn-trade-close']) {
+    assert.match(HTML, new RegExp(`id="${id}"`), id);
+  }
+  const src = read('game.js');
+  for (const id of ['event', 'trade']) assert.match(src, new RegExp(`'${id}'`), `${id} is a screen of the client`);
 });
