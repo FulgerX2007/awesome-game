@@ -91,14 +91,18 @@ async function canvasFilled(page) {
     if (!c || !c.width || !c.height) return { ok: false, why: 'no size' };
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     const colors = new Set();
-    let opaque = 0;
+    let opaque = 0, sum = 0, sum2 = 0;
     const step = 4 * 97;
     for (let i = 0; i < d.length; i += step) {
       if (d[i + 3] > 0) opaque++;
       colors.add((d[i] >> 4) << 8 | (d[i + 1] >> 4) << 4 | (d[i + 2] >> 4));
+      const lum = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      sum += lum; sum2 += lum * lum;
     }
     const samples = Math.ceil(d.length / step);
-    return { ok: opaque / samples > 0.95 && colors.size > 20, opaque: opaque / samples, colors: colors.size };
+    // The spread of brightness: lit faces and shadows make a 2.5D frame far from flat.
+    const spread = Math.sqrt(Math.max(0, sum2 / samples - (sum / samples) ** 2));
+    return { ok: opaque / samples > 0.95 && colors.size > 20, opaque: opaque / samples, colors: colors.size, spread: +spread.toFixed(1) };
   });
 }
 
@@ -141,6 +145,7 @@ async function desktopChecks() {
 
   const fill = await canvasFilled(page);
   check(fill.ok, 'canvas is drawn', JSON.stringify(fill));
+  check(fill.spread > 12, 'the frame has light and shade (not flat)', JSON.stringify(fill));
 
   const saved = await waitFor(() => page.evaluate((k) => localStorage.getItem(k), SAVE_KEY), 3000);
   check(!!saved, 'save is in localStorage');

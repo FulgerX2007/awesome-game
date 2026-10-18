@@ -739,7 +739,7 @@
     const sw = o.moving ? Math.sin(o.phase) : 0;
     const side = o.face === 'left' || o.face === 'right';
     const flip = o.face === 'left' ? -1 : 1;
-    shadow(x, y, 7, 2.6);
+    castShadow(x, y, 6.5, 13, 0.3);
     // Legs and boots.
     if (side) {
       rect(x - 3 + sw * 2.2, y - 7, 3, 7, o.pants, 1);
@@ -755,17 +755,22 @@
     const toolOut = o.tool && (o.swing >= 0 || o.holding);
     const hand = { x: x + (side ? flip * 3 : 6.5), y: y - 11 + bob };
     if (toolOut && o.face === 'up') toolAt(hand, o, flip);
-    // Body, apron, belt and arms.
-    rect(x - 6, y - 17 + bob, 12, 11, o.shirt, 4);
+    // Body (lit from the left), apron, belt and arms.
+    const torso = ctx.createLinearGradient(x - 6, 0, x + 6, 0);
+    torso.addColorStop(0, K.shade(o.shirt, 0.18));
+    torso.addColorStop(0.5, o.shirt);
+    torso.addColorStop(1, K.shade(o.shirt, -0.28));
+    rect(x - 6, y - 17 + bob, 12, 11, torso, 4);
     if (o.apron) rect(x - 4, y - 13 + bob, 8, 7, o.apron, 2);
     rect(x - 6, y - 9 + bob, 12, 1.6, 'rgba(60, 40, 20, 0.55)');
+    const arm = { gloss: false, shine: 0.25 };
     if (!side) {
-      circle(x - 6.5, y - 12 + bob + sw * 1.2, 2.2, o.shirt);
-      if (!toolOut) circle(x + 6.5, y - 12 + bob - sw * 1.2, 2.2, o.shirt);
-    } else if (!toolOut) circle(x - flip * 1 + sw * 2.5, y - 11 + bob, 2.2, o.shirt);
+      K.sphere(ctx, x - 6.5, y - 12 + bob + sw * 1.2, 2.3, o.shirt, arm);
+      if (!toolOut) K.sphere(ctx, x + 6.5, y - 12 + bob - sw * 1.2, 2.3, o.shirt, arm);
+    } else if (!toolOut) K.sphere(ctx, x - flip * 1 + sw * 2.5, y - 11 + bob, 2.3, o.shirt, arm);
     // Head.
     const hy = y - 21 + bob;
-    circle(x, hy, 5.2, o.skin);
+    K.sphere(ctx, x, hy, 5.2, o.skin, { gloss: false, shine: 0.3 });
     if (o.face !== 'up') {
       if (side) circle(x + flip * 2.6, hy + 0.3, 0.8, '#3b2c1a');
       else {
@@ -776,8 +781,9 @@
       }
     }
     if (o.hat === 'straw') {
+      ellipse(x + 0.8, hy - 2.2, 8.5, 3.2, 'rgba(40, 24, 8, 0.22)'); // the brim shades the face
       ellipse(x, hy - 3, 8.5, 3.2, '#e2c071');
-      rect(x - 4.5, hy - 9, 9, 6.5, '#d4ad5a', [3.5, 3.5, 1, 1]);
+      K.block(ctx, x - 4.5, hy - 9, 9, 6.5, 3, '#d4ad5a', { top: 0.3, bottom: -0.15 });
       rect(x - 4.5, hy - 4.8, 9, 1.6, '#b5523b');
     } else if (o.hat === 'scarf') {
       ctx.fillStyle = o.hatColor;
@@ -844,10 +850,10 @@
   function drawHen(h) {
     const peck = Math.abs(Math.sin(time * 3 + h.k * 2)) > 0.85 ? 3 : 0;
     const x = h.x, y = h.y, f = h.face;
-    shadow(x, y, 5, 1.8);
-    ellipse(x - f * 3, y - 6, 2.5, 3, '#efe8da');
-    ellipse(x, y - 5, 5, 4, '#fbf6ec');
-    circle(x + f * 4, y - 9 + peck, 2.6, '#fbf6ec');
+    castShadow(x, y, 5, 8, 0.28);
+    ellipse(x - f * 3, y - 6, 2.5, 3, '#e4dccb');
+    K.sphere(ctx, x, y - 5, 4.6, '#fbf6ec', { gloss: false, shine: 0.25 });
+    K.sphere(ctx, x + f * 4, y - 9 + peck, 2.6, '#fbf6ec', { gloss: false, shine: 0.25 });
     circle(x + f * 4, y - 11.5 + peck, 1.2, '#d2453a');
     poly([x + f * 6.2, y - 9 + peck, x + f * 8, y - 8.3 + peck, x + f * 6.2, y - 7.8 + peck], '#e9a43c');
     circle(x + f * 4.6, y - 9.4 + peck, 0.5, '#3b2c1a');
@@ -856,7 +862,9 @@
   }
 
   // ───────────── Effects ─────────────
+  const MAX_PARTS = 300; // the oldest go first when a big moment spawns more
   function part(x, y, o) {
+    if (fx.parts.length >= MAX_PARTS) fx.parts.shift();
     fx.parts.push({ x, y, vx: o.vx || 0, vy: o.vy || 0, g: o.g ?? 160, life: o.life || 0.6, max: o.life || 0.6, size: o.size || 2, color: o.color, z: 0 });
   }
 
@@ -884,6 +892,15 @@
 
   // Smoke puffs from chimneys. Emitters are registered while drawing (only visible chimneys smoke).
   let smokeClock = 0;
+  // A soft round puff, lit on its upper left.
+  const PUFF = () => K.bake('village-puff', 64, (c, z) => {
+    const grd = c.createRadialGradient(z * 0.4, z * 0.38, 0, z / 2, z / 2, z / 2);
+    grd.addColorStop(0, 'rgba(255, 252, 244, 1)');
+    grd.addColorStop(0.45, 'rgba(236, 230, 218, 0.7)');
+    grd.addColorStop(1, 'rgba(220, 214, 204, 0)');
+    c.fillStyle = grd;
+    c.fillRect(0, 0, z, z);
+  });
   const emitters = [];
   function emit(x, y, rate) { emitters.push({ x, y, rate }); }
 
@@ -985,8 +1002,8 @@
   const POLES = [[SQ.x0 * T + 4, SQ.y0 * T + 4], [(SQ.x1 + 1) * T - 4, SQ.y0 * T + 4], [SQ.x0 * T + 4, (SQ.y1 + 1) * T - 3], [(SQ.x1 + 1) * T - 4, (SQ.y1 + 1) * T - 3]];
   const POLE_H = 38;
   function drawPole(x, y) {
-    shadow(x + 2, y, 4, 1.8);
-    rect(x - 1.5, y - POLE_H, 3, POLE_H, WOOD.mid, 1);
+    castShadow(x, y, 3, POLE_H * 0.8, 0.28);
+    K.cylinder(ctx, x, y - POLE_H, 1.7, POLE_H, WOOD.mid, { ry: 0.8 });
     poly([x - 1.5, y - POLE_H, x + 9, y - POLE_H + 4, x - 1.5, y - POLE_H + 8], '#d8506a');
   }
   function drawGarlands() {
@@ -1031,6 +1048,7 @@
         continue;
       }
       const flap = Math.abs(Math.sin(time * 14 + b.k));
+      K.shadow(ctx, x + 4, y + 14, 3 * flap + 1, 1.2, 0.25); // flying above the ground
       ellipse(x - 2.2 * flap, y, 2.6 * flap + 0.4, 2, b.col);
       ellipse(x + 2.2 * flap, y, 2.6 * flap + 0.4, 2, b.col);
       line(x, y - 1.5, x, y + 1.5, '#3b2c1a', 0.8);
@@ -1129,8 +1147,8 @@
     }
     ctx.globalAlpha = 1;
     for (const s of fx.smoke) {
-      ctx.globalAlpha = 0.3 * Math.min(1, s.life / s.max * 1.6) * Math.min(1, (s.max - s.life) * 3);
-      circle(s.x, s.y, s.r, '#f1ece2');
+      ctx.globalAlpha = 0.5 * Math.min(1, s.life / s.max * 1.6) * Math.min(1, (s.max - s.life) * 3);
+      ctx.drawImage(PUFF(), s.x - s.r * 1.6, s.y - s.r * 1.6, s.r * 3.2, s.r * 3.2);
     }
     ctx.globalAlpha = 1;
     if (S.festival) drawGarlands();

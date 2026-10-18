@@ -286,11 +286,11 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `web/village/art.js`
 - Modify: `tests/village/smoke.cjs`
 
-- [ ] люди и куры: тела `Fx.bean`, тени, затенённая сторона, инструменты с бликом
-- [ ] частицы, щепки, салют, гирлянды, бабочки — на `Fx.Particles` и `Fx.glow`, не больше 300 частиц
-- [ ] `smoke.cjs`: кадр не плоский (разброс цвета), нет ошибок консоли
-- [ ] write tests: `smoke.cjs` проходит; unit-тесты зелёные
-- [ ] run tests - must pass before next task
+- [x] люди и куры: тела `Fx.bean`, тени, затенённая сторона, инструменты с бликом
+- [x] частицы, щепки, салют, гирлянды, бабочки — на `Fx.Particles` и `Fx.glow`, не больше 300 частиц
+- [x] `smoke.cjs`: кадр не плоский (разброс цвета), нет ошибок консоли
+- [x] write tests: `smoke.cjs` проходит; unit-тесты зелёные
+- [x] run tests - must pass before next task
 
 ### Фаза 2 — день, ночь и сезоны
 
