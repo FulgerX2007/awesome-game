@@ -31,6 +31,7 @@ function play(seed, opts = {}) {
     for (const e of s.events) {
       if (e.type === 'built') log.push({ t: s.t, what: e.level ? `barn${e.level}` : e.id });
       else if (e.type === 'tool') log.push({ t: s.t, what: `${e.tool}${e.level}` });
+      else if (e.type === 'order') log.push({ t: s.t, what: `order${e.id}` });
       else if (e.type === 'ruin') arrived = true;
     }
     s.events.length = 0;
@@ -118,8 +119,25 @@ function play(seed, opts = {}) {
     return false;
   };
 
+  // Orders the bot can fill without touching what the next building still needs.
+  const spare = () => {
+    const goal = V.nextGoal(s);
+    const keep = goal && goal.type === 'build' ? V.remaining(s, goal.id) : {};
+    return s.orders.filter((o) => Object.entries(o.need).every(([r, n]) => s.res[r] - n >= (keep[r] || 0)));
+  };
+  const fillOrders = () => {
+    if (!s.built.market.done || !spare().length) return false;
+    const f = V.FOOTPRINTS.market[0];
+    if (V.interact(s, f.x, f.y) !== 'ruin') return false;
+    finishOrder();
+    for (const o of spare()) V.fulfill(s, o.id);
+    drain();
+    return true;
+  };
+
   while (!s.festival && s.t < limit) {
     upgrade();
+    if (fillOrders()) continue;
     // Seasonal things first, while they last: ripe or thirsty plots, apples on the trees.
     if (SEASONAL.some((r) => shortOf(r) > 0 && gather(r))) continue;
     const goal = V.nextGoal(s);

@@ -174,6 +174,8 @@ I18n.add({ ro: {
   'Яблоки': 'Mere',
   'Яблоня': 'Măr',
   'Пасека': 'Stupina',
+  'Монеты': 'Monede',
+  'Ярмарочные ряды': 'Tarabele bâlciului',
   'Огород': 'Grădina de legume',
   'Время года и день': 'Anotimpul și ziua',
   'Весна · день 1': 'Primăvara · ziua 1',

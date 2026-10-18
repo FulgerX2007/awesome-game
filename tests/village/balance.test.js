@@ -18,7 +18,7 @@ function run(seed) {
 
 const fmt = (t) => `${(t / MIN).toFixed(1)} min`;
 
-// Longest stretch of game time without anything new (a building, a tool level or a barn level).
+// Longest stretch of game time without anything new (a building, a tool or barn level, a filled order).
 function maxGap(log) {
   let prev = 0, gap = 0;
   for (const e of log) { gap = Math.max(gap, e.t - prev); prev = e.t; }

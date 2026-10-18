@@ -38,6 +38,7 @@
     vegetables: { name: 'Овощи' },
     honey: { name: 'Мёд' },
     apples: { name: 'Яблоки' },
+    coins: { name: 'Монеты' },
   };
   const RES_IDS = Object.keys(RESOURCES);
 
@@ -77,12 +78,13 @@
     house1: { id: 'house1', ch: '1', name: 'Дом лесоруба', cost: { planks: 120, bricks: 60 }, needs: ['sawmill', 'kiln'], effect: 'villager', role: 'woodcutter' },
     apiary: { id: 'apiary', ch: 'P', name: 'Пасека', cost: { planks: 60, wood: 40 }, needs: ['garden', 'house1'], effect: 'apiary' },
     house2: { id: 'house2', ch: '2', name: 'Дом каменщика', cost: { planks: 200, bricks: 120 }, needs: ['house1'], effect: 'villager', role: 'mason' },
+    market: { id: 'market', ch: 'R', name: 'Ярмарочные ряды', cost: { planks: 80, wood: 60 }, needs: ['house2'], effect: 'market' },
     forge: { id: 'forge', ch: 'F', name: 'Кузница', cost: { bricks: 100, planks: 60, stone: 200 }, needs: ['kiln'], effect: 'forge' },
     mill: { id: 'mill', ch: 'M', name: 'Мельница', cost: { planks: 240, bricks: 120 }, needs: ['house2'], effect: 'mill' },
     house3: { id: 'house3', ch: '3', name: 'Дом гончара', cost: { planks: 240, bricks: 160, berries: 40, vegetables: 30 }, needs: ['mill'], effect: 'villager', role: 'potter' },
     chapel: {
       id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 180, stone: 450, berries: 60, vegetables: 40, honey: 30, apples: 20 },
-      needs: ['well', 'home', 'garden', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'apiary', 'house2', 'forge', 'mill', 'house3'], effect: 'festival',
+      needs: ['well', 'home', 'garden', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'apiary', 'house2', 'market', 'forge', 'mill', 'house3'], effect: 'festival',
     },
   };
   const BUILDING_IDS = Object.keys(BUILDINGS);
@@ -106,6 +108,15 @@
     potter: { name: 'Гончар', res: 'clay', rate: 0.15 },
   };
   const MILL_BONUS = 1.5;
+  // Orders from the villagers, posted on the board at the market rows: a few goods for coins.
+  // ORDER_GOODS: the usual amount asked for and what one unit is worth in coins.
+  const ORDERS = { max: 3, atMarket: 2 };
+  const ORDER_GOODS = {
+    wood: { n: 30, worth: 1 }, stone: { n: 25, worth: 1 }, clay: { n: 20, worth: 1.2 }, berries: { n: 12, worth: 1.5 },
+    planks: { n: 20, worth: 2.5 }, bricks: { n: 15, worth: 3 }, vegetables: { n: 8, worth: 4 }, honey: { n: 6, worth: 5 },
+    apples: { n: 6, worth: 4 },
+  };
+
   // Buildings that produce on their own, resting in some seasons.
   const PRODUCERS = {
     apiary: { res: 'honey', rate: 0.05, rests: ['winter'] },
@@ -135,7 +146,7 @@
   // ── Map ──
   // .  grass       ~  water      :  sand (river bank)   =  path   #  square
   // b  bridge site (water until the bridge is restored)
-  // W H A S K 1 2 3 F M C G P  ruin footprints (see BUILDINGS[].ch)
+  // W H A S K 1 2 3 F M C G P R  ruin footprints (see BUILDINGS[].ch)
   // g  a garden plot (part of the garden, never walkable)
   const MAP = [
     '................................................',
@@ -162,8 +173,8 @@
     '........HH..########==========bbb=========......',
     '........HH..###WW###.....SSS.:~~~:..KK..........',
     '...=========###WW###.....SSS.:~~~:..KK..........',
-    '.....11..22.########.........:~~~:..............',
-    '.....11..22.########........::~~~:..............',
+    '.....11..22.########.RRR.....:~~~:..............',
+    '.....11..22.########.RRR....::~~~:..............',
     '...............=............:~~~::..............',
     '...GG.ggg...FF.=.33.........:~~~:...............',
     '...GG.ggg...FF.=.33.........:~~~:...............',
@@ -359,9 +370,11 @@
       acc: {},                      // fractional automatic income per producer, 0..1
       decor: [],
       plots: PLOTS.map(() => freshPlot()),
+      orders: [],
+      orderSeq: 0,
       bucket: 0,
       festival: false,
-      stats: { gathered: zeroRes(), playTime: 0 },
+      stats: { gathered: zeroRes(), playTime: 0, orders: 0 },
     };
   }
 
@@ -704,6 +717,7 @@
   // offline(): `quiet` (offline) keeps the events out and only counts. Each returns nothing.
   function onDawn(s, day, quiet) {
     for (const pl of s.plots) pl.water = false; // the water soaks away overnight
+    if (s.built.market.done && s.orders.length < ORDERS.max) postOrder(s, quiet);
     if (!quiet) s.events.push({ type: 'dawn', day });
   }
   function onSeason(s, season, quiet) {
@@ -812,6 +826,8 @@
     own.done = true;
     applyEffect(s, id);
     s.events.push({ type: 'built', id, effect: b.effect });
+    // The market opens with a few orders on its board (once, when built; a loaded save keeps its own).
+    if (b.effect === 'market') while (s.orders.length < ORDERS.atMarket) postOrder(s, false);
     if (b.effect === 'festival') s.events.push({ type: 'festival' });
     return 'built';
   }
@@ -903,6 +919,53 @@
         s.events.push({ type: 'ripe', i, x: PLOTS[i].x, y: PLOTS[i].y });
       }
     });
+  }
+
+  // ── Orders ──
+  // Goods the player can get by now, so every order can be filled: raw goods as their nodes open,
+  // products once their workshop or the garden stands, apples once some have been picked.
+  function openGoods(s) {
+    const out = ['wood', 'stone', 'berries'];
+    if (bridgeOpen(s)) out.push('clay');
+    if (s.built.sawmill.done) out.push('planks');
+    if (s.built.kiln.done) out.push('bricks');
+    if (gardenOpen(s)) out.push('vegetables');
+    if (s.built.apiary.done) out.push('honey');
+    if (s.stats.gathered.apples > 0) out.push('apples');
+    return out;
+  }
+
+  // A villager posts a new order: one or two goods, a little more or less than usual, paid by their worth.
+  function postOrder(s, quiet) {
+    const goods = openGoods(s);
+    const who = s.villagers.length ? s.villagers[Math.floor(rand(s) * s.villagers.length)].role : 'neighbour';
+    const need = {};
+    const count = rand(s) < 0.45 ? 2 : 1;
+    for (let k = 0; k < count; k++) {
+      const r = goods[Math.floor(rand(s) * goods.length)];
+      const base = ORDER_GOODS[r].n * (0.8 + rand(s) * 0.6);
+      need[r] = (need[r] || 0) + (base >= 15 ? Math.round(base / 5) * 5 : Math.max(1, Math.round(base)));
+      need[r] = Math.min(need[r], s.storage); // always something the barn can hold
+    }
+    const value = Object.entries(need).reduce((a, [r, n]) => a + n * ORDER_GOODS[r].worth, 0);
+    const order = { id: ++s.orderSeq, who, need, reward: { coins: Math.max(1, Math.round(value / 5)) } };
+    s.orders.push(order);
+    if (!quiet) s.events.push({ type: 'order-new', id: order.id, who });
+    return order;
+  }
+
+  // Hand over an order's goods for its coins. Returns 'ok' | 'none' (no such order) | 'cost' (not enough).
+  function fulfill(s, id) {
+    const i = s.orders.findIndex((o) => o.id === id);
+    if (i < 0) return 'none';
+    const o = s.orders[i];
+    if (!canAfford(s, o.need)) return 'cost';
+    pay(s, o.need);
+    s.res.coins += o.reward.coins;
+    s.orders.splice(i, 1);
+    s.stats.orders++;
+    s.events.push({ type: 'order', id, who: o.who, coins: o.reward.coins });
+    return 'ok';
   }
 
   // ── Automatic income ──
@@ -1152,6 +1215,18 @@
     }
     s.bucket = Number.isInteger(d.bucket) ? num(d.bucket, 0, 0, bucketSize(s)) : 0;
 
+    // Orders: known goods in whole positive amounts, at most ORDERS.max, ids unique and below the counter.
+    s.orderSeq = Number.isInteger(d.orderSeq) ? num(d.orderSeq, 0) : 0;
+    if (Array.isArray(d.orders)) {
+      s.orders = d.orders.filter((o) => isObj(o) && Number.isInteger(o.id) && o.id > 0 && o.id <= s.orderSeq
+        && isObj(o.need) && Object.keys(o.need).length > 0
+        && Object.entries(o.need).every(([r, n]) => ORDER_GOODS[r] && Number.isInteger(n) && n > 0 && n < 1000)
+        && isObj(o.reward) && Number.isInteger(o.reward.coins) && o.reward.coins > 0)
+        .filter((o, i, all) => all.findIndex((q) => q.id === o.id) === i)
+        .slice(0, ORDERS.max)
+        .map((o) => ({ id: o.id, who: typeof o.who === 'string' ? o.who : 'neighbour', need: { ...o.need }, reward: { coins: o.reward.coins } }));
+    }
+
     // Effects of done buildings, in case the save lost them. The festival comes from the chapel, not the save.
     for (const id of BUILDING_IDS) if (s.built[id].done) applyEffect(s, id);
     s.storage = STORAGE[s.barnLevel];
@@ -1159,6 +1234,7 @@
     if (isObj(d.stats)) {
       if (isObj(d.stats.gathered)) for (const r of RES_IDS) s.stats.gathered[r] = num(d.stats.gathered[r], 0);
       s.stats.playTime = num(d.stats.playTime, 0);
+      s.stats.orders = Number.isInteger(d.stats.orders) ? num(d.stats.orders, 0) : 0;
     }
     return s;
   }
@@ -1167,7 +1243,7 @@
     VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS, PRODUCERS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
-    MAP, W, H, START, FOOTPRINTS, SPEED, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
+    MAP, W, H, START, FOOTPRINTS, SPEED, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
     placeDecor, save, load,

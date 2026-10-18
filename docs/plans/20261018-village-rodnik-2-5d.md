@@ -426,13 +426,18 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `tests/village/build.test.js`
 - Modify: `tests/village/bot.js`
 - Modify: `tests/village/balance.test.js`
+- Modify: `tests/village/core.test.js`, `view.test.js`
+- Modify: `web/village/index.html`, `style.css`, `game.js`, `lang.js`, `houses.js`
 
-- [ ] ресурс `coins` (без лимита амбара); здание `market` (нужен `house2`), входит в `needs` часовни
-- [ ] доска до 3 заказов, новый в `onDawn`, генератор по `s.rng` только из открытых ресурсов; `fulfill`
-- [ ] `maxGap` в боте считает выполненные заказы
-- [ ] write tests: заказ всегда выполним, не больше 3, `'none'`/`'cost'`, награда, офлайн через рассвет = step
-- [ ] бот выполняет заказы; `balance.test.js` зелёный
-- [ ] run tests - must pass before next task
+- [x] ресурс `coins` (без лимита амбара); здание `market` (нужен `house2`), входит в `needs` часовни
+- [x] доска до 3 заказов, новый в `onDawn`, генератор по `s.rng` только из открытых ресурсов; `fulfill`
+- [x] `maxGap` в боте считает выполненные заказы
+- [x] write tests: заказ всегда выполним, не больше 3, `'none'`/`'cost'`, награда, офлайн через рассвет = step
+- [x] бот выполняет заказы; `balance.test.js` зелёный
+- [x] run tests - must pass before next task
+- ➕ ряды на карте справа от площади (`R`, 3×2); первые два заказа появляются при постройке (не при загрузке сейва); объём заказа не больше вместимости амбара
+- ➕ рисунок рядов (прилавки, навесы, доска с листками заказов) и монеты в HUD — сразу, иначе страница падала
+- ➕ бот выполняет заказы, которые не отнимают ресурсы у текущей стройки; 20 сидов: праздник на 141–146-й минуте, пауза ≤ 13,7 мин
 
 ### Task 13: Сезонная ярмарка
 

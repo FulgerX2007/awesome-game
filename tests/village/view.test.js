@@ -242,7 +242,10 @@ test('frontTiles puts the faced tile first and covers all 8 neighbours once', ()
 
 test('pickFront prefers the faced node, falls back to neighbours, null when nothing is near', () => {
   const s = V.newGame(1);
-  const tree = s.nodes.find((n) => n.kind === 'tree' && V.isWalkable(s, n.x - 1, n.y) && V.isWalkable(s, n.x, n.y + 1));
+  // A tree with nothing else to act on around the spots the test stands at.
+  const alone = (n) => !s.nodes.some((m) => m !== n && m.hp > 0 && Math.abs(m.x - n.x) <= 2 && Math.abs(m.y - n.y) <= 2)
+    && [[-2, 0], [-2, 1], [-1, 1], [0, 2], [1, 2], [-1, 2], [1, 1]].every(([dx, dy]) => !V.ruinAt(n.x + dx, n.y + dy) && V.plotAt(n.x + dx, n.y + dy) < 0);
+  const tree = s.nodes.find((n) => n.kind === 'tree' && alone(n) && V.isWalkable(s, n.x - 1, n.y) && V.isWalkable(s, n.x, n.y + 1));
   // Standing left of the tree, facing it.
   assert.deepEqual(VV.pickFront(s, V, tree.x - 0.5, tree.y + 0.5, 'right'), { type: 'gather', node: tree.id, x: tree.x, y: tree.y });
   // Facing away: still found among the neighbours.

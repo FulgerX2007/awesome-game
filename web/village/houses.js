@@ -209,6 +209,37 @@
           }
         }
       },
+      market(b) {
+        // Three stalls under striped awnings, a notice board for the villagers' orders on the left.
+        const base = b.base - 4, colours = [['#d8506a', '#f6efe0'], ['#4d7fb6', '#f6efe0'], ['#e2a43a', '#f6efe0']];
+        const w = (b.Wp - 18) / 3;
+        castBlock(b.X + 6, b.X + b.Wp - 10, base, 30);
+        // The board.
+        const bx = b.X + 2;
+        K.cylinder(ctx, bx + 2, base - 30, 1.4, 30, WOOD.dark, { ry: 0.7 });
+        K.cylinder(ctx, bx + 14, base - 30, 1.4, 30, WOOD.dark, { ry: 0.7 });
+        K.block(ctx, bx - 1, base - 30, 18, 14, 1.5, WOOD.light, { top: 0.25 });
+        const n = S.orders ? S.orders.length : 0;
+        for (let k = 0; k < n; k++) {
+          rect(bx + 1 + k * 5, base - 28 + (k % 2) * 2, 4.5, 6, '#fbf6ec', 0.5);
+          circle(bx + 3.2 + k * 5, base - 27.5 + (k % 2) * 2, 0.7, '#a8432e');
+        }
+        for (let k = 0; k < 3; k++) {
+          const x = b.X + 20 + k * (w + 1), top = base - 26;
+          K.block(ctx, x, base - 11, w - 2, 11, 1.5, WOOD.mid, { top: 0.3 }); // the counter
+          for (const px of [x + 1, x + w - 3]) K.cylinder(ctx, px, top, 1.1, 26, WOOD.dark, { ry: 0.5 });
+          // A striped awning, lit along its front edge.
+          const stripes = 5, sw = (w + 2) / stripes;
+          for (let j = 0; j < stripes; j++) {
+            poly([x - 2 + j * sw, top - 6, x - 2 + (j + 1) * sw, top - 6, x - 1 + (j + 1) * sw, top + 2, x - 1 + j * sw, top + 2], colours[k][j % 2]);
+          }
+          poly([x - 2, top - 6, x + w, top - 6, x + w - 2, top - 10, x, top - 10], K.shade(colours[k][0], -0.25));
+          for (let j = 0; j < stripes; j++) ellipse(x - 0.5 + (j + 0.5) * sw, top + 2.2, sw / 2, 1.6, colours[k][j % 2]);
+          // Goods on the counter.
+          const goods = [['#d2453a', '#e8892e', '#8cc46a'], ['#e9b44c', '#f6e7a8', '#e9b44c'], ['#c99a5e', '#d7a560', '#b4643c']][k];
+          for (let j = 0; j < 3; j++) K.sphere(ctx, x + 4 + j * (w - 8) / 2, base - 13, 2.6, goods[j], { gloss: false });
+        }
+      },
       home(b) {
         house(b, { wall: '#f5efe2', trim: '#4d7fb6', roof: '#b9583b', roofDark: 'rgba(90, 30, 15, 0.45)', chimney: 'right' });
       },
