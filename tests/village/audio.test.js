@@ -88,7 +88,7 @@ test('audio.js loads in Node without AudioContext and every call is a no-op', ()
 });
 
 test('all the planned sounds exist', () => {
-  for (const n of ['axe', 'pick', 'shovel', 'berries', 'contribute', 'built', 'tool', 'festival']) {
+  for (const n of ['axe', 'pick', 'shovel', 'berries', 'contribute', 'built', 'tool', 'festival', 'water', 'bucket', 'coins', 'fair', 'harvest']) {
     assert.ok(audio.SOUND_NAMES.includes(n), n);
   }
 });
@@ -214,4 +214,27 @@ test('soundFor maps core events to sounds', () => {
   for (const type of ['deplete', 'regrow', 'ruin', 'unknown']) assert.equal(view.soundFor({ type }), null);
   assert.equal(view.soundFor(null), null);
   for (const n of ['tree', 'rock', 'clay', 'bush']) assert.ok(audio.SOUND_NAMES.includes(view.soundFor({ type: 'hit', kind: n })));
+});
+
+test('ambience follows the hour and the season', () => {
+  assert.equal(audio.ambience({ part: 'day', season: 'summer' }), 'birds');
+  assert.equal(audio.ambience({ part: 'dawn', season: 'spring' }), 'birds');
+  assert.equal(audio.ambience({ part: 'night', season: 'summer' }), 'crickets');
+  assert.equal(audio.ambience({ part: 'dusk', season: 'autumn' }), 'crickets');
+  assert.equal(audio.ambience({ part: 'day', season: 'winter' }), 'wind');
+  assert.equal(audio.ambience({ part: 'night', season: 'winter' }), 'wind');
+  audio.setScene('night', 'winter'); // no AudioContext: just remembered, never throws
+});
+
+test('every sound soundFor names exists in the synth', () => {
+  const VV = require('../../web/village/view.js');
+  const events = [
+    { type: 'hit', kind: 'tree' }, { type: 'hit', kind: 'apple' }, { type: 'contribute' }, { type: 'built' }, { type: 'tool' },
+    { type: 'festival' }, { type: 'plot', result: 'watered' }, { type: 'plot', result: 'sown' }, { type: 'plot', result: 'harvest' },
+    { type: 'bucket', n: 6 }, { type: 'order' }, { type: 'buy' }, { type: 'harvest-festival' },
+  ];
+  for (const e of events) {
+    const n = VV.soundFor(e);
+    assert.ok(n && audio.SOUND_NAMES.includes(n), `${e.type}: ${n}`);
+  }
 });

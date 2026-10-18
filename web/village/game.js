@@ -253,6 +253,7 @@
     const text = `${icon} ${t('{season} · день {n}', { season: t(SEASON_NAMES[c.season]), n: c.seasonDay + 1 })}`;
     const el = $('clock-label');
     if (el.textContent !== text) el.textContent = text;
+    A.setScene(c.part, c.season);
   }
 
   // ───────────── Floats and toasts ─────────────

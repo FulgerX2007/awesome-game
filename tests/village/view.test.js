@@ -494,9 +494,13 @@ test('farmHint points at ripe, dry and (while vegetables are wanted) empty plots
 
 test('soundFor covers the garden and the bucket', () => {
   assert.equal(VV.soundFor({ type: 'plot', result: 'harvest' }), 'berries');
-  assert.equal(VV.soundFor({ type: 'plot', result: 'watered' }), 'shovel');
+  assert.equal(VV.soundFor({ type: 'plot', result: 'watered' }), 'water');
+  assert.equal(VV.soundFor({ type: 'plot', result: 'sown' }), 'shovel');
+  assert.equal(VV.soundFor({ type: 'order', coins: 3 }), 'coins');
+  assert.equal(VV.soundFor({ type: 'buy', id: 'arch' }), 'fair');
+  assert.equal(VV.soundFor({ type: 'harvest-festival' }), 'harvest');
   assert.equal(VV.soundFor({ type: 'plot', result: 'bucket' }), null);
-  assert.equal(VV.soundFor({ type: 'bucket', n: 6 }), 'contribute');
+  assert.equal(VV.soundFor({ type: 'bucket', n: 6 }), 'bucket');
   assert.equal(VV.soundFor({ type: 'bucket', n: 6, full: true }), null);
   assert.equal(VV.soundFor({ type: 'hit', kind: 'apple' }), 'berries');
 });

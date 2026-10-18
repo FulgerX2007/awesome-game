@@ -309,8 +309,11 @@
     switch (e && e.type) {
       case 'hit': return HIT_SOUND[e.kind] || null;
       case 'contribute': case 'decor': return 'contribute';
-      case 'plot': return e.result === 'harvest' ? 'berries' : e.result === 'sown' || e.result === 'watered' ? 'shovel' : null;
-      case 'bucket': return e.full ? null : 'contribute';
+      case 'plot': return e.result === 'harvest' ? 'berries' : e.result === 'watered' ? 'water' : e.result === 'sown' ? 'shovel' : null;
+      case 'bucket': return e.full ? null : 'bucket';
+      case 'order': return 'coins';
+      case 'buy': return 'fair';
+      case 'harvest-festival': return 'harvest';
       case 'built': return e.effect === 'festival' ? null : 'built';
       case 'tool': return 'tool';
       case 'festival': return 'festival';

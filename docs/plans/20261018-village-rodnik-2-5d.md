@@ -545,10 +545,11 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 **Files:**
 - Modify: `web/village/audio.js`
 - Modify: `tests/village/audio.test.js`
+- Modify: `web/village/view.js` (`soundFor`), `game.js` (`A.setScene`), `tests/village/view.test.js`
 
-- [ ] ночью сверчки вместо птиц, зимой тихий ветер, пчёлы у пасеки, плеск полива, ярмарочный наигрыш, колокол урожая
-- [ ] write tests: новые звуки есть и не падают без `AudioContext`
-- [ ] run tests - must pass before next task
+- [x] ночью сверчки вместо птиц, зимой тихий ветер, пчёлы у пасеки, плеск полива, ярмарочный наигрыш, колокол урожая
+- [x] write tests: новые звуки есть, `ambience` по часу и сезону, каждый звук из `soundFor` есть в синтезаторе, без `AudioContext` ничего не падает
+- [x] run tests - must pass before next task
 
 ### Task 19: Баланс всей игры
 
