@@ -363,15 +363,20 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Create: `tests/village/farm.test.js`
 - Modify: `tests/village/build.test.js`
 - Modify: `tests/village/view.test.js`
+- Modify: `tests/village/core.test.js`
+- Modify: `web/village/game.js`, `index.html`, `style.css`, `lang.js`, `houses.js`
 - Modify: `tests/village/bot.js`
 - Modify: `tests/village/balance.test.js`
 
-- [ ] клетки `G` и `g` в `MAP`; ресурс `vegetables`; здание `garden` (нужен `well`), входит в `needs` часовни
-- [ ] `s.plots`, `s.bucket`; цели `plot` и `well` в `interact()`, `tapAction`, `pickFront`
-- [ ] рост с поливом и сезоном, вода до рассвета, офлайн дозревание через общие хуки
-- [ ] `build.test.js`: `ALL_BUT_CHAPEL` и проверки часовни с огородом; бот сажает, поливает, собирает
-- [ ] write tests: полный цикл грядки, без воды не растёт, зимой не сажается, пустое ведро, корзина 2 и 3, колодец-руина и готовый колодец, офлайн = step
-- [ ] run tests - must pass before next task
+- [x] клетки `G` и `g` в `MAP`; ресурс `vegetables`; здание `garden` (нужен `well`), входит в `needs` часовни
+- [x] `s.plots`, `s.bucket`; цели `plot` и `well` в `interact()`, `tapAction`, `pickFront`
+- [x] рост с поливом и сезоном, вода до рассвета, офлайн дозревание через общие хуки
+- [x] `build.test.js`: огород — самое дешёвое после колодца, `ALL_BUT_CHAPEL` подхватил его сам; бот строит огород как обычное здание (сажать он начнёт в Task 10, когда овощи войдут в цены)
+- [x] write tests: полный цикл грядки, без воды не растёт, зимой не сажается, пустое ведро, корзина 2 и 3, колодец-руина и готовый колодец, офлайн = step
+- [x] run tests - must pass before next task
+- ➕ рост считается до рассвета (полив действует ровно до него), поэтому офлайн и `step` дают одно и то же при любом шаге
+- ➕ HUD: строка ресурсов гибкая, новые ресурсы появляются, когда открыты (`RES_UNLOCK`); овощи — после огорода
+- ➕ временный рисунок огорода в `houses.js` (сарай), полный — в Task 11
 
 ### Task 10: Пасека и яблони
 

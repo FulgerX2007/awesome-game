@@ -273,6 +273,8 @@ test('nextGoal: the cheapest available building, then decorations after the fest
   const s = V.newGame(1);
   assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'well' });
   finish(s, 'well');
+  assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'garden' }, 'the garden is the cheapest after the well');
+  finish(s, 'garden');
   assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'home' });
   // Pay the barn until less is left than for the home.
   const homeLeft = Object.values(V.BUILDINGS.home.cost).reduce((a, n) => a + n, 0);
@@ -285,6 +287,7 @@ test('nextGoal: the cheapest available building, then decorations after the fest
   t.tools.shovel = 0;
   t.built.sawmill.done = true;
   t.built.well.done = true;
+  t.built.garden.done = true;
   t.built.barn.done = true;
   t.built.forge.done = true; // leaves the kiln (needs clay) as the cheapest
   assert.deepEqual(V.nextGoal(t), { type: 'tool', tool: 'shovel' });

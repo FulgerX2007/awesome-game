@@ -183,6 +183,15 @@
           K.sphere(ctx, cx + px, cy + py - 7.5, 2, '#5f9446', { gloss: false });
         }
       },
+      garden(b) {
+        // A tool shed in the corner of a fenced patch.
+        const left = b.X + 6, right = b.X + b.Wp - 6 - SIDE, base = b.base - 4;
+        castBlock(left, right, base, 30);
+        sideWall(right, base - 18, base, '#9a6a3e');
+        wall(left, base - 18, right - left, 18, '#a8784a');
+        door((left + right) / 2 - 5, base - 15, 10, 14, '#6e4a2b');
+        roof(left - 4, right + 4, base - 30, base - 16, '#7d8a52', 'rgba(40, 50, 20, 0.45)', 'thatch');
+      },
       home(b) {
         house(b, { wall: '#f5efe2', trim: '#4d7fb6', roof: '#b9583b', roofDark: 'rgba(90, 30, 15, 0.45)', chimney: 'right' });
       },

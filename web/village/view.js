@@ -98,7 +98,10 @@
   // What a tap (or the action key) on a tile means:
   //   { type: 'gather', node }  a standing node the player has a tool for
   //   { type: 'tool', tool }    a standing node that needs a tool the player doesn't have yet
-  //   { type: 'ruin', id }      a ruin or a restored building (walk up and open its panel)
+  //   { type: 'plot', i }       a garden plot once the garden stands (walk up and tend it)
+  //   { type: 'well' }          the restored well once the garden stands (walk up and fill the bucket)
+  //   { type: 'ruin', id }      a ruin or a restored building (walk up and open its panel); plots before
+  //                             the garden stands belong to the garden's ruin
   //   { type: 'walk' }          a walkable tile (also the restored bridge)
   //   { type: 'none' }          water, the map edge
   function tapAction(s, core, x, y) {
@@ -109,7 +112,10 @@
       const tool = core.NODE_KINDS[n.kind].tool;
       return s.tools[tool] > 0 ? { type: 'gather', node: n.id } : { type: 'tool', tool };
     }
+    const pi = core.plotAt(x, y);
+    if (pi >= 0) return s.built.garden.done ? { type: 'plot', i: pi } : { type: 'ruin', id: 'garden' };
     const id = core.ruinAt(x, y);
+    if (id === 'well' && s.built.well.done && s.built.garden.done) return { type: 'well' };
     if (id && !(id === 'bridge' && s.built.bridge.done)) return { type: 'ruin', id };
     return core.isWalkable(s, x, y) ? { type: 'walk' } : { type: 'none' };
   }
@@ -265,7 +271,7 @@
   function pickFront(s, core, px, py, face) {
     for (const p of frontTiles(px, py, face)) {
       const a = tapAction(s, core, p.x, p.y);
-      if (a.type === 'gather' || a.type === 'tool' || a.type === 'ruin') return { ...a, x: p.x, y: p.y };
+      if (['gather', 'tool', 'ruin', 'plot', 'well'].includes(a.type)) return { ...a, x: p.x, y: p.y };
     }
     return null;
   }

@@ -452,3 +452,20 @@ test('seasonFade blends over the first day of a season, never at the very start'
   assert.deepEqual(at(spring2 + 1).from, 'winter');
   assert.ok(at(spring2 + 1).t < 0.01, 'the second spring fades in from winter');
 });
+
+test('tapAction and pickFront know garden plots and the well', () => {
+  const s = V.newGame(1);
+  const p = V.PLOTS[0], w = V.FOOTPRINTS.well[0];
+  assert.deepEqual(VV.tapAction(s, V, p.x, p.y), { type: 'ruin', id: 'garden' }, 'before the garden: its ruin');
+  assert.deepEqual(VV.tapAction(s, V, w.x, w.y), { type: 'ruin', id: 'well' });
+  s.built.well.done = true;
+  s.built.garden.done = true;
+  assert.deepEqual(VV.tapAction(s, V, p.x, p.y), { type: 'plot', i: 0 });
+  assert.deepEqual(VV.tapAction(s, V, w.x, w.y), { type: 'well' });
+  // Standing right of the last plot of the first row, facing left.
+  const row = V.PLOTS.filter((q) => q.y === p.y);
+  const last = row[row.length - 1];
+  const a = VV.pickFront(s, V, last.x + 1.5, last.y + 0.5, 'left');
+  assert.equal(a.type, 'plot');
+  assert.deepEqual([a.x, a.y], [last.x, last.y]);
+});

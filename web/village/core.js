@@ -35,6 +35,7 @@
     berries: { name: 'Ягоды' },
     planks: { name: 'Доски' },
     bricks: { name: 'Кирпич' },
+    vegetables: { name: 'Овощи' },
   };
   const RES_IDS = Object.keys(RESOURCES);
 
@@ -64,6 +65,7 @@
   const BUILDINGS = {
     well: { id: 'well', ch: 'W', name: 'Колодец', cost: { stone: 40, wood: 60 }, needs: [], effect: 'square' },
     home: { id: 'home', ch: 'H', name: 'Твой дом', cost: { wood: 120, stone: 60 }, needs: [], effect: 'workbench' },
+    garden: { id: 'garden', ch: 'G', name: 'Огород', cost: { wood: 80, stone: 30 }, needs: ['well'], effect: 'garden' },
     barn: { id: 'barn', ch: 'A', name: 'Амбар', cost: { wood: 200, stone: 100 }, needs: ['well'], effect: 'storage' },
     bridge: { id: 'bridge', ch: 'b', name: 'Мост', cost: { wood: 260, stone: 160 }, needs: ['home'], effect: 'bridge' },
     sawmill: { id: 'sawmill', ch: 'S', name: 'Лесопилка', cost: { wood: 300, stone: 200 }, needs: ['bridge'], effect: 'sawmill' },
@@ -75,13 +77,22 @@
     house3: { id: 'house3', ch: '3', name: 'Дом гончара', cost: { planks: 240, bricks: 160, berries: 100 }, needs: ['mill'], effect: 'villager', role: 'potter' },
     chapel: {
       id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 180, stone: 450, berries: 160 },
-      needs: ['well', 'home', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'house2', 'forge', 'mill', 'house3'], effect: 'festival',
+      needs: ['well', 'home', 'garden', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'house2', 'forge', 'mill', 'house3'], effect: 'festival',
     },
   };
   const BUILDING_IDS = Object.keys(BUILDINGS);
   const BARN_UPGRADE = { planks: 100, bricks: 40 };
   const STORAGE = [50, 150, 400]; // start, after the barn, after the barn upgrade
   const WORKSHOP_RESERVE = 30;
+
+  // The garden: plots on the map ('g'), sown with a berry, watered from the bucket (filled at the well),
+  // ripe after a day of growth with water. Water lasts until the next dawn. Nothing grows in winter.
+  const GARDEN = {
+    seed: { berries: 1 },               // what sowing a plot costs
+    bucket: 6,                          // waterings per filled bucket
+    harvest: [0, 4, 5, 6],              // vegetables per plot, by basket level
+    grow: { spring: 1, summer: 1.25, autumn: 0.8, winter: 0 }, // growth speed by season
+  };
 
   // Automatic income, per second. Villagers come from the houses, the mill speeds them up.
   const VILLAGERS = {
@@ -115,7 +126,8 @@
   // ── Map ──
   // .  grass       ~  water      :  sand (river bank)   =  path   #  square
   // b  bridge site (water until the bridge is restored)
-  // W H A S K 1 2 3 F M C  ruin footprints (see BUILDINGS[].ch)
+  // W H A S K 1 2 3 F M C G  ruin footprints (see BUILDINGS[].ch)
+  // g  a garden plot (part of the garden, never walkable)
   const MAP = [
     '................................................',
     '.......:::::....................................',
@@ -144,8 +156,8 @@
     '.....11..22.########.........:~~~:..............',
     '.....11..22.########........::~~~:..............',
     '...............=............:~~~::..............',
-    '............FF.=.33.........:~~~:...............',
-    '............FF.=.33.........:~~~:...............',
+    '...GG.ggg...FF.=.33.........:~~~:...............',
+    '...GG.ggg...FF.=.33.........:~~~:...............',
     '...............=............:~~~:...............',
     '...............=............:~~~:...............',
     '..............CCC...........:~~~:...............',
@@ -177,6 +189,11 @@
     const id = RUIN_CH[MAP[y][x]];
     if (id) FOOTPRINTS[id].push({ x, y });
   }
+
+  // Garden plots in reading order; s.plots[i] belongs to PLOTS[i].
+  const PLOTS = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === 'g') PLOTS.push({ x, y });
+  const plotAt = (x, y) => PLOTS.findIndex((p) => p.x === x && p.y === y);
 
   function flood(start, pass) {
     const seen = new Uint8Array(W * H);
@@ -222,7 +239,7 @@
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (MAP[y][x] !== '.') continue;
     if (near(x, y, 2, (c) => c === 'b')) continue;
-    if (near(x, y, 1, (c) => c === '#' || RUIN_CH[c])) continue;
+    if (near(x, y, 1, (c) => c === '#' || c === 'g' || RUIN_CH[c])) continue;
     if (Math.abs(x - START.x) <= 1 && Math.abs(y - START.y) <= 1) continue;
     NODE_SITES.push({ x, y, zone: ZONES[idx(x, y)] });
   }
@@ -302,6 +319,7 @@
 
   // ── State ──
   const zeroRes = () => Object.fromEntries(RES_IDS.map((r) => [r, 0]));
+  const freshPlot = () => ({ stage: 'empty', water: false, grow: 0 });
   const freshBuilt = () => Object.fromEntries(BUILDING_IDS.map((id) => [id, {
     paid: Object.fromEntries(Object.keys(BUILDINGS[id].cost).map((r) => [r, 0])), done: false,
   }]));
@@ -326,6 +344,8 @@
       villagers: [],
       acc: {},                      // fractional automatic income per producer, 0..1
       decor: [],
+      plots: PLOTS.map(() => freshPlot()),
+      bucket: 0,
       festival: false,
       stats: { gathered: zeroRes(), playTime: 0 },
     };
@@ -488,11 +508,30 @@
     return true;
   }
 
-  // Click or tap on a tile: a standing node → walk up and gather; a ruin → walk up (the client opens the panel
-  // on the 'ruin' event); a walkable tile → walk there. Returns 'gather' | 'ruin' | 'walk' | 'tool' | 'none'.
+  const gardenOpen = (s) => s.built.garden.done;
+  // The well fills the bucket once both the well and the garden stand; before that it is a ruin like any other.
+  const wellPump = (s) => s.built.well.done && gardenOpen(s);
+
+  // Click or tap on a tile: a standing node → walk up and gather; a garden plot → walk up and tend it; the
+  // restored well (with a garden) → walk up and fill the bucket; a ruin → walk up (the client opens the panel
+  // on the 'ruin' event); a walkable tile → walk there.
+  // Returns 'gather' | 'plot' | 'well' | 'ruin' | 'walk' | 'tool' | 'none'.
   function interact(s, x, y) {
     x = Math.floor(x); y = Math.floor(y);
     const p = s.player;
+    const pi = plotAt(x, y);
+    if (pi >= 0 && gardenOpen(s)) {
+      const path = pathNextTo(s, p, [PLOTS[pi]]);
+      if (!path) return 'none';
+      setOrder(p, { type: 'plot', i: pi }, path);
+      return 'plot';
+    }
+    if (ruinAt(x, y) === 'well' && wellPump(s)) {
+      const path = pathNextTo(s, p, FOOTPRINTS.well);
+      if (!path) return 'none';
+      setOrder(p, { type: 'well' }, path);
+      return 'well';
+    }
     const n = nodeAt(s, x, y);
     if (n && n.hp > 0) {
       if (!s.tools[NODE_KINDS[n.kind].tool]) return 'tool';
@@ -501,7 +540,7 @@
       setOrder(p, { type: 'node', id: n.id }, path);
       return 'gather';
     }
-    const ruin = ruinAt(x, y);
+    const ruin = pi >= 0 ? 'garden' : ruinAt(x, y);
     if (ruin) {
       const path = pathNextTo(s, p, FOOTPRINTS[ruin]);
       if (!path) return 'none';
@@ -556,6 +595,8 @@
     let path = null;
     if (t && t.type === 'node') path = pathNextTo(s, p, [s.nodes[t.id]]);
     else if (t && t.type === 'ruin') path = pathNextTo(s, p, FOOTPRINTS[t.id]);
+    else if (t && t.type === 'plot') path = pathNextTo(s, p, [PLOTS[t.i]]);
+    else if (t && t.type === 'well') path = pathNextTo(s, p, FOOTPRINTS.well);
     else if (p.path && p.path.length) path = findPath(s, p, p.path[p.path.length - 1]);
     if (path) p.path = path;
     else clearOrder(p);
@@ -648,6 +689,7 @@
   // Hooks run once for every dawn and every new season the clock passes, the same way from step() and
   // offline(): `quiet` (offline) keeps the events out and only counts. Each returns nothing.
   function onDawn(s, day, quiet) {
+    for (const pl of s.plots) pl.water = false; // the water soaks away overnight
     if (!quiet) s.events.push({ type: 'dawn', day });
   }
   function onSeason(s, season, quiet) {
@@ -667,6 +709,7 @@
 
   function tick(s, dt) {
     const p = s.player;
+    growPlots(s, dt); // before the clock: water lasts exactly until dawn
     advanceClock(s, dt, false);
     s.stats.playTime += dt;
     p.cd = Math.max(0, (p.cd || 0) - dt);
@@ -678,6 +721,12 @@
       if (p.target.type === 'node') gatherTick(s);
       else if (p.target.type === 'ruin') {
         s.events.push({ type: 'ruin', id: p.target.id });
+        p.target = null;
+      } else if (p.target.type === 'plot') {
+        tendPlot(s, p.target.i);
+        p.target = null;
+      } else if (p.target.type === 'well') {
+        fillBucket(s);
         p.target = null;
       }
     }
@@ -778,6 +827,70 @@
     return 'ok';
   }
 
+  // ── Garden ──
+  const bucketSize = () => GARDEN.bucket;
+
+  // One action on a plot, whatever it needs next: sow (a berry; not in winter), water (from the bucket),
+  // wait while it grows, or harvest. Returns 'sown' | 'watered' | 'growing' | 'harvest' | 'winter' | 'seed'
+  // (no berry to sow) | 'bucket' (the bucket is empty) | 'locked' (no garden) | 'unknown'.
+  function tendPlot(s, i) {
+    const pl = s.plots[i];
+    if (!pl) return 'unknown';
+    if (!gardenOpen(s)) return 'locked';
+    let result, gain = 0;
+    if (pl.stage === 'empty') {
+      if (clock(s.t).season === 'winter') result = 'winter';
+      else if (!canAfford(s, GARDEN.seed)) result = 'seed';
+      else {
+        pay(s, GARDEN.seed);
+        Object.assign(pl, { stage: 'planted', water: false, grow: 0 });
+        result = 'sown';
+      }
+    } else if (pl.stage === 'planted') {
+      if (pl.water) result = 'growing';
+      else if (s.bucket <= 0) result = 'bucket';
+      else {
+        s.bucket--;
+        pl.water = true;
+        result = 'watered';
+      }
+    } else {
+      gain = GARDEN.harvest[s.tools.basket] || GARDEN.harvest[1];
+      s.res.vegetables += gain;
+      s.stats.gathered.vegetables += gain;
+      Object.assign(pl, freshPlot());
+      result = 'harvest';
+    }
+    s.events.push({ type: 'plot', i, result, gain, x: PLOTS[i].x, y: PLOTS[i].y });
+    return result;
+  }
+
+  // Fill the bucket at the restored well. Returns 'ok' | 'full' | 'locked'.
+  function fillBucket(s) {
+    if (!wellPump(s)) return 'locked';
+    if (s.bucket >= bucketSize(s)) { s.events.push({ type: 'bucket', n: s.bucket, full: true }); return 'full'; }
+    s.bucket = bucketSize(s);
+    s.events.push({ type: 'bucket', n: s.bucket });
+    return 'ok';
+  }
+
+  // Watered plots grow, faster in summer and not at all in winter; a plot that ripens stops needing water.
+  // Called before the clock moves: growth counts only up to the next dawn, when the water is gone (seasons
+  // also turn at dawn), so any step size gives the same result.
+  function growPlots(s, dt) {
+    const speed = GARDEN.grow[clock(s.t).season] || 0;
+    if (!speed) return;
+    dt = Math.min(dt, DAY - (s.t % DAY));
+    s.plots.forEach((pl, i) => {
+      if (pl.stage !== 'planted' || !pl.water) return;
+      pl.grow = Math.min(1, pl.grow + (dt / DAY) * speed);
+      if (pl.grow >= 1 - EPS) {
+        Object.assign(pl, { stage: 'ripe', water: false, grow: 1 });
+        s.events.push({ type: 'ripe', i, x: PLOTS[i].x, y: PLOTS[i].y });
+      }
+    });
+  }
+
   // ── Automatic income ──
   // Fractional progress builds up in s.acc; whole units are added while there is room under the storage limit.
   // A blocked producer keeps at most one unit pending, so it doesn't burst later.
@@ -838,6 +951,7 @@
     let days = 0;
     const mark = s.events.length;
     for (let i = 0; i < total; i++) {
+      growPlots(s, 1);
       days += advanceClock(s, 1, true);
       produce(s, 1);
       regrow(s); // every second, so a node due before a resting season regrows just as step() would
@@ -1000,6 +1114,16 @@
         .map((o) => ({ kind: o.kind, x: o.x, y: o.y }));
     }
 
+    if (Array.isArray(d.plots) && d.plots.length === PLOTS.length) {
+      s.plots = d.plots.map((pl) => {
+        if (!isObj(pl) || !['empty', 'planted', 'ripe'].includes(pl.stage)) return freshPlot();
+        if (pl.stage === 'empty') return freshPlot();
+        if (pl.stage === 'ripe') return { stage: 'ripe', water: false, grow: 1 };
+        return { stage: 'planted', water: pl.water === true, grow: Math.min(num(pl.grow, 0), 0.999) };
+      });
+    }
+    s.bucket = Number.isInteger(d.bucket) ? num(d.bucket, 0, 0, bucketSize(s)) : 0;
+
     // Effects of done buildings, in case the save lost them. The festival comes from the chapel, not the save.
     for (const id of BUILDING_IDS) if (s.built[id].done) applyEffect(s, id);
     s.storage = STORAGE[s.barnLevel];
@@ -1015,7 +1139,7 @@
     VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
-    MAP, W, H, START, FOOTPRINTS, SPEED,
+    MAP, W, H, START, FOOTPRINTS, SPEED, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
     placeDecor, save, load,

@@ -66,7 +66,8 @@ h1 {
 .lang-btn { padding: 2px 9px; font-size: 12px; letter-spacing: .06em; }
 
 /* ── Resources ── */
-.res { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin: 0 0 8px; }
+.res { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; margin: 0 0 8px; }
+.res-item[hidden] { display: none; }
 .res-item {
   min-width: 0; padding: 4px 8px; border-radius: 10px;
   background: var(--panel); color: var(--ink); border-bottom: 3px solid var(--line);
@@ -86,6 +87,7 @@ h1 {
 .ico.berries { background: var(--berry); border-radius: 50%; }
 .ico.planks { background: #d7a560; }
 .ico.bricks { background: #a8432e; }
+.ico.vegetables { background: #e2853a; border-radius: 50% 50% 50% 10%; }
 
 /* ── Scene ── */
 .stage { position: relative; }
@@ -159,7 +161,7 @@ h1 {
 
 /* ── Phones ── */
 @media (max-width: 640px) {
-  .res { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .res { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
   .scene-wrap { height: min(60vh, 520px); }
   .panel { left: calc(12px + var(--safe-l)); right: calc(12px + var(--safe-r)); top: auto; bottom: calc(12px + var(--safe-b)); width: auto; max-height: 60vh; }
 }

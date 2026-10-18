@@ -156,6 +156,8 @@ I18n.add({ ro: {
   'Отмена': 'Anulează',
   'Новое село ждёт': 'Un sat nou te așteaptă',
   'Сохранение повреждено — начато новое село': 'Salvarea e deteriorată — a început un sat nou',
+  'Овощи': 'Legume',
+  'Огород': 'Grădina de legume',
   'Время года и день': 'Anotimpul și ziua',
   'Весна · день 1': 'Primăvara · ziua 1',
   '{season} · день {n}': '{season} · ziua {n}',

@@ -207,16 +207,22 @@
     return t('Украшай село');
   }
 
+  // The six starting resources are always in the HUD; later ones show up once they matter.
+  const RES_UNLOCK = { vegetables: 'garden' };
+  const resShown = (r) => !RES_UNLOCK[r] || S.res[r] > 0 || S.built[RES_UNLOCK[r]].done;
+
   function renderHUD() {
     const inc = VV.income(S, V);
     for (const r of V.RES_IDS) {
+      const box = $(`r-${r}`).closest('.res-item');
+      box.hidden = !resShown(r);
+      if (box.hidden) continue;
       $(`r-${r}`).textContent = VV.fmt(S.res[r]);
       const rate = VV.fmtRate(inc.rate[r]);
       $(`r-${r}-rate`).textContent = rate ? t('{v}/мин', { v: rate }) : '';
-      const item = $(`r-${r}`).closest('.res-item');
       const full = inc.full.includes(r);
-      item.classList.toggle('full', full);
-      item.title = full ? t('Амбар полон: жители и мастерские ждут') : '';
+      box.classList.toggle('full', full);
+      box.title = full ? t('Амбар полон: жители и мастерские ждут') : '';
     }
     const done = V.BUILDING_IDS.filter((id) => S.built[id].done).length;
     $('built-label').textContent = t('Восстановлено {n}/{total}', { n: done, total: V.BUILDING_IDS.length });
@@ -452,7 +458,7 @@
   function act(a, x, y) {
     if (a.type === 'tool') { toast(t('Нужен инструмент: {name}', { name: t(V.TOOLS[a.tool].name) })); return; }
     if (a.type === 'ruin' && nearBuilding(a.id)) { openBuilding(a.id); return; }
-    if (a.type === 'gather' || a.type === 'ruin') {
+    if (a.type === 'gather' || a.type === 'ruin' || a.type === 'plot' || a.type === 'well') {
       if (V.interact(S, x, y) === 'none') toast(t('Туда пока не пройти'));
       return;
     }
