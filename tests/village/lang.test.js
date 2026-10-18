@@ -64,7 +64,7 @@ test('every Russian string in index.html has a RO translation', () => {
 test('index.html loads the scripts in order', () => {
   const html = fs.readFileSync(path.join(WEB, 'village', 'index.html'), 'utf8');
   const srcs = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', '../fx.js', 'lang.js', 'core.js', 'view.js', 'audio.js', 'art.js', 'game.js']);
+  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', '../fx.js', 'lang.js', 'core.js', 'view.js', 'audio.js', 'houses.js', 'art.js', 'game.js']);
   for (const s of srcs) assert.ok(fs.existsSync(path.join(WEB, 'village', s)), s);
 });
 
@@ -118,4 +118,18 @@ test('every Russian string in game.js has a RO translation', () => {
   assert.ok(keys.has('Восстановить: {name}'));
   const missing = [...keys].filter((k) => !hasRo(k));
   assert.deepEqual(missing, []);
+});
+
+test('the drawing code has no untranslated Russian strings', () => {
+  // The art draws with code only; any Russian text it ever shows must be in the RO dictionary too.
+  for (const file of ['art.js', 'houses.js', 'view.js']) {
+    const src = fs.readFileSync(path.join(WEB, 'village', file), 'utf8')
+      .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')
+      .replace(/\/\/[^'\n]*$/gm, '');
+    const missing = [];
+    for (const m of src.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
+      if (/[А-Яа-яЁё]/.test(m[1]) && !hasRo(m[1])) missing.push(m[1]);
+    }
+    assert.deepEqual(missing, [], file);
+  }
 });

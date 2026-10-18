@@ -273,12 +273,12 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `main_test.go`
 - Modify: `tests/village/lang.test.js`
 
-- [ ] `VillageHouses.create({ T, Fx, sprite, palette, helpers })` → `{ draw, lights }`; перенести туда `house`, `roof`, `door`, `windowBox`, `drawRuin`, `drawScaffold`, `ART[id]`
-- [ ] стены — `Fx.block`/`Fx.prism` с освещённой и теневой гранью, скаты крыш разного тона, трубы, падающие тени
-- [ ] три стадии (руина, леса, готово), анимация достройки (`easeBack`) сохраняется
-- [ ] `houses.js` в `main_test.go`, в списке скриптов (перед `art.js`) и в скане RO `lang.test.js` (вместе с `art.js`)
-- [ ] write tests: `go test ./...`, `lang.test.js`
-- [ ] run tests - must pass before next task
+- [x] `VillageHouses.create(env)` → `{ draw(id, stage, box, part) }` (env — канва, `Fx`, цвета и рисовальные помощники `art.js`; `lights` добавится в Task 7); перенести туда `house`, `roof`, `door`, `windowBox`, `drawRuin`, `drawScaffold`, `ART[id]`
+- [x] стены — `Fx.block`/`Fx.prism` с освещённой и теневой гранью, скаты крыш разного тона, трубы, падающие тени
+- [x] три стадии (руина, леса, готово), анимации (пила, крылья, колокол, огонь, ведро) сохраняются; здания рисуются вживую, без спрайтов — их мало на экране
+- [x] `houses.js` в `main_test.go`, в списке скриптов (перед `art.js`) и в скане RO `lang.test.js` (вместе с `art.js`)
+- [x] write tests: `go test ./...`, `lang.test.js`
+- [x] run tests - must pass before next task
 
 ### Task 5: Люди, куры и эффекты праздника
 
