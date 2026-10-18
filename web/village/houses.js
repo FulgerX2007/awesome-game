@@ -10,7 +10,7 @@
 
   // env: { ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark,
   //        state() → the rules state, time() → the animation clock, sun() → view.sunAt of this frame,
-  //        light(x, y, r, color, a) → a light that glows after dark }
+  //        light(x, y, r, color, a) → a light that glows after dark, snow() → 0..1 snow cover }
   function create(env) {
     const { ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark } = env;
     let S = null, time = 0; // refreshed on every draw()
@@ -109,6 +109,16 @@
         }
       }
       ctx.restore();
+      const snow = env.snow();
+      if (snow > 0) { // winter: snow on the back strip and the upper front slope
+        ctx.globalAlpha = snow;
+        poly([left + 4, top + 1, right - 4, top + 1, right - 6, top - back, left + 6, top - back], '#f6f9fc');
+        const sg = ctx.createLinearGradient(0, top, 0, top + (eave - top) * 0.6);
+        sg.addColorStop(0, '#eef3f8');
+        sg.addColorStop(1, 'rgba(238, 243, 248, 0)');
+        poly([left + 1, top + (eave - top) * 0.6, right - 1, top + (eave - top) * 0.6, right - 4, top, left + 4, top], sg);
+        ctx.globalAlpha = 1;
+      }
       K.block(ctx, left + 3, top - 2, right - left - 6, 3.5, 1.5, K.shade(col, -0.25), { top: 0.45 }); // ridge
       rect(left - 1, eave - 2, right - left + 2, 3, dark, 1.5);
       rect(left, eave + 1, right - left, 3, 'rgba(20, 12, 4, 0.22)'); // the eave shades the wall top

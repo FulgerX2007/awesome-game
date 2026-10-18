@@ -360,3 +360,53 @@ test('regrowth survives save/load', () => {
   while (t.t < m.regrowAt + 0.1) V.step(t, DT);
   assert.equal(m.hp, V.NODE_KINDS.tree.hp);
 });
+
+// ── Seasons ──
+const WINTER = V.DAY * V.SEASON_DAYS * 3; // winter starts here in the first year
+const SPRING2 = V.DAY * V.SEASON_DAYS * 4;
+
+function emptyBush(s, at) {
+  const b = s.nodes.find((n) => n.kind === 'bush');
+  b.hp = 0;
+  b.regrowAt = at;
+  return b;
+}
+
+test('a bush due in winter waits for spring; other nodes regrow as usual', () => {
+  const s = V.newGame(5);
+  s.t = WINTER + 100;
+  const bush = emptyBush(s, WINTER + 200);
+  const tree = s.nodes.find((n) => n.kind === 'tree');
+  tree.hp = 0; tree.regrowAt = WINTER + 200;
+  V.step(s, 200);
+  assert.equal(bush.hp, 0, 'no berries in winter');
+  assert.ok(bush.regrowAt >= SPRING2 && bush.regrowAt < SPRING2 + 60, `back early in spring (${bush.regrowAt})`);
+  assert.equal(tree.hp, V.NODE_KINDS.tree.hp, 'trees still grow back');
+  V.step(s, bush.regrowAt - s.t + 1);
+  assert.equal(bush.hp, V.NODE_KINDS.bush.hp, 'berries are back in spring');
+});
+
+test('a bush that regrew before winter keeps its berries through it', () => {
+  const s = V.newGame(5);
+  s.t = WINTER - 50;
+  const bush = emptyBush(s, WINTER - 10);
+  V.step(s, 100);
+  assert.equal(bush.hp, V.NODE_KINDS.bush.hp);
+});
+
+test('offline through winter regrows bushes exactly as step() does', () => {
+  const make = () => {
+    const s = V.newGame(6);
+    s.t = WINTER - 300;
+    const bushes = s.nodes.filter((n) => n.kind === 'bush').slice(0, 4);
+    bushes.forEach((b, i) => { b.hp = 0; b.regrowAt = WINTER - 200 + i * 150; }); // two before winter, two in it
+    return s;
+  };
+  const a = make(), b = make();
+  const span = SPRING2 - WINTER + 800;
+  const r = V.offline(a, span);
+  V.step(b, span);
+  const hp = (s) => s.nodes.filter((n) => n.kind === 'bush').slice(0, 4).map((n) => n.hp);
+  assert.deepEqual(hp(a), hp(b));
+  assert.ok(r.regrown >= 4);
+});

@@ -157,6 +157,45 @@
     return { tint, shade: lerp(a[2], b[2], k), shadow: lerp(a[3], b[3], k), lights: lerp(a[4], b[4], k) };
   }
 
+  // ── Seasons ──
+  // The colours of the land in each season. art.js bakes the ground and the plants from these.
+  //   grass, sand, path, water: the ground layers; ice: the river is frozen
+  //   flowers: the share of grass tiles with flowers; leaves: crown colours (null = bare branches)
+  //   blossom: the share of leafy trees in bloom; fallen: leaves lying on the grass; snow: 0..1 snow cover
+  const SEASON_LOOKS = {
+    spring: {
+      grass: { base: '#8cbf5a', dark: '#77ab48', light: '#a9d475', tuft: '#5c9a3b', tuftLight: '#b5dc80' },
+      flowers: 0.28, leaves: [['#4f8a3a', '#68a64a', '#92cc66'], ['#578f36', '#73ad45', '#9ad06a']], blossom: 0.35, fallen: 0, snow: 0,
+    },
+    summer: {
+      grass: { base: '#82ad55', dark: '#6f9c47', light: '#9cc46b', tuft: '#5c8a3b', tuftLight: '#a9cf73' },
+      flowers: 0.16, leaves: [['#3f6e33', '#548a3f', '#78ad55'], ['#466f2e', '#5e8f3a', '#86b356'], ['#3a6a3f', '#4f8650', '#72a868']], blossom: 0, fallen: 0, snow: 0,
+    },
+    autumn: {
+      grass: { base: '#a3a65a', dark: '#8f9049', light: '#bfba6c', tuft: '#7e7c3c', tuftLight: '#cbbf73' },
+      flowers: 0.04, leaves: [['#b8662e', '#d88a3a', '#efb75a'], ['#a8452e', '#c95e36', '#e98a52'], ['#b88a2e', '#d9a83a', '#f2cf62']], blossom: 0, fallen: 0.35, snow: 0,
+    },
+    winter: {
+      grass: { base: '#e9eff3', dark: '#d3dde6', light: '#f8fbfd', tuft: '#a4b39f', tuftLight: '#c9d5dc' },
+      sand: { edge: '#d6dde2', main: '#eef2f4', pebble: '#b9c3c8' },
+      path: { edge: '#b3a58f', main: '#d6ccbc', speck: '#a5977f' },
+      water: { shallow: '#cfe6ee', deep: '#a9cfdd' }, ice: true,
+      flowers: 0, leaves: null, blossom: 0, fallen: 0, snow: 1,
+    },
+  };
+  const palette = (season) => SEASON_LOOKS[season] || SEASON_LOOKS.spring;
+
+  // The change from the last season to this one is shown over the first day of a season: t goes 0 → 1.
+  // The game's very first season has nothing to change from.
+  const SEASON_NAMES = Object.keys(SEASON_LOOKS);
+  function seasonFade(c) {
+    const i = SEASON_NAMES.indexOf(c.season);
+    const from = SEASON_NAMES[(i + SEASON_NAMES.length - 1) % SEASON_NAMES.length];
+    const first = c.year === 0 && c.season === SEASON_NAMES[0];
+    const t = first || c.seasonDay > 0 ? 1 : clamp(c.phase, 0, 1);
+    return { from, to: c.season, t };
+  }
+
   // ── 2.5D silhouettes ──
   // Standing things rise above their tile and cover the tiles behind them, so a tap on a tree crown or a roof
   // should pick that thing. Sizes are in CSS px around the base point the art draws from:
@@ -259,7 +298,7 @@
   const api = {
     TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
     fmt, fmtRate, splitDuration, income, tapAction, frontTiles, pickFront, footprintDist, soundFor,
-    sunAt, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
+    sunAt, SEASON_LOOKS, palette, seasonFade, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VillageView = api;

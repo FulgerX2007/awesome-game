@@ -25,11 +25,28 @@
 
 
   // ───────────── Palette ─────────────
-  const GRASS = { base: '#82ad55', dark: '#6f9c47', light: '#9cc46b', tuft: '#5c8a3b', tuftLight: '#a9cf73' };
+  // The ground and plant colours follow the season (view.palette); usePalette switches them. Sprites and
+  // ground chunks are painted synchronously, so a paint can switch to another season and back.
   const FLOWERS = ['#fff6e0', '#f4d35e', '#f2a7c3', '#b9d4f2', '#f6b26b'];
-  const SAND = { edge: '#cdb27c', main: '#e3cd98', pebble: '#bba373' };
-  const WATER = { shallow: '#72c0cc', deep: '#4d9bb8' };
-  const PATH = { edge: '#a78457', main: '#c9a670', speck: '#b39060' };
+  const SAND0 = { edge: '#cdb27c', main: '#e3cd98', pebble: '#bba373' };
+  const WATER0 = { shallow: '#72c0cc', deep: '#4d9bb8' };
+  const PATH0 = { edge: '#a78457', main: '#c9a670', speck: '#b39060' };
+  let LOOK, GRASS, SAND, WATER, PATH, SEASON;
+  function usePalette(season) {
+    SEASON = season;
+    LOOK = VV.palette(season);
+    GRASS = LOOK.grass;
+    SAND = LOOK.sand || SAND0;
+    WATER = LOOK.water || WATER0;
+    PATH = LOOK.path || PATH0;
+  }
+  function withPalette(season, fn) {
+    const keep = SEASON;
+    usePalette(season);
+    try { return fn(); } finally { usePalette(keep); }
+  }
+  usePalette('spring');
+  let FADE = { from: 'winter', to: 'spring', t: 1 }; // this frame's season change (view.seasonFade)
   const SQUARE = { edge: '#8c7a5d', gap: '#a39276', stones: ['#cdbd9b', '#d8c9a8', '#c2b18e', '#d2c4a0'] };
   const WOOD = { dark: '#6e4a2b', mid: '#8b5e36', light: '#b3834f', pale: '#d2a86c' };
   const STONE = { dark: '#7d786d', mid: '#9d978a', light: '#bdb7a8' };
@@ -162,6 +179,17 @@
     const t = VV.NODE_TALL[kind], pad = 3;
     return sprite(key, t.hw * 2 + pad * 2, t.up + VV.NODE_FOOT + pad * 2, t.hw + pad, t.up + pad, paint);
   };
+  // A node sprite that changes with the season: painted with that season's palette, and while a season
+  // changes the old look stays under the new one as it fades in.
+  function seasonal(kind, key, paint, x, y) {
+    const one = (season) => nodeSprite(kind, `${key}|${season}`, (g) => withPalette(season, () => paint(g)));
+    if (FADE.t < 1) {
+      blit(one(FADE.from), x, y);
+      ctx.globalAlpha = FADE.t;
+      blit(one(FADE.to), x, y);
+      ctx.globalAlpha = 1;
+    } else blit(one(FADE.to), x, y);
+  }
 
   // ───────────── Ground (cached in chunks) ─────────────
   // Terrain classes: g grass (ruin footprints too), s sand, w water (bridge site too), p path, q square.
@@ -176,9 +204,14 @@
   const chunks = new Map();
   let chunkRatio = 0;
 
-  function chunk(cx, cy) {
+  // Chunks of seasons that are no longer on screen are dropped.
+  function pruneChunks(keep) {
+    for (const key of chunks.keys()) if (!keep.includes(key.slice(0, key.indexOf('|')))) chunks.delete(key);
+  }
+
+  function chunk(cx, cy, season) {
     if (chunkRatio !== dpr) { chunks.clear(); chunkRatio = dpr; }
-    const key = cx + ',' + cy;
+    const key = season + '|' + cx + ',' + cy;
     let c = chunks.get(key);
     if (c) return c;
     const size = CHUNK * T;
@@ -188,7 +221,7 @@
     g.scale(dpr, dpr);
     g.translate(-cx * size, -cy * size);
     // One tile of overlap on every side, so blobs and rounded edges match across chunk borders.
-    paintGround(g, cx * CHUNK - 1, cy * CHUNK - 1, cx * CHUNK + CHUNK, cy * CHUNK + CHUNK);
+    withPalette(season, () => paintGround(g, cx * CHUNK - 1, cy * CHUNK - 1, cx * CHUNK + CHUNK, cy * CHUNK + CHUNK));
     chunks.set(key, c);
     return c;
   }
@@ -311,6 +344,7 @@
         }
       } else if (c === 'q') cobbles(g, x, y, px, py);
       else if (c === 's') sandDetail(g, x, y, px, py, water);
+      else if (c === 'w' && LOOK.ice) iceDetail(g, x, y, px, py);
       else if (c === 'w' && deep(x, y) && hash2(x, y, 90) < 0.07) lilyPad(g, x, y, px, py);
     }
   }
@@ -328,7 +362,21 @@
       g.moveTo(tx + 3, ty - 4); g.lineTo(tx + 1, ty);
       g.stroke();
     }
-    if (hash2(x, y, 3) < 0.16) {
+    if (LOOK.fallen && hash2(x, y, 160) < LOOK.fallen) {
+      // Fallen leaves in autumn.
+      for (let k = 0; k < 3; k++) {
+        g.fillStyle = ['#c9672f', '#e0a03d', '#a8452e'][k];
+        g.beginPath();
+        g.ellipse(px + 4 + hash2(x, y, 161 + k) * (T - 8), py + 4 + hash2(x, y, 165 + k) * (T - 8), 2.6, 1.4, hash2(x, y, 169 + k) * TAU, 0, TAU);
+        g.fill();
+      }
+    }
+    if (LOOK.snow && hash2(x, y, 170) < 0.3) {
+      // Glints on the snow.
+      g.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      for (let k = 0; k < 3; k++) g.fillRect(px + hash2(x, y, 171 + k) * T, py + hash2(x, y, 175 + k) * T, 1.2, 1.2);
+    }
+    if (hash2(x, y, 3) < LOOK.flowers) {
       const col = FLOWERS[Math.floor(hash2(x, y, 4) * FLOWERS.length)];
       const n = 3 + Math.floor(hash2(x, y, 6) * 3);
       const fx = px + 6 + hash2(x, y, 7) * (T - 12), fy = py + 6 + hash2(x, y, 9) * (T - 12);
@@ -398,6 +446,26 @@
     }
   }
 
+  // Frozen river: pale ice with a few cracks and drifts of snow.
+  function iceDetail(g, x, y, px, py) {
+    g.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    g.lineWidth = 1;
+    if (hash2(x, y, 180) < 0.45) {
+      const ax = px + hash2(x, y, 181) * T, ay = py + hash2(x, y, 182) * T;
+      g.beginPath();
+      g.moveTo(ax, ay);
+      g.lineTo(ax + (hash2(x, y, 183) - 0.5) * 22, ay + (hash2(x, y, 184) - 0.5) * 16);
+      g.lineTo(ax + (hash2(x, y, 185) - 0.5) * 30, ay + (hash2(x, y, 186) - 0.5) * 24);
+      g.stroke();
+    }
+    if (hash2(x, y, 187) < 0.25) {
+      g.fillStyle = 'rgba(250, 252, 255, 0.75)';
+      g.beginPath();
+      g.ellipse(px + hash2(x, y, 188) * T, py + hash2(x, y, 189) * T, 9, 4, 0, 0, TAU);
+      g.fill();
+    }
+  }
+
   function lilyPad(g, x, y, px, py) {
     const lx = px + 8 + hash2(x, y, 91) * 16, ly = py + 8 + hash2(x, y, 92) * 16, a = hash2(x, y, 93) * TAU;
     g.fillStyle = 'rgba(16, 52, 64, 0.3)'; // the pad floats: its shadow lies on the water to the lower right
@@ -420,6 +488,7 @@
 
   // Gentle ripples and glints on the visible water, drifting with the current.
   function drawWater(r) {
+    if (LOOK.ice) return; // frozen
     ctx.lineCap = 'round';
     for (let y = r.y0; y <= r.y1; y++) for (let x = r.x0; x <= r.x1; x++) {
       if (terr(x, y) !== 'w') continue;
@@ -449,13 +518,20 @@
   // ───────────── Nodes ─────────────
   const fx = { shake: new Map(), pop: new Map(), falls: [], parts: [], smoke: [], rockets: [], sparks: [] };
 
+  // A tree's look in the current season: pines stay green (snowy in winter); leafy trees follow the
+  // palette, blossom in spring, carry apples in summer and autumn and stand bare in winter.
   function treeLook(n) {
     const h = hash2(n.x, n.y, 300);
     const pine = V.zoneAt(n.x, n.y) === 'north' ? h < 0.6 : h < 0.18;
-    const autumn = !pine && hash2(n.x, n.y, 301) < 0.13;
-    const greens = [['#3f6e33', '#548a3f', '#78ad55'], ['#466f2e', '#5e8f3a', '#86b356'], ['#3a6a3f', '#4f8650', '#72a868']];
-    const pal = autumn ? ['#b8662e', '#d88a3a', '#efb75a'] : pine ? ['#2f5a37', '#3d7044', '#5a8f58'] : greens[Math.floor(hash2(n.x, n.y, 302) * 3)];
-    return { pine, pal, apples: !pine && !autumn && hash2(n.x, n.y, 303) < 0.15 };
+    const snow = LOOK.snow > 0;
+    if (pine) return { pine, pal: ['#2f5a37', '#3d7044', '#5a8f58'], snow };
+    const sets = LOOK.leaves;
+    const bare = !sets;
+    // A few leafy trees turn early in late summer.
+    const early = SEASON === 'summer' && hash2(n.x, n.y, 301) < 0.13;
+    const pal = bare ? null : early ? VV.palette('autumn').leaves[0] : sets[Math.floor(hash2(n.x, n.y, 302) * sets.length)];
+    const fruit = (SEASON === 'summer' || SEASON === 'autumn') && hash2(n.x, n.y, 303) < 0.15;
+    return { pine, pal, bare, snow, apples: !bare && fruit, blossom: hash2(n.x, n.y, 304) < LOOK.blossom };
   }
 
   // Leafy crowns are clusters of lit balls; pines are stacked cones with a lit left face. Painted at the
@@ -472,12 +548,29 @@
         g.beginPath(); g.moveTo(-w, b); g.lineTo(1, b + 0.5); g.lineTo(0, top); g.closePath(); g.fill();
         g.strokeStyle = L.pal[2]; g.lineWidth = 1.4; g.lineCap = 'round';
         g.beginPath(); g.moveTo(-w + 2.5, b - 1); g.lineTo(-0.5, top + 2.5); g.stroke();
+        if (L.snow) { // snow lies on the upper slopes of each tier
+          g.fillStyle = '#f4f8fb';
+          g.beginPath(); g.moveTo(-w * 0.55, b - (b - top) * 0.45); g.lineTo(0, top); g.lineTo(w * 0.45, b - (b - top) * 0.5); g.lineTo(0, b - (b - top) * 0.62); g.closePath(); g.fill();
+        }
       });
+      return;
+    }
+    if (L.bare) { // winter: bare branches with a little snow on them
+      g.strokeStyle = K.shade(WOOD.mid, -0.15); g.lineCap = 'round';
+      for (const [x0, y0, x1, y1, w] of [[0, -18, 0, -40, 2.6], [0, -24, -10, -36, 1.8], [0, -27, 10, -38, 1.8], [-5, -31, -12, -42, 1.2], [5, -33, 9, -45, 1.2], [0, -34, -3, -46, 1.2]]) {
+        g.lineWidth = w;
+        g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+        if (L.snow) { g.fillStyle = '#f4f8fb'; g.beginPath(); g.ellipse((x0 + x1) / 2 - 0.5, (y0 + y1) / 2 - 1.2, 2.4, 1, 0, 0, TAU); g.fill(); }
+      }
       return;
     }
     g.fillStyle = 'rgba(20, 36, 14, 0.3)';
     g.beginPath(); g.ellipse(1, -14, 12, 5, 0, 0, TAU); g.fill();
     for (const [dx, dy, r, c] of CROWN) K.sphere(g, dx, dy, r, L.pal[c], { gloss: false, shine: 0.3 });
+    if (L.blossom) for (let k = 0; k < 9; k++) {
+      g.fillStyle = k % 3 ? '#fbe3ec' : '#f2a7c3';
+      g.beginPath(); g.arc(-12 + hash2(n.x, n.y, 330 + k) * 24, -42 + hash2(n.x, n.y, 340 + k) * 24, 1.7, 0, TAU); g.fill();
+    }
     if (L.apples) for (let k = 0; k < 4; k++) {
       K.sphere(g, -9 + hash2(n.x, n.y, 310 + k) * 18, -36 + hash2(n.x, n.y, 320 + k) * 17, 2.1, '#d2453a', { shine: 0.5 });
     }
@@ -490,15 +583,15 @@
   }
 
   function drawTree(n, cx, by, sway) {
-    const L = treeLook(n);
-    castShadow(cx, by, 13, L.pine ? 36 : 34);
-    blit(nodeSprite('tree', 'trunk|' + (L.pine ? 1 : 0), (g) => paintTrunk(g, L.pine)), cx, by);
-    blit(nodeSprite('tree', `crown|${n.x},${n.y}`, (g) => paintCrown(g, n, L)), cx + sway, by);
+    const pine = treeLook(n).pine;
+    castShadow(cx, by, 13, pine ? 36 : 34);
+    blit(nodeSprite('tree', 'trunk|' + (pine ? 1 : 0), (g) => paintTrunk(g, pine)), cx, by);
+    seasonal('tree', `crown|${n.x},${n.y}`, (g) => paintCrown(g, n, treeLook(n)), cx + sway, by);
   }
 
   function drawStump(n, cx, by) {
     castShadow(cx, by, 8, 12, 0.26);
-    K.cylinder(ctx, cx, by - 7, 6, 6, WOOD.mid, { capColor: WOOD.pale, ry: 3 });
+    K.cylinder(ctx, cx, by - 7, 6, 6, WOOD.mid, { capColor: LOOK.snow ? '#eef3f7' : WOOD.pale, ry: 3 });
     ctx.strokeStyle = 'rgba(110, 74, 43, 0.6)';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
@@ -529,7 +622,8 @@
     blob(-3 * k, -16 * k, 6.5 * k, 4 * k, seed + 2, 'rgba(232, 228, 214, 0.55)', 7, 0.18, g);
     g.strokeStyle = 'rgba(70, 66, 58, 0.55)'; g.lineWidth = 1; g.lineCap = 'round';
     g.beginPath(); g.moveTo(2 * k, -14 * k); g.lineTo(5 * k, -7 * k); g.stroke();
-    if (hash2(n.x, n.y, 330) < 0.4) {
+    if (LOOK.snow) blob(-2 * k, -17 * k, 8 * k, 3.6 * k, seed + 3, '#f4f8fb', 7, 0.2, g);
+    else if (hash2(n.x, n.y, 330) < 0.4) {
       g.fillStyle = 'rgba(110, 150, 70, 0.85)';
       g.beginPath(); g.ellipse(4 * k, -18 * k, 4 * k, 2 * k, 0, 0, TAU); g.fill();
     }
@@ -537,7 +631,7 @@
   function drawRock(n, cx, by) {
     const k = 0.62 + 0.38 * (n.hp / V.NODE_KINDS.rock.hp);
     castShadow(cx, by - 1, 14 * k, 22 * k, 0.34);
-    blit(nodeSprite('rock', `rock|${n.x},${n.y}|${n.hp}`, (g) => paintRock(g, n, k)), cx, by);
+    seasonal('rock', `rock|${n.x},${n.y}|${n.hp}`, (g) => paintRock(g, n, k), cx, by);
   }
 
   function drawPebbles(n, cx, by) {
@@ -578,17 +672,27 @@
 
   // A berry bush: a clump of lit leafy balls with glossy berries, paler and bare once picked.
   const BUSH = [[-7, -7, 7, 0], [7, -7, 7, 0], [0, -12, 8, 0], [-3, -6, 7, 1], [4, -5, 7, 1], [-3, -14, 3.5, 2], [5, -11, 2.8, 2]];
+  const BUSH_LEAVES = { autumn: ['#8c5a2e', '#a8703a', '#c99350'] };
   function paintBush(g, n) {
     const full = n.hp > 0;
-    const leaves = full ? ['#4b7c38', '#5f9446', '#86b860'] : ['#5f8f45', '#77a456', '#9cc674'];
-    for (const [dx, dy, r, c] of BUSH) K.sphere(g, dx, dy, r, leaves[c], { gloss: false, shine: 0.3 });
+    if (LOOK.snow) { // winter: bare twigs under snow; berries left on them still show
+      g.strokeStyle = K.shade(WOOD.mid, -0.1); g.lineWidth = 1.3; g.lineCap = 'round';
+      for (let k = 0; k < 7; k++) {
+        const a = -Math.PI * (0.15 + 0.7 * (k / 6));
+        g.beginPath(); g.moveTo(0, -2); g.lineTo(Math.cos(a) * 12, -2 + Math.sin(a) * 14); g.stroke();
+      }
+      for (const [dx, dy, r] of [[-5, -12, 6], [5, -11, 5.5], [0, -15, 5]]) K.sphere(g, dx, dy, r, '#eef3f7', { gloss: false, shine: 0.2 });
+    } else {
+      const leaves = BUSH_LEAVES[SEASON] || (full ? ['#4b7c38', '#5f9446', '#86b860'] : ['#5f8f45', '#77a456', '#9cc674']);
+      for (const [dx, dy, r, c] of BUSH) K.sphere(g, dx, dy, r, leaves[c], { gloss: false, shine: 0.3 });
+    }
     for (let k = 0; k < n.hp * 3; k++) {
       K.sphere(g, -9 + hash2(n.x, n.y, 350 + k) * 18, -15 + hash2(n.x, n.y, 370 + k) * 11, 2.2, '#c2335a', { shine: 0.6 });
     }
   }
   function drawBush(n, cx, by, sway) {
     castShadow(cx, by - 1, 13, 18, 0.3);
-    blit(nodeSprite('bush', `bush|${n.x},${n.y}|${n.hp}`, (g) => paintBush(g, n)), cx + sway * 0.3, by);
+    seasonal('bush', `bush|${n.x},${n.y}|${n.hp}`, (g) => paintBush(g, n), cx + sway * 0.3, by);
     if (n.hp <= 0) sprout(n, cx + 9, by - 1);
   }
 
@@ -627,7 +731,7 @@
   // Drawn by houses.js with this file's canvas helpers.
   const HS = window.VillageHouses.create({
     ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark,
-    state: () => S, time: () => time, sun: () => SUN, light,
+    state: () => S, time: () => time, sun: () => SUN, light, snow: () => LOOK.snow * FADE.t,
   });
 
   // Bridge over the river: flat, drawn under the walkers. Posts first, planks as payment arrives.
@@ -1129,6 +1233,27 @@
     }
   }
 
+  // Falling things that belong to the season, drifting across the view: snow in winter, leaves in autumn,
+  // petals in spring.
+  const WEATHER = { winter: { n: 70, size: 1.6, fall: 26, colors: ['#ffffff', '#eef4fa'] },
+    autumn: { n: 18, size: 2.6, fall: 18, colors: ['#c9672f', '#e0a03d', '#a8452e'] },
+    spring: { n: 12, size: 1.8, fall: 12, colors: ['#fbe3ec', '#f2a7c3'] } };
+  function drawWeather() {
+    const w = WEATHER[CLOCK.season];
+    if (!w) return;
+    const n = Math.round(w.n * FADE.t);
+    for (let k = 0; k < n; k++) {
+      const speed = w.fall * (0.7 + hash2(k, 4, 610) * 0.6);
+      const x = cam.x + ((hash2(k, 1, 610) * cw + Math.sin(time * 0.8 + k) * 24 + time * 9) % cw + cw) % cw;
+      const y = cam.y + ((hash2(k, 2, 610) * ch + time * speed) % ch + ch) % ch;
+      ctx.fillStyle = w.colors[k % w.colors.length];
+      ctx.beginPath();
+      if (CLOCK.season === 'winter') ctx.arc(x, y, w.size * (0.6 + hash2(k, 3, 610) * 0.8), 0, TAU);
+      else ctx.ellipse(x, y, w.size * 1.3, w.size * 0.6, time * 2 + k, 0, TAU);
+      ctx.fill();
+    }
+  }
+
   // Fireflies over the meadow on warm nights.
   const FLY_N = 16;
   function drawFireflies() {
@@ -1147,18 +1272,27 @@
   function draw(px, py, people) {
     CLOCK = V.clock(S.t);
     SUN = VV.sunAt(CLOCK.phase, CLOCK.season);
+    const fade = VV.seasonFade(CLOCK);
+    if (fade.from !== FADE.from || fade.to !== FADE.to || (fade.t < 1) !== (FADE.t < 1)) pruneChunks(fade.t < 1 ? [fade.from, fade.to] : [fade.to]);
+    FADE = fade;
+    usePalette(CLOCK.season);
     lit.length = 0;
     const target = VV.clampCamera(px * T, py * T, cw, ch, V.W * T, V.H * T);
     cam = { x: VV.snap(target.x, dpr), y: VV.snap(target.y, dpr) };
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#4f7a33';
+    ctx.fillStyle = GRASS.dark;
     ctx.fillRect(0, 0, cw, ch);
     ctx.translate(-cam.x, -cam.y);
     // Ground: cached chunks that touch the view.
     const size = CHUNK * T;
     for (let cy = Math.max(0, Math.floor(cam.y / size)); cy * size < Math.min(V.H * T, cam.y + ch); cy++) {
       for (let cx = Math.max(0, Math.floor(cam.x / size)); cx * size < Math.min(V.W * T, cam.x + cw); cx++) {
-        ctx.drawImage(chunk(cx, cy), cx * size, cy * size, size, size);
+        if (FADE.t < 1) {
+          ctx.drawImage(chunk(cx, cy, FADE.from), cx * size, cy * size, size, size);
+          ctx.globalAlpha = FADE.t;
+        }
+        ctx.drawImage(chunk(cx, cy, FADE.to), cx * size, cy * size, size, size);
+        ctx.globalAlpha = 1;
       }
     }
     const r = VV.visibleRange(cam, cw, ch, V.W, V.H);
@@ -1192,6 +1326,7 @@
       ctx.drawImage(PUFF(), s.x - s.r * 1.6, s.y - s.r * 1.6, s.r * 3.2, s.r * 3.2);
     }
     ctx.globalAlpha = 1;
+    drawWeather();
     drawNightLight();
     if (S.festival) drawGarlands();
     if (SUN.shade < 0.35) drawButterflies();

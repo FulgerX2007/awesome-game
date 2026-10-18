@@ -44,7 +44,7 @@
     tree: { name: 'Дерево', res: 'wood', hp: 4, tool: 'axe', regrow: [150, 300] },
     rock: { name: 'Камень', res: 'stone', hp: 4, tool: 'pick', regrow: [150, 300] },
     clay: { name: 'Глиняная яма', res: 'clay', hp: 3, tool: 'shovel', regrow: [150, 300] },
-    bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [150, 300] },
+    bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter'] },
   };
 
   // Level 2 needs the workbench (home), level 3 needs the forge. The shovel starts at 0 and comes with the bridge.
@@ -605,13 +605,23 @@
     if (at < nextRegrow(s)) regrowCache.set(s, at);
   }
 
+  // The first moment after t that falls outside the resting seasons (bushes rest in winter).
+  function restEnd(t, rests) {
+    const len = DAY * SEASON_DAYS;
+    let start = (Math.floor(t / len) + 1) * len;
+    for (let k = 0; k < SEASONS.length && rests.includes(clock(start).season); k++) start += len;
+    return start;
+  }
+
   function regrow(s) {
     if (nextRegrow(s) > s.t) return;
     let m = Infinity;
     for (const n of s.nodes) {
       if (n.hp > 0 || n.regrowAt === null) continue;
       if (n.regrowAt <= s.t) {
-        if (playerOn(s, n.x, n.y)) n.regrowAt = s.t + REGROW_RETRY;
+        const rests = NODE_KINDS[n.kind].rests;
+        if (rests && rests.includes(clock(s.t).season)) n.regrowAt = restEnd(s.t, rests) + (n.id % 12) * 5;
+        else if (playerOn(s, n.x, n.y)) n.regrowAt = s.t + REGROW_RETRY;
         else {
           n.hp = NODE_KINDS[n.kind].hp;
           n.regrowAt = null;
@@ -826,13 +836,14 @@
     const total = Math.floor(Math.min(Math.max(Number(seconds) || 0, 0), OFFLINE_MAX));
     const before = { ...s.res };
     let days = 0;
+    const mark = s.events.length;
     for (let i = 0; i < total; i++) {
       days += advanceClock(s, 1, true);
       produce(s, 1);
+      regrow(s); // every second, so a node due before a resting season regrows just as step() would
     }
-    const mark = s.events.length;
     regrow(s);
-    const regrown = s.events.length - mark;
+    const regrown = s.events.filter((e, i) => i >= mark && e.type === 'regrow').length;
     s.events.length = mark; // a summary instead of a burst of regrow events
     const gains = {};
     for (const r of RES_IDS) if (s.res[r] !== before[r]) gains[r] = s.res[r] - before[r];

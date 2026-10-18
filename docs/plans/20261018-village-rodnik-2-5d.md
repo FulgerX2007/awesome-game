@@ -338,17 +338,20 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `web/village/core.js`
 - Modify: `web/village/view.js`
 - Modify: `web/village/art.js`
+- Modify: `web/village/houses.js`
 - Modify: `tests/village/gather.test.js`
 - Modify: `tests/village/view.test.js`
 - Modify: `tests/village/bot.js`
 - Modify: `tests/village/balance.test.js`
 
-- [ ] правила: зимой кусты не плодоносят и не отрастают (и онлайн, и офлайн)
-- [ ] `palette(season, t)`: весенние цветы, густое лето, осенняя листва и листопад, зимний снег и лёд на реке
-- [ ] куски земли и спрайты по сезону, кэш очищается на смене сезона
-- [ ] бот запасает ягоды до зимы (их требуют `house3` и `chapel`); `balance.test.js` зелёный
-- [ ] write tests: кусты зимой и весной, офлайн через зиму, `palette` даёт разные цвета и плавный переход
-- [ ] run tests - must pass before next task
+- [x] правила: зимой кусты не плодоносят и не отрастают (и онлайн, и офлайн)
+- [x] `palette(season)` + `seasonFade(clock)` (переход за первые сутки сезона, кроме самой первой весны): весенние цветы, густое лето, осенняя листва и листопад, зимний снег и лёд на реке
+- [x] куски земли и спрайты по сезону, кэш очищается на смене сезона
+- [x] бот не потребовал изменений: на всех 20 сидах `BALANCE=1` зелёный и с зимой
+- [x] write tests: кусты зимой и весной, офлайн через зиму, `palette` даёт разные цвета и плавный переход
+- [x] run tests - must pass before next task
+- ➕ `offline()` вызывает `regrow` каждую секунду: куст, отросший до зимы, офлайн ведёт себя как в `step`
+- ➕ снег на крышах, камнях и пнях, лёд на реке, снегопад, листопад и лепестки
 
 ### Фаза 3 — огород и ферма
 

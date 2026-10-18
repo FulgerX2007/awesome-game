@@ -425,3 +425,30 @@ test('sunAt tints the seasons differently and tolerates junk', () => {
   assert.deepEqual(VV.sunAt('x', 'nope'), VV.sunAt(0, 'spring'));
   for (const c of VV.sunAt(0.92, 'winter').tint) assert.ok(c >= 0 && c <= 255);
 });
+
+// ── Seasons ──
+
+test('palette gives every season its own ground and crowns', () => {
+  const bases = V.SEASONS.map((x) => VV.palette(x).grass.base);
+  assert.equal(new Set(bases).size, V.SEASONS.length, 'each season has its own grass');
+  assert.equal(VV.palette('winter').leaves, null, 'bare trees in winter');
+  assert.ok(VV.palette('winter').ice && VV.palette('winter').snow === 1);
+  assert.ok(VV.palette('spring').flowers > VV.palette('autumn').flowers);
+  for (const x of V.SEASONS) {
+    const p = VV.palette(x);
+    for (const k of ['base', 'dark', 'light', 'tuft', 'tuftLight']) assert.match(p.grass[k], /^#[0-9a-f]{6}$/i, `${x}.${k}`);
+  }
+  assert.equal(VV.palette('nope'), VV.palette('spring'));
+});
+
+test('seasonFade blends over the first day of a season, never at the very start', () => {
+  const at = (t) => VV.seasonFade(V.clock(t));
+  assert.deepEqual(at(0), { from: 'winter', to: 'spring', t: 1 }, 'the first spring needs no fade');
+  const summer = V.DAY * V.SEASON_DAYS; // summer, day 0, dawn
+  assert.deepEqual(at(summer), { from: 'spring', to: 'summer', t: 0 });
+  assert.equal(at(summer + V.DAY / 2).t, 0.5);
+  assert.equal(at(summer + V.DAY).t, 1, 'done after the first day');
+  const spring2 = V.DAY * V.SEASON_DAYS * 4;
+  assert.deepEqual(at(spring2 + 1).from, 'winter');
+  assert.ok(at(spring2 + 1).t < 0.01, 'the second spring fades in from winter');
+});
