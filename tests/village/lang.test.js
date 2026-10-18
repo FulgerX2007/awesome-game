@@ -64,7 +64,21 @@ test('every Russian string in index.html has a RO translation', () => {
 test('index.html loads the scripts in order', () => {
   const html = fs.readFileSync(path.join(WEB, 'village', 'index.html'), 'utf8');
   const srcs = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', 'lang.js', 'core.js', 'view.js', 'audio.js', 'art.js', 'game.js']);
+  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', '../fx.js', 'lang.js', 'core.js', 'view.js', 'audio.js', 'art.js', 'game.js']);
+  for (const s of srcs) assert.ok(fs.existsSync(path.join(WEB, 'village', s)), s);
+});
+
+test('index.html uses only relative paths and needs no network', () => {
+  const html = fs.readFileSync(path.join(WEB, 'village', 'index.html'), 'utf8');
+  const refs = [...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(refs.length > 0);
+  for (const r of refs) {
+    assert.ok(!/^[a-z]+:|^\/\//i.test(r), `no scheme or protocol-relative URL: ${r}`);
+    assert.ok(!r.startsWith('/'), `no absolute path: ${r}`);
+    assert.ok(!r.startsWith('../') || ['../i18n.js', '../nav.js', '../fx.js'].includes(r), `only shared hub scripts above the folder: ${r}`);
+  }
+  const css = fs.readFileSync(path.join(WEB, 'village', 'style.css'), 'utf8');
+  assert.doesNotMatch(html + css, /@import|url\(|https?:/, 'no CSS imports, url() or links out of the page');
 });
 
 test('view.js and audio.js load in Node without errors', () => {

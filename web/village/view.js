@@ -114,6 +114,58 @@
     return core.isWalkable(s, x, y) ? { type: 'walk' } : { type: 'none' };
   }
 
+  // ── 2.5D silhouettes ──
+  // Standing things rise above their tile and cover the tiles behind them, so a tap on a tree crown or a roof
+  // should pick that thing. Sizes are in CSS px around the base point the art draws from:
+  // (x + 0.5) * TILE, (y + 1) * TILE - NODE_FOOT; `hw` is the half width, `up` the height above the base.
+  const NODE_FOOT = 5;
+  const NODE_TALL = {
+    tree: { hw: 14, up: 47 },
+    rock: { hw: 14, up: 24 },
+    bush: { hw: 15, up: 20 },
+    clay: { hw: 15, up: 13 },
+  };
+  // How far a building rises above its footprint, in tiles, by stage: 0 ruin, 1 scaffold, 2 restored.
+  const HOUSE_RISE = [0.4, 1, 1.25];
+
+  // The box (CSS px, world space) a standing node covers; `base` is its depth line (bigger is nearer).
+  function tallBox(kind, x, y) {
+    const t = NODE_TALL[kind];
+    if (!t) return null;
+    const cx = (x + 0.5) * TILE, by = (y + 1) * TILE - NODE_FOOT;
+    return { x0: cx - t.hw, x1: cx + t.hw, y0: by - t.up, y1: by + NODE_FOOT, base: by };
+  }
+
+  // The box a building covers: its footprint plus how high it rises at this stage.
+  function houseBox(tiles, stage) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const t of tiles) {
+      x0 = Math.min(x0, t.x); y0 = Math.min(y0, t.y);
+      x1 = Math.max(x1, t.x + 1); y1 = Math.max(y1, t.y + 1);
+    }
+    const rise = HOUSE_RISE[clamp(stage | 0, 0, 2)];
+    return { x0: x0 * TILE, x1: x1 * TILE, y0: (y0 - rise) * TILE, y1: y1 * TILE, base: y1 * TILE };
+  }
+
+  // A tap at a world point (CSS px): the nearest standing node or building whose silhouette covers the point
+  // wins, otherwise the tile under the point. Returns tapAction's result plus the tile it was taken from.
+  function tapAt(s, core, wx, wy) {
+    const tx = Math.floor(wx / TILE), ty = Math.floor(wy / TILE);
+    let best = null;
+    const consider = (box, x, y) => {
+      if (!box || wx < box.x0 || wx >= box.x1 || wy < box.y0 || wy >= box.y1) return;
+      if (!best || box.base >= best.base) best = { base: box.base, x, y };
+    };
+    for (const n of s.nodes) if (n.hp > 0) consider(tallBox(n.kind, n.x, n.y), n.x, n.y);
+    for (const [id, tiles] of Object.entries(core.FOOTPRINTS)) {
+      if (id === 'bridge' || !tiles.length) continue; // the bridge lies flat on the water
+      const hit = tiles.find((t) => t.x === tx && t.y === ty) || tiles[0];
+      consider(houseBox(tiles, core.stage(s, id)), hit.x, hit.y);
+    }
+    const p = best || { x: tx, y: ty };
+    return { ...tapAction(s, core, p.x, p.y), x: p.x, y: p.y };
+  }
+
   const FACE_DIR = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   // Tiles around the player for the action key: the one in front first, then the other sides, then corners.
   function frontTiles(px, py, face) {
@@ -164,6 +216,7 @@
   const api = {
     TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
     fmt, fmtRate, splitDuration, income, tapAction, frontTiles, pickFront, footprintDist, soundFor,
+    NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VillageView = api;

@@ -218,21 +218,23 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 
 ### Фаза 1 — объёмная графика (правила не меняются)
 
-### Task 1: Подключить fx.js, кэш спрайтов и силуэты для касания
+### Task 1: Подключить fx.js и силуэты для касания
 
 **Files:**
 - Modify: `web/village/index.html`
+- Modify: `web/village/style.css`
 - Modify: `web/village/view.js`
-- Modify: `web/village/art.js`
+- Modify: `web/village/game.js`
 - Modify: `tests/village/lang.test.js`
 - Modify: `tests/village/view.test.js`
 
-- [ ] подключить `../fx.js` после `../nav.js`; обновить точный список скриптов в `lang.test.js`
-- [ ] добавить в `lang.test.js` проверки как в `winter`: только относительные пути, выше папки грузятся только общие скрипты, без сети
-- [ ] перенести кэш спрайтов из `winter/game.js:646` в `art.js` (ключ с сезоном, LRU, `clear()`)
-- [ ] `view.tallBox` и проверка силуэтов внутри `tapAction` (ближний к зрителю побеждает)
-- [ ] write tests: `tallBox` по видам, касание кроны над чужой клеткой, дерево перед камнем, пустое место — прежнее поведение
-- [ ] run tests - must pass before next task
+- [x] подключить `../fx.js` после `../nav.js`; обновить точный список скриптов в `lang.test.js`
+- [x] добавить в `lang.test.js` проверки как в `winter`: только относительные пути, выше папки грузятся только общие скрипты, без сети
+- [x] ➕ убрать Google Fonts из `index.html`: шрифты системные, как в остальных играх (иначе игра ходила в сеть)
+- [x] `view.tallBox`, `view.houseBox` и `view.tapAt` (точка мира → ближний силуэт, иначе клетка → `tapAction`); `game.js` берёт касание через `tapAt` (в режиме украшений — по клетке)
+- [x] write tests: `tallBox` по видам, касание кроны над чужой клеткой, ближний силуэт побеждает, крыша, мост плоский, пустое место — прежнее поведение
+- [x] run tests - must pass before next task
+- ⚠️ кэш спрайтов перенесён в Task 3: до неё ему нечего кэшировать
 
 ### Task 2: Земля и вода в 2.5D
 
@@ -255,6 +257,7 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `web/village/view.js`
 - Modify: `tests/village/view.test.js`
 
+- [ ] кэш спрайтов из `winter/game.js:646` в `art.js` (ключ с сезоном, LRU, `clear()`)
 - [ ] деревья: ствол `Fx.cylinder`, крона из нескольких `Fx.sphere` с бликом, падающая тень, покачивание
 - [ ] камни, глина, кусты, пни, ростки: объём, контактная тень, спрайты в кэше
 - [ ] уточнить размеры в `tallBox` по готовой отрисовке

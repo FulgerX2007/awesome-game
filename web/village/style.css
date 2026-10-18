@@ -16,8 +16,8 @@
   --berry: #b9466a;
   --honey: #e9b44c;
   --danger: #c4513b;
-  --font-display: "Lora", Georgia, serif;
-  --font-body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: system-ui, "Segoe UI", Roboto, sans-serif;
   --radius: 12px;
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);

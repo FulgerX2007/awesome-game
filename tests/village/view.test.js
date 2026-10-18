@@ -273,3 +273,82 @@ test('footprintDist is 0 inside, 0.5 from a neighbouring tile centre', () => {
   assert.ok(Math.abs(VV.footprintDist(5.5, 4.5, tiles) - Math.SQRT1_2) < 1e-12);
   assert.equal(VV.footprintDist(0, 0, []), Infinity);
 });
+
+// ── 2.5D silhouettes ──
+
+test('tallBox rises above the node tile and is null for unknown kinds', () => {
+  for (const kind of Object.keys(VV.NODE_TALL)) {
+    const b = VV.tallBox(kind, 5, 7);
+    assert.ok(b.y0 < b.base, `${kind} rises above its foot`);
+    assert.ok(b.y1 <= 8 * T && b.y1 > b.base - 1, `${kind} ends at its foot`);
+    assert.ok(b.x0 < 5.5 * T && b.x1 > 5.5 * T, `${kind} is centred on its tile`);
+  }
+  // A tree is the tallest thing that grows and reaches into the tile behind it.
+  assert.ok(VV.tallBox('tree', 5, 7).y0 < 7 * T);
+  assert.ok(VV.tallBox('tree', 0, 0).y0 < VV.tallBox('rock', 0, 0).y0);
+  assert.equal(VV.tallBox('cloud', 0, 0), null);
+});
+
+test('houseBox covers the footprint and rises with the stage', () => {
+  const tiles = V.FOOTPRINTS.barn;
+  const ruin = VV.houseBox(tiles, 0), built = VV.houseBox(tiles, 2);
+  const xs = tiles.map((t) => t.x), ys = tiles.map((t) => t.y);
+  assert.equal(built.x0, Math.min(...xs) * T);
+  assert.equal(built.x1, (Math.max(...xs) + 1) * T);
+  assert.equal(built.base, (Math.max(...ys) + 1) * T);
+  assert.ok(built.y0 < ruin.y0 && ruin.y0 < Math.min(...ys) * T);
+  assert.deepEqual(VV.houseBox(tiles, 9), built, 'stages past the last are clamped');
+});
+
+// A game with one standing tree at (x, y) and nothing else, for silhouette taps.
+function lone(x, y, kind = 'tree') {
+  const s = V.newGame(1);
+  s.nodes = [{ id: 1, kind, x, y, hp: V.NODE_KINDS[kind].hp, regrowAt: null }];
+  return s;
+}
+const freeTile = (s) => {
+  for (let y = 2; y < V.H; y++) for (let x = 0; x < V.W; x++) {
+    if (V.tileAt(x, y) === '.' && V.tileAt(x, y - 1) === '.' && !V.ruinAt(x, y) && !V.ruinAt(x, y - 1)) return { x, y };
+  }
+};
+
+test('tapAt picks a tree by its crown over the tile behind it', () => {
+  const at = freeTile(V.newGame(1));
+  const s = lone(at.x, at.y);
+  const crown = VV.tapAt(s, V, (at.x + 0.5) * T, (at.y - 0.3) * T); // a point on the tile above the tree
+  assert.equal(crown.type, 'gather');
+  assert.equal(crown.node, 1);
+  assert.deepEqual([crown.x, crown.y], [at.x, at.y]);
+  // A felled tree is flat again: the tile behind is just ground.
+  s.nodes[0].hp = 0;
+  const behind = VV.tapAt(s, V, (at.x + 0.5) * T, (at.y - 0.3) * T);
+  assert.equal(behind.type, 'walk');
+  assert.deepEqual([behind.x, behind.y], [at.x, at.y - 1]);
+});
+
+test('tapAt prefers the nearer of two overlapping silhouettes', () => {
+  const at = freeTile(V.newGame(1));
+  const s = lone(at.x, at.y - 1, 'rock');
+  s.nodes.push({ id: 2, kind: 'tree', x: at.x, y: at.y, hp: V.NODE_KINDS.tree.hp, regrowAt: null });
+  // Low on the rock's tile, where the tree's crown covers it: the tree stands in front.
+  const p = VV.tapAt(s, V, (at.x + 0.5) * T, (at.y - 0.2) * T);
+  assert.equal(p.node, 2);
+});
+
+test('tapAt picks a building by its roof and falls back to the tile elsewhere', () => {
+  const s = V.newGame(1);
+  s.nodes = [];
+  const tiles = V.FOOTPRINTS.home;
+  s.built.home.done = true;
+  for (const r of Object.keys(s.built.home.paid)) s.built.home.paid[r] = V.BUILDINGS.home.cost[r];
+  const top = Math.min(...tiles.map((t) => t.y)), left = Math.min(...tiles.map((t) => t.x));
+  const roof = VV.tapAt(s, V, (left + 0.5) * T, (top - 0.5) * T);
+  assert.deepEqual([roof.type, roof.id], ['ruin', 'home']);
+  // Plain ground and the map edge behave like tapAction.
+  assert.equal(VV.tapAt(s, V, (V.START.x + 0.5) * T, (V.START.y + 0.5) * T).type, 'walk');
+  assert.equal(VV.tapAt(s, V, -10, 40).type, 'none');
+  // The bridge lies flat: the water above it is not the bridge.
+  const br = V.FOOTPRINTS.bridge[0];
+  const above = VV.tapAt(s, V, (br.x + 0.5) * T, (Math.min(...V.FOOTPRINTS.bridge.map((t) => t.y)) - 0.5) * T);
+  assert.notEqual(above.id, 'bridge');
+});

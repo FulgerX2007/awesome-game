@@ -527,7 +527,9 @@
     A.unlock();
     e.preventDefault();
     const r = canvas.getBoundingClientRect();
-    const p = VV.screenToTile(e.clientX - r.left, e.clientY - r.top, ART.cam);
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    // Placing a decoration wants the ground tile; otherwise a tall crown or roof picks its own object.
+    const p = placing ? VV.screenToTile(sx, sy, ART.cam) : VV.tapAt(S, V, sx + ART.cam.x, sy + ART.cam.y);
     tapTile(p.x, p.y);
   }
 
