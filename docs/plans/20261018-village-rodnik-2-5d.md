@@ -407,12 +407,14 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `web/village/game.js`
 - Modify: `web/village/lang.js`
 - Modify: `tests/village/view.test.js`
+- Modify: `tests/village/smoke.cjs`
+- Modify: `web/village/view.js`, `index.html`
 
-- [ ] огород, грядки по стадиям, пасека с ульями и пчёлами, яблони с плодами, брызги полива
-- [ ] действие по цели: посадить / полить / собрать / наполнить ведро; ведро в HUD
-- [ ] «Следующее дело» учитывает огород; переводы RO
-- [ ] write tests: `tapAction`/`pickFront` дают нужное действие для каждой стадии грядки и для колодца; `lang.test.js` зелёный
-- [ ] run tests - must pass before next task
+- [x] огород, грядки по стадиям, пасека с ульями и пчёлами, яблони с плодами, брызги полива
+- [x] действие по цели: посадить / полить / собрать / наполнить ведро; ведро в HUD
+- [x] «Следующее дело» учитывает огород; переводы RO
+- [x] write tests: `farmHint` (созрело → полить → посадить, зима), звуки сада; само действие выбирает `core.tendPlot`; smoke — посадить и полить клавишей E, ведро в шапке
+- [x] run tests - must pass before next task
 
 ### Фаза 4 — заказы жителей и ярмарка
 

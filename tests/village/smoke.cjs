@@ -284,6 +284,36 @@ async function edgeChecks() {
     check(mean.night < mean.noon * 0.75, 'the night frame is darker than noon', JSON.stringify(mean));
   }
   {
+    // The garden by the action key: the plot in front is sown, then watered.
+    const V = require('../../web/village/core.js');
+    const g = V.newGame(12);
+    for (const id of ['well', 'garden']) {
+      g.built[id].done = true;
+      for (const r of Object.keys(g.built[id].paid)) g.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+    }
+    g.res.berries = 5;
+    g.bucket = 3;
+    g.t = V.DAY * 0.2;
+    const p0 = V.PLOTS[0];
+    g.player.x = p0.x + 0.5; g.player.y = p0.y - 0.5; // right above the first plot
+    const data = JSON.stringify({ ...V.save(g), savedAt: Date.now() });
+    const { ctx, page, errors } = await preparedPage(([key, d]) => {
+      if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, d); sessionStorage.setItem('prepared', '1'); }
+    }, [SAVE_KEY, data]);
+    const press = async () => { await page.keyboard.press('KeyE'); await sleep(900); };
+    await press(); // sow
+    await press(); // water
+    const s = await readSave(page);
+    const stages = s.plots.map((p) => p.stage + (p.water ? '+water' : ''));
+    check(s.plots[0].stage === 'planted' && s.plots[0].water, 'the action key sows and waters a plot', JSON.stringify(stages));
+    check(s.res.berries === 4, 'sowing takes a berry', String(s.res.berries));
+    check(s.bucket < 3, 'watering takes from the bucket', String(s.bucket));
+    const label = await page.textContent('#bucket-label');
+    check(/Ведро \d\/\d/.test(label || ''), 'the bucket shows in the header', JSON.stringify(label));
+    check(errors.length === 0, 'no console errors (garden)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
     // A village from version 1 with a cloud code: kept aside, the code forgotten, a friendly toast.
     const old = JSON.stringify({ v: 1, seed: 5, t: 100, res: { wood: 40 } });
     const { ctx, page, errors } = await preparedPage(([key, data]) => {

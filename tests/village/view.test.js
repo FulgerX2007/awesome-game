@@ -469,3 +469,31 @@ test('tapAction and pickFront know garden plots and the well', () => {
   assert.equal(a.type, 'plot');
   assert.deepEqual([a.x, a.y], [last.x, last.y]);
 });
+
+test('farmHint points at ripe, dry and (while vegetables are wanted) empty plots', () => {
+  const s = V.newGame(1);
+  assert.equal(VV.farmHint(s, V), null, 'no garden yet');
+  s.built.well.done = true;
+  s.built.garden.done = true;
+  s.t = V.DAY * 0.3; // a spring day
+  assert.equal(VV.farmHint(s, V), 'sow', 'the potter and the chapel want vegetables');
+  s.res.vegetables = 10000;
+  assert.equal(VV.farmHint(s, V), null, 'enough vegetables: no need to sow');
+  s.plots[3] = { stage: 'planted', water: false, grow: 0.2 };
+  assert.equal(VV.farmHint(s, V), 'water');
+  s.plots[1] = { stage: 'ripe', water: false, grow: 1 };
+  assert.equal(VV.farmHint(s, V), 'ripe', 'picking comes first');
+  s.t = V.DAY * V.SEASON_DAYS * 3 + 10; // winter
+  assert.equal(VV.farmHint(s, V), 'ripe', 'a ripe crop can be picked in winter');
+  s.plots[1] = { stage: 'empty', water: false, grow: 0 };
+  assert.equal(VV.farmHint(s, V), null, 'nothing to water or sow in winter');
+});
+
+test('soundFor covers the garden and the bucket', () => {
+  assert.equal(VV.soundFor({ type: 'plot', result: 'harvest' }), 'berries');
+  assert.equal(VV.soundFor({ type: 'plot', result: 'watered' }), 'shovel');
+  assert.equal(VV.soundFor({ type: 'plot', result: 'bucket' }), null);
+  assert.equal(VV.soundFor({ type: 'bucket', n: 6 }), 'contribute');
+  assert.equal(VV.soundFor({ type: 'bucket', n: 6, full: true }), null);
+  assert.equal(VV.soundFor({ type: 'hit', kind: 'apple' }), 'berries');
+});

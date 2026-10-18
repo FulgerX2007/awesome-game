@@ -199,8 +199,11 @@
   // Set innerHTML only when it changed, so buttons under the pointer aren't replaced between press and release.
   function setHTML(el, html) { if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } }
 
+  const FARM_HINT = { ripe: 'Урожай созрел — собери на огороде', water: 'Полей грядки на огороде', sow: 'Посади овощи на огороде' };
   function goalText(g) {
     if (placing) return t('Ставь: {name}', { name: t(V.DECOR[placing].name) });
+    const farm = VV.farmHint(S, V);
+    if (farm) return t(FARM_HINT[farm]);
     if (!g) return t('Осмотрись вокруг');
     if (g.type === 'build') return t('Восстановить: {name}', { name: t(V.BUILDINGS[g.id].name) });
     if (g.type === 'tool') return t('Нужен инструмент: {name}', { name: t(V.TOOLS[g.tool].name) });
@@ -230,6 +233,9 @@
     $('built-label').textContent = t('Восстановлено {n}/{total}', { n: done, total: V.BUILDING_IDS.length });
     $('goal-text').textContent = goalText(V.nextGoal(S));
     renderClock();
+    const bucket = $('bucket-label');
+    bucket.hidden = !S.built.garden.done;
+    if (!bucket.hidden) bucket.textContent = t('Ведро {n}/{max}', { n: S.bucket, max: V.bucketSize(S) });
     if (openId === 'panel-building') renderBuilding();
     else if (openId === 'panel-buildings') renderBuildings();
     else if (openId === 'panel-tools') renderTools();
@@ -451,8 +457,20 @@
       [{ label: t('Ура!'), primary: true }]);
     } else if (e.type === 'decor') {
       save();
+    } else if (e.type === 'plot') {
+      const wx = (e.x + 0.5) * T, wy = e.y * T;
+      const say = PLOT_SAY[e.result];
+      if (e.result === 'harvest') float(`+${e.gain} ${resName('vegetables')}`, wx, wy, 'vegetables');
+      else if (e.result === 'sown' || e.result === 'watered') float(t(say), wx, wy);
+      else if (say) toast(t(say), 2200);
+    } else if (e.type === 'bucket') {
+      toast(e.full ? t('Ведро уже полное') : t('Ведро полное: {n} поливов', { n: e.n }), 1800);
     }
   }
+  const PLOT_SAY = {
+    sown: 'посажено', watered: 'полито', growing: 'Растёт — полито до рассвета',
+    winter: 'Зимой грядки отдыхают', seed: 'На семена нужна ягода', bucket: 'Ведро пустое — набери воды в колодце',
+  };
 
   // ───────────── Actions ─────────────
   let placing = null; // decoration kind waiting for a tap on the square
@@ -483,7 +501,7 @@
   // The action key and the touch button: whatever is in front of the player.
   function actFront() {
     const a = VV.pickFront(S, V, S.player.x, S.player.y, P.face);
-    if (!a) { toast(t('Подойди к дереву, камню, кусту или руине'), 1800); return; }
+    if (!a) { toast(t('Подойди к дереву, камню, кусту, грядке или руине'), 1800); return; }
     act(a, a.x, a.y);
   }
 

@@ -255,6 +255,20 @@
     return { ...tapAction(s, core, p.x, p.y), x: p.x, y: p.y };
   }
 
+  // What the garden needs most right now, for the hint in the HUD: 'ripe' (something to pick), 'water'
+  // (a sown plot is dry), 'sow' (an empty plot while buildings still want vegetables), or null.
+  // Nothing is sown or watered in winter.
+  function farmHint(s, core) {
+    if (!s.built.garden || !s.built.garden.done) return null;
+    if (s.plots.some((p) => p.stage === 'ripe')) return 'ripe';
+    if (core.clock(s.t).season === 'winter') return null;
+    if (s.plots.some((p) => p.stage === 'planted' && !p.water)) return 'water';
+    let want = -s.res.vegetables;
+    for (const id of core.BUILDING_IDS) if (!s.built[id].done) want += core.remaining(s, id).vegetables || 0;
+    if (want > 0 && s.plots.some((p) => p.stage === 'empty')) return 'sow';
+    return null;
+  }
+
   const FACE_DIR = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   // Tiles around the player for the action key: the one in front first, then the other sides, then corners.
   function frontTiles(px, py, face) {
@@ -290,11 +304,13 @@
 
   // The sound name (VillageAudio) for a core event, or null. The chapel's 'built' stays quiet:
   // the 'festival' event right after it plays the bigger tune.
-  const HIT_SOUND = { tree: 'axe', rock: 'pick', clay: 'shovel', bush: 'berries' };
+  const HIT_SOUND = { tree: 'axe', rock: 'pick', clay: 'shovel', bush: 'berries', apple: 'berries' };
   function soundFor(e) {
     switch (e && e.type) {
       case 'hit': return HIT_SOUND[e.kind] || null;
       case 'contribute': case 'decor': return 'contribute';
+      case 'plot': return e.result === 'harvest' ? 'berries' : e.result === 'sown' || e.result === 'watered' ? 'shovel' : null;
+      case 'bucket': return e.full ? null : 'contribute';
       case 'built': return e.effect === 'festival' ? null : 'built';
       case 'tool': return 'tool';
       case 'festival': return 'festival';
@@ -305,7 +321,7 @@
   const api = {
     TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
     fmt, fmtRate, splitDuration, income, tapAction, frontTiles, pickFront, footprintDist, soundFor,
-    sunAt, SEASON_LOOKS, palette, seasonFade, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
+    sunAt, SEASON_LOOKS, palette, seasonFade, farmHint, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VillageView = api;

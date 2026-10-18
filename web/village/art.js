@@ -193,7 +193,7 @@
 
   // ───────────── Ground (cached in chunks) ─────────────
   // Terrain classes: g grass (ruin footprints too), s sand, w water (bridge site too), p path, q square.
-  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q' };
+  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q', g: 'f' };
   const inSquare = (x, y) => x >= SQ.x0 && x <= SQ.x1 && y >= SQ.y0 && y <= SQ.y1;
   // Ruin footprints sit on grass, except the well, which stands in the middle of the cobbled square.
   const terr = (x, y) => {
@@ -330,6 +330,20 @@
     layer(g, x0, y0, x1, y1, is('p'), PATH.edge, 0, 8);
     layer(g, x0, y0, x1, y1, is('p'), PATH.main, 2.5, 7);
     sunken(g, x0, y0, x1, y1, is('p'), { inset: 2.5, radius: 7, shadow: [5, 0.2, '74, 50, 24'], lip: [3, 0.22] });
+    // Garden beds: dark tilled soil in furrows, sunk a little into the grass.
+    layer(g, x0, y0, x1, y1, is('f'), '#6b4a2e', 1, 5);
+    layer(g, x0, y0, x1, y1, is('f'), LOOK.snow ? '#e6edf2' : '#7e5735', 3, 4);
+    sunken(g, x0, y0, x1, y1, is('f'), { inset: 3, radius: 4, shadow: [5, 0.3, '50, 30, 14'], lip: [2, 0.18] });
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (terr(x, y) !== 'f') continue;
+      for (let k = 0; k < 3; k++) {
+        const fy = y * T + 8 + k * 8;
+        g.fillStyle = LOOK.snow ? 'rgba(160, 175, 190, 0.5)' : 'rgba(60, 38, 20, 0.55)';
+        g.fillRect(x * T + 5, fy, T - 10, 2);
+        g.fillStyle = LOOK.snow ? 'rgba(255, 255, 255, 0.7)' : 'rgba(170, 120, 80, 0.4)';
+        g.fillRect(x * T + 5, fy - 1.5, T - 10, 1.2);
+      }
+    }
     layer(g, x0, y0, x1, y1, is('q'), SQUARE.edge, 0, 6);
     layer(g, x0, y0, x1, y1, is('q'), SQUARE.gap, 2, 5);
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -1202,6 +1216,16 @@
       fwNext = 0.5;
     } else if (e.type === 'decor') {
       sparkle((e.x + 0.5) * T, (e.y + 0.5) * T, 14);
+    } else if (e.type === 'plot') {
+      const x = (e.x + 0.5) * T, y = (e.y + 0.6) * T;
+      if (e.result === 'watered') for (let k = 0; k < 12; k++) part(x + (Math.random() - 0.5) * 18, y - 10, { vx: (Math.random() - 0.5) * 40, vy: -20 - Math.random() * 40, life: 0.6, size: 1.4, color: k % 2 ? '#9fd4f0' : '#e6f6ff' });
+      else if (e.result === 'harvest') chips('bush', x, y, 10);
+      else if (e.result === 'sown') chips('clay', x, y, 5);
+    } else if (e.type === 'ripe') {
+      sparkle((e.x + 0.5) * T, (e.y + 0.4) * T, 8, ['#fff3c4', '#b7e08a', '#ffffff']);
+    } else if (e.type === 'bucket' && !e.full) {
+      const b = BOX.well;
+      for (let k = 0; k < 14; k++) part(b.cx + (Math.random() - 0.5) * 16, b.base - 26, { vx: (Math.random() - 0.5) * 50, vy: -40 - Math.random() * 40, life: 0.7, size: 1.5, color: '#bfe6f6' });
     }
   }
 
@@ -1221,6 +1245,52 @@
 
   // people: [{ role, x, y (tiles, feet), face, phase, moving, swing, tool, holding, front? }]; LOOKS[role]
   // gives the clothes. `front` lifts one above another person on the same line (the player).
+  // ───────────── Garden plots ─────────────
+  // What grows on a plot, by its stage: rows of sprouts that grow with it, wet soil while watered, and a ripe
+  // crop (cabbages, pumpkins or carrots, by plot) ready to pick.
+  const CROPS = ['cabbage', 'pumpkin', 'carrot'];
+  function drawPlot(i) {
+    const pl = S.plots[i], at = V.PLOTS[i];
+    const px = at.x * T, py = at.y * T;
+    if (pl.water) {
+      ctx.fillStyle = 'rgba(40, 24, 10, 0.35)';
+      ctx.fillRect(px + 4, py + 4, T - 8, T - 8);
+      if (Math.sin(time * 2 + i) > 0.6) circle(px + 10 + i * 3, py + 12, 1.2, 'rgba(220, 240, 255, 0.8)');
+    }
+    if (pl.stage === 'empty') return;
+    const crop = CROPS[i % CROPS.length];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) {
+      const x = px + 9 + c * 14, y = py + 10 + r * 8;
+      if (pl.stage === 'planted') {
+        const k = 0.35 + 0.65 * pl.grow;
+        line(x, y, x, y - 4 * k, '#4f8a3a', 1.2);
+        ellipse(x - 2 * k, y - 4 * k, 2.4 * k, 1.2 * k, '#7bbd58');
+        ellipse(x + 2 * k, y - 4.5 * k, 2.4 * k, 1.2 * k, '#6aab4a');
+      } else if (crop === 'cabbage') {
+        K.shadow(ctx, x + 1.5, y + 1, 5, 2, 0.3);
+        K.sphere(ctx, x, y - 3, 4.6, '#8cc46a', { gloss: false, shine: 0.35 });
+        K.sphere(ctx, x - 0.5, y - 3.5, 2.6, '#c6e6a2', { gloss: false });
+      } else if (crop === 'pumpkin') {
+        K.shadow(ctx, x + 1.5, y + 1, 5.5, 2, 0.3);
+        K.sphere(ctx, x, y - 3, 4.8, '#e8892e', { gloss: false, shine: 0.4 });
+        line(x, y - 7.5, x + 1, y - 9.5, '#4f7a33', 1.4);
+      } else {
+        circle(x, y - 1, 1.8, '#e2712e');
+        for (const d of [-2, 0, 2]) line(x, y - 2, x + d, y - 7, '#5f9a3e', 1.3);
+      }
+    }
+  }
+  // A low wattle fence along the top and the bottom of the beds once the garden stands.
+  const BEDS = (() => {
+    const xs = V.PLOTS.map((p) => p.x), ys = V.PLOTS.map((p) => p.y);
+    return { x0: Math.min(...xs) * T - 3, x1: (Math.max(...xs) + 1) * T + 3, y0: Math.min(...ys) * T - 1, y1: (Math.max(...ys) + 1) * T + 2 };
+  })();
+  function drawFence(y) {
+    const { x0, x1 } = BEDS;
+    for (let x = x0; x <= x1; x += 12) K.cylinder(ctx, x, y - 10, 1.4, 10, WOOD.mid, { ry: 0.7 });
+    for (const h of [3.5, 7]) line(x0, y - h, x1, y - h, WOOD.light, 1.6);
+  }
+
   // ───────────── Daylight ─────────────
   // The whole view is multiplied by the hour's tint, then windows, lanterns and fires glow on top.
   function drawNightLight() {
@@ -1314,6 +1384,11 @@
       items.push([b.base, drawBuilding, id]);
     }
     for (const d of S.decor) if (inView(d.x, d.y)) items.push([(d.y + 1) * T - 4, drawDecor, d]);
+    V.PLOTS.forEach((p, i) => { if (inView(p.x, p.y)) items.push([(p.y + 1) * T - 6, drawPlot, i]); });
+    if (S.built.garden.done && inView(V.PLOTS[0].x, V.PLOTS[0].y)) {
+      items.push([BEDS.y0, drawFence, BEDS.y0]);
+      items.push([BEDS.y1, drawFence, BEDS.y1]);
+    }
     for (const p of people) items.push([p.y * T + 9 + (p.front ? 0.5 : 0), drawPeople, p]);
     if (S.built.barn.done) for (const h of hens) items.push([h.y, drawHen, h]);
     if (S.festival) for (const [x, y] of POLES) items.push([y, () => drawPole(x, y)]);
