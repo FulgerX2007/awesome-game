@@ -322,12 +322,15 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `web/village/game.js`
 - Modify: `web/village/lang.js`
 - Modify: `tests/village/view.test.js`
+- Modify: `tests/village/smoke.cjs`
+- Modify: `web/village/index.html`
 
-- [ ] `sunAt(phase, season)`: тон, длина и прозрачность теней, сила свечения
-- [ ] ночной слой: окна готовых домов (`lights`), фонари-украшения, кузница, светлячки летом
-- [ ] часы и сезон в HUD (солнце/луна, название сезона), переводы RO
-- [ ] write tests: полдень светлее полуночи, соседние фазы без скачков, все поля в допустимых пределах
-- [ ] run tests - must pass before next task
+- [x] `sunAt(phase, season)`: тон, длина и прозрачность теней, сила свечения
+- [x] ночной слой: окна готовых домов (`houses.js` отдаёт огни через `env.light` прямо при рисовании, отдельный `lights()` не понадобился), фонари-украшения, кузница, светлячки летом
+- [x] часы и сезон в HUD (солнце/луна, название сезона), переводы RO
+- [x] write tests: полдень светлее полуночи, соседние фазы без скачков, все поля в допустимых пределах
+- [x] run tests - must pass before next task
+- ➕ smoke: ночной кадр заметно темнее полуденного
 
 ### Task 8: Сезонные палитры и сезонные правила
 

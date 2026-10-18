@@ -9,7 +9,8 @@
   const TAU = Math.PI * 2;
 
   // env: { ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark,
-  //        state() → the rules state, time() → the animation clock }
+  //        state() → the rules state, time() → the animation clock, sun() → view.sunAt of this frame,
+  //        light(x, y, r, color, a) → a light that glows after dark }
   function create(env) {
     const { ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark } = env;
     let S = null, time = 0; // refreshed on every draw()
@@ -19,7 +20,7 @@
     // The shadow a block of height h casts on the ground to the lower right of its base line.
     function castBlock(left, right, base, h) {
       const dx = h * 0.42, dy = h * 0.14;
-      ctx.fillStyle = 'rgba(30, 44, 18, 0.16)';
+      ctx.fillStyle = `rgba(30, 44, 18, ${(0.16 * env.sun().shadow).toFixed(3)})`;
       for (const grow of [3, 0]) {
         ctx.beginPath();
         ctx.moveTo(left + 4, base + 1);
@@ -57,6 +58,7 @@
       ctx.beginPath(); ctx.moveTo(x + 1, y + h - 2); ctx.lineTo(x + w * 0.45, y + 1); ctx.lineTo(x + w * 0.62, y + 1); ctx.lineTo(x + 2.5, y + h - 2); ctx.fill();
       line(x + w / 2, y, x + w / 2, y + h, trim, 1.2);
       line(x, y + h / 2, x + w, y + h / 2, trim, 1.2);
+      env.light(x + w / 2, y + h / 2, 26, '#ffcf73', 0.85); // lamplight after dark
       // A flower box under the window.
       K.block(ctx, x - 1.5, y + h + 1, w + 3, 3, 1, WOOD.mid, { top: 0.3 });
       for (let k = 0; k < 3; k++) K.sphere(ctx, x + 1 + k * (w - 2) / 2, y + h, 1.7, k % 2 ? '#f4d35e' : '#e0607e', { gloss: false });
@@ -266,6 +268,7 @@
         g.addColorStop(1, 'rgba(200, 60, 20, 0)');
         rect(cx - 8, base - 17, 16, 17, g, [8, 8, 0, 0]);
         K.glow(ctx, cx, base - 6, 16, '#ff9a40', 0.35 * f);
+        env.light(cx, base - 8, 46, '#ff9a40', f);
         chimney(cx + 8, base - 34, '#9c4a35', 1.4);
         for (let k = 0; k < 3; k++) {
           const px = b.X + b.Wp + 2 + k * 6, py = base + 2;
@@ -288,6 +291,7 @@
         g.addColorStop(1, 'rgba(230, 90, 30, 0)');
         rect(hx, hy, 20, 18, g, [4, 4, 0, 0]);
         K.glow(ctx, hx + 10, hy + 12, 18, '#ff8a30', 0.35 * f);
+        env.light(hx + 10, hy + 12, 44, '#ff8a30', f);
         const ax = r.left + 8, ay = r.base + 6;
         shadow(ax + 9, ay + 1, 11, 3.4, 0.35);
         K.block(ctx, ax + 5, ay - 6, 6, 6, 1, '#3d3c40');
@@ -307,6 +311,7 @@
         door(cx - 5, base - 15, 10, 16);
         circle(cx, base - 29, 3.5, '#4d7fb6');
         circle(cx, base - 29, 2.4, WINDOW);
+        env.light(cx, base - 29, 18, '#ffcf73', 0.8);
         poly([cx - 15, base - 41, cx + 15, base - 41, cx, base - 60], '#8a5e3e');
         poly([cx + 2, base - 41, cx + 15, base - 41, cx, base - 60], 'rgba(0, 0, 0, 0.25)');
         line(cx - 14, base - 41.5, cx - 1, base - 59, 'rgba(255, 220, 180, 0.35)', 1.2);
@@ -338,6 +343,7 @@
         for (const wx of [left + 6, right - 14]) {
           rect(wx - 1, wallTop + 7, 10, 16, '#e6dccb', [5, 5, 1, 1]);
           rect(wx, wallTop + 8, 8, 14, '#9ecbe0', [4, 4, 0, 0]);
+          env.light(wx + 4, wallTop + 15, 24, '#ffd890', S.festival ? 1 : 0.6);
           rect(wx + 1, wallTop + 9, 3, 6, 'rgba(255, 255, 255, 0.5)', [2, 0, 0, 0]);
         }
         roof(left - 5, right + 5, top, wallTop + 3, '#4f8a7e', 'rgba(20, 50, 45, 0.45)', 'metal');

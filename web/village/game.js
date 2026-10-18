@@ -221,9 +221,20 @@
     const done = V.BUILDING_IDS.filter((id) => S.built[id].done).length;
     $('built-label').textContent = t('Восстановлено {n}/{total}', { n: done, total: V.BUILDING_IDS.length });
     $('goal-text').textContent = goalText(V.nextGoal(S));
+    renderClock();
     if (openId === 'panel-building') renderBuilding();
     else if (openId === 'panel-buildings') renderBuildings();
     else if (openId === 'panel-tools') renderTools();
+  }
+
+  // The season and the day in the header, with the sun or the moon by the hour.
+  const SEASON_NAMES = { spring: 'Весна', summer: 'Лето', autumn: 'Осень', winter: 'Зима' };
+  function renderClock() {
+    const c = V.clock(S.t);
+    const icon = c.part === 'night' || c.part === 'dusk' ? '☾' : '☀';
+    const text = `${icon} ${t('{season} · день {n}', { season: t(SEASON_NAMES[c.season]), n: c.seasonDay + 1 })}`;
+    const el = $('clock-label');
+    if (el.textContent !== text) el.textContent = text;
   }
 
   // ───────────── Floats and toasts ─────────────

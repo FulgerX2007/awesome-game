@@ -388,3 +388,40 @@ test('node silhouettes stay close to their tile so they never swallow taps far a
   s.nodes = [tree];
   assert.notEqual(VV.tapAt(s, V, 11.9 * T, 10.2 * T).node, 1);
 });
+
+// ── Daylight ──
+
+test('sunAt: noon is plain daylight, midnight is dark with lights on', () => {
+  const noon = VV.sunAt(0.4, 'spring'), night = VV.sunAt(0.92, 'spring');
+  assert.equal(noon.shade, 0);
+  assert.equal(noon.lights, 0);
+  assert.deepEqual(noon.tint, [255, 255, 255]);
+  assert.ok(night.shade > 0.5);
+  assert.ok(night.lights > 0.9);
+  assert.ok(night.shadow < noon.shadow);
+  const lum = (c) => c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722;
+  assert.ok(lum(night.tint) < lum(noon.tint));
+});
+
+test('sunAt changes smoothly through the day and wraps without a jump', () => {
+  const N = 2000;
+  let prev = VV.sunAt(0, 'summer');
+  for (let i = 1; i <= N; i++) {
+    const cur = VV.sunAt(i / N, 'summer');
+    for (const k of ['shade', 'shadow', 'lights']) {
+      assert.ok(cur[k] >= 0 && cur[k] <= 1, `${k} in range at ${i / N}`);
+      assert.ok(Math.abs(cur[k] - prev[k]) < 0.05, `${k} jumps at ${i / N}`);
+    }
+    for (let c = 0; c < 3; c++) assert.ok(Math.abs(cur.tint[c] - prev.tint[c]) <= 4, `tint jumps at ${i / N}`);
+    prev = cur;
+  }
+  assert.deepEqual(VV.sunAt(1, 'summer'), VV.sunAt(0, 'summer'));
+  assert.deepEqual(VV.sunAt(-0.25, 'summer'), VV.sunAt(0.75, 'summer'));
+});
+
+test('sunAt tints the seasons differently and tolerates junk', () => {
+  const w = VV.sunAt(0.4, 'winter').tint, a = VV.sunAt(0.4, 'autumn').tint;
+  assert.ok(w[2] > a[2], 'winter is bluer than autumn');
+  assert.deepEqual(VV.sunAt('x', 'nope'), VV.sunAt(0, 'spring'));
+  for (const c of VV.sunAt(0.92, 'winter').tint) assert.ok(c >= 0 && c <= 255);
+});

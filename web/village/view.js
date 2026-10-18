@@ -124,6 +124,39 @@
       | (inSet(x, y + 1) ? 0 : EDGE.S) | (inSet(x - 1, y) ? 0 : EDGE.W);
   }
 
+  // ── Daylight ──
+  // How the frame is lit at a phase of the day (0..1, 0 = dawn; see core.clock) and in a season.
+  //   tint    [r, g, b] multiplied over the frame (white = no change)
+  //   shade   0..1 how dark the frame is (0 at noon); day-only things such as butterflies fade with it
+  //   shadow  0..1 how dark cast shadows are (they fade at night)
+  //   lights  0..1 how bright windows, lanterns and fires glow
+  // Keyframes are blended linearly, and the last one equals the first, so the day wraps without a jump.
+  const SUN_KEYS = [
+    // phase, tint, shade, shadow, lights
+    [0.00, [255, 196, 170], 0.42, 0.45, 0.7],  // dawn: pink and still dim
+    [0.06, [255, 232, 205], 0.12, 0.85, 0.15],
+    [0.16, [255, 255, 255], 0, 1, 0],          // full day
+    [0.62, [255, 255, 255], 0, 1, 0],
+    [0.72, [255, 214, 160], 0.14, 0.9, 0.1],   // golden hour
+    [0.80, [178, 150, 205], 0.42, 0.5, 0.75],  // dusk
+    [0.88, [96, 112, 178], 0.62, 0.25, 1],     // night
+    [0.97, [96, 112, 178], 0.62, 0.25, 1],
+    [1.00, [255, 196, 170], 0.42, 0.45, 0.7],
+  ];
+  // Seasons nudge the tint: a cooler winter, a warmer autumn.
+  const SEASON_TINT = { spring: [0, 0, 0], summer: [4, 2, -6], autumn: [8, -2, -16], winter: [-14, -4, 12] };
+
+  function sunAt(phase, season) {
+    const p = ((Number(phase) || 0) % 1 + 1) % 1;
+    let i = 0;
+    while (i < SUN_KEYS.length - 2 && SUN_KEYS[i + 1][0] <= p) i++;
+    const a = SUN_KEYS[i], b = SUN_KEYS[i + 1];
+    const k = b[0] > a[0] ? clamp((p - a[0]) / (b[0] - a[0]), 0, 1) : 0;
+    const nudge = SEASON_TINT[season] || SEASON_TINT.spring;
+    const tint = [0, 1, 2].map((c) => Math.round(clamp(lerp(a[1][c], b[1][c], k) + nudge[c], 0, 255)));
+    return { tint, shade: lerp(a[2], b[2], k), shadow: lerp(a[3], b[3], k), lights: lerp(a[4], b[4], k) };
+  }
+
   // ── 2.5D silhouettes ──
   // Standing things rise above their tile and cover the tiles behind them, so a tap on a tree crown or a roof
   // should pick that thing. Sizes are in CSS px around the base point the art draws from:
@@ -226,7 +259,7 @@
   const api = {
     TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
     fmt, fmtRate, splitDuration, income, tapAction, frontTiles, pickFront, footprintDist, soundFor,
-    EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
+    sunAt, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VillageView = api;

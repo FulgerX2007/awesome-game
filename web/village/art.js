@@ -17,6 +17,10 @@
   let cw = 0, ch = 0, dpr = 1;
   let cam = { x: 0, y: 0 };
   let time = 0;               // animation clock, seconds (runs even when the world is idle)
+  let SUN = VV.sunAt(0.4, 'spring'); // this frame's daylight (view.sunAt)
+  let CLOCK = V.clock(0);
+  const lit = [];             // lights met while drawing this frame: { x, y, r, color, a }
+  const light = (x, y, r, color, a = 1) => lit.push({ x, y, r, color, a });
   let vignette = null;
 
 
@@ -123,6 +127,7 @@
   // A shadow cast to the lower right, away from the top-left light: a contact patch at the foot and a longer,
   // fainter patch stretched along the ground.
   function castShadow(x, y, rx, len, a = 0.32) {
+    a *= SUN.shadow;
     K.shadow(ctx, x + rx * 0.12, y, rx, rx * 0.38, a);
     ctx.save();
     ctx.translate(x + len * 0.45, y + len * 0.14);
@@ -622,7 +627,7 @@
   // Drawn by houses.js with this file's canvas helpers.
   const HS = window.VillageHouses.create({
     ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark,
-    state: () => S, time: () => time,
+    state: () => S, time: () => time, sun: () => SUN, light,
   });
 
   // Bridge over the river: flat, drawn under the walkers. Posts first, planks as payment arrives.
@@ -683,6 +688,7 @@
       rect(cx + 2, by - 25, 8, 9, '#3d3226', 2);
       rect(cx + 3.5, by - 23.5, 5, 6, '#ffd27a', 1);
       glow(cx + 6, by - 20, 22, 0.32 + Math.sin(time * 2 + d.x) * 0.05, '255, 205, 120');
+      light(cx + 6, by - 20, 40, '#ffc870', 0.9 + Math.sin(time * 2 + d.x) * 0.08);
     } else if (d.kind === 'bench') {
       shadow(cx + 2, by, 14, 3);
       rect(cx - 13, by - 8, 3, 8, WOOD.dark, 1);
@@ -1106,7 +1112,42 @@
 
   // people: [{ role, x, y (tiles, feet), face, phase, moving, swing, tool, holding, front? }]; LOOKS[role]
   // gives the clothes. `front` lifts one above another person on the same line (the player).
+  // ───────────── Daylight ─────────────
+  // The whole view is multiplied by the hour's tint, then windows, lanterns and fires glow on top.
+  function drawNightLight() {
+    if (SUN.shade > 0.005) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = `rgb(${SUN.tint[0]}, ${SUN.tint[1]}, ${SUN.tint[2]})`;
+      ctx.fillRect(cam.x, cam.y, cw, ch);
+      ctx.restore();
+    }
+    if (SUN.lights < 0.02) return;
+    for (const l of lit) {
+      if (l.x < cam.x - l.r || l.x > cam.x + cw + l.r || l.y < cam.y - l.r || l.y > cam.y + ch + l.r) continue;
+      K.glow(ctx, l.x, l.y, l.r, l.color, SUN.lights * l.a);
+    }
+  }
+
+  // Fireflies over the meadow on warm nights.
+  const FLY_N = 16;
+  function drawFireflies() {
+    const warm = CLOCK.season === 'summer' ? 1 : CLOCK.season === 'spring' ? 0.5 : 0;
+    const a = warm * clamp((SUN.lights - 0.5) * 2, 0, 1);
+    if (a <= 0) return;
+    for (let k = 0; k < FLY_N * warm; k++) {
+      const bx = hash2(k, 1, 600) * cw, by = hash2(k, 2, 600) * ch;
+      const x = cam.x + ((bx + Math.sin(time * 0.3 + k) * 60 + time * 4) % cw + cw) % cw;
+      const y = cam.y + by + Math.sin(time * 0.5 + k * 2) * 30;
+      const blink = Math.max(0, Math.sin(time * (1.3 + hash2(k, 3, 600)) + k * 1.7));
+      K.glow(ctx, x, y, 7, '#d9ff8a', a * blink);
+    }
+  }
+
   function draw(px, py, people) {
+    CLOCK = V.clock(S.t);
+    SUN = VV.sunAt(CLOCK.phase, CLOCK.season);
+    lit.length = 0;
     const target = VV.clampCamera(px * T, py * T, cw, ch, V.W * T, V.H * T);
     cam = { x: VV.snap(target.x, dpr), y: VV.snap(target.y, dpr) };
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1151,10 +1192,12 @@
       ctx.drawImage(PUFF(), s.x - s.r * 1.6, s.y - s.r * 1.6, s.r * 3.2, s.r * 3.2);
     }
     ctx.globalAlpha = 1;
+    drawNightLight();
     if (S.festival) drawGarlands();
-    drawButterflies();
+    if (SUN.shade < 0.35) drawButterflies();
+    drawFireflies();
     drawFireworks();
-    drawCloudShadows();
+    if (SUN.shade < 0.5) drawCloudShadows();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, cw, ch); }
   }

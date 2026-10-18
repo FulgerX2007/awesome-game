@@ -102,7 +102,7 @@ async function canvasFilled(page) {
     const samples = Math.ceil(d.length / step);
     // The spread of brightness: lit faces and shadows make a 2.5D frame far from flat.
     const spread = Math.sqrt(Math.max(0, sum2 / samples - (sum / samples) ** 2));
-    return { ok: opaque / samples > 0.95 && colors.size > 20, opaque: opaque / samples, colors: colors.size, spread: +spread.toFixed(1) };
+    return { ok: opaque / samples > 0.95 && colors.size > 20, opaque: opaque / samples, colors: colors.size, spread: +spread.toFixed(1), mean: +(sum / samples).toFixed(1) };
   });
 }
 
@@ -267,6 +267,21 @@ async function edgeChecks() {
     check(fresh && fresh.v === version, 'a new village is saved over the broken one');
     check(errors.length === 0, 'no console errors (broken save)', errors.join('\n'));
     await ctx.close();
+  }
+  {
+    // The same village at noon and at night: the night frame is clearly darker.
+    const V = require('../../web/village/core.js');
+    const at = (phase) => { const s = V.newGame(11); s.t = V.DAY * 4 + V.DAY * phase; return JSON.stringify({ ...V.save(s), savedAt: Date.now() }); };
+    const mean = {};
+    for (const [name, phase] of [['noon', 0.4], ['night', 0.92]]) {
+      const { ctx, page, errors } = await preparedPage(([key, data]) => {
+        if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, data); sessionStorage.setItem('prepared', '1'); }
+      }, [SAVE_KEY, at(phase)]);
+      mean[name] = (await canvasFilled(page)).mean;
+      check(errors.length === 0, `no console errors (${name})`, errors.join('\n'));
+      await ctx.close();
+    }
+    check(mean.night < mean.noon * 0.75, 'the night frame is darker than noon', JSON.stringify(mean));
   }
   {
     // A village from version 1 with a cloud code: kept aside, the code forgotten, a friendly toast.
