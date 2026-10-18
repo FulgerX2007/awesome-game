@@ -5,6 +5,7 @@
   'use strict';
   const V = window.Village;
   const VV = window.VillageView;
+  const K = window.Fx;
   const { TILE: T, hash2, lerp, clamp } = VV;
   const TAU = Math.PI * 2;
   const ease = (x) => 1 - (1 - x) * (1 - x);
@@ -155,8 +156,12 @@
   const QUADS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
   const ARC = [0.38, 0.71, 0.92];
   function layer(g, x0, y0, x1, y1, inSet, color, inset, radius) {
-    const H = T / 2;
     g.fillStyle = color;
+    layerPath(g, x0, y0, x1, y1, inSet, inset, radius);
+    g.fill();
+  }
+  function layerPath(g, x0, y0, x1, y1, inSet, inset, radius) {
+    const H = T / 2;
     g.beginPath();
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       if (!inSet(x, y)) continue;
@@ -184,7 +189,42 @@
         g.closePath();
       }
     }
-    g.fill();
+  }
+
+  // A sunken area (water, a path) seen from above with the light at the top left: inside its shape the
+  // north and west banks cast a soft shadow, the south and east banks catch the light, and a thin rim marks
+  // the edge. `o`: { inset, radius, shadow: [width, alpha, rgb], lip: [width, alpha], rim }.
+  function sunken(g, x0, y0, x1, y1, inSet, o) {
+    const { EDGE } = VV;
+    const band = (x, y, side, w, color) => {
+      const px = x * T, py = y * T, i = o.inset;
+      let grd;
+      if (side === EDGE.N) grd = g.createLinearGradient(0, py + i, 0, py + i + w);
+      else if (side === EDGE.S) grd = g.createLinearGradient(0, py + T - i, 0, py + T - i - w);
+      else if (side === EDGE.W) grd = g.createLinearGradient(px + i, 0, px + i + w, 0);
+      else grd = g.createLinearGradient(px + T - i, 0, px + T - i - w, 0);
+      grd.addColorStop(0, color);
+      grd.addColorStop(1, color.replace(/[\d.]+\)$/, '0)'));
+      g.fillStyle = grd;
+      if (side === EDGE.N) g.fillRect(px, py, T, i + w);
+      else if (side === EDGE.S) g.fillRect(px, py + T - i - w, T, i + w);
+      else if (side === EDGE.W) g.fillRect(px, py, i + w, T);
+      else g.fillRect(px + T - i - w, py, i + w, T);
+    };
+    g.save();
+    layerPath(g, x0, y0, x1, y1, inSet, o.inset, o.radius);
+    g.clip();
+    const [sw, sa, rgb] = o.shadow, [lw, la] = o.lip;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const m = VV.edgeMask(inSet, x, y);
+      if (!m) continue;
+      if (m & EDGE.N) band(x, y, EDGE.N, sw, `rgba(${rgb}, ${sa})`);
+      if (m & EDGE.W) band(x, y, EDGE.W, sw * 0.8, `rgba(${rgb}, ${sa * 0.8})`);
+      if (m & EDGE.S) band(x, y, EDGE.S, lw, `rgba(255, 252, 240, ${la})`);
+      if (m & EDGE.E) band(x, y, EDGE.E, lw * 0.8, `rgba(255, 252, 240, ${la * 0.7})`);
+      if (o.rim) for (const side of [EDGE.N, EDGE.E, EDGE.S, EDGE.W]) if (m & side) band(x, y, side, 1.6, `rgba(255, 255, 255, ${o.rim})`);
+    }
+    g.restore();
   }
 
   function paintGround(g, x0, y0, x1, y1) {
@@ -210,8 +250,10 @@
     layer(g, x0, y0, x1, y1, sandy, SAND.main, 2, 9);
     layer(g, x0, y0, x1, y1, water, WATER.shallow, 5, 12);
     layer(g, x0, y0, x1, y1, deep, WATER.deep, 4, 12);
+    sunken(g, x0, y0, x1, y1, water, { inset: 5, radius: 12, shadow: [12, 0.34, '18, 52, 66'], lip: [5, 0.32], rim: 0.28 });
     layer(g, x0, y0, x1, y1, is('p'), PATH.edge, 0, 8);
     layer(g, x0, y0, x1, y1, is('p'), PATH.main, 2.5, 7);
+    sunken(g, x0, y0, x1, y1, is('p'), { inset: 2.5, radius: 7, shadow: [5, 0.2, '74, 50, 24'], lip: [3, 0.22] });
     layer(g, x0, y0, x1, y1, is('q'), SQUARE.edge, 0, 6);
     layer(g, x0, y0, x1, y1, is('q'), SQUARE.gap, 2, 5);
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -267,6 +309,11 @@
     for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
       const k = j * 2 + i;
       const sx = px + i * 16 + 1.5 + (hash2(x, y, 100 + k) - 0.5) * 1.5, sy = py + j * 16 + 1.5 + (hash2(x, y, 110 + k) - 0.5) * 1.5;
+      // Each cobble is a low dome: a shadow to the lower right, the stone, then its lit top.
+      g.fillStyle = 'rgba(60, 48, 30, 0.35)';
+      g.beginPath();
+      g.roundRect(sx + 1.2, sy + 1.6, 13, 13, 4);
+      g.fill();
       g.fillStyle = SQUARE.stones[Math.floor(hash2(x, y, 120 + k) * SQUARE.stones.length)];
       g.beginPath();
       g.roundRect(sx, sy, 13, 13, 4);
@@ -310,6 +357,10 @@
 
   function lilyPad(g, x, y, px, py) {
     const lx = px + 8 + hash2(x, y, 91) * 16, ly = py + 8 + hash2(x, y, 92) * 16, a = hash2(x, y, 93) * TAU;
+    g.fillStyle = 'rgba(16, 52, 64, 0.3)'; // the pad floats: its shadow lies on the water to the lower right
+    g.beginPath();
+    g.ellipse(lx + 1.5, ly + 2, 6, 5.4, 0, 0, TAU);
+    g.fill();
     g.fillStyle = '#5d9a4a';
     g.beginPath();
     g.moveTo(lx, ly);
@@ -850,32 +901,41 @@
   }
 
   // Bridge over the river: flat, drawn under the walkers. Posts first, planks as payment arrives.
+  // A plank bridge standing on posts: the deck has a top and a front edge, posts are lit round piles, and the
+  // whole thing casts its shadow on the water to the lower right.
   function drawBridge() {
     const b = BOX.bridge, st = V.stage(S, 'bridge');
     const x0 = b.X - 12, x1 = b.X + b.Wp + 12, y0 = b.Y + 5, y1 = b.Y + b.Hp - 5;
     const posts = [];
     for (let x = x0 + 6; x < x1; x += 22) posts.push(x);
-    for (const px of posts) for (const py of [y0 + 1, y1 - 1]) {
-      ellipse(px + 1, py + 3, 4, 2, 'rgba(30, 60, 70, 0.35)');
-      rect(px - 2.5, py - 5, 5, 8, WOOD.dark, 1.5);
-    }
+    const pile = (px, py, h) => {
+      K.shadow(ctx, px + 3, py + 3, 5, 2.4, 0.4);
+      K.cylinder(ctx, px, py - h, 2.6, h, WOOD.dark);
+    };
+    for (const px of posts) for (const py of [y0 + 1, y1 - 1]) pile(px, py, 7);
     if (st === 0) {
       ctx.save();
       ctx.translate(b.cx + 10, b.Y + b.Hp / 2 + 4);
       ctx.rotate(0.5 + Math.sin(time * 0.9) * 0.05);
-      rect(-14, -3, 28, 6, WOOD.mid, 1);
+      K.shadow(ctx, 3, 5, 16, 4, 0.35);
+      K.block(ctx, -14, -3, 28, 6, 1.5, WOOD.mid);
       ctx.restore();
       return;
     }
     const k = st === 2 ? 1 : clamp(share('bridge'), 0.1, 0.95);
     const end = x0 + (x1 - x0) * k;
-    ellipse((x0 + end) / 2, y1 + 4, (end - x0) / 2, 4, 'rgba(30, 60, 70, 0.25)');
-    for (let x = x0, i = 0; x < end; x += 6, i++) rect(x, y0, Math.min(6, end - x) - 0.6, y1 - y0, i % 2 ? WOOD.light : '#a8774a', 1);
-    for (let x = x0 + 3; x < end; x += 12) circle(x, y0 + 3, 0.7, WOOD.dark);
+    const lift = 3; // the deck stands this high above the water: the front edge shows below the top
+    K.shadow(ctx, (x0 + end) / 2 + 7, y1 + 6, (end - x0) / 2 + 4, 7, 0.38);
+    rect(x0, y1 - lift, end - x0, lift + 3, WOOD.dark, 1.5);
+    for (let x = x0, i = 0; x < end; x += 6, i++) {
+      const w = Math.min(6, end - x) - 0.6;
+      K.block(ctx, x, y0 - lift, w, y1 - y0, 1, i % 2 ? WOOD.light : '#a8774a', { top: 0.18, bottom: -0.12 });
+    }
+    for (let x = x0 + 3; x < end; x += 12) circle(x, y0 - lift + 3, 0.7, WOOD.dark);
     if (st === 2) {
       for (const py of [y0, y1]) {
-        rect(x0, py - 4, x1 - x0, 3, WOOD.mid, 1.5);
-        for (const px of posts) rect(px - 1.5, py - 8, 3, 8, WOOD.dark, 1);
+        for (const px of posts) K.cylinder(ctx, px, py - lift - 9, 1.6, 9, WOOD.dark);
+        K.block(ctx, x0, py - lift - 8, x1 - x0, 3.4, 1.5, WOOD.mid, { top: 0.35, bottom: -0.25 });
       }
     }
   }

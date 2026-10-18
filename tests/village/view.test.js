@@ -352,3 +352,27 @@ test('tapAt picks a building by its roof and falls back to the tile elsewhere', 
   const above = VV.tapAt(s, V, (br.x + 0.5) * T, (Math.min(...V.FOOTPRINTS.bridge.map((t) => t.y)) - 0.5) * T);
   assert.notEqual(above.id, 'bridge');
 });
+
+test('edgeMask marks the sides that face outside the set', () => {
+  const { N, E, S, W } = VV.EDGE;
+  const water = (x, y) => V.tileAt(x, y) === '~';
+  // A lone tile: every side is an edge. Outside the set: nothing.
+  const one = (x, y) => x === 3 && y === 3;
+  assert.equal(VV.edgeMask(one, 3, 3), N | E | S | W);
+  assert.equal(VV.edgeMask(one, 4, 3), 0);
+  // A row of three: the middle only has its long sides, the ends add their caps.
+  const row = (x, y) => y === 0 && x >= 0 && x <= 2;
+  assert.equal(VV.edgeMask(row, 1, 0), N | S);
+  assert.equal(VV.edgeMask(row, 0, 0), N | S | W);
+  assert.equal(VV.edgeMask(row, 2, 0), N | E | S);
+  // The open river: a tile deep inside has no edge, a bank tile has one.
+  let inner = null, bank = null;
+  for (let y = 1; y < V.H - 1 && !(inner && bank); y++) for (let x = 1; x < V.W - 1; x++) {
+    if (!water(x, y)) continue;
+    const m = VV.edgeMask(water, x, y);
+    if (!m && !inner) inner = m;
+    if ((m & N) && !bank) bank = m;
+  }
+  assert.equal(inner, 0);
+  assert.ok(bank & N);
+});

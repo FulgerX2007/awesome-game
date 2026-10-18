@@ -114,6 +114,16 @@
     return core.isWalkable(s, x, y) ? { type: 'walk' } : { type: 'none' };
   }
 
+  // ── 2.5D ground ──
+  // Sides of a tile whose neighbour is outside a terrain set (bits N, E, S, W): where a sunken area such as
+  // water or a path gets its bank shadow (north and west, away from the top-left light) or its lit lip (south, east).
+  const EDGE = { N: 1, E: 2, S: 4, W: 8 };
+  function edgeMask(inSet, x, y) {
+    if (!inSet(x, y)) return 0;
+    return (inSet(x, y - 1) ? 0 : EDGE.N) | (inSet(x + 1, y) ? 0 : EDGE.E)
+      | (inSet(x, y + 1) ? 0 : EDGE.S) | (inSet(x - 1, y) ? 0 : EDGE.W);
+  }
+
   // ── 2.5D silhouettes ──
   // Standing things rise above their tile and cover the tiles behind them, so a tap on a tree crown or a roof
   // should pick that thing. Sizes are in CSS px around the base point the art draws from:
@@ -216,7 +226,7 @@
   const api = {
     TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
     fmt, fmtRate, splitDuration, income, tapAction, frontTiles, pickFront, footprintDist, soundFor,
-    NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
+    EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VillageView = api;
