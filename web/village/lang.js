@@ -156,6 +156,8 @@ I18n.add({ ro: {
   'Отмена': 'Anulează',
   'Новое село ждёт': 'Un sat nou te așteaptă',
   'Сохранение повреждено — начато новое село': 'Salvarea e deteriorată — a început un sat nou',
+  'Новая версия игры — новое село: с днями, ночами и сезонами': 'Versiune nouă a jocului — un sat nou: cu zile, nopți și anotimpuri',
+  'Это сохранение от старой версии игры: его нельзя загрузить.': 'Această salvare e dintr-o versiune veche a jocului: nu poate fi încărcată.',
   'сохранено': 'salvat',
   'браузер не даёт сохранять': 'browserul nu permite salvarea',
   'Сохранено. Введи этот код на другом устройстве.': 'Salvat. Introdu acest cod pe alt dispozitiv.',

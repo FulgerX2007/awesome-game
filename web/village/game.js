@@ -568,6 +568,13 @@
     let data = null;
     try { data = JSON.parse(raw); } catch { /* load reports it as recovered */ }
     const s = V.load(data);
+    if (s.recovered === 'old') {
+      // A village from an earlier version: keep it aside and forget its cloud code, so the new village
+      // never overwrites the old cloud copy.
+      store.set(`${SAVE_KEY}.v${data.v}`, raw);
+      store.del(CLOUD_KEY);
+      return { s: null, savedAt: null, old: true };
+    }
     if (s.recovered) {
       store.set(`${SAVE_KEY}.broken`, raw); // keep the unreadable copy aside instead of losing it silently
       return { s: null, savedAt: null, broken: true };
@@ -701,6 +708,7 @@
         if (!res.ok) throw new Error(await res.text());
         const s = V.load(await res.json());
         if (gen !== stateGen) return;
+        if (s.recovered === 'old') { $('cloud-msg').textContent = t('Это сохранение от старой версии игры: его нельзя загрузить.'); return; }
         if (s.recovered) { $('cloud-msg').textContent = t('Это сохранение не подходит к игре.'); return; }
         replaceState(s);
         setCloudCode(c);
@@ -796,6 +804,7 @@
       catchUp(away, away > SHOW_AWAY_BOOT);
     }
     if (saved.broken) toast(t('Сохранение повреждено — начато новое село'), 4000);
+    if (saved.old) toast(t('Новая версия игры — новое село: с днями, ночами и сезонами'), 5000);
     if (document.visibilityState === 'hidden') hiddenAt = Date.now(); // opened in a background tab
     save();
     renderHUD();

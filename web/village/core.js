@@ -4,7 +4,28 @@
 (function (root) {
   'use strict';
 
-  const VERSION = 1;
+  // 2: the world clock (days and seasons). Older saves start a new village (load says recovered: 'old').
+  const VERSION = 2;
+
+  // ── World clock ──
+  // A day is 8 minutes: dawn, 6 minutes of daylight, dusk and night. Three days make a season, four a year.
+  // The clock is read from s.t, so it needs no state of its own; the game starts on a spring morning.
+  const DAY = 480;
+  const DAWN_END = 0.05, DUSK_START = 0.75, NIGHT_START = 0.85; // parts of the day, as a fraction of it
+  const SEASON_DAYS = 3;
+  const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+
+  function clock(t) {
+    t = Math.max(0, Number(t) || 0);
+    const day = Math.floor(t / DAY);
+    const phase = (t - day * DAY) / DAY;
+    const part = phase < DAWN_END ? 'dawn' : phase < DUSK_START ? 'day' : phase < NIGHT_START ? 'dusk' : 'night';
+    const seasonIndex = Math.floor(day / SEASON_DAYS) % SEASONS.length;
+    return {
+      day, phase, part, season: SEASONS[seasonIndex], seasonIndex,
+      seasonDay: day % SEASON_DAYS, year: Math.floor(day / (SEASON_DAYS * SEASONS.length)),
+    };
+  }
 
   // ── Constants ──
   const RESOURCES = {
@@ -614,9 +635,29 @@
     }
   }
 
+  // Hooks run once for every dawn and every new season the clock passes, the same way from step() and
+  // offline(): `quiet` (offline) keeps the events out and only counts. Each returns nothing.
+  function onDawn(s, day, quiet) {
+    if (!quiet) s.events.push({ type: 'dawn', day });
+  }
+  function onSeason(s, season, quiet) {
+    if (!quiet) s.events.push({ type: 'season', season });
+  }
+  // Moves s.t forward by dt and runs the hooks for the days crossed; returns how many dawns passed.
+  function advanceClock(s, dt, quiet) {
+    const before = Math.floor(s.t / DAY);
+    s.t += dt;
+    const after = Math.floor(s.t / DAY);
+    for (let d = before + 1; d <= after; d++) {
+      if (d % SEASON_DAYS === 0) onSeason(s, SEASONS[Math.floor(d / SEASON_DAYS) % SEASONS.length], quiet);
+      onDawn(s, d, quiet);
+    }
+    return after - before;
+  }
+
   function tick(s, dt) {
     const p = s.player;
-    s.t += dt;
+    advanceClock(s, dt, false);
     s.stats.playTime += dt;
     p.cd = Math.max(0, (p.cd || 0) - dt);
     regrow(s);
@@ -784,8 +825,9 @@
   function offline(s, seconds) {
     const total = Math.floor(Math.min(Math.max(Number(seconds) || 0, 0), OFFLINE_MAX));
     const before = { ...s.res };
+    let days = 0;
     for (let i = 0; i < total; i++) {
-      s.t += 1;
+      days += advanceClock(s, 1, true);
       produce(s, 1);
     }
     const mark = s.events.length;
@@ -794,7 +836,7 @@
     s.events.length = mark; // a summary instead of a burst of regrow events
     const gains = {};
     for (const r of RES_IDS) if (s.res[r] !== before[r]) gains[r] = s.res[r] - before[r];
-    return { seconds: total, gains, regrown };
+    return { seconds: total, gains, regrown, days };
   }
 
   // The hint in the HUD: the cheapest available restoration (by what is left to pay), or the tool that blocks it.
@@ -851,18 +893,22 @@
   const num = (v, def, min = 0, max = Infinity) => (Number.isFinite(v) && v >= min && v <= max ? v : def);
   const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-  function recovered() {
+  // why: true for junk or a foreign save, 'old' for a save of an earlier version of the game.
+  function recovered(why = true) {
     const s = newGame();
-    s.recovered = true;
+    s.recovered = why;
     return s;
   }
 
   // Accepts an object or a JSON string. Fills missing fields with defaults and drops junk.
-  // A broken or foreign save gives a new game with recovered: true; load never throws.
+  // A broken or foreign save gives a new game with recovered: true, a save of an earlier version one with
+  // recovered: 'old'; load never throws.
   function load(data) {
     try {
       if (typeof data === 'string') data = JSON.parse(data);
-      if (!isObj(data) || data.v !== VERSION || !Number.isFinite(data.seed)) return recovered();
+      if (!isObj(data) || !Number.isFinite(data.seed)) return recovered();
+      if (Number.isInteger(data.v) && data.v >= 1 && data.v < VERSION) return recovered('old');
+      if (data.v !== VERSION) return recovered();
       return restore(data);
     } catch (e) {
       return recovered();
@@ -955,7 +1001,7 @@
   }
 
   const api = {
-    VERSION, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
+    VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
     MAP, W, H, START, FOOTPRINTS, SPEED,

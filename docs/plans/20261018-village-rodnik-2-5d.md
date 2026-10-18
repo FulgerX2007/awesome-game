@@ -303,13 +303,15 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Create: `tests/village/clock.test.js`
 - Create: `tests/village/save.test.js`
 - Modify: `tests/village/core.test.js`
+- Modify: `tests/village/smoke.cjs`
 
-- [ ] `DAY`, `SEASON_DAYS`, `SEASONS`, `clock(s)`; `onDawn`/`onSeason` вызываются из `step` и из цикла `offline`
-- [ ] `VERSION = 2`; старая версия → новая игра с `recovered: 'old'`
-- [ ] `game.js`: копия в `village.save.v1`, сообщение «Новая версия — новое село», облачный код забывается; то же при облачной загрузке
-- [ ] write tests: границы суток и сезонов, переход через год, события ровно один раз при большом `dt`; офлайн через рассвет и сезон вызывает хуки столько же раз, сколько `step`
-- [ ] write tests: v1 → `'old'`, мусор → `true`, v2 туда-обратно без потерь, мусор в полях отбрасывается; строки RO
-- [ ] run tests - must pass before next task
+- [x] `DAY`, `SEASON_DAYS`, `SEASONS`, `clock(s)`; `onDawn`/`onSeason` вызываются из `step` и из цикла `offline`
+- [x] `VERSION = 2`; старая версия → новая игра с `recovered: 'old'`
+- [x] `game.js`: копия в `village.save.v1`, сообщение «Новая версия — новое село», облачный код забывается; то же при облачной загрузке
+- [x] write tests: границы суток и сезонов, переход через год, события ровно один раз при большом `dt`; офлайн через рассвет и сезон вызывает хуки столько же раз, сколько `step`
+- [x] write tests: v1 → `'old'`, мусор → `true`, v2 туда-обратно без потерь, мусор в полях отбрасывается; строки RO
+- [x] run tests - must pass before next task
+- ➕ `offline()` возвращает `days` — сколько рассветов прошло; smoke проверяет старый сейв (копия в `village.save.v1`, облачный код забыт, тост)
 
 ### Task 7: Свет дня и ночи
 

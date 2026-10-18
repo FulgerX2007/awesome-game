@@ -263,8 +263,29 @@ async function edgeChecks() {
     const toast = await page.textContent('#toast');
     check(/повреждено/.test(toast || ''), 'a broken save shows a toast', JSON.stringify(toast));
     const fresh = await readSave(page);
-    check(fresh && fresh.v === 1, 'a new village is saved over the broken one');
+    const version = await page.evaluate(() => window.Village.VERSION);
+    check(fresh && fresh.v === version, 'a new village is saved over the broken one');
     check(errors.length === 0, 'no console errors (broken save)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    // A village from version 1 with a cloud code: kept aside, the code forgotten, a friendly toast.
+    const old = JSON.stringify({ v: 1, seed: 5, t: 100, res: { wood: 40 } });
+    const { ctx, page, errors } = await preparedPage(([key, data]) => {
+      if (!sessionStorage.getItem('prepared')) {
+        localStorage.setItem(key, data);
+        localStorage.setItem('village.cloud', 'abcdabcdabcdabcd');
+        sessionStorage.setItem('prepared', '1');
+      }
+    }, [SAVE_KEY, old]);
+    const kept = await page.evaluate((k) => localStorage.getItem(`${k}.v1`), SAVE_KEY);
+    check(kept === old, 'an old save is kept aside in village.save.v1', JSON.stringify(kept));
+    const code = await page.evaluate(() => localStorage.getItem('village.cloud'));
+    check(code === null, 'the old cloud code is forgotten', JSON.stringify(code));
+    const toast = await page.textContent('#toast');
+    check(/Новая версия/.test(toast || ''), 'an old save shows the new-version toast', JSON.stringify(toast));
+    check(!(await page.evaluate((k) => localStorage.getItem(`${k}.broken`), SAVE_KEY)), 'an old save is not called broken');
+    check(errors.length === 0, 'no console errors (old save)', errors.join('\n'));
     await ctx.close();
   }
   {
