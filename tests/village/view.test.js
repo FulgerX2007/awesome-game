@@ -376,3 +376,15 @@ test('edgeMask marks the sides that face outside the set', () => {
   assert.equal(inner, 0);
   assert.ok(bank & N);
 });
+
+test('node silhouettes stay close to their tile so they never swallow taps far away', () => {
+  for (const [kind, t] of Object.entries(VV.NODE_TALL)) {
+    assert.ok(t.hw * 2 <= T * 1.25, `${kind} is at most a tile and a quarter wide`);
+    assert.ok(t.up <= T * 1.6, `${kind} rises at most a tile and a half`);
+  }
+  // A tap a full tile to the side of a tree is not the tree.
+  const s = V.newGame(1);
+  const tree = { id: 1, kind: 'tree', x: 10, y: 10, hp: 4, regrowAt: null };
+  s.nodes = [tree];
+  assert.notEqual(VV.tapAt(s, V, 11.9 * T, 10.2 * T).node, 1);
+});

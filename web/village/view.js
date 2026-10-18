@@ -130,10 +130,10 @@
   // (x + 0.5) * TILE, (y + 1) * TILE - NODE_FOOT; `hw` is the half width, `up` the height above the base.
   const NODE_FOOT = 5;
   const NODE_TALL = {
-    tree: { hw: 14, up: 47 },
-    rock: { hw: 14, up: 24 },
-    bush: { hw: 15, up: 20 },
-    clay: { hw: 15, up: 13 },
+    tree: { hw: 18, up: 48 },
+    rock: { hw: 16, up: 24 },
+    bush: { hw: 15, up: 21 },
+    clay: { hw: 16, up: 15 },
   };
   // How far a building rises above its footprint, in tiles, by stage: 0 ruin, 1 scaffold, 2 restored.
   const HOUSE_RISE = [0.4, 1, 1.25];

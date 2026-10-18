@@ -101,24 +101,62 @@
     ctx.stroke();
   }
   // A soft irregular blob (rocks, clay): n points around an ellipse with seeded radii, smoothed by quadratic curves.
-  function blob(x, y, rx, ry, seed, color, n = 7, jag = 0.18) {
+  function blob(x, y, rx, ry, seed, color, n = 7, jag = 0.18, g = ctx) {
     const pts = [];
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU, k = 1 - jag + hash2(seed, i, 41) * jag * 2;
       pts.push([x + Math.cos(a) * rx * k, y + Math.sin(a) * ry * k]);
     }
-    ctx.fillStyle = color;
-    ctx.beginPath();
+    g.fillStyle = color;
+    g.beginPath();
     const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     let m = mid(pts[n - 1], pts[0]);
-    ctx.moveTo(m[0], m[1]);
+    g.moveTo(m[0], m[1]);
     for (let i = 0; i < n; i++) {
       m = mid(pts[i], pts[(i + 1) % n]);
-      ctx.quadraticCurveTo(pts[i][0], pts[i][1], m[0], m[1]);
+      g.quadraticCurveTo(pts[i][0], pts[i][1], m[0], m[1]);
     }
-    ctx.fill();
+    g.fill();
   }
   const shadow = (x, y, rx, ry) => ellipse(x, y, rx, ry, 'rgba(38, 48, 20, 0.26)');
+
+  // A shadow cast to the lower right, away from the top-left light: a contact patch at the foot and a longer,
+  // fainter patch stretched along the ground.
+  function castShadow(x, y, rx, len, a = 0.32) {
+    K.shadow(ctx, x + rx * 0.12, y, rx, rx * 0.38, a);
+    ctx.save();
+    ctx.translate(x + len * 0.45, y + len * 0.14);
+    ctx.rotate(0.3);
+    K.shadow(ctx, 0, 0, len * 0.6, rx * 0.46, a * 0.6);
+    ctx.restore();
+  }
+
+  // ───────────── Cached sprites ─────────────
+  // Static shapes are painted once into a small canvas at the device pixel ratio and blitted every frame.
+  // (ax, ay) is where the anchor (a node's foot) sits inside the sprite; least recently used ones are dropped.
+  const sprites = new Map();
+  let spriteRatio = 0;
+  function sprite(key, w, h, ax, ay, paint) {
+    if (spriteRatio !== dpr) { sprites.clear(); spriteRatio = dpr; }
+    let sp = sprites.get(key);
+    if (sp) { sprites.delete(key); sprites.set(key, sp); return sp; }
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(w * dpr));
+    cv.height = Math.max(1, Math.ceil(h * dpr));
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, ax * dpr, ay * dpr);
+    paint(g);
+    sp = { cv, w, h, ax, ay };
+    sprites.set(key, sp);
+    if (sprites.size > 400) sprites.delete(sprites.keys().next().value);
+    return sp;
+  }
+  const blit = (sp, x, y) => ctx.drawImage(sp.cv, x - sp.ax, y - sp.ay, sp.w, sp.h);
+  // A sprite as big as a node's silhouette (view.NODE_TALL), so the art and the tap area agree.
+  const nodeSprite = (kind, key, paint) => {
+    const t = VV.NODE_TALL[kind], pad = 3;
+    return sprite(key, t.hw * 2 + pad * 2, t.up + VV.NODE_FOOT + pad * 2, t.hw + pad, t.up + pad, paint);
+  };
 
   // ───────────── Ground (cached in chunks) ─────────────
   // Terrain classes: g grass (ruin footprints too), s sand, w water (bridge site too), p path, q square.
@@ -415,35 +453,47 @@
     return { pine, pal, apples: !pine && !autumn && hash2(n.x, n.y, 303) < 0.15 };
   }
 
-  function drawTree(n, cx, by, sway) {
-    const L = treeLook(n);
-    shadow(cx + 3, by, 13, 4.5);
+  // Leafy crowns are clusters of lit balls; pines are stacked cones with a lit left face. Painted at the
+  // node's foot (0, 0); the trunk and the crown are separate sprites so the crown can sway.
+  const CROWN = [[0, -23, 14, 0], [-8, -27, 10, 1], [8, -26, 10, 1], [0, -35, 11, 1], [-5, -36, 6.5, 2], [-10, -28, 4.5, 2]];
+  function paintCrown(g, n, L) {
     if (L.pine) {
-      rect(cx - 2.5, by - 9, 5, 9, WOOD.mid, 1.5);
-      const tiers = [[13, -6, -22], [11, -16, -32], [8, -26, -42]];
-      tiers.forEach(([w, b, top], i) => {
-        const s = sway * (i + 1) * 0.5;
-        poly([cx - w, by + b, cx + w, by + b, cx + s, by + top], L.pal[i === 0 ? 0 : 1]);
-        poly([cx - w + 2, by + b - 1, cx + s * 0.8 - 1, by + top + 3, cx - 2 + s * 0.5, by + b - 1], L.pal[2]);
+      [[14, -6, -24], [12, -17, -35], [9, -28, -46]].forEach(([w, b, top], i) => {
+        g.fillStyle = 'rgba(20, 40, 20, 0.28)'; // the tier above shades the one below
+        g.beginPath(); g.ellipse(1, b + 1, w * 0.85, 2.6, 0, 0, TAU); g.fill();
+        g.fillStyle = K.shade(L.pal[0], -0.12);
+        g.beginPath(); g.moveTo(-w, b); g.lineTo(w, b); g.lineTo(0, top); g.closePath(); g.fill();
+        g.fillStyle = i ? L.pal[1] : L.pal[0];
+        g.beginPath(); g.moveTo(-w, b); g.lineTo(1, b + 0.5); g.lineTo(0, top); g.closePath(); g.fill();
+        g.strokeStyle = L.pal[2]; g.lineWidth = 1.4; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(-w + 2.5, b - 1); g.lineTo(-0.5, top + 2.5); g.stroke();
       });
       return;
     }
-    rect(cx - 3, by - 17, 6, 17, WOOD.mid, 2);
-    rect(cx - 3, by - 17, 2.2, 17, WOOD.light, 1);
-    const s = sway;
-    circle(cx + s * 0.5, by - 22, 14, L.pal[0]);
-    circle(cx - 7 + s, by - 26, 10, L.pal[1]);
-    circle(cx + 7 + s, by - 25, 10, L.pal[1]);
-    circle(cx + s, by - 33, 11, L.pal[1]);
-    circle(cx - 4 + s, by - 33, 6.5, L.pal[2]);
-    circle(cx - 9 + s, by - 27, 4, L.pal[2]);
-    if (L.apples) for (let k = 0; k < 4; k++) circle(cx - 8 + hash2(n.x, n.y, 310 + k) * 16 + s, by - 34 + hash2(n.x, n.y, 320 + k) * 16, 1.8, '#d2453a');
+    g.fillStyle = 'rgba(20, 36, 14, 0.3)';
+    g.beginPath(); g.ellipse(1, -14, 12, 5, 0, 0, TAU); g.fill();
+    for (const [dx, dy, r, c] of CROWN) K.sphere(g, dx, dy, r, L.pal[c], { gloss: false, shine: 0.3 });
+    if (L.apples) for (let k = 0; k < 4; k++) {
+      K.sphere(g, -9 + hash2(n.x, n.y, 310 + k) * 18, -36 + hash2(n.x, n.y, 320 + k) * 17, 2.1, '#d2453a', { shine: 0.5 });
+    }
+  }
+  function paintTrunk(g, pine) {
+    const h = pine ? 9 : 19, rx = pine ? 2.6 : 3.2;
+    g.fillStyle = K.shade(WOOD.mid, -0.3);
+    g.beginPath(); g.ellipse(0, 0, rx + 2, 1.8, 0, 0, TAU); g.fill();
+    K.cylinder(g, 0, -h, rx, h, WOOD.mid, { cap: false, ry: 1.3 });
+  }
+
+  function drawTree(n, cx, by, sway) {
+    const L = treeLook(n);
+    castShadow(cx, by, 13, L.pine ? 36 : 34);
+    blit(nodeSprite('tree', 'trunk|' + (L.pine ? 1 : 0), (g) => paintTrunk(g, L.pine)), cx, by);
+    blit(nodeSprite('tree', `crown|${n.x},${n.y}`, (g) => paintCrown(g, n, L)), cx + sway, by);
   }
 
   function drawStump(n, cx, by) {
-    shadow(cx + 2, by, 9, 3.5);
-    rect(cx - 6, by - 7, 12, 7, WOOD.mid, 2);
-    ellipse(cx, by - 7, 6, 3, WOOD.pale);
+    castShadow(cx, by, 8, 12, 0.26);
+    K.cylinder(ctx, cx, by - 7, 6, 6, WOOD.mid, { capColor: WOOD.pale, ry: 3 });
     ctx.strokeStyle = 'rgba(110, 74, 43, 0.6)';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
@@ -462,15 +512,27 @@
     ellipse(x + 2 * k, y - 5 * k, 2.4 * k, 1.3 * k, '#7fae55');
   }
 
+  // A boulder: a dark base in its own shade, a lit body and a pale top facet, smaller as it is mined.
+  function paintRock(g, n, k) {
+    const seed = n.id * 7 + 1;
+    const body = g.createRadialGradient(-5 * k, -16 * k, 1, 0, -9 * k, 15 * k);
+    body.addColorStop(0, STONE.light);
+    body.addColorStop(0.55, STONE.mid);
+    body.addColorStop(1, STONE.dark);
+    blob(1, -8 * k, 14 * k, 10 * k, seed, K.shade(STONE.dark, -0.15), 7, 0.18, g);
+    blob(-1, -11 * k, 12 * k, 9.5 * k, seed + 1, body, 7, 0.18, g);
+    blob(-3 * k, -16 * k, 6.5 * k, 4 * k, seed + 2, 'rgba(232, 228, 214, 0.55)', 7, 0.18, g);
+    g.strokeStyle = 'rgba(70, 66, 58, 0.55)'; g.lineWidth = 1; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(2 * k, -14 * k); g.lineTo(5 * k, -7 * k); g.stroke();
+    if (hash2(n.x, n.y, 330) < 0.4) {
+      g.fillStyle = 'rgba(110, 150, 70, 0.85)';
+      g.beginPath(); g.ellipse(4 * k, -18 * k, 4 * k, 2 * k, 0, 0, TAU); g.fill();
+    }
+  }
   function drawRock(n, cx, by) {
     const k = 0.62 + 0.38 * (n.hp / V.NODE_KINDS.rock.hp);
-    const seed = n.id * 7 + 1;
-    shadow(cx + 3, by - 1, 14 * k, 5 * k);
-    blob(cx, by - 8 * k, 13 * k, 10 * k, seed, STONE.dark);
-    blob(cx - 1, by - 10 * k, 11 * k, 8 * k, seed + 1, STONE.mid);
-    blob(cx - 3 * k, by - 13 * k, 6 * k, 4 * k, seed + 2, STONE.light);
-    line(cx + 2 * k, by - 12 * k, cx + 5 * k, by - 6 * k, 'rgba(70, 66, 58, 0.55)', 1);
-    if (hash2(n.x, n.y, 330) < 0.4) ellipse(cx + 3 * k, by - 15 * k, 4 * k, 2 * k, 'rgba(110, 150, 70, 0.8)');
+    castShadow(cx, by - 1, 14 * k, 22 * k, 0.34);
+    blit(nodeSprite('rock', `rock|${n.x},${n.y}|${n.hp}`, (g) => paintRock(g, n, k)), cx, by);
   }
 
   function drawPebbles(n, cx, by) {
@@ -482,12 +544,24 @@
     sprout(n, cx + 6, by - 2);
   }
 
+  // A wet clay mound in a muddy pit: a glossy body lit from the top left.
+  function paintClay(g, n, k) {
+    g.fillStyle = '#7a5a3a';
+    g.beginPath(); g.ellipse(0, -5, 15, 8, 0, 0, TAU); g.fill();
+    g.fillStyle = '#5e4429';
+    g.beginPath(); g.ellipse(1, -3.5, 13, 5.5, 0, 0, Math.PI); g.fill();
+    const body = g.createRadialGradient(-4 * k, -11 * k, 1, 0, -7 * k, 13 * k);
+    body.addColorStop(0, '#e19a68');
+    body.addColorStop(0.5, '#c4703f');
+    body.addColorStop(1, '#8f4a26');
+    blob(0, -7 * k, 12 * k, 7 * k, n.id * 5 + 3, body, 8, 0.12, g);
+    g.fillStyle = 'rgba(255, 235, 210, 0.55)';
+    g.beginPath(); g.ellipse(-4 * k, -10.5 * k, 3.4 * k, 1.4 * k, -0.3, 0, TAU); g.fill();
+  }
   function drawClay(n, cx, by) {
     const k = 0.6 + 0.4 * (n.hp / V.NODE_KINDS.clay.hp);
-    ellipse(cx, by - 5, 15, 8, '#7a5a3a');
-    blob(cx, by - 7 * k, 12 * k, 7 * k, n.id * 5 + 3, '#b3643a', 8, 0.12);
-    blob(cx - 1, by - 9 * k, 9 * k, 5 * k, n.id * 5 + 4, '#cf8452', 8, 0.12);
-    ellipse(cx - 4 * k, by - 10 * k, 3 * k, 1.3 * k, 'rgba(255, 235, 210, 0.45)');
+    K.shadow(ctx, cx + 2, by - 3, 16, 6, 0.22);
+    blit(nodeSprite('clay', `clay|${n.x},${n.y}|${n.hp}`, (g) => paintClay(g, n, k)), cx, by);
   }
 
   function drawPit(n, cx, by) {
@@ -497,21 +571,20 @@
     sprout(n, cx + 9, by - 2);
   }
 
-  function drawBush(n, cx, by, sway) {
+  // A berry bush: a clump of lit leafy balls with glossy berries, paler and bare once picked.
+  const BUSH = [[-7, -7, 7, 0], [7, -7, 7, 0], [0, -12, 8, 0], [-3, -6, 7, 1], [4, -5, 7, 1], [-3, -14, 3.5, 2], [5, -11, 2.8, 2]];
+  function paintBush(g, n) {
     const full = n.hp > 0;
-    shadow(cx + 2, by - 1, 13, 4);
-    const leaves = full ? ['#4b7c38', '#5f9446', '#7aae58'] : ['#5f8f45', '#77a456', '#93bf6c'];
-    const spots = [[-7, -7, 7], [7, -7, 7], [0, -12, 8], [-3, -6, 7], [4, -5, 7]];
-    spots.forEach(([dx, dy, r], i) => circle(cx + dx + sway * 0.3, by + dy, r, leaves[i < 3 ? 0 : 1]));
-    circle(cx - 3 + sway * 0.3, by - 13, 3.5, leaves[2]);
-    circle(cx + 5 + sway * 0.3, by - 10, 2.5, leaves[2]);
-    if (!full) { sprout(n, cx + 9, by - 1); return; }
-    const count = n.hp * 3;
-    for (let k = 0; k < count; k++) {
-      const bx = cx - 9 + hash2(n.x, n.y, 350 + k) * 18 + sway * 0.3, byy = by - 15 + hash2(n.x, n.y, 370 + k) * 11;
-      circle(bx, byy, 2, '#c2335a');
-      circle(bx - 0.6, byy - 0.7, 0.7, 'rgba(255, 220, 230, 0.8)');
+    const leaves = full ? ['#4b7c38', '#5f9446', '#86b860'] : ['#5f8f45', '#77a456', '#9cc674'];
+    for (const [dx, dy, r, c] of BUSH) K.sphere(g, dx, dy, r, leaves[c], { gloss: false, shine: 0.3 });
+    for (let k = 0; k < n.hp * 3; k++) {
+      K.sphere(g, -9 + hash2(n.x, n.y, 350 + k) * 18, -15 + hash2(n.x, n.y, 370 + k) * 11, 2.2, '#c2335a', { shine: 0.6 });
     }
+  }
+  function drawBush(n, cx, by, sway) {
+    castShadow(cx, by - 1, 13, 18, 0.3);
+    blit(nodeSprite('bush', `bush|${n.x},${n.y}|${n.hp}`, (g) => paintBush(g, n)), cx + sway * 0.3, by);
+    if (n.hp <= 0) sprout(n, cx + 9, by - 1);
   }
 
   function drawNode(n) {
