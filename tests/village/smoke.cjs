@@ -314,6 +314,42 @@ async function edgeChecks() {
     await ctx.close();
   }
   {
+    // The market rows on a fair day: O opens the panel, an order is filled, cuttings are bought.
+    const V = require('../../web/village/core.js');
+    const m = V.newGame(13);
+    for (const id of V.BUILDING_IDS) {
+      if (id === 'chapel' || id === 'house3') continue;
+      m.built[id].done = true;
+      for (const r of Object.keys(m.built[id].paid)) m.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+    }
+    m.villagers = [{ role: 'woodcutter', house: 'house1' }, { role: 'mason', house: 'house2' }];
+    m.t = V.DAY * V.SEASON_DAYS + V.DAY * 0.3; // the first day of summer: fair day
+    m.orders = [{ id: 1, who: 'mason', need: { wood: 10 }, reward: { coins: 15 } }];
+    m.orderSeq = 1;
+    m.res.wood = 40;
+    const f = V.FOOTPRINTS.market[0];
+    m.player.x = f.x + 0.5; m.player.y = f.y - 0.5;
+    const data = JSON.stringify({ ...V.save(m), savedAt: Date.now() });
+    const { ctx, page, errors } = await preparedPage(([key, d]) => {
+      if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, d); sessionStorage.setItem('prepared', '1'); }
+    }, [SAVE_KEY, data]);
+    await page.keyboard.press('KeyO');
+    await sleep(400);
+    const shown = await page.isVisible('#pb-market');
+    check(shown, 'O opens the market rows panel with orders and the fair');
+    if (shown) {
+      await page.click('#orders-list [data-order="1"]');
+      await sleep(300);
+      await page.click('#fair-list [data-buy="cuttings"]');
+      await sleep(300);
+    }
+    const s = await readSave(page);
+    check(s.res.wood === 30 && s.stats.orders === 1, 'an order is filled from the panel', JSON.stringify({ wood: s.res.wood, orders: s.stats.orders }));
+    check(s.bought.includes('cuttings') && s.res.coins === 15 - V.FAIR.cuttings.price, 'the cuttings are bought at the fair', JSON.stringify({ bought: s.bought, coins: s.res.coins }));
+    check(errors.length === 0, 'no console errors (market)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
     // A village from version 1 with a cloud code: kept aside, the code forgotten, a friendly toast.
     const old = JSON.stringify({ v: 1, seed: 5, t: 100, res: { wood: 40 } });
     const { ctx, page, errors } = await preparedPage(([key, data]) => {

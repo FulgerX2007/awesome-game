@@ -239,6 +239,16 @@
           const goods = [['#d2453a', '#e8892e', '#8cc46a'], ['#e9b44c', '#f6e7a8', '#e9b44c'], ['#c99a5e', '#d7a560', '#b4643c']][k];
           for (let j = 0; j < 3; j++) K.sphere(ctx, x + 4 + j * (w - 8) / 2, base - 13, 2.6, goods[j], { gloss: false });
         }
+        // On a fair day: a string of flags over the rows.
+        if (window.Village.fairOpen(S)) {
+          const x0 = b.X + 16, x1 = b.X + b.Wp - 4, y = base - 40;
+          line(x0, y, x1, y, 'rgba(60, 40, 25, 0.7)', 1);
+          const flags = ['#ff7b6b', '#ffd166', '#8ee08a', '#7bc8f2', '#f7aef8'];
+          for (let k = 0, x = x0 + 3; x < x1 - 4; x += 8, k++) {
+            const sway = Math.sin(time * 2 + k) * 1.2;
+            poly([x, y, x + 6, y, x + 3 + sway, y + 7], flags[k % flags.length]);
+          }
+        }
       },
       home(b) {
         house(b, { wall: '#f5efe2', trim: '#4d7fb6', roof: '#b9583b', roofDark: 'rgba(90, 30, 15, 0.45)', chimney: 'right' });

@@ -820,6 +820,54 @@
       rect(cx - 14, by - 18, 28, 3, WOOD.mid, 1.5);
       rect(cx - 12, by - 16, 2, 6, WOOD.mid, 1);
       rect(cx + 10, by - 16, 2, 6, WOOD.mid, 1);
+    } else if (d.kind === 'swing') {
+      castShadow(cx, by, 12, 26, 0.28);
+      for (const px of [cx - 12, cx + 12]) K.cylinder(ctx, px, by - 30, 1.6, 30, WOOD.dark, { ry: 0.8 });
+      K.block(ctx, cx - 14, by - 32, 28, 3, 1, WOOD.mid, { top: 0.35 });
+      const a = Math.sin(time * 1.6 + d.x) * 0.25;
+      ctx.save();
+      ctx.translate(cx, by - 30);
+      ctx.rotate(a);
+      line(-5, 0, -5, 20, '#d8c79a', 1);
+      line(5, 0, 5, 20, '#d8c79a', 1);
+      K.block(ctx, -7, 19, 14, 3, 1, WOOD.light, { top: 0.4 });
+      ctx.restore();
+    } else if (d.kind === 'sweep') {
+      // A well sweep: a tall post with a long pole, a bucket on one end and a weight on the other.
+      castShadow(cx, by, 8, 30, 0.28);
+      K.cylinder(ctx, cx, by - 28, 2, 28, WOOD.dark, { ry: 1 });
+      const a = -0.35 + Math.sin(time * 0.7 + d.y) * 0.08;
+      ctx.save();
+      ctx.translate(cx, by - 27);
+      ctx.rotate(a);
+      line(-18, 0, 16, 0, WOOD.mid, 2.4);
+      K.block(ctx, -21, -2, 5, 5, 1, STONE.dark);
+      line(15, 0, 15, 12, '#d8c79a', 1);
+      K.block(ctx, 12, 12, 6, 5, 1.5, WOOD.light);
+      ctx.restore();
+    } else if (d.kind === 'scarecrow') {
+      castShadow(cx, by, 7, 22, 0.26);
+      K.cylinder(ctx, cx, by - 22, 1.3, 22, WOOD.dark, { ry: 0.6 });
+      line(cx - 10, by - 16, cx + 10, by - 16, WOOD.mid, 2);
+      K.block(ctx, cx - 5, by - 18, 10, 9, 2, '#b5523b', { top: 0.2 });
+      K.sphere(ctx, cx, by - 22, 3.6, '#e2c071', { gloss: false });
+      ellipse(cx, by - 25, 6, 2, '#d4ad5a');
+      K.block(ctx, cx - 3, by - 30, 6, 5, 2, '#c99a4e', { top: 0.3 });
+    } else if (d.kind === 'arch') {
+      castShadow(cx, by, 12, 24, 0.26);
+      ctx.strokeStyle = WOOD.mid;
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(cx - 11, by);
+      ctx.lineTo(cx - 11, by - 18);
+      ctx.quadraticCurveTo(cx, by - 32, cx + 11, by - 18);
+      ctx.lineTo(cx + 11, by);
+      ctx.stroke();
+      for (let k = 0; k < 12; k++) {
+        const u = k / 11, ang = Math.PI * (1 - u);
+        const x = cx + Math.cos(ang) * 11, y = by - 18 - Math.sin(ang) * 10 + (k % 2) * 1.5;
+        K.sphere(ctx, x, y, 2.2, FLOWERS[k % FLOWERS.length], { gloss: false });
+      }
     } else {
       for (const px of [d.x * T + 3, cx - 1.5, (d.x + 1) * T - 6]) rect(px, by - 16, 3, 16, WOOD.mid, [1.5, 1.5, 0, 0]);
       line(d.x * T, by - 12, (d.x + 1) * T, by - 12, WOOD.light, 2.4);

@@ -188,6 +188,8 @@ h1 {
 .cost li b { margin-left: auto; font-variant-numeric: tabular-nums; }
 .cost li small { color: var(--ink-dim); }
 .cost li.ok { background: #dfe8c6; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+#pb-market h3 { margin: 12px 0 4px; font-size: 15px; }
 .tool-row { display: flex; align-items: center; gap: 8px; }
 .tool-row .btn { margin-left: auto; padding: 3px 10px; font-size: 13px; }
 #decor-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
