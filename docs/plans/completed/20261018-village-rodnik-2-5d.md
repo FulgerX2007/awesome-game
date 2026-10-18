@@ -558,22 +558,25 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `tests/village/balance.test.js`
 - Modify: `web/village/core.js`
 
-- [ ] подобрать цены под границы из «Баланс» в Technical Details
-- [ ] замерить время прогона; если больше 20 с — второй финал только под `BALANCE=1`
-- [ ] write tests: новые границы обоих финалов, паузы с заказами и покупками, игра не застревает зимой
-- [ ] run tests - must pass before next task
+- [x] подобрать цены под границы из «Баланс» в Technical Details
+- [x] замерить время прогона; если больше 20 с — второй финал только под `BALANCE=1`
+- [x] write tests: новые границы обоих финалов, паузы с заказами и покупками, игра не застревает зимой
+- [x] run tests - must pass before next task
+- ➕ цены подобраны в Task 16 вместе с ботом до второго финала: 20 сидов — праздник 142–146 мин, Праздник урожая через 80–81 мин, пауза ≤ 15,8 мин; прогон по умолчанию (3 сида до Праздника урожая) ≈ 2 с, `BALANCE=1` ≈ 10 с
 
 ### Task 20: Verify acceptance criteria
-- [ ] все цели Overview сделаны: 2.5D, день и сезоны, огород и ферма, заказы и ярмарка, хутор и второй финал
-- [ ] края: сейв v1 и облачный код v1, перенос v2 → v3, офлайн 8 часов через зиму, ярмарка при открытой вкладке на смене суток
-- [ ] run full test suite: `node --test 'tests/**/*.test.js'` и `go test ./...`; `BALANCE=1` прогон
-- [ ] run e2e: `node tests/village/smoke.cjs`
-- [ ] каждая новая функция `core.js` и `view.js` покрыта тестом
+- [x] все цели Overview сделаны: 2.5D, день и сезоны, огород и ферма, заказы и ярмарка, хутор и второй финал
+- [x] края: сейв v1 и облачный код v1, перенос v2 → v3, офлайн 8 часов через зиму, ярмарка при открытой вкладке на смене суток
+- [x] run full test suite: `node --test 'tests/**/*.test.js'` и `go test ./...`; `BALANCE=1` прогон
+- [x] run e2e: `node tests/village/smoke.cjs`
+- [x] каждая новая функция `core.js` и `view.js` покрыта тестом
+- ➕ проверено: 716 unit-тестов, `BALANCE=1`, `go vet`/`go test`, smoke (старый сейв, перенос v2 → v3, офлайн через зиму — unit-тесты, ярмарка по часам мира, огород, ряды, хутор, ночь)
+- ⚠️ облачная загрузка сейва v1 проверена только чтением кода (`game.js`, сообщение «от старой версии»), без отдельного e2e
 
 ### Task 21: [Final] Update documentation
-- [ ] раздел «Родник» в `README.md`: 2.5D, сутки и сезоны, огород, ярмарка, хутор, новые клавиши, новые сроки бота
-- [ ] `docs/roadmap.md`, если там есть «Родник»
-- [ ] move this plan to `docs/plans/completed/`
+- [x] раздел «Родник» в `README.md`: 2.5D, сутки и сезоны, огород, ярмарка, хутор, новые клавиши, новые сроки бота
+- [x] `docs/roadmap.md` — «Родника» там нет, менять нечего
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
