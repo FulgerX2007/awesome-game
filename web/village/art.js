@@ -193,7 +193,7 @@
 
   // ───────────── Ground (cached in chunks) ─────────────
   // Terrain classes: g grass (ruin footprints too), s sand, w water (bridge site too), p path, q square.
-  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q', g: 'f' };
+  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q', g: 'f', '^': 'h', t: 'p' };
   const inSquare = (x, y) => x >= SQ.x0 && x <= SQ.x1 && y >= SQ.y0 && y <= SQ.y1;
   // Ruin footprints sit on grass, except the well, which stands in the middle of the cobbled square.
   const terr = (x, y) => {
@@ -296,8 +296,9 @@
       if (!m) continue;
       if (m & EDGE.N) band(x, y, EDGE.N, sw, `rgba(${rgb}, ${sa})`);
       if (m & EDGE.W) band(x, y, EDGE.W, sw * 0.8, `rgba(${rgb}, ${sa * 0.8})`);
-      if (m & EDGE.S) band(x, y, EDGE.S, lw, `rgba(255, 252, 240, ${la})`);
-      if (m & EDGE.E) band(x, y, EDGE.E, lw * 0.8, `rgba(255, 252, 240, ${la * 0.7})`);
+      const lip = o.lipRgb || '255, 252, 240';
+      if (m & EDGE.S) band(x, y, EDGE.S, lw, `rgba(${lip}, ${la})`);
+      if (m & EDGE.E) band(x, y, EDGE.E, lw * 0.8, `rgba(${lip}, ${la * 0.7})`);
       if (o.rim) for (const side of [EDGE.N, EDGE.E, EDGE.S, EDGE.W]) if (m & side) band(x, y, side, 1.6, `rgba(255, 255, 255, ${o.rim})`);
     }
     g.restore();
@@ -330,6 +331,34 @@
     layer(g, x0, y0, x1, y1, is('p'), PATH.edge, 0, 8);
     layer(g, x0, y0, x1, y1, is('p'), PATH.main, 2.5, 7);
     sunken(g, x0, y0, x1, y1, is('p'), { inset: 2.5, radius: 7, shadow: [5, 0.2, '74, 50, 24'], lip: [3, 0.22] });
+    // The hill east of the village: a raised ridge, lit on its north-west slope and shaded to the south-east,
+    // with rocks poking out of the turf.
+    const hill = is('h');
+    layer(g, x0, y0, x1, y1, hill, K.shade(GRASS.base, -0.2), 0, 10);
+    // Lumpy mounds, each lit from the top left: together they read as a rounded ridge.
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (!hill(x, y)) continue;
+      for (let k = 0; k < 2; k++) {
+        const mx = x * T + 6 + hash2(x, y, 193 + k) * 20, my = y * T + 4 + hash2(x, y, 195 + k) * 22, r = 15 + hash2(x, y, 197 + k) * 8;
+        const grd = g.createRadialGradient(mx - r * 0.4, my - r * 0.45, r * 0.1, mx, my, r);
+        grd.addColorStop(0, K.shade(GRASS.base, 0.22));
+        grd.addColorStop(0.55, K.shade(GRASS.base, 0.02));
+        grd.addColorStop(1, K.withAlpha(K.shade(GRASS.base, -0.25), 0));
+        g.fillStyle = grd;
+        g.beginPath(); g.ellipse(mx, my, r, r * 0.85, 0, 0, TAU); g.fill();
+      }
+    }
+    sunken(g, x0, y0, x1, y1, hill, { inset: 0, radius: 10, shadow: [8, 0.22, '255, 250, 220'], lip: [14, 0.32], lipRgb: '30, 40, 20' });
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (!hill(x, y) || hash2(x, y, 190) > 0.45) continue;
+      const rx = x * T + 8 + hash2(x, y, 191) * 16, ry = y * T + 8 + hash2(x, y, 192) * 16;
+      g.fillStyle = 'rgba(30, 40, 20, 0.3)';
+      g.beginPath(); g.ellipse(rx + 2, ry + 2, 5, 3, 0, 0, TAU); g.fill();
+      g.fillStyle = LOOK.snow ? '#f2f6f9' : STONE.mid;
+      g.beginPath(); g.ellipse(rx, ry, 5, 3.6, 0, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      g.beginPath(); g.ellipse(rx - 1.5, ry - 1.2, 2.2, 1.2, 0, 0, TAU); g.fill();
+    }
     // Garden beds: dark tilled soil in furrows, sunk a little into the grass.
     layer(g, x0, y0, x1, y1, is('f'), '#6b4a2e', 1, 5);
     layer(g, x0, y0, x1, y1, is('f'), LOOK.snow ? '#e6edf2' : '#7e5735', 3, 4);
@@ -790,6 +819,40 @@
         for (const px of posts) K.cylinder(ctx, px, py - lift - 9, 1.6, 9, WOOD.dark);
         K.block(ctx, x0, py - lift - 8, x1 - x0, 3.4, 1.5, WOOD.mid, { top: 0.35, bottom: -0.25 });
       }
+    }
+  }
+
+  // The trail over the hill: blocked by fallen rocks and a log until the road is built, then a stone-edged
+  // path. Flat, drawn under everything that stands.
+  function drawRoad() {
+    const b = BOX.road, st = V.stage(S, 'road');
+    if (b.X > cam.x + cw || b.X + b.Wp < cam.x) return;
+    const y = b.Y + b.Hp / 2;
+    if (st === 2) {
+      // Stones set along both edges of the trail.
+      for (let i = 0, x = b.X - 6; x < b.X + b.Wp + 6; i++, x += 7 + hash2(i, 1, 720) * 6) {
+        for (const [dy, salt] of [[-12, 721], [11, 722]]) {
+          const r = 2.6 + hash2(i, salt, 723) * 2;
+          blob(x + 1, y + dy + 1, r, r * 0.7, i * 7 + salt, 'rgba(30, 30, 20, 0.3)');
+          blob(x, y + dy, r, r * 0.7, i * 7 + salt, hash2(i, salt, 724) < 0.5 ? STONE.mid : STONE.light);
+        }
+      }
+      return;
+    }
+    const k = st === 1 ? 1 - share('road') : 1;
+    for (let i = 0; i < 4; i++) {
+      if (i / 4 >= k) continue;
+      const x = b.X + 10 + i * 20, r = 8 + (i % 2) * 3;
+      castShadow(x, y + 6, r, 12, 0.3);
+      blob(x, y - 2, r, r * 0.75, 700 + i, STONE.mid);
+      blob(x - 2, y - 5, r * 0.6, r * 0.4, 710 + i, STONE.light);
+    }
+    if (k > 0.5) {
+      ctx.save();
+      ctx.translate(b.X + b.Wp / 2, y + 4);
+      ctx.rotate(-0.2);
+      K.block(ctx, -b.Wp / 2, -3, b.Wp, 6, 3, WOOD.dark);
+      ctx.restore();
     }
   }
 
@@ -1421,6 +1484,7 @@
     const r = VV.visibleRange(cam, cw, ch, V.W, V.H);
     drawWater(r);
     drawBridge();
+    drawRoad();
     // Everything that stands is drawn back to front by its base line.
     const wide = VV.visibleRange(cam, cw, ch, V.W, V.H, T, 3);
     const inView = (x, y) => x >= wide.x0 && x <= wide.x1 && y >= wide.y0 && y <= wide.y1;
@@ -1428,7 +1492,7 @@
     for (const nd of S.nodes) if (inView(nd.x, nd.y)) items.push([(nd.y + 1) * T - 5, drawNode, nd]);
     for (const id of Object.keys(BOX)) {
       const b = BOX[id];
-      if (id === 'bridge' || b.x0 + b.w < wide.x0 || b.x0 > wide.x1 || b.y0 + b.h < wide.y0 || b.y0 > wide.y1) continue;
+      if (id === 'bridge' || id === 'road' || b.x0 + b.w < wide.x0 || b.x0 > wide.x1 || b.y0 + b.h < wide.y0 || b.y0 > wide.y1) continue;
       items.push([b.base, drawBuilding, id]);
     }
     for (const d of S.decor) if (inView(d.x, d.y)) items.push([(d.y + 1) * T - 4, drawDecor, d]);

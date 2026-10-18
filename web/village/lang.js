@@ -175,6 +175,7 @@ I18n.add({ ro: {
   'Яблоня': 'Măr',
   'Пасека': 'Stupina',
   'Монеты': 'Monede',
+  'Дорога через холм': 'Drumul peste deal',
   'Заказы жителей': 'Comenzile sătenilor',
   'Ярмарка': 'Bâlciul',
   'Отдать': 'Dă',

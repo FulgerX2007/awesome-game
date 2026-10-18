@@ -116,7 +116,7 @@
     if (pi >= 0) return s.built.garden.done ? { type: 'plot', i: pi } : { type: 'ruin', id: 'garden' };
     const id = core.ruinAt(x, y);
     if (id === 'well' && s.built.well.done && s.built.garden.done) return { type: 'well' };
-    if (id && !(id === 'bridge' && s.built.bridge.done)) return { type: 'ruin', id };
+    if (id && !((id === 'bridge' || id === 'road') && s.built[id].done)) return { type: 'ruin', id };
     return core.isWalkable(s, x, y) ? { type: 'walk' } : { type: 'none' };
   }
 
@@ -247,7 +247,7 @@
     };
     for (const n of s.nodes) if (n.hp > 0) consider(tallBox(n.kind, n.x, n.y), n.x, n.y);
     for (const [id, tiles] of Object.entries(core.FOOTPRINTS)) {
-      if (id === 'bridge' || !tiles.length) continue; // the bridge lies flat on the water
+      if (id === 'bridge' || id === 'road' || !tiles.length) continue; // the bridge and the road lie flat
       const hit = tiles.find((t) => t.x === tx && t.y === ty) || tiles[0];
       consider(houseBox(tiles, core.stage(s, id)), hit.x, hit.y);
     }

@@ -268,6 +268,7 @@ test('every zone and every node stays reachable after forced regrowth of all nod
   for (const seed of [1, 2, 3]) {
     const s = V.newGame(seed);
     s.built.bridge.done = true;
+    s.built.road.done = true;
     for (const n of s.nodes) { n.hp = V.NODE_KINDS[n.kind].hp; n.regrowAt = null; }
     const zones = new Set();
     for (const n of s.nodes) {
@@ -278,7 +279,7 @@ test('every zone and every node stays reachable after forced regrowth of all nod
       assert.ok(ok, `seed ${seed}: node ${n.id} reachable`);
       zones.add(V.zoneAt(n.x, n.y));
     }
-    assert.deepEqual([...zones].sort(), ['east', 'north', 'west']);
+    assert.deepEqual([...zones].sort(), ['east', 'hamlet', 'north', 'west']);
     for (const id of Object.keys(V.BUILDINGS)) {
       const ok = V.FOOTPRINTS[id].some((f) => DIRS.some(([dx, dy]) => {
         const x = f.x + dx, y = f.y + dy;

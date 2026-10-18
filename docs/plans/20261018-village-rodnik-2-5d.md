@@ -488,13 +488,18 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `tests/village/save.test.js`
 - Modify: `tests/village/bot.js`
 - Modify: `tests/village/balance.test.js`
+- Modify: `tests/village/build.test.js`, `view.test.js`
+- Modify: `web/village/art.js`, `view.js`, `lang.js`
 
-- [ ] `MAP` 64×36 с тропой `t`; `groundWalkable` закрывает `t` до `road`; зона `hamlet` (`x ≥ 48`) в `ZONES` и `ZONE_NODES`
-- [ ] `scatterNodes` заливает с открытыми мостом и тропой; здание `road` (после `chapel`, `after: 'festival'`)
-- [ ] `VERSION = 3`, перенос v2 → v3 (всё, кроме узлов)
-- [ ] `nextGoal` после праздника ведёт к `road`; бот знает тропу в `reachable()`; `balance.test.js` зелёный
-- [ ] write tests: до дороги на хутор не пройти, после — путь есть; все строки карты одной длины; каждая зона достижима; узлы хутора разложены; перенос v2 → v3
-- [ ] run tests - must pass before next task
+- [x] `MAP` 64×36 с тропой `t`; `groundWalkable` закрывает `t` до `road`; зона `hamlet` (`x ≥ 48`) в `ZONES` и `ZONE_NODES`
+- [x] `scatterNodes` заливает с открытыми мостом и тропой; здание `road` (после `chapel`, `after: 'festival'`)
+- [x] `VERSION = 3`, перенос v2 → v3 (всё, кроме узлов)
+- [x] `nextGoal` после праздника ведёт к `road`; бот знает тропу в `reachable()`; `balance.test.js` зелёный
+- [x] write tests: до дороги на хутор не пройти, после — путь есть; все строки карты одной длины; каждая зона достижима; узлы хутора разложены; перенос v2 → v3
+- [x] run tests - must pass before next task
+- ➕ гряда холмов `^` (x 48–50) с тропой `t`; дорога — «здание» на тропе, как мост на реке (`FOOTPRINTS.road`); рисунок: бугристый холм, завал камней и бревно до дороги, обочина из камней после
+- ➕ `nextGoal`: до праздника — только здания села, после — хутор, затем украшения (`after: 'festival'`)
+- ➕ 20 сидов: праздник на 142–146-й минуте, пауза ≤ 13,5 мин
 
 ### Task 16: Здания хутора и Праздник урожая
 

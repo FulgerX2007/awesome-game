@@ -17,6 +17,7 @@ const TOOL_ORDER = ['axe', 'pick', 'shovel', 'basket'];
 
 function reachable(s, n) {
   const z = V.zoneAt(n.x, n.y);
+  if (z === 'hamlet') return s.built.road.done;
   return z === 'west' || s.built.bridge.done;
 }
 

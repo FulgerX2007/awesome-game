@@ -39,7 +39,7 @@ test(`the bot reaches the festival with no deadlock on ${SEEDS.length} seeds`, (
   for (const seed of SEEDS) {
     const r = run(seed);
     assert.ok(r.festival, `seed ${seed}: festival reached (stopped at ${fmt(r.t)})`);
-    for (const id of Object.keys(V.BUILDINGS)) assert.ok(r.s.built[id].done, `seed ${seed}: ${id} built`);
+    for (const id of Object.keys(V.BUILDINGS)) if (!V.BUILDINGS[id].after) assert.ok(r.s.built[id].done, `seed ${seed}: ${id} built`);
     assert.ok(r.t <= 4 * 3600, `seed ${seed}: festival at ${fmt(r.t)}`);
     assert.ok(maxGap(r.log) <= 15 * MIN, `seed ${seed}: longest gap ${fmt(maxGap(r.log))}`);
   }
@@ -61,6 +61,7 @@ test('after the bridge every resource node can be reached (BFS from the start)',
       }
     }
     for (const n of s.nodes) {
+      if (V.zoneAt(n.x, n.y) === 'hamlet' && !s.built.road.done) continue; // over the hill: after the road
       const ok = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has(`${n.x + dx},${n.y + dy}`));
       assert.ok(ok, `seed ${seed}: node ${n.id} (${n.kind} at ${n.x},${n.y}) reachable`);
     }

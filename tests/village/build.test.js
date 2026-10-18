@@ -20,7 +20,8 @@ function finish(s, ...ids) {
   }
 }
 
-const ALL_BUT_CHAPEL = Object.keys(V.BUILDINGS).filter((id) => id !== 'chapel');
+// The village before the festival (the hamlet's buildings come after it).
+const ALL_BUT_CHAPEL = Object.keys(V.BUILDINGS).filter((id) => id !== 'chapel' && !V.BUILDINGS[id].after);
 
 test('contribute: partial then full contribution, stages and events', () => {
   const s = V.newGame(1);
@@ -293,7 +294,9 @@ test('nextGoal: the cheapest available building, then decorations after the fest
   t.built.forge.done = true; // leaves the kiln (needs clay) as the cheapest
   assert.deepEqual(V.nextGoal(t), { type: 'tool', tool: 'shovel' });
   finish(s, ...ALL_BUT_CHAPEL, 'chapel');
-  assert.deepEqual(V.nextGoal(s), { type: 'decor' });
+  assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'road' }, 'after the festival: the road to the hamlet');
+  for (const id of Object.keys(V.BUILDINGS)) if (V.BUILDINGS[id].after) finish(s, id);
+  assert.deepEqual(V.nextGoal(s), { type: 'decor' }, 'then decorations');
 });
 
 test('placeDecor: only after the festival, on free square tiles, for resources', () => {

@@ -5,7 +5,8 @@
   'use strict';
 
   // 2: the world clock (days and seasons). Older saves start a new village (load says recovered: 'old').
-  const VERSION = 2;
+  // 3: the map grows east (the hamlet). A version 2 save loads as is: only the nodes are laid out anew.
+  const VERSION = 3;
 
   // ── World clock ──
   // A day is 8 minutes: dawn, 6 minutes of daylight, dusk and night. Three days make a season, four a year.
@@ -86,6 +87,8 @@
       id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 180, stone: 450, berries: 60, vegetables: 40, honey: 30, apples: 20 },
       needs: ['well', 'home', 'garden', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'apiary', 'house2', 'market', 'forge', 'mill', 'house3'], effect: 'festival',
     },
+    // After the festival: the hamlet over the hill. `after: 'festival'` keeps these out of the first goal.
+    road: { id: 'road', ch: 't', name: 'Дорога через холм', cost: { stone: 300, planks: 150 }, needs: ['chapel'], effect: 'road', after: 'festival' },
   };
   const BUILDING_IDS = Object.keys(BUILDINGS);
   const BARN_UPGRADE = { planks: 100, bricks: 40 };
@@ -157,50 +160,52 @@
     west: { tree: 22, rock: 10, bush: 10, apple: 3 },
     north: { tree: 18, bush: 8, rock: 2 },
     east: { rock: 14, clay: 12, tree: 4, bush: 3 },
+    hamlet: { apple: 8, tree: 8, bush: 5, rock: 3 },
   };
 
   // ── Map ──
   // .  grass       ~  water      :  sand (river bank)   =  path   #  square
   // b  bridge site (water until the bridge is restored)
+  // ^  the hill east of the village (never walkable)   t  the trail over it (blocked until the road is built)
   // W H A S K 1 2 3 F M C G P R  ruin footprints (see BUILDINGS[].ch)
   // g  a garden plot (part of the garden, never walkable)
   const MAP = [
-    '................................................',
-    '.......:::::....................................',
-    '.......:~~~:....................................',
-    '.......:~~~:....................................',
-    '.......:::::....................................',
-    '................................................',
-    '................................................',
-    ':::::::::::..........:::::::::::::..............',
-    '~~~~~~~~~~::::::::::::~~~~~~~~~~~:..............',
-    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:..............',
-    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:..............',
-    '::::::::::~~~~~~~~~~~~::::::::~~~:..............',
-    '.........:::::::=::::::MM....:~~~:..............',
-    '................=======MM....:~~~:..............',
-    '................=............:~~~:..............',
-    '................=............:~~~:..............',
-    '................=............:~~~:..............',
-    '............AAA.=............:~~~:..............',
-    '............AAA.=............:~~~:..............',
-    '................=............:~~~:..............',
-    '............########.........:bbb:..............',
-    '........HH..########==========bbb=========......',
-    '........HH..###WW###.....SSS.:~~~:..KK..........',
-    '...=========###WW###.....SSS.:~~~:..KK..........',
-    '.....11..22.########.RRR.....:~~~:..............',
-    '.....11..22.########.RRR....::~~~:..............',
-    '...............=............:~~~::..............',
-    '...GG.ggg...FF.=.33.........:~~~:...............',
-    '...GG.ggg...FF.=.33.........:~~~:...............',
-    '...............=............:~~~:...............',
-    '...............=............:~~~:...............',
-    '...PP.........CCC...........:~~~:...............',
-    '...PP.........CCC...........:~~~:...............',
-    '..............CCC...........:~~~:...............',
-    '............................:~~~:...............',
-    '............................:~~~:...............',
+    '................................................^^^.............',
+    '.......:::::....................................^^^.............',
+    '.......:~~~:....................................^^^.............',
+    '.......:~~~:....................................^^^.............',
+    '.......:::::....................................^^^.............',
+    '................................................^^^.............',
+    '................................................^^^.............',
+    ':::::::::::..........:::::::::::::..............^^^.............',
+    '~~~~~~~~~~::::::::::::~~~~~~~~~~~:..............^^^.............',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:..............^^^.............',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:..............^^^.............',
+    '::::::::::~~~~~~~~~~~~::::::::~~~:..............^^^.............',
+    '.........:::::::=::::::MM....:~~~:..............^^^.............',
+    '................=======MM....:~~~:..............^^^.............',
+    '................=............:~~~:..............^^^.............',
+    '................=............:~~~:..............^^^.............',
+    '................=............:~~~:..............^^^.............',
+    '............AAA.=............:~~~:..............^^^.............',
+    '............AAA.=............:~~~:..............^^^.............',
+    '................=............:~~~:..............^^^.............',
+    '............########.........:bbb:..............^^^.............',
+    '........HH..########==========bbb===============ttt=============',
+    '........HH..###WW###.....SSS.:~~~:..KK..........^^^.....=.......',
+    '...=========###WW###.....SSS.:~~~:..KK..........^^^.....=.......',
+    '.....11..22.########.RRR.....:~~~:..............^^^.....=.......',
+    '.....11..22.########.RRR....::~~~:..............^^^.....=.......',
+    '...............=............:~~~::..............^^^.....=.......',
+    '...GG.ggg...FF.=.33.........:~~~:...............^^^.....=.......',
+    '...GG.ggg...FF.=.33.........:~~~:...............^^^.............',
+    '...............=............:~~~:...............^^^.............',
+    '...............=............:~~~:...............^^^.............',
+    '...PP.........CCC...........:~~~:...............^^^.............',
+    '...PP.........CCC...........:~~~:...............^^^.............',
+    '..............CCC...........:~~~:...............^^^.............',
+    '............................:~~~:...............^^^.............',
+    '............................:~~~:...............^^^.............',
   ];
   const W = MAP[0].length;
   const H = MAP.length;
@@ -215,8 +220,8 @@
   const ruinAt = (x, y) => RUIN_CH[tileAt(x, y)] || null;
   const idx = (x, y) => y * W + x;
   // Base terrain walkability, ignoring nodes; the bridge site counts only when open.
-  const groundWalkable = (c, bridgeOpen) =>
-    c === '.' || c === ':' || c === '=' || c === '#' || (c === 'b' && bridgeOpen);
+  const groundWalkable = (c, bridgeOpen, roadOpen) =>
+    c === '.' || c === ':' || c === '=' || c === '#' || (c === 'b' && bridgeOpen) || (c === 't' && roadOpen);
 
   // Tiles of each ruin footprint, keyed by building id.
   const FOOTPRINTS = {};
@@ -249,14 +254,16 @@
     return { seen, count };
   }
 
-  // Zones: land reachable from the start without the bridge is west; the rest is north (above the river) or east.
+  // Zones: land reachable from the start without the bridge is west; the hamlet lies past the hill (x ≥ HAMLET_X);
+  // the rest is north (above the river) or east.
+  const HAMLET_X = 48;
   const ZONES = new Array(W * H).fill(null);
   {
     const west = flood(START, (x, y) => groundWalkable(MAP[y][x], false)).seen;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const c = MAP[y][x];
-      if (c === '~' || c === 'b') continue;
-      ZONES[idx(x, y)] = west[idx(x, y)] ? 'west' : y < 8 ? 'north' : 'east';
+      if (c === '~' || c === 'b' || c === '^' || c === 't') continue;
+      ZONES[idx(x, y)] = west[idx(x, y)] ? 'west' : x >= HAMLET_X ? 'hamlet' : y < 8 ? 'north' : 'east';
     }
   }
   const zoneAt = (x, y) => (inMap(x, y) ? ZONES[idx(x, y)] : null);
@@ -274,7 +281,7 @@
   const NODE_SITES = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (MAP[y][x] !== '.') continue;
-    if (near(x, y, 2, (c) => c === 'b')) continue;
+    if (near(x, y, 2, (c) => c === 'b' || c === 't')) continue;
     if (near(x, y, 1, (c) => c === '#' || c === 'g' || RUIN_CH[c])) continue;
     if (Math.abs(x - START.x) <= 1 && Math.abs(y - START.y) <= 1) continue;
     NODE_SITES.push({ x, y, zone: ZONES[idx(x, y)] });
@@ -307,7 +314,7 @@
   // walkable ground (checked by flood fill with the bridge open), so every node and every tile stays reachable.
   function scatterNodes(R) {
     const blocked = new Uint8Array(W * H);
-    const pass = (x, y) => !blocked[idx(x, y)] && groundWalkable(MAP[y][x], true);
+    const pass = (x, y) => !blocked[idx(x, y)] && groundWalkable(MAP[y][x], true, true);
     let reach = flood(START, pass).count;
     const nodes = [];
     for (const zone of Object.keys(ZONE_NODES)) {
@@ -396,13 +403,14 @@
   }
 
   const bridgeOpen = (s) => !!(s.built.bridge && s.built.bridge.done);
+  const roadOpen = (s) => !!(s.built.road && s.built.road.done);
 
   // Walkable for the player: in the map, not water, not a ruin or building, not a standing node.
   // The bridge site is water until the bridge is restored.
   function isWalkable(s, x, y) {
     x = Math.floor(x); y = Math.floor(y);
     const c = tileAt(x, y);
-    if (c === null || !groundWalkable(c, !!s && bridgeOpen(s))) return false;
+    if (c === null || !groundWalkable(c, !!s && bridgeOpen(s), !!s && roadOpen(s))) return false;
     const n = s ? nodeAt(s, x, y) : null;
     return !(n && n.hp > 0);
   }
@@ -1099,16 +1107,16 @@
   // points at something that can't be paid yet.
   const PRODUCT_OF = Object.fromEntries(Object.entries(WORKSHOPS).map(([id, w]) => [w.to, id]));
   function nextGoal(s) {
-    if (s.festival) return { type: 'decor' };
+    const stage = s.festival ? 'festival' : undefined; // before the festival only the village, after it the hamlet
     let best = null, bestLeft = Infinity;
     for (const id of BUILDING_IDS) {
-      if (s.built[id].done || !needsMet(s, id)) continue;
+      if (BUILDINGS[id].after !== stage || s.built[id].done || !needsMet(s, id)) continue;
       const rest = remaining(s, id);
       if (Object.keys(rest).some((r) => PRODUCT_OF[r] && !s.built[PRODUCT_OF[r]].done && s.res[r] < rest[r])) continue;
       const left = Object.values(rest).reduce((a, n) => a + n, 0);
       if (left < bestLeft) { best = id; bestLeft = left; }
     }
-    if (!best) return null;
+    if (!best) return s.festival ? { type: 'decor' } : null;
     for (const r of Object.keys(remaining(s, best))) {
       for (const [tool, t] of Object.entries(TOOLS)) {
         if (NODE_KINDS[t.node].res === r && s.tools[tool] < 1) return { type: 'tool', tool };
@@ -1162,6 +1170,7 @@
     try {
       if (typeof data === 'string') data = JSON.parse(data);
       if (!isObj(data) || !Number.isFinite(data.seed)) return recovered();
+      if (data.v === 2) data = { ...data, v: VERSION }; // same state; restore() re-lays the nodes for the new map
       if (Number.isInteger(data.v) && data.v >= 1 && data.v < VERSION) return recovered('old');
       if (data.v !== VERSION) return recovered();
       return restore(data);
@@ -1284,7 +1293,7 @@
     VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS, PRODUCERS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
-    MAP, W, H, START, FOOTPRINTS, SPEED, FAIR, BIG_BUCKET, fairOpen, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
+    MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, FAIR, BIG_BUCKET, fairOpen, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
     placeDecor, save, load,

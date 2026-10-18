@@ -6,12 +6,12 @@ const V = require('../../web/village/core.js');
 const near = (n, x, y, r) => Math.abs(n.x - x) <= r && Math.abs(n.y - y) <= r;
 const bridgeTiles = V.FOOTPRINTS.bridge;
 
-test('map is 48×36 with only known tile characters', () => {
-  assert.equal(V.W, 48);
+test('map is 64×36 with only known tile characters', () => {
+  assert.equal(V.W, 64);
   assert.equal(V.H, 36);
   for (const row of V.MAP) {
-    assert.equal(row.length, 48);
-    assert.match(row, /^[.~:=#bWHASK123FMCGgPR]+$/);
+    assert.equal(row.length, 64);
+    assert.match(row, /^[.~:=#bWHASK123FMCGgPR^t]+$/);
   }
   for (const id of Object.keys(V.BUILDINGS)) assert.ok(V.FOOTPRINTS[id].length > 0, `${id} has a footprint`);
 });
@@ -80,10 +80,11 @@ test('the start tile is walkable, water/ruins/nodes/bridge site block', () => {
   assert.equal(V.isWalkable(s, V.W, 0), false);
 });
 
-test('all walkable ground is connected with every node standing (bridge open)', () => {
+test('all walkable ground is connected with every node standing (bridge and road open)', () => {
   for (const seed of [1, 5, 42]) {
     const s = V.newGame(seed);
     s.built.bridge.done = true;
+    s.built.road.done = true;
     const seen = new Set([`${V.START.x},${V.START.y}`]);
     const q = [[V.START.x, V.START.y]];
     while (q.length) {
