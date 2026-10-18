@@ -192,6 +192,23 @@
         door((left + right) / 2 - 5, base - 15, 10, 14, '#6e4a2b');
         roof(left - 4, right + 4, base - 30, base - 16, '#7d8a52', 'rgba(40, 50, 20, 0.45)', 'thatch');
       },
+      apiary(b) {
+        // Painted hives on a low bench, bees drifting around them.
+        const left = b.X + 6, base = b.base - 6;
+        K.block(ctx, left - 2, base - 3, b.Wp - 10, 5, 2, WOOD.mid, { top: 0.3 });
+        const cols = ['#e2c26a', '#8ec0d8', '#e59b7a'];
+        for (let k = 0; k < 3; k++) {
+          const hx = left + k * 17, hy = base - 4;
+          shadow(hx + 10, hy + 3, 9, 3, 0.3);
+          K.prism(ctx, hx, hy - 14, 13, 14, 4, cols[k], { r: 1.5 });
+          K.block(ctx, hx - 1.5, hy - 21, 16, 3.5, 1.2, WOOD.dark, { top: 0.35 });
+          rect(hx + 4, hy - 3.5, 5, 1.8, '#3b2c1a', 0.8);
+          for (let j = 0; j < 2; j++) {
+            const a = time * (2.2 + j) + k * 2 + j * 3;
+            circle(hx + 6.5 + Math.cos(a) * (8 + j * 3), hy - 12 + Math.sin(a * 1.3) * 5, 1.2, '#2b2014');
+          }
+        }
+      },
       home(b) {
         house(b, { wall: '#f5efe2', trim: '#4d7fb6', roof: '#b9583b', roofDark: 'rgba(90, 30, 15, 0.45)', chimney: 'right' });
       },

@@ -521,6 +521,10 @@
   // A tree's look in the current season: pines stay green (snowy in winter); leafy trees follow the
   // palette, blossom in spring, carry apples in summer and autumn and stand bare in winter.
   function treeLook(n) {
+    if (n.kind === 'apple') {
+      const bare = !LOOK.leaves;
+      return { pine: false, pal: bare ? null : LOOK.leaves[0], bare, snow: LOOK.snow > 0, apples: n.hp > 0, many: true, blossom: LOOK.blossom > 0 };
+    }
     const h = hash2(n.x, n.y, 300);
     const pine = V.zoneAt(n.x, n.y) === 'north' ? h < 0.6 : h < 0.18;
     const snow = LOOK.snow > 0;
@@ -571,7 +575,7 @@
       g.fillStyle = k % 3 ? '#fbe3ec' : '#f2a7c3';
       g.beginPath(); g.arc(-12 + hash2(n.x, n.y, 330 + k) * 24, -42 + hash2(n.x, n.y, 340 + k) * 24, 1.7, 0, TAU); g.fill();
     }
-    if (L.apples) for (let k = 0; k < 4; k++) {
+    if (L.apples) for (let k = 0; k < (L.many ? 3 + n.hp * 3 : 4); k++) {
       K.sphere(g, -9 + hash2(n.x, n.y, 310 + k) * 18, -36 + hash2(n.x, n.y, 320 + k) * 17, 2.1, '#d2453a', { shine: 0.5 });
     }
   }
@@ -586,7 +590,7 @@
     const pine = treeLook(n).pine;
     castShadow(cx, by, 13, pine ? 36 : 34);
     blit(nodeSprite('tree', 'trunk|' + (pine ? 1 : 0), (g) => paintTrunk(g, pine)), cx, by);
-    seasonal('tree', `crown|${n.x},${n.y}`, (g) => paintCrown(g, n, treeLook(n)), cx + sway, by);
+    seasonal('tree', `crown|${n.x},${n.y}|${n.kind === 'apple' ? n.hp : ''}`, (g) => paintCrown(g, n, treeLook(n)), cx + sway, by);
   }
 
   function drawStump(n, cx, by) {
@@ -721,6 +725,7 @@
     }
     const up = n.hp > 0;
     if (n.kind === 'tree') (up ? drawTree(n, cx, by, sway) : drawStump(n, cx, by));
+    else if (n.kind === 'apple') drawTree(n, cx, by, sway);
     else if (n.kind === 'rock') (up ? drawRock(n, cx, by) : drawPebbles(n, cx, by));
     else if (n.kind === 'clay') (up ? drawClay(n, cx, by) : drawPit(n, cx, by));
     else drawBush(n, cx, by, sway);

@@ -207,9 +207,11 @@
     return t('Украшай село');
   }
 
-  // The six starting resources are always in the HUD; later ones show up once they matter.
-  const RES_UNLOCK = { vegetables: 'garden' };
-  const resShown = (r) => !RES_UNLOCK[r] || S.res[r] > 0 || S.built[RES_UNLOCK[r]].done;
+  // The six starting resources are always in the HUD; later ones show up once they matter: when their
+  // building stands or once the player has had some.
+  const BASE_RES = new Set(['wood', 'stone', 'clay', 'berries', 'planks', 'bricks']);
+  const RES_UNLOCK = { vegetables: 'garden', honey: 'apiary' };
+  const resShown = (r) => BASE_RES.has(r) || S.res[r] > 0 || S.stats.gathered[r] > 0 || (RES_UNLOCK[r] && S.built[RES_UNLOCK[r]].done);
 
   function renderHUD() {
     const inc = VV.income(S, V);

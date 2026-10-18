@@ -151,3 +151,69 @@ test('plots and the bucket survive a save; junk is cleaned', () => {
   assert.ok(junk.plots[2].grow < 1);
   assert.equal(V.load({ ...V.save(s), plots: [{}] }).plots.length, V.PLOTS.length, 'a wrong length gives fresh plots');
 });
+
+// ── Apiary and apples ──
+function withApiary(t) {
+  const s = farm(1, t);
+  s.built.apiary.done = true;
+  return s;
+}
+
+test('the apiary makes honey on its own, except in winter, up to the barn limit', () => {
+  const pr = V.PRODUCERS.apiary;
+  const s = withApiary(DAY * 0.1);
+  V.step(s, 600);
+  assert.equal(s.res.honey, Math.floor(600 * pr.rate + 1e-6));
+  const w = withApiary(WINTER + DAY * 0.1);
+  V.step(w, 600);
+  assert.equal(w.res.honey, 0, 'bees sleep in winter');
+  const full = withApiary(DAY * 0.1);
+  full.res.honey = full.storage;
+  V.step(full, 600);
+  assert.equal(full.res.honey, full.storage);
+  assert.deepEqual(V.rates(full).full, ['honey']);
+  assert.ok(Math.abs(V.rates(withApiary(DAY * 0.1)).rate.honey - pr.rate) < 1e-9);
+  assert.deepEqual(V.rates(withApiary(WINTER + 10)).rate, {});
+});
+
+test('the apiary needs the garden and the woodcutter, and the festival needs it', () => {
+  assert.deepEqual(V.BUILDINGS.apiary.needs.slice().sort(), ['garden', 'house1']);
+  assert.ok(V.BUILDINGS.chapel.needs.includes('apiary'));
+  const ids = V.BUILDING_IDS;
+  for (const id of ids) for (const d of V.BUILDINGS[id].needs) assert.ok(ids.indexOf(d) < ids.indexOf(id), `${d} before ${id}`);
+  // Late buildings ask for the farm's goods.
+  assert.ok(V.BUILDINGS.house3.cost.vegetables > 0);
+  for (const r of ['vegetables', 'honey', 'apples']) assert.ok(V.BUILDINGS.chapel.cost[r] > 0, r);
+});
+
+test('apple trees bear fruit only in summer and autumn', () => {
+  const s = V.newGame(2);
+  const apples = s.nodes.filter((n) => n.kind === 'apple');
+  assert.ok(apples.length >= 3);
+  assert.ok(apples.every((n) => n.hp === 0), 'bare in the first spring');
+  V.step(s, SUMMER + 120);
+  assert.ok(apples.every((n) => n.hp === V.NODE_KINDS.apple.hp), 'ripe in summer');
+  // Picked bare in autumn, they wait out winter and spring.
+  const t = V.newGame(2);
+  t.t = WINTER - 100;
+  const a = t.nodes.find((n) => n.kind === 'apple');
+  a.hp = 0; a.regrowAt = WINTER + 50;
+  V.step(t, 300);
+  assert.equal(a.hp, 0);
+  assert.ok(a.regrowAt >= DAY * SEASON_DAYS * 5, 'back next summer');
+});
+
+test('offline through winter keeps honey and apples in step with step()', () => {
+  const make = () => {
+    const s = withApiary(WINTER - 600);
+    const a = s.nodes.find((n) => n.kind === 'apple');
+    a.hp = 0; a.regrowAt = WINTER - 300;
+    return s;
+  };
+  const a = make(), b = make();
+  const span = DAY * SEASON_DAYS * 3; // winter, spring and into summer
+  V.offline(a, span);
+  V.step(b, span);
+  assert.equal(a.res.honey, b.res.honey);
+  assert.deepEqual(a.nodes.filter((n) => n.kind === 'apple').map((n) => n.hp), b.nodes.filter((n) => n.kind === 'apple').map((n) => n.hp));
+});

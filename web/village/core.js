@@ -36,6 +36,8 @@
     planks: { name: 'Доски' },
     bricks: { name: 'Кирпич' },
     vegetables: { name: 'Овощи' },
+    honey: { name: 'Мёд' },
+    apples: { name: 'Яблоки' },
   };
   const RES_IDS = Object.keys(RESOURCES);
 
@@ -46,6 +48,8 @@
     rock: { name: 'Камень', res: 'stone', hp: 4, tool: 'pick', regrow: [150, 300] },
     clay: { name: 'Глиняная яма', res: 'clay', hp: 3, tool: 'shovel', regrow: [150, 300] },
     bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter'] },
+    // Apples ripen in summer and autumn only; an apple tree is bare the rest of the year.
+    apple: { name: 'Яблоня', res: 'apples', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter', 'spring'] },
   };
 
   // Level 2 needs the workbench (home), level 3 needs the forge. The shovel starts at 0 and comes with the bridge.
@@ -71,13 +75,14 @@
     sawmill: { id: 'sawmill', ch: 'S', name: 'Лесопилка', cost: { wood: 300, stone: 200 }, needs: ['bridge'], effect: 'sawmill' },
     kiln: { id: 'kiln', ch: 'K', name: 'Печь для обжига', cost: { stone: 180, clay: 130 }, needs: ['bridge'], effect: 'kiln' },
     house1: { id: 'house1', ch: '1', name: 'Дом лесоруба', cost: { planks: 120, bricks: 60 }, needs: ['sawmill', 'kiln'], effect: 'villager', role: 'woodcutter' },
+    apiary: { id: 'apiary', ch: 'P', name: 'Пасека', cost: { planks: 60, wood: 40 }, needs: ['garden', 'house1'], effect: 'apiary' },
     house2: { id: 'house2', ch: '2', name: 'Дом каменщика', cost: { planks: 200, bricks: 120 }, needs: ['house1'], effect: 'villager', role: 'mason' },
     forge: { id: 'forge', ch: 'F', name: 'Кузница', cost: { bricks: 100, planks: 60, stone: 200 }, needs: ['kiln'], effect: 'forge' },
     mill: { id: 'mill', ch: 'M', name: 'Мельница', cost: { planks: 240, bricks: 120 }, needs: ['house2'], effect: 'mill' },
-    house3: { id: 'house3', ch: '3', name: 'Дом гончара', cost: { planks: 240, bricks: 160, berries: 100 }, needs: ['mill'], effect: 'villager', role: 'potter' },
+    house3: { id: 'house3', ch: '3', name: 'Дом гончара', cost: { planks: 240, bricks: 160, berries: 40, vegetables: 30 }, needs: ['mill'], effect: 'villager', role: 'potter' },
     chapel: {
-      id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 180, stone: 450, berries: 160 },
-      needs: ['well', 'home', 'garden', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'house2', 'forge', 'mill', 'house3'], effect: 'festival',
+      id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 180, stone: 450, berries: 60, vegetables: 40, honey: 30, apples: 20 },
+      needs: ['well', 'home', 'garden', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'apiary', 'house2', 'forge', 'mill', 'house3'], effect: 'festival',
     },
   };
   const BUILDING_IDS = Object.keys(BUILDINGS);
@@ -101,6 +106,10 @@
     potter: { name: 'Гончар', res: 'clay', rate: 0.15 },
   };
   const MILL_BONUS = 1.5;
+  // Buildings that produce on their own, resting in some seasons.
+  const PRODUCERS = {
+    apiary: { res: 'honey', rate: 0.05, rests: ['winter'] },
+  };
   // Workshops turn `ratio` raw units into one product, `rate` products per second.
   const WORKSHOPS = {
     sawmill: { from: 'wood', to: 'planks', ratio: 2, rate: 0.3 },
@@ -118,7 +127,7 @@
 
   // Nodes scattered per zone. West is open from the start, north and east open with the bridge.
   const ZONE_NODES = {
-    west: { tree: 22, rock: 10, bush: 10 },
+    west: { tree: 22, rock: 10, bush: 10, apple: 3 },
     north: { tree: 18, bush: 8, rock: 2 },
     east: { rock: 14, clay: 12, tree: 4, bush: 3 },
   };
@@ -126,7 +135,7 @@
   // ── Map ──
   // .  grass       ~  water      :  sand (river bank)   =  path   #  square
   // b  bridge site (water until the bridge is restored)
-  // W H A S K 1 2 3 F M C G  ruin footprints (see BUILDINGS[].ch)
+  // W H A S K 1 2 3 F M C G P  ruin footprints (see BUILDINGS[].ch)
   // g  a garden plot (part of the garden, never walkable)
   const MAP = [
     '................................................',
@@ -160,8 +169,8 @@
     '...GG.ggg...FF.=.33.........:~~~:...............',
     '...............=............:~~~:...............',
     '...............=............:~~~:...............',
-    '..............CCC...........:~~~:...............',
-    '..............CCC...........:~~~:...............',
+    '...PP.........CCC...........:~~~:...............',
+    '...PP.........CCC...........:~~~:...............',
     '..............CCC...........:~~~:...............',
     '............................:~~~:...............',
     '............................:~~~:...............',
@@ -330,6 +339,11 @@
     seed = seed >>> 0;
     const R = rng(seed);
     const nodes = scatterNodes(R);
+    // Fruit that is out of season at the start waits for its season.
+    for (const n of nodes) {
+      const rests = NODE_KINDS[n.kind].rests;
+      if (rests && rests.includes(clock(0).season)) { n.hp = 0; n.regrowAt = restEnd(0, rests) + (n.id % 12) * 5; }
+    }
     return {
       v: VERSION, seed, rng: R.state(),
       t: 0,
@@ -909,6 +923,13 @@
       while (a >= 1 - EPS && hasRoom(s, role.res)) { s.res[role.res] += 1; a -= 1; }
       s.acc[key] = clamp01(a);
     }
+    const season = clock(s.t).season;
+    for (const [id, pr] of Object.entries(PRODUCERS)) {
+      if (!s.built[id].done || pr.rests.includes(season)) continue;
+      let a = (s.acc[id] || 0) + pr.rate * dt;
+      while (a >= 1 - EPS && hasRoom(s, pr.res)) { s.res[pr.res] += 1; a -= 1; }
+      s.acc[id] = clamp01(a);
+    }
     for (const [id, w] of Object.entries(WORKSHOPS)) {
       if (!s.built[id].done) continue;
       let a = (s.acc[id] || 0) + w.rate * dt;
@@ -932,6 +953,12 @@
       if (!role) continue;
       if (hasRoom(s, role.res)) add(role.res, villagerRate(s, role));
       else full.add(role.res);
+    }
+    const season = clock(s.t).season;
+    for (const [id, pr] of Object.entries(PRODUCERS)) {
+      if (!s.built[id].done || pr.rests.includes(season)) continue;
+      if (hasRoom(s, pr.res)) add(pr.res, pr.rate);
+      else full.add(pr.res);
     }
     for (const [id, w] of Object.entries(WORKSHOPS)) {
       if (!s.built[id].done) continue;
@@ -1060,8 +1087,9 @@
         const own = s.nodes[n.id];
         if (!own || own.kind !== n.kind || own.x !== n.x || own.y !== n.y) continue;
         if (Number.isInteger(n.hp) && n.hp >= 0 && n.hp <= NODE_KINDS[own.kind].hp) own.hp = n.hp;
-        // An empty node comes back no later than its longest regrowth from now.
-        const latest = s.t + NODE_KINDS[own.kind].regrow[1];
+        // An empty node comes back no later than its longest regrowth from now (for fruit: from its season).
+        const kind = NODE_KINDS[own.kind];
+        const latest = (kind.rests ? restEnd(s.t, kind.rests) : s.t) + kind.regrow[1];
         own.regrowAt = Number.isFinite(n.regrowAt) ? Math.min(n.regrowAt, latest) : null;
         if (own.hp > 0) own.regrowAt = null;
         else if (own.regrowAt === null) own.regrowAt = s.t;
@@ -1102,7 +1130,7 @@
 
     if (isObj(d.acc)) {
       for (const [k, v] of Object.entries(d.acc)) {
-        if ((BUILDINGS[k] && (BUILDINGS[k].role || WORKSHOPS[k])) && Number.isFinite(v)) s.acc[k] = clamp01(v);
+        if ((BUILDINGS[k] && (BUILDINGS[k].role || WORKSHOPS[k] || PRODUCERS[k])) && Number.isFinite(v)) s.acc[k] = clamp01(v);
       }
     }
 
@@ -1137,7 +1165,7 @@
 
   const api = {
     VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
-    BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS,
+    BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS, PRODUCERS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
     MAP, W, H, START, FOOTPRINTS, SPEED, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,

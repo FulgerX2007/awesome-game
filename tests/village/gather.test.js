@@ -217,11 +217,12 @@ test('an empty node regrows after its regrow time (NODE_KINDS.regrow)', () => {
 
 test('regrowth times differ between nodes and come from the seed', () => {
   const a = V.newGame(5), b = V.newGame(5);
-  for (const s of [a, b]) for (const n of s.nodes.filter((m) => V.zoneAt(m.x, m.y) === 'west').slice(0, 3)) {
+  const picked = (m) => V.zoneAt(m.x, m.y) === 'west' && m.kind !== 'apple'; // apples wait for summer anyway
+  for (const s of [a, b]) for (const n of s.nodes.filter(picked).slice(0, 3)) {
     gatherAll(s, n);
   }
-  const ra = a.nodes.filter((n) => n.hp === 0).map((n) => n.regrowAt);
-  const rb = b.nodes.filter((n) => n.hp === 0).map((n) => n.regrowAt);
+  const ra = a.nodes.filter((n) => n.hp === 0 && n.kind !== 'apple').map((n) => n.regrowAt);
+  const rb = b.nodes.filter((n) => n.hp === 0 && n.kind !== 'apple').map((n) => n.regrowAt);
   assert.equal(ra.length, 3);
   assert.deepEqual(ra, rb);
   assert.ok(new Set(ra.map((v) => Math.round(v))).size > 1);

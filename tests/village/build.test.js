@@ -222,7 +222,8 @@ test('offline: caps at 8 h, is deterministic and regrows nodes', () => {
   assert.deepEqual(V.save(a), V.save(b));
   assert.equal(ra.seconds, 3600);
   assert.equal(a.t, t0 + 3600);
-  assert.equal(ra.regrown, 1);
+  const fruit = make().nodes.filter((n) => n.kind === 'apple' && n.regrowAt <= t0 + 3600).length; // summer comes
+  assert.equal(ra.regrown, 1 + fruit);
   assert.equal(a.nodes[0].hp, V.NODE_KINDS[a.nodes[0].kind].hp);
   assert.deepEqual(a.events, [], 'no burst of regrow events');
   assert.ok(ra.gains.bricks > 0);

@@ -87,6 +87,8 @@ h1 {
 .ico.berries { background: var(--berry); border-radius: 50%; }
 .ico.planks { background: #d7a560; }
 .ico.bricks { background: #a8432e; }
+.ico.honey { background: #e9b44c; border-radius: 50%; }
+.ico.apples { background: #d2453a; border-radius: 50%; }
 .ico.vegetables { background: #e2853a; border-radius: 50% 50% 50% 10%; }
 
 /* ── Scene ── */

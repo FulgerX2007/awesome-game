@@ -209,6 +209,7 @@
   const NODE_FOOT = 5;
   const NODE_TALL = {
     tree: { hw: 18, up: 48 },
+    apple: { hw: 18, up: 48 },
     rock: { hw: 16, up: 24 },
     bush: { hw: 15, up: 21 },
     clay: { hw: 16, up: 15 },

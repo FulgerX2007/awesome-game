@@ -7,7 +7,9 @@ const V = require('../../web/village/core.js');
 const CHUNK = 0.5;      // seconds of game time per bot decision while walking or gathering
 const WAIT = 5;         // seconds to wait when there is nothing useful to do
 const LIMIT = 6 * 3600; // a run that takes longer than this is a deadlock
-const RAW = new Set(['wood', 'stone', 'clay', 'berries']);
+const RAW = new Set(['wood', 'stone', 'clay', 'berries', 'apples', 'vegetables']);
+// Resources that can only be had in some seasons: the bot stocks up on them while it can.
+const SEASONAL = ['apples', 'vegetables'];
 // product → raw material its workshop eats
 const FEED = Object.fromEntries(Object.values(V.WORKSHOPS).map((w) => [w.to, w.from]));
 const KIND_OF = Object.fromEntries(Object.entries(V.NODE_KINDS).map(([k, n]) => [n.res, k]));
@@ -62,8 +64,45 @@ function play(seed, opts = {}) {
     return r === 'ok' || r === 'built';
   };
 
+  // Walk to a tile and act there through interact(); true when the order was carried out.
+  const go = (x, y, expect) => {
+    if (V.interact(s, x, y) !== expect) return false;
+    finishOrder();
+    drain();
+    return true;
+  };
+
+  // One garden job, the most useful first: harvest, water a dry plot (filling the bucket first), sow.
+  // False when no plot needs anything that can be done now.
+  const tend = () => {
+    if (!s.built.garden.done) return false;
+    const winter = V.clock(s.t).season === 'winter';
+    const plots = s.plots.map((pl, i) => ({ pl, i, at: V.PLOTS[i] }));
+    const ripe = plots.find((p) => p.pl.stage === 'ripe');
+    if (ripe) return go(ripe.at.x, ripe.at.y, 'plot');
+    const dry = plots.find((p) => p.pl.stage === 'planted' && !p.pl.water);
+    if (dry && !winter) {
+      if (s.bucket <= 0) { const w = V.FOOTPRINTS.well[0]; return go(w.x, w.y, 'well'); }
+      return go(dry.at.x, dry.at.y, 'plot');
+    }
+    const empty = plots.find((p) => p.pl.stage === 'empty');
+    if (empty && !winter) {
+      if (s.res.berries >= 1) return go(empty.at.x, empty.at.y, 'plot');
+      return gather('berries'); // seed first
+    }
+    return false;
+  };
+
+  // How much of a resource the buildings still to come need beyond the stock.
+  const shortOf = (r) => {
+    let need = 0;
+    for (const id of V.BUILDING_IDS) if (!s.built[id].done) need += V.remaining(s, id)[r] || 0;
+    return need - s.res[r];
+  };
+
   // Gather the nearest standing node of a resource. False when there is none in reach.
   const gather = (res) => {
+    if (res === 'vegetables') return tend();
     const kind = KIND_OF[res];
     const p = s.player;
     const cands = s.nodes
@@ -81,6 +120,8 @@ function play(seed, opts = {}) {
 
   while (!s.festival && s.t < limit) {
     upgrade();
+    // Seasonal things first, while they last: ripe or thirsty plots, apples on the trees.
+    if (SEASONAL.some((r) => shortOf(r) > 0 && gather(r))) continue;
     const goal = V.nextGoal(s);
     // No goal, or a missing tool the bot can't get (the shovel before the bridge): that is a deadlock.
     if (!goal || goal.type !== 'build') break;
