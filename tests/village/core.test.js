@@ -11,7 +11,7 @@ test('map is 64×36 with only known tile characters', () => {
   assert.equal(V.H, 36);
   for (const row of V.MAP) {
     assert.equal(row.length, 64);
-    assert.match(row, /^[.~:=#bWHASK123FMCGgPR^t]+$/);
+    assert.match(row, /^[.~:=#bWHASK123FMCGgPR^tVD45U]+$/);
   }
   for (const id of Object.keys(V.BUILDINGS)) assert.ok(V.FOOTPRINTS[id].length > 0, `${id} has a footprint`);
 });
@@ -169,7 +169,7 @@ test('a full late-game state still fits in 64 KB', () => {
   s.villagers = [{ role: 'woodcutter', house: 'house1' }, { role: 'mason', house: 'house2' }, { role: 'potter', house: 'house3' }];
   const r = V.load(JSON.stringify(V.save(s)));
   assert.ok(JSON.stringify(V.save(r)).length < 64 * 1024);
-  assert.equal(r.villagers.length, 3);
+  assert.equal(r.villagers.length, Object.values(V.BUILDINGS).filter((b) => b.role).length, 'every house has its villager');
   assert.equal(r.decor.length, s.decor.length);
 });
 
@@ -209,7 +209,7 @@ test('missing fields get defaults and junk is dropped', () => {
   assert.deepEqual([junk.player.x, junk.player.y], [fresh.player.x, fresh.player.y]);
   assert.equal(junk.player.junk, undefined, 'unknown player keys are dropped');
   assert.equal(V.save(junk).player.junk, undefined);
-  assert.deepEqual(junk.res, { wood: 0, stone: 0, clay: 0, berries: 4, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0 });
+  assert.deepEqual(junk.res, { wood: 0, stone: 0, clay: 0, berries: 4, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0, grapes: 0, juice: 0 });
   assert.deepEqual(junk.tools, { axe: 1, pick: 2, shovel: 0, basket: 1 });
   assert.deepEqual(junk.nodes, fresh.nodes, 'node layout comes from the seed');
   assert.equal(junk.built.well.done, false);
@@ -220,7 +220,7 @@ test('missing fields get defaults and junk is dropped', () => {
   assert.deepEqual(junk.villagers, [], 'villagers come only from done houses');
   assert.deepEqual(junk.decor, [{ kind: 'bench', x: 13, y: 20 }], 'square tiles only, one per tile');
   assert.equal(junk.festival, false);
-  assert.deepEqual(junk.stats.gathered, { wood: 5, stone: 0, clay: 0, berries: 0, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0 });
+  assert.deepEqual(junk.stats.gathered, { wood: 5, stone: 0, clay: 0, berries: 0, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0, grapes: 0, juice: 0 });
   assert.equal(junk.stats.playTime, 0);
 });
 
@@ -260,7 +260,10 @@ test('festival and done buildings must agree with the dependencies', () => {
   assert.equal(full.festival, true);
   // Villagers: wrong roles, duplicates and junk are dropped; done houses missing one get it back.
   const mixed = V.load({ ...V.save(all), villagers: [{ role: 'mason', house: 'house2' }, { role: 'king', house: 'house1' }, { role: 'mason', house: 'house1' }, { role: 'mason', house: 'house2' }, 5] });
-  assert.deepEqual(mixed.villagers, [{ role: 'mason', house: 'house2' }, { role: 'woodcutter', house: 'house1' }, { role: 'potter', house: 'house3' }]);
+  assert.deepEqual(mixed.villagers, [{ role: 'mason', house: 'house2' }, { role: 'woodcutter', house: 'house1' },
+    { role: 'potter', house: 'house3' }, { role: 'beekeeper', house: 'house4' }, { role: 'gardener', house: 'house5' }]);
+  assert.ok(mixed.bought.includes('cuttings'), 'a standing vineyard means the cuttings were bought');
+  assert.equal(mixed.harvestFestival, true, 'the harvest festival follows its hall');
 });
 
 test('a far-future regrow time is clamped to the longest regrowth', () => {

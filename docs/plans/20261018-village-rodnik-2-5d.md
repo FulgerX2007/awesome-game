@@ -508,14 +508,20 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 - Modify: `tests/village/hamlet.test.js`
 - Modify: `tests/village/build.test.js`
 - Modify: `tests/village/bot.js`
-- Modify: `tests/village/balance.test.js`
+- Modify: `tests/village/balance.test.js`, `core.test.js`
+- Modify: `web/village/game.js`, `index.html`, `style.css`, `lang.js`, `houses.js`
 
-- [ ] ресурсы `grapes`, `juice`; здания `vineyard` (нужны черенки), `press` (3 → 1), `house4`, `house5`, `harvest` — все `after: 'festival'`, в порядке зависимостей
-- [ ] жители: пасечник (мёд ×2), садовник (яблоки летом и осенью); `harvest` даёт событие и `s.harvestFestival`
-- [ ] `nextGoal` ведёт по хутору, украшения — после Дома урожая; `balance.test.js`: «все здания» = без `after: 'festival'`
-- [ ] write tests: цепочка зависимостей, давильня с запасом, жители по сезонам, второй финал ровно один раз, праздник села не требует хутора
-- [ ] бот строит хутор; `balance.test.js` зелёный
-- [ ] run tests - must pass before next task
+- [x] ресурсы `grapes`, `juice`; здания `vineyard` (нужны черенки), `press` (3 → 1), `house4`, `house5`, `harvest` — все `after: 'festival'`, в порядке зависимостей
+- [x] жители: пасечник (мёд ×2), садовник (яблоки летом и осенью); `harvest` даёт событие и `s.harvestFestival`
+- [x] `nextGoal` ведёт по хутору, украшения — после Дома урожая; `balance.test.js`: «все здания» = без `after: 'festival'`
+- [x] write tests: цепочка зависимостей, давильня с запасом, жители по сезонам, второй финал ровно один раз, праздник села не требует хутора
+- [x] бот строит хутор; `balance.test.js` зелёный
+- [x] run tests - must pass before next task
+- ➕ виноградник — производитель (как пасека), отдыхает только зимой; садовник тоже отдыхает только зимой (иначе финал ждал лета и пауза росла до 22 мин)
+- ➕ виноградник требует купленных черенков (`bought: 'cuttings'`), `nextGoal` тогда отвечает `{ type: 'fair' }`; при загрузке готовое здание подразумевает покупку
+- ➕ заказ, не выполненный за 3 рассвета, снимается с доски — место для новых
+- ➕ бот: ждёт ярмарку и копит монеты на заказах, добирает до 30 недостающего сырья для заказов
+- ⚠️ баланс: 20 сидов — праздник 142–146 мин, Праздник урожая через 80–81 мин, самая длинная пауза 15,8 мин (один сид); порог паузы для всей игры — 16 мин, Праздник урожая — 75–110 мин (сезоны держат его около 80)
 
 ### Task 17: Рисование хутора
 

@@ -88,6 +88,8 @@ h1 {
 .ico.planks { background: #d7a560; }
 .ico.bricks { background: #a8432e; }
 .ico.coins { background: radial-gradient(circle at 35% 35%, #fff2b8, #e2b44a 55%, #a8802e); border-radius: 50%; }
+.ico.grapes { background: #7a3f8f; border-radius: 50%; }
+.ico.juice { background: #b0306a; border-radius: 2px 2px 5px 5px; }
 .ico.honey { background: #e9b44c; border-radius: 50%; }
 .ico.apples { background: #d2453a; border-radius: 50%; }
 .ico.vegetables { background: #e2853a; border-radius: 50% 50% 50% 10%; }

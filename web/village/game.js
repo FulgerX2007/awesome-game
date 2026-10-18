@@ -210,13 +210,14 @@
     if (!g) return t('Осмотрись вокруг');
     if (g.type === 'build') return t('Восстановить: {name}', { name: t(V.BUILDINGS[g.id].name) });
     if (g.type === 'tool') return t('Нужен инструмент: {name}', { name: t(V.TOOLS[g.tool].name) });
+    if (g.type === 'fair') return t('Купи на ярмарке: {name}', { name: t(V.FAIR[g.item].name) });
     return t('Украшай село');
   }
 
   // The six starting resources are always in the HUD; later ones show up once they matter: when their
   // building stands or once the player has had some.
   const BASE_RES = new Set(['wood', 'stone', 'clay', 'berries', 'planks', 'bricks']);
-  const RES_UNLOCK = { vegetables: 'garden', honey: 'apiary', coins: 'market' };
+  const RES_UNLOCK = { vegetables: 'garden', honey: 'apiary', coins: 'market', grapes: 'vineyard', juice: 'press' };
   const resShown = (r) => BASE_RES.has(r) || S.res[r] > 0 || S.stats.gathered[r] > 0 || (RES_UNLOCK[r] && S.built[RES_UNLOCK[r]].done);
 
   function renderHUD() {
@@ -330,6 +331,12 @@
     garden: 'Шесть грядок: посади ягоду, полей из ведра у колодца, через сутки собери овощи.',
     apiary: 'Пчёлы сами носят мёд — все сезоны, кроме зимы.',
     market: 'Жители вывесят заказы за монеты, а в первый день каждого сезона здесь шумит ярмарка.',
+    road: 'Расчистит тропу через холм: за ним хутор с садом и полем.',
+    vineyard: 'Лозы из черенков с ярмарки сами дают виноград — все сезоны, кроме зимы.',
+    press: 'Сама давит сок: виноград {ratio} → сок 1.',
+    house4: 'Поселится пасечник и будет носить мёд, кроме зимы.',
+    house5: 'Поселится садовник и будет приносить яблоки, кроме зимы.',
+    harvest: 'Хутор отпразднует Праздник урожая.',
   };
   // The numbers in EFFECT come from core's tuning, so re-balancing keeps the texts right.
   const EFFECT_VARS = {
@@ -337,6 +344,7 @@
     sawmill: { ratio: V.WORKSHOPS.sawmill.ratio, reserve: V.WORKSHOP_RESERVE },
     kiln: { ratio: V.WORKSHOPS.kiln.ratio, reserve: V.WORKSHOP_RESERVE },
     mill: { n: Math.round((V.MILL_BONUS - 1) * 100) },
+    press: { ratio: V.WORKSHOPS.press.ratio },
   };
   const needsLeft = (id) => V.BUILDINGS[id].needs.filter((d) => !S.built[d].done);
   const needsText = (left) => t('Сначала: {list}', { list: left.map((d) => t(V.BUILDINGS[d].name)).join(', ') });
@@ -494,6 +502,11 @@
       if (e.result === 'harvest') float(`+${e.gain} ${resName('vegetables')}`, wx, wy, 'vegetables');
       else if (e.result === 'sown' || e.result === 'watered') float(t(say), wx, wy);
       else if (say) toast(t(say), 2200);
+    } else if (e.type === 'harvest-festival') {
+      closePanels();
+      modal(t('Праздник урожая!'), `<p>${esc(t('Хутор за холмом ожил: сок в кружках, мёд и яблоки на столах, музыка до утра.'))}</p>`
+        + `<p>${esc(t('Дальше — свободная игра: заказы, ярмарки и украшения.'))}</p>`,
+      [{ label: t('Ура!'), primary: true }]);
     } else if (e.type === 'order') {
       toast(t('Заказ выполнен: +{n} монет', { n: e.coins }), 2200);
       save();

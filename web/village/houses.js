@@ -150,6 +150,8 @@
       return { left, right, base, wallTop, top };
     }
 
+    // Any restored building without art of its own: a plain cottage.
+    const PLAIN = { wall: '#f3ecdc', trim: '#7a6a4f', roof: '#a8563c', roofDark: 'rgba(90, 30, 15, 0.45)' };
     const ART = {
       well(b) {
         const cx = b.cx, cy = b.base - 22;
@@ -529,7 +531,7 @@
     function draw(id, stage, b, part) {
       S = env.state();
       time = env.time();
-      if (stage === 2) ART[id](b);
+      if (stage === 2) (ART[id] || ((box) => house(box, PLAIN)))(b);
       else if (stage === 1 && id !== 'well') drawScaffold(b, clamp(part, 0, 1));
       else drawRuin(b);
     }

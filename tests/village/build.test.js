@@ -295,6 +295,7 @@ test('nextGoal: the cheapest available building, then decorations after the fest
   assert.deepEqual(V.nextGoal(t), { type: 'tool', tool: 'shovel' });
   finish(s, ...ALL_BUT_CHAPEL, 'chapel');
   assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'road' }, 'after the festival: the road to the hamlet');
+  s.bought.push('cuttings');
   for (const id of Object.keys(V.BUILDINGS)) if (V.BUILDINGS[id].after) finish(s, id);
   assert.deepEqual(V.nextGoal(s), { type: 'decor' }, 'then decorations');
 });

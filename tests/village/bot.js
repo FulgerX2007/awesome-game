@@ -21,7 +21,8 @@ function reachable(s, n) {
   return z === 'west' || s.built.bridge.done;
 }
 
-// Play one game. Returns a log of milestones (game time of each building, tool and barn level).
+// Play one game: to the festival, or with { until: 'harvest' } on over the hill to the harvest festival.
+// Returns a log of milestones (game time of each building, tool or barn level, order and purchase).
 function play(seed, opts = {}) {
   const s = V.newGame(seed);
   const limit = opts.limit || LIMIT;
@@ -141,12 +142,33 @@ function play(seed, opts = {}) {
     return true;
   };
 
-  while (!s.festival && s.t < limit) {
+  const done = () => (opts.until === 'harvest' ? s.harvestFestival : s.festival);
+  let festivalAt = null;
+  // An order short of a few raw goods: the bot gathers them, like a player who keeps the board busy.
+  const orderLack = () => {
+    for (const o of s.orders) {
+      const miss = Object.entries(o.need).filter(([r, n]) => s.res[r] < n);
+      if (miss.length && miss.every(([r, n]) => RAW.has(r) && n - s.res[r] <= 30)) return miss[0][0];
+    }
+    return null;
+  };
+
+  while (!done() && s.t < limit) {
+    if (s.festival && festivalAt === null) festivalAt = s.t;
     upgrade();
     if (fillOrders()) continue;
+    const lackR = s.built.market.done ? orderLack() : null;
+    if (lackR && gather(lackR)) continue;
     // Seasonal things first, while they last: ripe or thirsty plots, apples on the trees.
     if (SEASONAL.some((r) => shortOf(r) > 0 && gather(r))) continue;
     const goal = V.nextGoal(s);
+    // Waiting for the fair (the vine cuttings): orders and the garden meanwhile, then wait.
+    if (goal && goal.type === 'fair') {
+      // Coins come from orders: gather whatever raw good an order still lacks.
+      const lack = s.orders.flatMap((o) => Object.entries(o.need).filter(([r, n]) => RAW.has(r) && s.res[r] < n).map(([r]) => r));
+      if (lack.length && gather(lack[0])) continue;
+      V.step(s, WAIT); drain(); continue;
+    }
     // No goal, or a missing tool the bot can't get (the shovel before the bridge): that is a deadlock.
     if (!goal || goal.type !== 'build') break;
     const id = goal.id;
@@ -179,7 +201,8 @@ function play(seed, opts = {}) {
     V.step(s, WAIT);
     drain();
   }
-  return { s, log, festival: s.festival, t: s.t };
+  if (s.festival && festivalAt === null) festivalAt = s.t;
+  return { s, log, festival: s.festival, harvest: s.harvestFestival, festivalAt, t: s.t };
 }
 
 module.exports = { play };
