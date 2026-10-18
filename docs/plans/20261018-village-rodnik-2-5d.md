@@ -528,15 +528,15 @@ clock(s) -> { day, phase, part: 'dawn'|'day'|'dusk'|'night', season, seasonDay, 
 **Files:**
 - Modify: `web/village/houses.js`
 - Modify: `web/village/art.js`
-- Modify: `web/village/view.js`
 - Modify: `web/village/lang.js`
 - Modify: `tests/village/view.test.js`
 - Modify: `tests/village/smoke.cjs`
 
-- [ ] холм с тропой и тенью склона, сад, ряды винограда, давильня, два дома, Дом урожая; силуэты в `tallBox`
-- [ ] Праздник урожая: снопы, корзины, гирлянды из листьев, свои фейерверки; переводы RO
-- [ ] write tests: `tallBox` для новых зданий, `lang.test.js`, `smoke.cjs` рисует хутор из сейва бота
-- [ ] run tests - must pass before next task
+- [x] холм с тропой и тенью склона, сад, ряды винограда, давильня, два дома, Дом урожая; силуэты в `tallBox`
+- [x] Праздник урожая: снопы, корзины, гирлянды из листьев, свои фейерверки; переводы RO
+- [x] write tests: у каждой роли жителя есть внешность (`lang.test.js`), `smoke.cjs` рисует хутор после Праздника урожая без ошибок; силуэты зданий берутся из `houseBox` автоматически
+- [x] run tests - must pass before next task
+- ➕ внешность пасечника и садовника; запасной рисунок-домик для зданий без своего; фейерверк над хутором на Праздник урожая
 
 ### Фаза 6 — доводка
 

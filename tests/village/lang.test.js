@@ -133,3 +133,9 @@ test('the drawing code has no untranslated Russian strings', () => {
     assert.deepEqual(missing, [], file);
   }
 });
+
+test('every villager role has a look in the art', () => {
+  const src = fs.readFileSync(path.join(WEB, 'village', 'art.js'), 'utf8');
+  const looks = src.slice(src.indexOf('const LOOKS = {'), src.indexOf('};', src.indexOf('const LOOKS = {')));
+  for (const role of Object.keys(V.VILLAGERS)) assert.match(looks, new RegExp(`\\b${role}: \\{`), role);
+});

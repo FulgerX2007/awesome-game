@@ -1064,6 +1064,8 @@
     woodcutter: { shirt: '#b5523b', pants: '#4a3d30', skin: '#e8b98f', hat: 'cap', hatColor: '#5b3a2a', hair: '#4a3020' },
     mason: { shirt: '#8d8f86', pants: '#4f4a40', skin: '#f0c49a', hat: 'cap', hatColor: '#3f4a5a', hair: '#7a5a3a', apron: '#c9b28a' },
     potter: { shirt: '#7f6aa8', pants: '#5a4a3a', skin: '#f3cfa6', hat: 'scarf', hatColor: '#d8506a', hair: '#8a5a32', apron: '#e9dcc2' },
+    beekeeper: { shirt: '#f0e6c8', pants: '#6b5a3a', skin: '#e8b98f', hat: 'straw', hair: '#5a3a20', apron: '#e2c26a' },
+    gardener: { shirt: '#5f9446', pants: '#4a3d30', skin: '#f1c9a0', hat: 'scarf', hatColor: '#e8892e', hair: '#7a4a2a', apron: '#c9b28a' },
   };
 
 
@@ -1186,8 +1188,18 @@
 
   // Fireworks over the square after the festival: frequent at first, then now and then.
   let fwNext = 1, festBoost = 0;
+  let hwNext = 0, harvestBoost = 0; // the harvest festival's own burst over the hamlet
   const FW_COLORS = ['#ff4d6d', '#ffd60a', '#4cc9f0', '#f72585', '#80ed99', '#ff9f1c'];
   function updateFireworks(dt) {
+    if (S.harvestFestival && harvestBoost > 0) {
+      harvestBoost = Math.max(0, harvestBoost - dt);
+      hwNext -= dt;
+      if (hwNext <= 0) {
+        hwNext = 0.5 + Math.random() * 0.7;
+        const h = BOX.harvest;
+        fx.rockets.push({ x: h.X + Math.random() * h.Wp, y: h.base, vy: -230 - Math.random() * 60, color: ['#f2cf62', '#e8892e', '#8ee08a', '#c46ad8'][Math.floor(Math.random() * 4)] });
+      }
+    }
     if (S.festival) {
       festBoost = Math.max(0, festBoost - dt);
       fwNext -= dt;
@@ -1325,6 +1337,9 @@
     } else if (e.type === 'festival') {
       festBoost = 25;
       fwNext = 0.5;
+    } else if (e.type === 'harvest-festival') {
+      harvestBoost = 30;
+      hwNext = 0.3;
     } else if (e.type === 'decor') {
       sparkle((e.x + 0.5) * T, (e.y + 0.5) * T, 14);
     } else if (e.type === 'plot') {

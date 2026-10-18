@@ -350,6 +350,28 @@ async function edgeChecks() {
     await ctx.close();
   }
   {
+    // The hamlet after the harvest festival, every building standing, drawn without errors.
+    const V = require('../../web/village/core.js');
+    const h = V.newGame(14);
+    for (const id of V.BUILDING_IDS) {
+      h.built[id].done = true;
+      for (const r of Object.keys(h.built[id].paid)) h.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+    }
+    h.festival = true; h.harvestFestival = true; h.bought = ['cuttings'];
+    h.player.x = 56.5; h.player.y = 22.5;
+    const data = JSON.stringify({ ...V.save(h), savedAt: Date.now() });
+    const { ctx, page, errors } = await preparedPage(([key, d]) => {
+      if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, d); sessionStorage.setItem('prepared', '1'); }
+    }, [SAVE_KEY, data]);
+    await sleep(500);
+    const fill = await canvasFilled(page);
+    check(fill.ok, 'the hamlet is drawn', JSON.stringify(fill));
+    const s = await readSave(page);
+    check(s.harvestFestival === true && s.villagers.length === 5, 'the hamlet loads with five villagers', JSON.stringify(s.villagers));
+    check(errors.length === 0, 'no console errors (hamlet)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
     // A village from version 1 with a cloud code: kept aside, the code forgotten, a friendly toast.
     const old = JSON.stringify({ v: 1, seed: 5, t: 100, res: { wood: 40 } });
     const { ctx, page, errors } = await preparedPage(([key, data]) => {

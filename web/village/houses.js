@@ -252,6 +252,86 @@
           }
         }
       },
+      vineyard(b) {
+        // Rows of vines on trellises; grapes hang from them except in winter.
+        const winter = env.snow() > 0.5;
+        const rows = 3, left = b.X + 6, right = b.X + b.Wp - 6;
+        for (let r = 0; r < rows; r++) {
+          const y = b.Y + 14 + r * (b.Hp - 16) / (rows - 0.5);
+          castBlock(left, right, y, 10);
+          for (let x = left; x <= right; x += 24) K.cylinder(ctx, x, y - 16, 1.3, 16, WOOD.dark, { ry: 0.6 });
+          line(left, y - 14, right, y - 14, '#c9b48a', 1);
+          line(left, y - 8, right, y - 8, '#c9b48a', 1);
+          if (winter) { line(left, y - 13, right, y - 13, '#f4f8fb', 1.6); continue; }
+          for (let x = left + 3, k = 0; x < right - 2; x += 7, k++) {
+            K.sphere(ctx, x, y - 12 + (k % 2) * 2, 4.2, k % 3 ? '#5f9446' : '#4b7c38', { gloss: false, shine: 0.25 });
+            if (k % 2 === 0) {
+              for (let j = 0; j < 4; j++) K.sphere(ctx, x - 1 + (j % 2) * 2, y - 7 + j * 1.6, 1.5, '#6b3a86', { shine: 0.5 });
+            }
+          }
+        }
+      },
+      press(b) {
+        // A stone shed with an open front: a wooden screw press inside, barrels of juice outside.
+        const r = house(b, { wall: '#c8bfae', trim: '#6e4a2b', roof: '#7a5236', roofDark: 'rgba(40, 20, 10, 0.5)', door: false, windows: [b.X + 10], plinth: STONE.dark });
+        const px = r.right - 30, py = r.base;
+        rect(px - 2, py - 20, 26, 20, '#2f241a', [3, 3, 0, 0]);
+        K.cylinder(ctx, px + 11, py - 12, 8, 10, WOOD.mid, { ry: 2.6 });
+        rect(px + 10, py - 22, 2.4, 10, '#8d8c92', 1);
+        line(px + 4, py - 21, px + 18, py - 21, WOOD.dark, 2.4);
+        for (let k = 0; k < 3; k++) {
+          const bx = r.right + 4 + (k % 2) * 8, by = r.base + 2 - Math.floor(k / 2) * 10;
+          shadow(bx + 3, by, 5, 2, 0.3);
+          K.cylinder(ctx, bx, by - 9, 4, 9, '#8b5e36', { ry: 1.6, capColor: '#6b3a2a' });
+          line(bx - 4, by - 6, bx + 4, by - 6, '#3d3c40', 0.9);
+        }
+      },
+      house4(b) {
+        const r = house(b, { wall: '#f6eedb', trim: '#c99a2e', roof: '#c9893a', roofDark: 'rgba(110, 60, 20, 0.5)', chimney: 'right', roofStyle: 'thatch' });
+        // Two hives by the beekeeper's door.
+        for (let k = 0; k < 2; k++) {
+          const hx = r.left - 12 + k * 10, hy = r.base + 2;
+          shadow(hx + 4, hy, 5, 2, 0.3);
+          K.prism(ctx, hx, hy - 9, 8, 9, 3, k ? '#8ec0d8' : '#e2c26a', { r: 1 });
+          circle(hx + 4 + Math.cos(time * 3 + k) * 6, hy - 12 + Math.sin(time * 4 + k) * 3, 1, '#2b2014');
+        }
+      },
+      house5(b) {
+        const r = house(b, { wall: '#eef3e2', trim: '#4f8a3a', roof: '#6a8f4a', roofDark: 'rgba(30, 60, 20, 0.5)', chimney: 'left' });
+        // Baskets of apples by the gardener's door.
+        for (let k = 0; k < 2; k++) {
+          const bx = r.right + 4 + k * 9, by = r.base + 2;
+          shadow(bx + 3, by, 5, 2, 0.3);
+          K.cylinder(ctx, bx, by - 6, 4, 6, '#b3834f', { ry: 1.6, cap: false });
+          for (let j = 0; j < 3; j++) K.sphere(ctx, bx - 2 + j * 2, by - 7 - (j % 2), 1.8, '#d2453a', { shine: 0.5 });
+        }
+      },
+      harvest(b) {
+        // A big timber hall with a wheat wreath over its doors; at the harvest festival, sheaves and baskets.
+        const r = house(b, {
+          wall: '#e9d7b0', trim: '#8b5e36', roof: '#9c4a35', roofDark: 'rgba(70, 20, 10, 0.5)', planks: true,
+          wallH: 30, roofUp: 14, windows: [b.X + 12, b.X + b.Wp - 26 - SIDE], doorAt: b.cx - 8 - SIDE / 2, chimney: 'right',
+        });
+        const cx = (r.left + r.right) / 2, wy = r.wallTop - 6;
+        ctx.strokeStyle = '#d9a83a'; ctx.lineWidth = 3.2;
+        ctx.beginPath(); ctx.arc(cx, wy, 7, 0, TAU); ctx.stroke();
+        for (let k = 0; k < 10; k++) { const a = (k / 10) * TAU; circle(cx + Math.cos(a) * 7, wy + Math.sin(a) * 7, 1.4, '#f2cf62'); }
+        circle(cx, wy + 7, 2, '#d2453a');
+        if (S.harvestFestival) {
+          for (const dx of [-26, 30]) {
+            const sx = cx + dx, sy = r.base + 6;
+            shadow(sx + 4, sy, 7, 2.4, 0.3);
+            for (let k = -2; k <= 2; k++) line(sx, sy, sx + k * 2.4, sy - 16, '#d9a83a', 1.6);
+            rect(sx - 4, sy - 8, 8, 2, '#8b5e36');
+          }
+          for (let k = 0; k < 3; k++) {
+            const bx = cx - 12 + k * 12, by = r.base + 10;
+            K.cylinder(ctx, bx, by - 5, 4, 5, '#b3834f', { ry: 1.5, cap: false });
+            const fruit = ['#d2453a', '#6b3a86', '#e8892e'][k];
+            for (let j = 0; j < 3; j++) K.sphere(ctx, bx - 2 + j * 2, by - 6, 1.7, fruit, { shine: 0.5 });
+          }
+        }
+      },
       home(b) {
         house(b, { wall: '#f5efe2', trim: '#4d7fb6', roof: '#b9583b', roofDark: 'rgba(90, 30, 15, 0.45)', chimney: 'right' });
       },
