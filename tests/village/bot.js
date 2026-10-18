@@ -32,6 +32,7 @@ function play(seed, opts = {}) {
       if (e.type === 'built') log.push({ t: s.t, what: e.level ? `barn${e.level}` : e.id });
       else if (e.type === 'tool') log.push({ t: s.t, what: `${e.tool}${e.level}` });
       else if (e.type === 'order') log.push({ t: s.t, what: `order${e.id}` });
+      else if (e.type === 'buy') log.push({ t: s.t, what: `buy-${e.id}` });
       else if (e.type === 'ruin') arrived = true;
     }
     s.events.length = 0;
@@ -125,12 +126,16 @@ function play(seed, opts = {}) {
     const keep = goal && goal.type === 'build' ? V.remaining(s, goal.id) : {};
     return s.orders.filter((o) => Object.entries(o.need).every(([r, n]) => s.res[r] - n >= (keep[r] || 0)));
   };
+  // What the bot buys at the fair, most useful first, when it has the coins.
+  const WISH = ['bucket', 'cuttings'];
+  const wanted = () => WISH.filter((id) => !s.bought.includes(id) && s.res.coins >= V.FAIR[id].price && V.fairOpen(s));
   const fillOrders = () => {
-    if (!s.built.market.done || !spare().length) return false;
+    if (!s.built.market.done || (!spare().length && !wanted().length)) return false;
     const f = V.FOOTPRINTS.market[0];
     if (V.interact(s, f.x, f.y) !== 'ruin') return false;
     finishOrder();
     for (const o of spare()) V.fulfill(s, o.id);
+    for (const id of wanted()) V.buy(s, id);
     drain();
     return true;
   };

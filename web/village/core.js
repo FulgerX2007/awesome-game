@@ -117,6 +117,17 @@
     apples: { n: 6, worth: 4 },
   };
 
+  // The fair: on the first day of every season, in daylight, at the market rows. Each thing is bought once.
+  const FAIR = {
+    cuttings: { name: 'Черенки винограда', price: 12 },
+    bucket: { name: 'Большое ведро', price: 20 },
+    swing: { name: 'Качели', price: 15 },
+    sweep: { name: 'Колодезный журавль', price: 18 },
+    scarecrow: { name: 'Пугало', price: 10 },
+    arch: { name: 'Арка с цветами', price: 14 },
+  };
+  const BIG_BUCKET = 10;
+
   // Buildings that produce on their own, resting in some seasons.
   const PRODUCERS = {
     apiary: { res: 'honey', rate: 0.05, rests: ['winter'] },
@@ -134,6 +145,11 @@
     lantern: { name: 'Фонарь', cost: { planks: 4, stone: 2 } },
     bench: { name: 'Скамейка', cost: { planks: 6 } },
     fence: { name: 'Забор', cost: { planks: 3, stone: 1 } },
+    // Bought at the fair first; then built like the others.
+    swing: { name: 'Качели', cost: { planks: 8, wood: 4 }, fair: true },
+    sweep: { name: 'Колодезный журавль', cost: { wood: 10, stone: 4 }, fair: true },
+    scarecrow: { name: 'Пугало', cost: { wood: 4, berries: 2 }, fair: true },
+    arch: { name: 'Арка с цветами', cost: { planks: 6, berries: 6 }, fair: true },
   };
 
   // Nodes scattered per zone. West is open from the start, north and east open with the bridge.
@@ -372,6 +388,7 @@
       plots: PLOTS.map(() => freshPlot()),
       orders: [],
       orderSeq: 0,
+      bought: [],
       bucket: 0,
       festival: false,
       stats: { gathered: zeroRes(), playTime: 0, orders: 0 },
@@ -858,7 +875,7 @@
   }
 
   // ── Garden ──
-  const bucketSize = () => GARDEN.bucket;
+  const bucketSize = (s) => (s && s.bought && s.bought.includes('bucket') ? BIG_BUCKET : GARDEN.bucket);
 
   // One action on a plot, whatever it needs next: sow (a berry; not in winter), water (from the bucket),
   // wait while it grows, or harvest. Returns 'sown' | 'watered' | 'growing' | 'harvest' | 'winter' | 'seed'
@@ -965,6 +982,28 @@
     s.orders.splice(i, 1);
     s.stats.orders++;
     s.events.push({ type: 'order', id, who: o.who, coins: o.reward.coins });
+    return 'ok';
+  }
+
+  // ── Fair ──
+  // Open on a season's first day while it is light, once the market rows stand.
+  function fairOpen(s) {
+    if (!s.built.market.done) return false;
+    const c = clock(s.t);
+    return c.seasonDay === 0 && (c.part === 'dawn' || c.part === 'day');
+  }
+
+  // Buy one thing at the fair. Returns 'ok' | 'closed' | 'coins' (not enough) | 'owned' | 'unknown'.
+  function buy(s, id) {
+    const item = FAIR[id];
+    if (!item) return 'unknown';
+    if (s.bought.includes(id)) return 'owned';
+    if (!fairOpen(s)) return 'closed';
+    if (s.res.coins < item.price) return 'coins';
+    s.res.coins -= item.price;
+    s.bought.push(id);
+    if (id === 'bucket') s.bucket = Math.min(s.bucket, bucketSize(s));
+    s.events.push({ type: 'buy', id });
     return 'ok';
   }
 
@@ -1078,12 +1117,13 @@
     return { type: 'build', id: best };
   }
 
-  // Free play: a decoration on a free square tile. Returns 'ok' | 'locked' (before the festival) | 'cost'
+  // Free play: a decoration on a free square tile. Returns 'ok' | 'locked' (before the festival, or a fair
+  // decoration not bought yet) | 'cost'
   // | 'occupied' (not a free square tile) | 'unknown'.
   function placeDecor(s, kind, x, y) {
     const d = DECOR[kind];
     if (!d) return 'unknown';
-    if (!s.festival) return 'locked';
+    if (!s.festival || (d.fair && !s.bought.includes(kind))) return 'locked';
     x = Math.floor(x); y = Math.floor(y);
     if (tileAt(x, y) !== '#' || s.decor.some((o) => o.x === x && o.y === y)) return 'occupied';
     if (!canAfford(s, d.cost)) return 'cost';
@@ -1213,6 +1253,7 @@
         return { stage: 'planted', water: pl.water === true, grow: Math.min(num(pl.grow, 0), 0.999) };
       });
     }
+    if (Array.isArray(d.bought)) s.bought = [...new Set(d.bought.filter((id) => typeof id === 'string' && FAIR[id]))];
     s.bucket = Number.isInteger(d.bucket) ? num(d.bucket, 0, 0, bucketSize(s)) : 0;
 
     // Orders: known goods in whole positive amounts, at most ORDERS.max, ids unique and below the counter.
@@ -1243,7 +1284,7 @@
     VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS, PRODUCERS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
-    MAP, W, H, START, FOOTPRINTS, SPEED, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
+    MAP, W, H, START, FOOTPRINTS, SPEED, FAIR, BIG_BUCKET, fairOpen, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
     placeDecor, save, load,

@@ -22,7 +22,7 @@ function hasRo(key) {
 }
 
 test('every name from the core tables has a RO translation', () => {
-  const tables = { RESOURCES: V.RESOURCES, NODE_KINDS: V.NODE_KINDS, TOOLS: V.TOOLS, BUILDINGS: V.BUILDINGS, VILLAGERS: V.VILLAGERS, DECOR: V.DECOR };
+  const tables = { RESOURCES: V.RESOURCES, NODE_KINDS: V.NODE_KINDS, TOOLS: V.TOOLS, BUILDINGS: V.BUILDINGS, VILLAGERS: V.VILLAGERS, DECOR: V.DECOR, FAIR: V.FAIR };
   const missing = [];
   for (const [table, rows] of Object.entries(tables)) {
     for (const [id, row] of Object.entries(rows)) {

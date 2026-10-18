@@ -107,3 +107,76 @@ test('orders survive a save; junk orders are dropped', () => {
   });
   assert.deepEqual(junk.orders, [s.orders[0]]);
 });
+
+// ── Fair ──
+const SEASON = DAY * V.SEASON_DAYS;
+
+test('the fair is open on a season’s first day while it is light, once the market stands', () => {
+  const s = village();
+  s.t = SEASON + DAY * 0.3;
+  assert.equal(V.fairOpen(s), false, 'no market');
+  openMarket(s);
+  assert.equal(V.fairOpen(s), true);
+  s.t = SEASON + DAY * 0.8; // dusk
+  assert.equal(V.fairOpen(s), false);
+  s.t = SEASON + DAY * 1.3; // the second day
+  assert.equal(V.fairOpen(s), false);
+  for (let k = 0; k < 8; k++) { s.t = SEASON * k + DAY * 0.4; assert.equal(V.fairOpen(s), true, `season ${k}`); }
+});
+
+test('buy: closed, not enough coins, bought once; cuttings at every fair', () => {
+  const s = village();
+  openMarket(s);
+  s.t = DAY * 1.4;
+  s.res.coins = 100;
+  assert.equal(V.buy(s, 'cuttings'), 'closed');
+  s.t = SEASON + DAY * 0.4;
+  s.res.coins = V.FAIR.cuttings.price - 1;
+  assert.equal(V.buy(s, 'cuttings'), 'coins');
+  s.res.coins = 100;
+  assert.equal(V.buy(s, 'cuttings'), 'ok');
+  assert.equal(s.res.coins, 100 - V.FAIR.cuttings.price);
+  assert.deepEqual(s.bought, ['cuttings']);
+  assert.equal(V.buy(s, 'cuttings'), 'owned');
+  assert.equal(V.buy(s, 'gold'), 'unknown');
+  assert.ok(s.events.some((e) => e.type === 'buy' && e.id === 'cuttings'));
+  // Every fair sells the cuttings: a fresh village can buy them at any season's fair.
+  for (let k = 1; k <= 4; k++) {
+    const t = village(k);
+    openMarket(t);
+    t.t = SEASON * k + DAY * 0.2;
+    t.res.coins = 50;
+    assert.equal(V.buy(t, 'cuttings'), 'ok');
+  }
+});
+
+test('the big bucket holds more; fair decorations need buying first', () => {
+  const s = village();
+  openMarket(s);
+  s.t = SEASON + DAY * 0.4;
+  s.res.coins = 100;
+  assert.equal(V.bucketSize(s), V.GARDEN.bucket);
+  V.buy(s, 'bucket');
+  assert.equal(V.bucketSize(s), V.BIG_BUCKET);
+  V.fillBucket(s);
+  assert.equal(s.bucket, V.BIG_BUCKET);
+  s.festival = true;
+  const sq = (() => { for (let y = 0; y < V.H; y++) for (let x = 0; x < V.W; x++) if (V.tileAt(x, y) === '#' && !V.ruinAt(x, y)) return { x, y }; })();
+  s.res.planks = 100; s.res.wood = 100;
+  assert.equal(V.placeDecor(s, 'swing', sq.x, sq.y), 'locked', 'not bought yet');
+  V.buy(s, 'swing');
+  assert.equal(V.placeDecor(s, 'swing', sq.x, sq.y), 'ok');
+  assert.equal(V.placeDecor(s, 'bench', sq.x + 1, sq.y), 'ok', 'old decorations need nothing');
+});
+
+test('purchases survive a save; unknown ones are dropped; the bucket fits its size', () => {
+  const s = village();
+  s.bought = ['bucket', 'arch'];
+  s.bucket = 9;
+  const back = V.load(JSON.parse(JSON.stringify(V.save(s))));
+  assert.deepEqual(back.bought, ['bucket', 'arch']);
+  assert.equal(back.bucket, 9);
+  const junk = V.load({ ...V.save(s), bought: ['arch', 'arch', 'gold', 5], bucket: 9 });
+  assert.deepEqual(junk.bought, ['arch']);
+  assert.equal(junk.bucket, 0, 'no big bucket: 9 does not fit');
+});
