@@ -91,14 +91,18 @@ async function canvasFilled(page) {
     if (!c || !c.width || !c.height) return { ok: false, why: 'no size' };
     const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     const colors = new Set();
-    let opaque = 0;
+    let opaque = 0, sum = 0, sum2 = 0;
     const step = 4 * 97;
     for (let i = 0; i < d.length; i += step) {
       if (d[i + 3] > 0) opaque++;
       colors.add((d[i] >> 4) << 8 | (d[i + 1] >> 4) << 4 | (d[i + 2] >> 4));
+      const lum = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      sum += lum; sum2 += lum * lum;
     }
     const samples = Math.ceil(d.length / step);
-    return { ok: opaque / samples > 0.95 && colors.size > 20, opaque: opaque / samples, colors: colors.size };
+    // The spread of brightness: lit faces and shadows make a 2.5D frame far from flat.
+    const spread = Math.sqrt(Math.max(0, sum2 / samples - (sum / samples) ** 2));
+    return { ok: opaque / samples > 0.95 && colors.size > 20, opaque: opaque / samples, colors: colors.size, spread: +spread.toFixed(1), mean: +(sum / samples).toFixed(1) };
   });
 }
 
@@ -141,6 +145,7 @@ async function desktopChecks() {
 
   const fill = await canvasFilled(page);
   check(fill.ok, 'canvas is drawn', JSON.stringify(fill));
+  check(fill.spread > 12, 'the frame has light and shade (not flat)', JSON.stringify(fill));
 
   const saved = await waitFor(() => page.evaluate((k) => localStorage.getItem(k), SAVE_KEY), 3000);
   check(!!saved, 'save is in localStorage');
@@ -258,8 +263,132 @@ async function edgeChecks() {
     const toast = await page.textContent('#toast');
     check(/повреждено/.test(toast || ''), 'a broken save shows a toast', JSON.stringify(toast));
     const fresh = await readSave(page);
-    check(fresh && fresh.v === 1, 'a new village is saved over the broken one');
+    const version = await page.evaluate(() => window.Village.VERSION);
+    check(fresh && fresh.v === version, 'a new village is saved over the broken one');
     check(errors.length === 0, 'no console errors (broken save)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    // The same village at noon and at night: the night frame is clearly darker.
+    const V = require('../../web/village/core.js');
+    const at = (phase) => { const s = V.newGame(11); s.t = V.DAY * 4 + V.DAY * phase; return JSON.stringify({ ...V.save(s), savedAt: Date.now() }); };
+    const mean = {};
+    for (const [name, phase] of [['noon', 0.4], ['night', 0.92]]) {
+      const { ctx, page, errors } = await preparedPage(([key, data]) => {
+        if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, data); sessionStorage.setItem('prepared', '1'); }
+      }, [SAVE_KEY, at(phase)]);
+      mean[name] = (await canvasFilled(page)).mean;
+      check(errors.length === 0, `no console errors (${name})`, errors.join('\n'));
+      await ctx.close();
+    }
+    check(mean.night < mean.noon * 0.75, 'the night frame is darker than noon', JSON.stringify(mean));
+  }
+  {
+    // The garden by the action key: the plot in front is sown, then watered.
+    const V = require('../../web/village/core.js');
+    const g = V.newGame(12);
+    for (const id of ['well', 'garden']) {
+      g.built[id].done = true;
+      for (const r of Object.keys(g.built[id].paid)) g.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+    }
+    g.res.berries = 5;
+    g.bucket = 3;
+    g.t = V.DAY * 0.2;
+    const p0 = V.PLOTS[0];
+    g.player.x = p0.x + 0.5; g.player.y = p0.y - 0.5; // right above the first plot
+    const data = JSON.stringify({ ...V.save(g), savedAt: Date.now() });
+    const { ctx, page, errors } = await preparedPage(([key, d]) => {
+      if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, d); sessionStorage.setItem('prepared', '1'); }
+    }, [SAVE_KEY, data]);
+    const press = async () => { await page.keyboard.press('KeyE'); await sleep(900); };
+    await press(); // sow
+    await press(); // water
+    const s = await readSave(page);
+    const stages = s.plots.map((p) => p.stage + (p.water ? '+water' : ''));
+    check(s.plots[0].stage === 'planted' && s.plots[0].water, 'the action key sows and waters a plot', JSON.stringify(stages));
+    check(s.res.berries === 4, 'sowing takes a berry', String(s.res.berries));
+    check(s.bucket < 3, 'watering takes from the bucket', String(s.bucket));
+    const label = await page.textContent('#bucket-label');
+    check(/Ведро \d\/\d/.test(label || ''), 'the bucket shows in the header', JSON.stringify(label));
+    check(errors.length === 0, 'no console errors (garden)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    // The market rows on a fair day: O opens the panel, an order is filled, cuttings are bought.
+    const V = require('../../web/village/core.js');
+    const m = V.newGame(13);
+    for (const id of V.BUILDING_IDS) {
+      if (id === 'chapel' || id === 'house3') continue;
+      m.built[id].done = true;
+      for (const r of Object.keys(m.built[id].paid)) m.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+    }
+    m.villagers = [{ role: 'woodcutter', house: 'house1' }, { role: 'mason', house: 'house2' }];
+    m.t = V.DAY * V.SEASON_DAYS + V.DAY * 0.3; // the first day of summer: fair day
+    m.orders = [{ id: 1, who: 'mason', need: { wood: 10 }, reward: { coins: 15 } }];
+    m.orderSeq = 1;
+    m.res.wood = 40;
+    const f = V.FOOTPRINTS.market[0];
+    m.player.x = f.x + 0.5; m.player.y = f.y - 0.5;
+    const data = JSON.stringify({ ...V.save(m), savedAt: Date.now() });
+    const { ctx, page, errors } = await preparedPage(([key, d]) => {
+      if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, d); sessionStorage.setItem('prepared', '1'); }
+    }, [SAVE_KEY, data]);
+    await page.keyboard.press('KeyO');
+    await sleep(400);
+    const shown = await page.isVisible('#pb-market');
+    check(shown, 'O opens the market rows panel with orders and the fair');
+    if (shown) {
+      await page.click('#orders-list [data-order="1"]');
+      await sleep(300);
+      await page.click('#fair-list [data-buy="cuttings"]');
+      await sleep(300);
+    }
+    const s = await readSave(page);
+    check(s.res.wood === 30 && s.stats.orders === 1, 'an order is filled from the panel', JSON.stringify({ wood: s.res.wood, orders: s.stats.orders }));
+    check(s.bought.includes('cuttings') && s.res.coins === 15 - V.FAIR.cuttings.price, 'the cuttings are bought at the fair', JSON.stringify({ bought: s.bought, coins: s.res.coins }));
+    check(errors.length === 0, 'no console errors (market)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    // The hamlet after the harvest festival, every building standing, drawn without errors.
+    const V = require('../../web/village/core.js');
+    const h = V.newGame(14);
+    for (const id of V.BUILDING_IDS) {
+      h.built[id].done = true;
+      for (const r of Object.keys(h.built[id].paid)) h.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+    }
+    h.festival = true; h.harvestFestival = true; h.bought = ['cuttings'];
+    h.player.x = 56.5; h.player.y = 22.5;
+    const data = JSON.stringify({ ...V.save(h), savedAt: Date.now() });
+    const { ctx, page, errors } = await preparedPage(([key, d]) => {
+      if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, d); sessionStorage.setItem('prepared', '1'); }
+    }, [SAVE_KEY, data]);
+    await sleep(500);
+    const fill = await canvasFilled(page);
+    check(fill.ok, 'the hamlet is drawn', JSON.stringify(fill));
+    const s = await readSave(page);
+    check(s.harvestFestival === true && s.villagers.length === 5, 'the hamlet loads with five villagers', JSON.stringify(s.villagers));
+    check(errors.length === 0, 'no console errors (hamlet)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    // A village from version 1 with a cloud code: kept aside, the code forgotten, a friendly toast.
+    const old = JSON.stringify({ v: 1, seed: 5, t: 100, res: { wood: 40 } });
+    const { ctx, page, errors } = await preparedPage(([key, data]) => {
+      if (!sessionStorage.getItem('prepared')) {
+        localStorage.setItem(key, data);
+        localStorage.setItem('village.cloud', 'abcdabcdabcdabcd');
+        sessionStorage.setItem('prepared', '1');
+      }
+    }, [SAVE_KEY, old]);
+    const kept = await page.evaluate((k) => localStorage.getItem(`${k}.v1`), SAVE_KEY);
+    check(kept === old, 'an old save is kept aside in village.save.v1', JSON.stringify(kept));
+    const code = await page.evaluate(() => localStorage.getItem('village.cloud'));
+    check(code === null, 'the old cloud code is forgotten', JSON.stringify(code));
+    const toast = await page.textContent('#toast');
+    check(/Новая версия/.test(toast || ''), 'an old save shows the new-version toast', JSON.stringify(toast));
+    check(!(await page.evaluate((k) => localStorage.getItem(`${k}.broken`), SAVE_KEY)), 'an old save is not called broken');
+    check(errors.length === 0, 'no console errors (old save)', errors.join('\n'));
     await ctx.close();
   }
   {

@@ -4,7 +4,29 @@
 (function (root) {
   'use strict';
 
-  const VERSION = 1;
+  // 2: the world clock (days and seasons). Older saves start a new village (load says recovered: 'old').
+  // 3: the map grows east (the hamlet). A version 2 save loads as is: only the nodes are laid out anew.
+  const VERSION = 3;
+
+  // ── World clock ──
+  // A day is 8 minutes: dawn, 6 minutes of daylight, dusk and night. Three days make a season, four a year.
+  // The clock is read from s.t, so it needs no state of its own; the game starts on a spring morning.
+  const DAY = 480;
+  const DAWN_END = 0.05, DUSK_START = 0.75, NIGHT_START = 0.85; // parts of the day, as a fraction of it
+  const SEASON_DAYS = 3;
+  const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+
+  function clock(t) {
+    t = Math.max(0, Number(t) || 0);
+    const day = Math.floor(t / DAY);
+    const phase = (t - day * DAY) / DAY;
+    const part = phase < DAWN_END ? 'dawn' : phase < DUSK_START ? 'day' : phase < NIGHT_START ? 'dusk' : 'night';
+    const seasonIndex = Math.floor(day / SEASON_DAYS) % SEASONS.length;
+    return {
+      day, phase, part, season: SEASONS[seasonIndex], seasonIndex,
+      seasonDay: day % SEASON_DAYS, year: Math.floor(day / (SEASON_DAYS * SEASONS.length)),
+    };
+  }
 
   // ── Constants ──
   const RESOURCES = {
@@ -14,6 +36,12 @@
     berries: { name: 'Ягоды' },
     planks: { name: 'Доски' },
     bricks: { name: 'Кирпич' },
+    vegetables: { name: 'Овощи' },
+    honey: { name: 'Мёд' },
+    apples: { name: 'Яблоки' },
+    coins: { name: 'Монеты' },
+    grapes: { name: 'Виноград' },
+    juice: { name: 'Сок' },
   };
   const RES_IDS = Object.keys(RESOURCES);
 
@@ -23,7 +51,9 @@
     tree: { name: 'Дерево', res: 'wood', hp: 4, tool: 'axe', regrow: [150, 300] },
     rock: { name: 'Камень', res: 'stone', hp: 4, tool: 'pick', regrow: [150, 300] },
     clay: { name: 'Глиняная яма', res: 'clay', hp: 3, tool: 'shovel', regrow: [150, 300] },
-    bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [150, 300] },
+    bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter'] },
+    // Apples ripen in summer and autumn only; an apple tree is bare the rest of the year.
+    apple: { name: 'Яблоня', res: 'apples', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter', 'spring'] },
   };
 
   // Level 2 needs the workbench (home), level 3 needs the forge. The shovel starts at 0 and comes with the bridge.
@@ -43,18 +73,31 @@
   const BUILDINGS = {
     well: { id: 'well', ch: 'W', name: 'Колодец', cost: { stone: 40, wood: 60 }, needs: [], effect: 'square' },
     home: { id: 'home', ch: 'H', name: 'Твой дом', cost: { wood: 120, stone: 60 }, needs: [], effect: 'workbench' },
+    garden: { id: 'garden', ch: 'G', name: 'Огород', cost: { wood: 80, stone: 30 }, needs: ['well'], effect: 'garden' },
     barn: { id: 'barn', ch: 'A', name: 'Амбар', cost: { wood: 200, stone: 100 }, needs: ['well'], effect: 'storage' },
     bridge: { id: 'bridge', ch: 'b', name: 'Мост', cost: { wood: 260, stone: 160 }, needs: ['home'], effect: 'bridge' },
     sawmill: { id: 'sawmill', ch: 'S', name: 'Лесопилка', cost: { wood: 300, stone: 200 }, needs: ['bridge'], effect: 'sawmill' },
-    kiln: { id: 'kiln', ch: 'K', name: 'Печь для обжига', cost: { stone: 180, clay: 130 }, needs: ['bridge'], effect: 'kiln' },
+    kiln: { id: 'kiln', ch: 'K', name: 'Печь для обжига', cost: { stone: 160, clay: 115 }, needs: ['bridge'], effect: 'kiln' },
     house1: { id: 'house1', ch: '1', name: 'Дом лесоруба', cost: { planks: 120, bricks: 60 }, needs: ['sawmill', 'kiln'], effect: 'villager', role: 'woodcutter' },
+    apiary: { id: 'apiary', ch: 'P', name: 'Пасека', cost: { planks: 60, wood: 40 }, needs: ['garden', 'house1'], effect: 'apiary' },
     house2: { id: 'house2', ch: '2', name: 'Дом каменщика', cost: { planks: 200, bricks: 120 }, needs: ['house1'], effect: 'villager', role: 'mason' },
+    market: { id: 'market', ch: 'R', name: 'Ярмарочные ряды', cost: { planks: 80, wood: 60 }, needs: ['house2'], effect: 'market' },
     forge: { id: 'forge', ch: 'F', name: 'Кузница', cost: { bricks: 100, planks: 60, stone: 200 }, needs: ['kiln'], effect: 'forge' },
     mill: { id: 'mill', ch: 'M', name: 'Мельница', cost: { planks: 240, bricks: 120 }, needs: ['house2'], effect: 'mill' },
-    house3: { id: 'house3', ch: '3', name: 'Дом гончара', cost: { planks: 240, bricks: 160, berries: 100 }, needs: ['mill'], effect: 'villager', role: 'potter' },
+    house3: { id: 'house3', ch: '3', name: 'Дом гончара', cost: { planks: 240, bricks: 160, berries: 40, vegetables: 30 }, needs: ['mill'], effect: 'villager', role: 'potter' },
     chapel: {
-      id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 180, stone: 450, berries: 160 },
-      needs: ['well', 'home', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'house2', 'forge', 'mill', 'house3'], effect: 'festival',
+      id: 'chapel', ch: 'C', name: 'Часовня с колоколом', cost: { planks: 200, bricks: 180, stone: 450, berries: 60, vegetables: 40, honey: 30, apples: 20 },
+      needs: ['well', 'home', 'garden', 'barn', 'bridge', 'sawmill', 'kiln', 'house1', 'apiary', 'house2', 'market', 'forge', 'mill', 'house3'], effect: 'festival',
+    },
+    // After the festival: the hamlet over the hill. `after: 'festival'` keeps these out of the first goal.
+    road: { id: 'road', ch: 't', name: 'Дорога через холм', cost: { stone: 400, planks: 220 }, needs: ['chapel'], effect: 'road', after: 'festival' },
+    vineyard: { id: 'vineyard', ch: 'V', name: 'Виноградник', cost: { planks: 220, wood: 150 }, needs: ['road'], bought: 'cuttings', effect: 'vineyard', after: 'festival' },
+    press: { id: 'press', ch: 'D', name: 'Давильня', cost: { planks: 220, bricks: 160, stone: 120 }, needs: ['vineyard'], effect: 'press', after: 'festival' },
+    house4: { id: 'house4', ch: '4', name: 'Дом пасечника', cost: { planks: 260, bricks: 180, honey: 40 }, needs: ['road', 'apiary'], effect: 'villager', role: 'beekeeper', after: 'festival' },
+    house5: { id: 'house5', ch: '5', name: 'Дом садовника', cost: { planks: 260, bricks: 180, apples: 40 }, needs: ['road'], effect: 'villager', role: 'gardener', after: 'festival' },
+    harvest: {
+      id: 'harvest', ch: 'U', name: 'Дом урожая', cost: { planks: 280, bricks: 220, juice: 30, honey: 60, apples: 60, vegetables: 80 },
+      needs: ['press', 'house4', 'house5'], effect: 'harvest', after: 'festival',
     },
   };
   const BUILDING_IDS = Object.keys(BUILDINGS);
@@ -62,17 +105,54 @@
   const STORAGE = [50, 150, 400]; // start, after the barn, after the barn upgrade
   const WORKSHOP_RESERVE = 30;
 
+  // The garden: plots on the map ('g'), sown with a berry, watered from the bucket (filled at the well),
+  // ripe after a day of growth with water. Water lasts until the next dawn. Nothing grows in winter.
+  const GARDEN = {
+    seed: { berries: 1 },               // what sowing a plot costs
+    bucket: 6,                          // waterings per filled bucket
+    harvest: [0, 4, 5, 6],              // vegetables per plot, by basket level
+    grow: { spring: 1, summer: 1.25, autumn: 0.8, winter: 0 }, // growth speed by season
+  };
+
   // Automatic income, per second. Villagers come from the houses, the mill speeds them up.
   const VILLAGERS = {
     woodcutter: { name: 'Лесоруб', res: 'wood', rate: 0.2 },
     mason: { name: 'Каменщик', res: 'stone', rate: 0.15 },
     potter: { name: 'Гончар', res: 'clay', rate: 0.15 },
+    beekeeper: { name: 'Пасечник', res: 'honey', rate: 0.1, rests: ['winter'] },
+    gardener: { name: 'Садовник', res: 'apples', rate: 0.1, rests: ['winter'] }, // keeps apples in the cellar till spring
   };
   const MILL_BONUS = 1.5;
+  // Orders from the villagers, posted on the board at the market rows: a few goods for coins.
+  // ORDER_GOODS: the usual amount asked for and what one unit is worth in coins.
+  const ORDERS = { max: 3, atMarket: 2, days: 3 }; // an order nobody fills is taken down after `days` dawns
+  const ORDER_GOODS = {
+    wood: { n: 30, worth: 1 }, stone: { n: 25, worth: 1 }, clay: { n: 20, worth: 1.2 }, berries: { n: 12, worth: 1.5 },
+    planks: { n: 20, worth: 2.5 }, bricks: { n: 15, worth: 3 }, vegetables: { n: 8, worth: 4 }, honey: { n: 6, worth: 5 },
+    apples: { n: 6, worth: 4 },
+  };
+
+  // The fair: on the first day of every season, in daylight, at the market rows. Each thing is bought once.
+  const FAIR = {
+    cuttings: { name: 'Черенки винограда', price: 12 },
+    bucket: { name: 'Большое ведро', price: 20 },
+    swing: { name: 'Качели', price: 15 },
+    sweep: { name: 'Колодезный журавль', price: 18 },
+    scarecrow: { name: 'Пугало', price: 10 },
+    arch: { name: 'Арка с цветами', price: 14 },
+  };
+  const BIG_BUCKET = 10;
+
+  // Buildings that produce on their own, resting in some seasons.
+  const PRODUCERS = {
+    apiary: { res: 'honey', rate: 0.05, rests: ['winter'] },
+    vineyard: { res: 'grapes', rate: 0.1, rests: ['winter'] },
+  };
   // Workshops turn `ratio` raw units into one product, `rate` products per second.
   const WORKSHOPS = {
     sawmill: { from: 'wood', to: 'planks', ratio: 2, rate: 0.3 },
     kiln: { from: 'clay', to: 'bricks', ratio: 2, rate: 0.25 },
+    press: { from: 'grapes', to: 'juice', ratio: 3, rate: 0.1 },
   };
   const OFFLINE_MAX = 8 * 3600;
 
@@ -82,56 +162,64 @@
     lantern: { name: 'Фонарь', cost: { planks: 4, stone: 2 } },
     bench: { name: 'Скамейка', cost: { planks: 6 } },
     fence: { name: 'Забор', cost: { planks: 3, stone: 1 } },
+    // Bought at the fair first; then built like the others.
+    swing: { name: 'Качели', cost: { planks: 8, wood: 4 }, fair: true },
+    sweep: { name: 'Колодезный журавль', cost: { wood: 10, stone: 4 }, fair: true },
+    scarecrow: { name: 'Пугало', cost: { wood: 4, berries: 2 }, fair: true },
+    arch: { name: 'Арка с цветами', cost: { planks: 6, berries: 6 }, fair: true },
   };
 
   // Nodes scattered per zone. West is open from the start, north and east open with the bridge.
   const ZONE_NODES = {
-    west: { tree: 22, rock: 10, bush: 10 },
+    west: { tree: 22, rock: 10, bush: 10, apple: 3 },
     north: { tree: 18, bush: 8, rock: 2 },
     east: { rock: 14, clay: 12, tree: 4, bush: 3 },
+    hamlet: { apple: 8, tree: 8, bush: 5, rock: 3 },
   };
 
   // ── Map ──
   // .  grass       ~  water      :  sand (river bank)   =  path   #  square
   // b  bridge site (water until the bridge is restored)
-  // W H A S K 1 2 3 F M C  ruin footprints (see BUILDINGS[].ch)
+  // ^  the hill east of the village (never walkable)   t  the trail over it (blocked until the road is built)
+  // W H A S K 1 2 3 F M C G P R V D 4 5 U  ruin footprints (see BUILDINGS[].ch)
+  // g  a garden plot (part of the garden, never walkable)
   const MAP = [
-    '................................................',
-    '.......:::::....................................',
-    '.......:~~~:....................................',
-    '.......:~~~:....................................',
-    '.......:::::....................................',
-    '................................................',
-    '................................................',
-    ':::::::::::..........:::::::::::::..............',
-    '~~~~~~~~~~::::::::::::~~~~~~~~~~~:..............',
-    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:..............',
-    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:..............',
-    '::::::::::~~~~~~~~~~~~::::::::~~~:..............',
-    '.........:::::::=::::::MM....:~~~:..............',
-    '................=======MM....:~~~:..............',
-    '................=............:~~~:..............',
-    '................=............:~~~:..............',
-    '................=............:~~~:..............',
-    '............AAA.=............:~~~:..............',
-    '............AAA.=............:~~~:..............',
-    '................=............:~~~:..............',
-    '............########.........:bbb:..............',
-    '........HH..########==========bbb=========......',
-    '........HH..###WW###.....SSS.:~~~:..KK..........',
-    '...=========###WW###.....SSS.:~~~:..KK..........',
-    '.....11..22.########.........:~~~:..............',
-    '.....11..22.########........::~~~:..............',
-    '...............=............:~~~::..............',
-    '............FF.=.33.........:~~~:...............',
-    '............FF.=.33.........:~~~:...............',
-    '...............=............:~~~:...............',
-    '...............=............:~~~:...............',
-    '..............CCC...........:~~~:...............',
-    '..............CCC...........:~~~:...............',
-    '..............CCC...........:~~~:...............',
-    '............................:~~~:...............',
-    '............................:~~~:...............',
+    '................................................^^^.............',
+    '.......:::::....................................^^^.............',
+    '.......:~~~:....................................^^^.............',
+    '.......:~~~:....................................^^^.............',
+    '.......:::::....................................^^^.............',
+    '................................................^^^.............',
+    '................................................^^^.............',
+    ':::::::::::..........:::::::::::::..............^^^.............',
+    '~~~~~~~~~~::::::::::::~~~~~~~~~~~:..............^^^.............',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:..............^^^.............',
+    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~:..............^^^.............',
+    '::::::::::~~~~~~~~~~~~::::::::~~~:..............^^^.............',
+    '.........:::::::=::::::MM....:~~~:..............^^^.............',
+    '................=======MM....:~~~:..............^^^.............',
+    '................=............:~~~:..............^^^.....VVVVV...',
+    '................=............:~~~:..............^^^.....VVVVV...',
+    '................=............:~~~:..............^^^.....VVVVV...',
+    '............AAA.=............:~~~:..............^^^.............',
+    '............AAA.=............:~~~:..............^^^..DDD........',
+    '................=............:~~~:..............^^^..DDD........',
+    '............########.........:bbb:..............^^^.............',
+    '........HH..########==========bbb===============ttt=============',
+    '........HH..###WW###.....SSS.:~~~:..KK..........^^^.....=.......',
+    '...=========###WW###.....SSS.:~~~:..KK..........^^^.....=.......',
+    '.....11..22.########.RRR.....:~~~:..............^^^..44.=.55....',
+    '.....11..22.########.RRR....::~~~:..............^^^..44.=.55....',
+    '...............=............:~~~::..............^^^.....=.......',
+    '...GG.ggg...FF.=.33.........:~~~:...............^^^.....=.......',
+    '...GG.ggg...FF.=.33.........:~~~:...............^^^....UUU......',
+    '...............=............:~~~:...............^^^....UUU......',
+    '...............=............:~~~:...............^^^....UUU......',
+    '...PP.........CCC...........:~~~:...............^^^.............',
+    '...PP.........CCC...........:~~~:...............^^^.............',
+    '..............CCC...........:~~~:...............^^^.............',
+    '............................:~~~:...............^^^.............',
+    '............................:~~~:...............^^^.............',
   ];
   const W = MAP[0].length;
   const H = MAP.length;
@@ -146,8 +234,8 @@
   const ruinAt = (x, y) => RUIN_CH[tileAt(x, y)] || null;
   const idx = (x, y) => y * W + x;
   // Base terrain walkability, ignoring nodes; the bridge site counts only when open.
-  const groundWalkable = (c, bridgeOpen) =>
-    c === '.' || c === ':' || c === '=' || c === '#' || (c === 'b' && bridgeOpen);
+  const groundWalkable = (c, bridgeOpen, roadOpen) =>
+    c === '.' || c === ':' || c === '=' || c === '#' || (c === 'b' && bridgeOpen) || (c === 't' && roadOpen);
 
   // Tiles of each ruin footprint, keyed by building id.
   const FOOTPRINTS = {};
@@ -156,6 +244,11 @@
     const id = RUIN_CH[MAP[y][x]];
     if (id) FOOTPRINTS[id].push({ x, y });
   }
+
+  // Garden plots in reading order; s.plots[i] belongs to PLOTS[i].
+  const PLOTS = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === 'g') PLOTS.push({ x, y });
+  const plotAt = (x, y) => PLOTS.findIndex((p) => p.x === x && p.y === y);
 
   function flood(start, pass) {
     const seen = new Uint8Array(W * H);
@@ -175,14 +268,16 @@
     return { seen, count };
   }
 
-  // Zones: land reachable from the start without the bridge is west; the rest is north (above the river) or east.
+  // Zones: land reachable from the start without the bridge is west; the hamlet lies past the hill (x ≥ HAMLET_X);
+  // the rest is north (above the river) or east.
+  const HAMLET_X = 48;
   const ZONES = new Array(W * H).fill(null);
   {
     const west = flood(START, (x, y) => groundWalkable(MAP[y][x], false)).seen;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const c = MAP[y][x];
-      if (c === '~' || c === 'b') continue;
-      ZONES[idx(x, y)] = west[idx(x, y)] ? 'west' : y < 8 ? 'north' : 'east';
+      if (c === '~' || c === 'b' || c === '^' || c === 't') continue;
+      ZONES[idx(x, y)] = west[idx(x, y)] ? 'west' : x >= HAMLET_X ? 'hamlet' : y < 8 ? 'north' : 'east';
     }
   }
   const zoneAt = (x, y) => (inMap(x, y) ? ZONES[idx(x, y)] : null);
@@ -200,8 +295,8 @@
   const NODE_SITES = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (MAP[y][x] !== '.') continue;
-    if (near(x, y, 2, (c) => c === 'b')) continue;
-    if (near(x, y, 1, (c) => c === '#' || RUIN_CH[c])) continue;
+    if (near(x, y, 2, (c) => c === 'b' || c === 't')) continue;
+    if (near(x, y, 1, (c) => c === '#' || c === 'g' || RUIN_CH[c])) continue;
     if (Math.abs(x - START.x) <= 1 && Math.abs(y - START.y) <= 1) continue;
     NODE_SITES.push({ x, y, zone: ZONES[idx(x, y)] });
   }
@@ -233,7 +328,7 @@
   // walkable ground (checked by flood fill with the bridge open), so every node and every tile stays reachable.
   function scatterNodes(R) {
     const blocked = new Uint8Array(W * H);
-    const pass = (x, y) => !blocked[idx(x, y)] && groundWalkable(MAP[y][x], true);
+    const pass = (x, y) => !blocked[idx(x, y)] && groundWalkable(MAP[y][x], true, true);
     let reach = flood(START, pass).count;
     const nodes = [];
     for (const zone of Object.keys(ZONE_NODES)) {
@@ -281,6 +376,7 @@
 
   // ── State ──
   const zeroRes = () => Object.fromEntries(RES_IDS.map((r) => [r, 0]));
+  const freshPlot = () => ({ stage: 'empty', water: false, grow: 0 });
   const freshBuilt = () => Object.fromEntries(BUILDING_IDS.map((id) => [id, {
     paid: Object.fromEntries(Object.keys(BUILDINGS[id].cost).map((r) => [r, 0])), done: false,
   }]));
@@ -291,6 +387,11 @@
     seed = seed >>> 0;
     const R = rng(seed);
     const nodes = scatterNodes(R);
+    // Fruit that is out of season at the start waits for its season.
+    for (const n of nodes) {
+      const rests = NODE_KINDS[n.kind].rests;
+      if (rests && rests.includes(clock(0).season)) { n.hp = 0; n.regrowAt = restEnd(0, rests) + (n.id % 12) * 5; }
+    }
     return {
       v: VERSION, seed, rng: R.state(),
       t: 0,
@@ -305,19 +406,26 @@
       villagers: [],
       acc: {},                      // fractional automatic income per producer, 0..1
       decor: [],
+      plots: PLOTS.map(() => freshPlot()),
+      orders: [],
+      orderSeq: 0,
+      bought: [],
+      bucket: 0,
       festival: false,
-      stats: { gathered: zeroRes(), playTime: 0 },
+      harvestFestival: false,
+      stats: { gathered: zeroRes(), playTime: 0, orders: 0 },
     };
   }
 
   const bridgeOpen = (s) => !!(s.built.bridge && s.built.bridge.done);
+  const roadOpen = (s) => !!(s.built.road && s.built.road.done);
 
   // Walkable for the player: in the map, not water, not a ruin or building, not a standing node.
   // The bridge site is water until the bridge is restored.
   function isWalkable(s, x, y) {
     x = Math.floor(x); y = Math.floor(y);
     const c = tileAt(x, y);
-    if (c === null || !groundWalkable(c, !!s && bridgeOpen(s))) return false;
+    if (c === null || !groundWalkable(c, !!s && bridgeOpen(s), !!s && roadOpen(s))) return false;
     const n = s ? nodeAt(s, x, y) : null;
     return !(n && n.hp > 0);
   }
@@ -467,11 +575,30 @@
     return true;
   }
 
-  // Click or tap on a tile: a standing node → walk up and gather; a ruin → walk up (the client opens the panel
-  // on the 'ruin' event); a walkable tile → walk there. Returns 'gather' | 'ruin' | 'walk' | 'tool' | 'none'.
+  const gardenOpen = (s) => s.built.garden.done;
+  // The well fills the bucket once both the well and the garden stand; before that it is a ruin like any other.
+  const wellPump = (s) => s.built.well.done && gardenOpen(s);
+
+  // Click or tap on a tile: a standing node → walk up and gather; a garden plot → walk up and tend it; the
+  // restored well (with a garden) → walk up and fill the bucket; a ruin → walk up (the client opens the panel
+  // on the 'ruin' event); a walkable tile → walk there.
+  // Returns 'gather' | 'plot' | 'well' | 'ruin' | 'walk' | 'tool' | 'none'.
   function interact(s, x, y) {
     x = Math.floor(x); y = Math.floor(y);
     const p = s.player;
+    const pi = plotAt(x, y);
+    if (pi >= 0 && gardenOpen(s)) {
+      const path = pathNextTo(s, p, [PLOTS[pi]]);
+      if (!path) return 'none';
+      setOrder(p, { type: 'plot', i: pi }, path);
+      return 'plot';
+    }
+    if (ruinAt(x, y) === 'well' && wellPump(s)) {
+      const path = pathNextTo(s, p, FOOTPRINTS.well);
+      if (!path) return 'none';
+      setOrder(p, { type: 'well' }, path);
+      return 'well';
+    }
     const n = nodeAt(s, x, y);
     if (n && n.hp > 0) {
       if (!s.tools[NODE_KINDS[n.kind].tool]) return 'tool';
@@ -480,7 +607,7 @@
       setOrder(p, { type: 'node', id: n.id }, path);
       return 'gather';
     }
-    const ruin = ruinAt(x, y);
+    const ruin = pi >= 0 ? 'garden' : ruinAt(x, y);
     if (ruin) {
       const path = pathNextTo(s, p, FOOTPRINTS[ruin]);
       if (!path) return 'none';
@@ -535,6 +662,8 @@
     let path = null;
     if (t && t.type === 'node') path = pathNextTo(s, p, [s.nodes[t.id]]);
     else if (t && t.type === 'ruin') path = pathNextTo(s, p, FOOTPRINTS[t.id]);
+    else if (t && t.type === 'plot') path = pathNextTo(s, p, [PLOTS[t.i]]);
+    else if (t && t.type === 'well') path = pathNextTo(s, p, FOOTPRINTS.well);
     else if (p.path && p.path.length) path = findPath(s, p, p.path[p.path.length - 1]);
     if (path) p.path = path;
     else clearOrder(p);
@@ -584,13 +713,23 @@
     if (at < nextRegrow(s)) regrowCache.set(s, at);
   }
 
+  // The first moment after t that falls outside the resting seasons (bushes rest in winter).
+  function restEnd(t, rests) {
+    const len = DAY * SEASON_DAYS;
+    let start = (Math.floor(t / len) + 1) * len;
+    for (let k = 0; k < SEASONS.length && rests.includes(clock(start).season); k++) start += len;
+    return start;
+  }
+
   function regrow(s) {
     if (nextRegrow(s) > s.t) return;
     let m = Infinity;
     for (const n of s.nodes) {
       if (n.hp > 0 || n.regrowAt === null) continue;
       if (n.regrowAt <= s.t) {
-        if (playerOn(s, n.x, n.y)) n.regrowAt = s.t + REGROW_RETRY;
+        const rests = NODE_KINDS[n.kind].rests;
+        if (rests && rests.includes(clock(s.t).season)) n.regrowAt = restEnd(s.t, rests) + (n.id % 12) * 5;
+        else if (playerOn(s, n.x, n.y)) n.regrowAt = s.t + REGROW_RETRY;
         else {
           n.hp = NODE_KINDS[n.kind].hp;
           n.regrowAt = null;
@@ -614,9 +753,37 @@
     }
   }
 
+  // Hooks run once for every dawn and every new season the clock passes, the same way from step() and
+  // offline(): `quiet` (offline) keeps the events out and only counts. Each returns nothing.
+  function onDawn(s, day, quiet) {
+    for (const pl of s.plots) pl.water = false; // the water soaks away overnight
+    if (s.built.market.done) {
+      const before = s.orders.length;
+      s.orders = s.orders.filter((o) => !(day - o.day >= ORDERS.days));
+      if (!quiet && s.orders.length < before) s.events.push({ type: 'order-gone', n: before - s.orders.length });
+      if (s.orders.length < ORDERS.max) postOrder(s, quiet);
+    }
+    if (!quiet) s.events.push({ type: 'dawn', day });
+  }
+  function onSeason(s, season, quiet) {
+    if (!quiet) s.events.push({ type: 'season', season });
+  }
+  // Moves s.t forward by dt and runs the hooks for the days crossed; returns how many dawns passed.
+  function advanceClock(s, dt, quiet) {
+    const before = Math.floor(s.t / DAY);
+    s.t += dt;
+    const after = Math.floor(s.t / DAY);
+    for (let d = before + 1; d <= after; d++) {
+      if (d % SEASON_DAYS === 0) onSeason(s, SEASONS[Math.floor(d / SEASON_DAYS) % SEASONS.length], quiet);
+      onDawn(s, d, quiet);
+    }
+    return after - before;
+  }
+
   function tick(s, dt) {
     const p = s.player;
-    s.t += dt;
+    growPlots(s, dt); // before the clock: water lasts exactly until dawn
+    advanceClock(s, dt, false);
     s.stats.playTime += dt;
     p.cd = Math.max(0, (p.cd || 0) - dt);
     regrow(s);
@@ -627,6 +794,12 @@
       if (p.target.type === 'node') gatherTick(s);
       else if (p.target.type === 'ruin') {
         s.events.push({ type: 'ruin', id: p.target.id });
+        p.target = null;
+      } else if (p.target.type === 'plot') {
+        tendPlot(s, p.target.i);
+        p.target = null;
+      } else if (p.target.type === 'well') {
+        fillBucket(s);
         p.target = null;
       }
     }
@@ -658,7 +831,9 @@
     for (const [r, n] of Object.entries(BUILDINGS[id].cost)) { paid += s.built[id].paid[r]; total += n; }
     return total ? paid / total : 1;
   };
-  const needsMet = (s, id) => BUILDINGS[id].needs.every((d) => s.built[d].done);
+  // Dependencies done, and anything that has to be bought at the fair first (the vine cuttings).
+  const needsMet = (s, id) => BUILDINGS[id].needs.every((d) => s.built[d].done)
+    && (!BUILDINGS[id].bought || (s.bought || []).includes(BUILDINGS[id].bought));
   const remaining = (s, id) => {
     const out = {};
     for (const [r, n] of Object.entries(BUILDINGS[id].cost)) {
@@ -698,7 +873,10 @@
     own.done = true;
     applyEffect(s, id);
     s.events.push({ type: 'built', id, effect: b.effect });
+    // The market opens with a few orders on its board (once, when built; a loaded save keeps its own).
+    if (b.effect === 'market') while (s.orders.length < ORDERS.atMarket) postOrder(s, false);
     if (b.effect === 'festival') s.events.push({ type: 'festival' });
+    if (b.effect === 'harvest') s.events.push({ type: 'harvest-festival' });
     return 'built';
   }
 
@@ -709,6 +887,7 @@
     else if (b.effect === 'bridge' && s.tools.shovel < 1) s.tools.shovel = 1;
     else if (b.effect === 'villager' && !s.villagers.some((v) => v.house === id)) s.villagers.push({ role: b.role, house: id });
     else if (b.effect === 'festival') s.festival = true;
+    else if (b.effect === 'harvest') s.harvestFestival = true;
   }
 
   function setBarn(s, level) {
@@ -727,6 +906,139 @@
     return 'ok';
   }
 
+  // ── Garden ──
+  const bucketSize = (s) => (s && s.bought && s.bought.includes('bucket') ? BIG_BUCKET : GARDEN.bucket);
+
+  // One action on a plot, whatever it needs next: sow (a berry; not in winter), water (from the bucket),
+  // wait while it grows, or harvest. Returns 'sown' | 'watered' | 'growing' | 'harvest' | 'winter' | 'seed'
+  // (no berry to sow) | 'bucket' (the bucket is empty) | 'locked' (no garden) | 'unknown'.
+  function tendPlot(s, i) {
+    const pl = s.plots[i];
+    if (!pl) return 'unknown';
+    if (!gardenOpen(s)) return 'locked';
+    let result, gain = 0;
+    if (pl.stage === 'empty') {
+      if (clock(s.t).season === 'winter') result = 'winter';
+      else if (!canAfford(s, GARDEN.seed)) result = 'seed';
+      else {
+        pay(s, GARDEN.seed);
+        Object.assign(pl, { stage: 'planted', water: false, grow: 0 });
+        result = 'sown';
+      }
+    } else if (pl.stage === 'planted') {
+      if (pl.water) result = 'growing';
+      else if (s.bucket <= 0) result = 'bucket';
+      else {
+        s.bucket--;
+        pl.water = true;
+        result = 'watered';
+      }
+    } else {
+      gain = GARDEN.harvest[s.tools.basket] || GARDEN.harvest[1];
+      s.res.vegetables += gain;
+      s.stats.gathered.vegetables += gain;
+      Object.assign(pl, freshPlot());
+      result = 'harvest';
+    }
+    s.events.push({ type: 'plot', i, result, gain, x: PLOTS[i].x, y: PLOTS[i].y });
+    return result;
+  }
+
+  // Fill the bucket at the restored well. Returns 'ok' | 'full' | 'locked'.
+  function fillBucket(s) {
+    if (!wellPump(s)) return 'locked';
+    if (s.bucket >= bucketSize(s)) { s.events.push({ type: 'bucket', n: s.bucket, full: true }); return 'full'; }
+    s.bucket = bucketSize(s);
+    s.events.push({ type: 'bucket', n: s.bucket });
+    return 'ok';
+  }
+
+  // Watered plots grow, faster in summer and not at all in winter; a plot that ripens stops needing water.
+  // Called before the clock moves: growth counts only up to the next dawn, when the water is gone (seasons
+  // also turn at dawn), so any step size gives the same result.
+  function growPlots(s, dt) {
+    const speed = GARDEN.grow[clock(s.t).season] || 0;
+    if (!speed) return;
+    dt = Math.min(dt, DAY - (s.t % DAY));
+    s.plots.forEach((pl, i) => {
+      if (pl.stage !== 'planted' || !pl.water) return;
+      pl.grow = Math.min(1, pl.grow + (dt / DAY) * speed);
+      if (pl.grow >= 1 - EPS) {
+        Object.assign(pl, { stage: 'ripe', water: false, grow: 1 });
+        s.events.push({ type: 'ripe', i, x: PLOTS[i].x, y: PLOTS[i].y });
+      }
+    });
+  }
+
+  // ── Orders ──
+  // Goods the player can get by now, so every order can be filled: raw goods as their nodes open,
+  // products once their workshop or the garden stands, apples once some have been picked.
+  function openGoods(s) {
+    const out = ['wood', 'stone', 'berries'];
+    if (bridgeOpen(s)) out.push('clay');
+    if (s.built.sawmill.done) out.push('planks');
+    if (s.built.kiln.done) out.push('bricks');
+    if (gardenOpen(s)) out.push('vegetables');
+    if (s.built.apiary.done) out.push('honey');
+    if (s.stats.gathered.apples > 0) out.push('apples');
+    return out;
+  }
+
+  // A villager posts a new order: one or two goods, a little more or less than usual, paid by their worth.
+  function postOrder(s, quiet) {
+    const goods = openGoods(s);
+    const who = s.villagers.length ? s.villagers[Math.floor(rand(s) * s.villagers.length)].role : 'neighbour';
+    const need = {};
+    const count = rand(s) < 0.45 ? 2 : 1;
+    for (let k = 0; k < count; k++) {
+      const r = goods[Math.floor(rand(s) * goods.length)];
+      const base = ORDER_GOODS[r].n * (0.8 + rand(s) * 0.6);
+      need[r] = (need[r] || 0) + (base >= 15 ? Math.round(base / 5) * 5 : Math.max(1, Math.round(base)));
+      need[r] = Math.min(need[r], s.storage); // always something the barn can hold
+    }
+    const value = Object.entries(need).reduce((a, [r, n]) => a + n * ORDER_GOODS[r].worth, 0);
+    const order = { id: ++s.orderSeq, who, need, reward: { coins: Math.max(1, Math.round(value / 5)) }, day: clock(s.t).day };
+    s.orders.push(order);
+    if (!quiet) s.events.push({ type: 'order-new', id: order.id, who });
+    return order;
+  }
+
+  // Hand over an order's goods for its coins. Returns 'ok' | 'none' (no such order) | 'cost' (not enough).
+  function fulfill(s, id) {
+    const i = s.orders.findIndex((o) => o.id === id);
+    if (i < 0) return 'none';
+    const o = s.orders[i];
+    if (!canAfford(s, o.need)) return 'cost';
+    pay(s, o.need);
+    s.res.coins += o.reward.coins;
+    s.orders.splice(i, 1);
+    s.stats.orders++;
+    s.events.push({ type: 'order', id, who: o.who, coins: o.reward.coins });
+    return 'ok';
+  }
+
+  // ── Fair ──
+  // Open on a season's first day while it is light, once the market rows stand.
+  function fairOpen(s) {
+    if (!s.built.market.done) return false;
+    const c = clock(s.t);
+    return c.seasonDay === 0 && (c.part === 'dawn' || c.part === 'day');
+  }
+
+  // Buy one thing at the fair. Returns 'ok' | 'closed' | 'coins' (not enough) | 'owned' | 'unknown'.
+  function buy(s, id) {
+    const item = FAIR[id];
+    if (!item) return 'unknown';
+    if (s.bought.includes(id)) return 'owned';
+    if (!fairOpen(s)) return 'closed';
+    if (s.res.coins < item.price) return 'coins';
+    s.res.coins -= item.price;
+    s.bought.push(id);
+    if (id === 'bucket') s.bucket = Math.min(s.bucket, bucketSize(s));
+    s.events.push({ type: 'buy', id });
+    return 'ok';
+  }
+
   // ── Automatic income ──
   // Fractional progress builds up in s.acc; whole units are added while there is room under the storage limit.
   // A blocked producer keeps at most one unit pending, so it doesn't burst later.
@@ -737,13 +1049,21 @@
   const hasRaw = (s, w) => s.res[w.from] - w.ratio >= WORKSHOP_RESERVE;
 
   function produce(s, dt) {
+    const now = clock(s.t).season;
     for (const v of s.villagers) {
       const role = VILLAGERS[v.role];
-      if (!role) continue;
+      if (!role || (role.rests && role.rests.includes(now))) continue;
       const key = v.house;
       let a = (s.acc[key] || 0) + villagerRate(s, role) * dt;
       while (a >= 1 - EPS && hasRoom(s, role.res)) { s.res[role.res] += 1; a -= 1; }
       s.acc[key] = clamp01(a);
+    }
+    const season = clock(s.t).season;
+    for (const [id, pr] of Object.entries(PRODUCERS)) {
+      if (!s.built[id].done || pr.rests.includes(season)) continue;
+      let a = (s.acc[id] || 0) + pr.rate * dt;
+      while (a >= 1 - EPS && hasRoom(s, pr.res)) { s.res[pr.res] += 1; a -= 1; }
+      s.acc[id] = clamp01(a);
     }
     for (const [id, w] of Object.entries(WORKSHOPS)) {
       if (!s.built[id].done) continue;
@@ -763,11 +1083,18 @@
     const rate = {};
     const full = new Set();
     const add = (r, v) => { rate[r] = (rate[r] || 0) + v; };
+    const now = clock(s.t).season;
     for (const v of s.villagers) {
       const role = VILLAGERS[v.role];
-      if (!role) continue;
+      if (!role || (role.rests && role.rests.includes(now))) continue;
       if (hasRoom(s, role.res)) add(role.res, villagerRate(s, role));
       else full.add(role.res);
+    }
+    const season = clock(s.t).season;
+    for (const [id, pr] of Object.entries(PRODUCERS)) {
+      if (!s.built[id].done || pr.rests.includes(season)) continue;
+      if (hasRoom(s, pr.res)) add(pr.res, pr.rate);
+      else full.add(pr.res);
     }
     for (const [id, w] of Object.entries(WORKSHOPS)) {
       if (!s.built[id].done) continue;
@@ -784,17 +1111,20 @@
   function offline(s, seconds) {
     const total = Math.floor(Math.min(Math.max(Number(seconds) || 0, 0), OFFLINE_MAX));
     const before = { ...s.res };
-    for (let i = 0; i < total; i++) {
-      s.t += 1;
-      produce(s, 1);
-    }
+    let days = 0;
     const mark = s.events.length;
+    for (let i = 0; i < total; i++) {
+      growPlots(s, 1);
+      days += advanceClock(s, 1, true);
+      produce(s, 1);
+      regrow(s); // every second, so a node due before a resting season regrows just as step() would
+    }
     regrow(s);
-    const regrown = s.events.length - mark;
+    const regrown = s.events.filter((e, i) => i >= mark && e.type === 'regrow').length;
     s.events.length = mark; // a summary instead of a burst of regrow events
     const gains = {};
     for (const r of RES_IDS) if (s.res[r] !== before[r]) gains[r] = s.res[r] - before[r];
-    return { seconds: total, gains, regrown };
+    return { seconds: total, gains, regrown, days };
   }
 
   // The hint in the HUD: the cheapest available restoration (by what is left to pay), or the tool that blocks it.
@@ -803,16 +1133,22 @@
   // points at something that can't be paid yet.
   const PRODUCT_OF = Object.fromEntries(Object.entries(WORKSHOPS).map(([id, w]) => [w.to, id]));
   function nextGoal(s) {
-    if (s.festival) return { type: 'decor' };
+    const stage = s.festival ? 'festival' : undefined; // before the festival only the village, after it the hamlet
     let best = null, bestLeft = Infinity;
     for (const id of BUILDING_IDS) {
-      if (s.built[id].done || !needsMet(s, id)) continue;
+      if (BUILDINGS[id].after !== stage || s.built[id].done || !needsMet(s, id)) continue;
       const rest = remaining(s, id);
       if (Object.keys(rest).some((r) => PRODUCT_OF[r] && !s.built[PRODUCT_OF[r]].done && s.res[r] < rest[r])) continue;
       const left = Object.values(rest).reduce((a, n) => a + n, 0);
       if (left < bestLeft) { best = id; bestLeft = left; }
     }
-    if (!best) return null;
+    if (!best) {
+      // A building that waits only for something from the fair.
+      const waiting = BUILDING_IDS.find((id) => BUILDINGS[id].after === stage && !s.built[id].done && BUILDINGS[id].bought
+        && BUILDINGS[id].needs.every((d) => s.built[d].done) && !s.bought.includes(BUILDINGS[id].bought));
+      if (waiting) return { type: 'fair', item: BUILDINGS[waiting].bought, id: waiting };
+      return s.festival ? { type: 'decor' } : null;
+    }
     for (const r of Object.keys(remaining(s, best))) {
       for (const [tool, t] of Object.entries(TOOLS)) {
         if (NODE_KINDS[t.node].res === r && s.tools[tool] < 1) return { type: 'tool', tool };
@@ -821,12 +1157,13 @@
     return { type: 'build', id: best };
   }
 
-  // Free play: a decoration on a free square tile. Returns 'ok' | 'locked' (before the festival) | 'cost'
+  // Free play: a decoration on a free square tile. Returns 'ok' | 'locked' (before the festival, or a fair
+  // decoration not bought yet) | 'cost'
   // | 'occupied' (not a free square tile) | 'unknown'.
   function placeDecor(s, kind, x, y) {
     const d = DECOR[kind];
     if (!d) return 'unknown';
-    if (!s.festival) return 'locked';
+    if (!s.festival || (d.fair && !s.bought.includes(kind))) return 'locked';
     x = Math.floor(x); y = Math.floor(y);
     if (tileAt(x, y) !== '#' || s.decor.some((o) => o.x === x && o.y === y)) return 'occupied';
     if (!canAfford(s, d.cost)) return 'cost';
@@ -851,18 +1188,23 @@
   const num = (v, def, min = 0, max = Infinity) => (Number.isFinite(v) && v >= min && v <= max ? v : def);
   const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-  function recovered() {
+  // why: true for junk or a foreign save, 'old' for a save of an earlier version of the game.
+  function recovered(why = true) {
     const s = newGame();
-    s.recovered = true;
+    s.recovered = why;
     return s;
   }
 
   // Accepts an object or a JSON string. Fills missing fields with defaults and drops junk.
-  // A broken or foreign save gives a new game with recovered: true; load never throws.
+  // A broken or foreign save gives a new game with recovered: true, a save of an earlier version one with
+  // recovered: 'old'; load never throws.
   function load(data) {
     try {
       if (typeof data === 'string') data = JSON.parse(data);
-      if (!isObj(data) || data.v !== VERSION || !Number.isFinite(data.seed)) return recovered();
+      if (!isObj(data) || !Number.isFinite(data.seed)) return recovered();
+      if (data.v === 2) data = { ...data, v: VERSION }; // same state; restore() re-lays the nodes for the new map
+      if (Number.isInteger(data.v) && data.v >= 1 && data.v < VERSION) return recovered('old');
+      if (data.v !== VERSION) return recovered();
       return restore(data);
     } catch (e) {
       return recovered();
@@ -889,8 +1231,9 @@
         const own = s.nodes[n.id];
         if (!own || own.kind !== n.kind || own.x !== n.x || own.y !== n.y) continue;
         if (Number.isInteger(n.hp) && n.hp >= 0 && n.hp <= NODE_KINDS[own.kind].hp) own.hp = n.hp;
-        // An empty node comes back no later than its longest regrowth from now.
-        const latest = s.t + NODE_KINDS[own.kind].regrow[1];
+        // An empty node comes back no later than its longest regrowth from now (for fruit: from its season).
+        const kind = NODE_KINDS[own.kind];
+        const latest = (kind.rests ? restEnd(s.t, kind.rests) : s.t) + kind.regrow[1];
         own.regrowAt = Number.isFinite(n.regrowAt) ? Math.min(n.regrowAt, latest) : null;
         if (own.hp > 0) own.regrowAt = null;
         else if (own.regrowAt === null) own.regrowAt = s.t;
@@ -910,7 +1253,7 @@
       }
       // A done building needs its dependencies done. BUILDING_IDS lists dependencies first, so one pass is
       // enough. Such a building stays fully paid and is finished by the next contribute once its needs are met.
-      for (const id of BUILDING_IDS) if (s.built[id].done && !needsMet(s, id)) s.built[id].done = false;
+      for (const id of BUILDING_IDS) if (s.built[id].done && !BUILDINGS[id].needs.every((d) => s.built[d].done)) s.built[id].done = false;
     }
 
     // The saved position counts only where the player fits (not water, not a standing node, not off the map).
@@ -931,7 +1274,7 @@
 
     if (isObj(d.acc)) {
       for (const [k, v] of Object.entries(d.acc)) {
-        if ((BUILDINGS[k] && (BUILDINGS[k].role || WORKSHOPS[k])) && Number.isFinite(v)) s.acc[k] = clamp01(v);
+        if ((BUILDINGS[k] && (BUILDINGS[k].role || WORKSHOPS[k] || PRODUCERS[k])) && Number.isFinite(v)) s.acc[k] = clamp01(v);
       }
     }
 
@@ -943,22 +1286,53 @@
         .map((o) => ({ kind: o.kind, x: o.x, y: o.y }));
     }
 
-    // Effects of done buildings, in case the save lost them. The festival comes from the chapel, not the save.
+    if (Array.isArray(d.plots) && d.plots.length === PLOTS.length) {
+      s.plots = d.plots.map((pl) => {
+        if (!isObj(pl) || !['empty', 'planted', 'ripe'].includes(pl.stage)) return freshPlot();
+        if (pl.stage === 'empty') return freshPlot();
+        if (pl.stage === 'ripe') return { stage: 'ripe', water: false, grow: 1 };
+        return { stage: 'planted', water: pl.water === true, grow: Math.min(num(pl.grow, 0), 0.999) };
+      });
+    }
+    if (Array.isArray(d.bought)) s.bought = [...new Set(d.bought.filter((id) => typeof id === 'string' && FAIR[id]))];
+    for (const id of BUILDING_IDS) {
+      const item = BUILDINGS[id].bought;
+      if (item && s.built[id].done && !s.bought.includes(item)) s.bought.push(item); // it was bought to build it
+    }
+    s.bucket = Number.isInteger(d.bucket) ? num(d.bucket, 0, 0, bucketSize(s)) : 0;
+
+    // Orders: known goods in whole positive amounts, at most ORDERS.max, ids unique and below the counter.
+    s.orderSeq = Number.isInteger(d.orderSeq) ? num(d.orderSeq, 0) : 0;
+    if (Array.isArray(d.orders)) {
+      s.orders = d.orders.filter((o) => isObj(o) && Number.isInteger(o.id) && o.id > 0 && o.id <= s.orderSeq
+        && isObj(o.need) && Object.keys(o.need).length > 0
+        && Object.entries(o.need).every(([r, n]) => ORDER_GOODS[r] && Number.isInteger(n) && n > 0 && n < 1000)
+        && isObj(o.reward) && Number.isInteger(o.reward.coins) && o.reward.coins > 0)
+        .filter((o, i, all) => all.findIndex((q) => q.id === o.id) === i)
+        .slice(0, ORDERS.max)
+        .map((o) => ({
+          id: o.id, who: typeof o.who === 'string' ? o.who : 'neighbour', need: { ...o.need }, reward: { coins: o.reward.coins },
+          day: Number.isInteger(o.day) ? num(o.day, 0) : clock(s.t).day,
+        }));
+    }
+
+    // Effects of done buildings, in case the save lost them. The festivals come from their buildings, not the save.
     for (const id of BUILDING_IDS) if (s.built[id].done) applyEffect(s, id);
     s.storage = STORAGE[s.barnLevel];
 
     if (isObj(d.stats)) {
       if (isObj(d.stats.gathered)) for (const r of RES_IDS) s.stats.gathered[r] = num(d.stats.gathered[r], 0);
       s.stats.playTime = num(d.stats.playTime, 0);
+      s.stats.orders = Number.isInteger(d.stats.orders) ? num(d.stats.orders, 0) : 0;
     }
     return s;
   }
 
   const api = {
-    VERSION, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
-    BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS,
+    VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
+    BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS, PRODUCERS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
-    MAP, W, H, START, FOOTPRINTS, SPEED,
+    MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, FAIR, BIG_BUCKET, fairOpen, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
     placeDecor, save, load,

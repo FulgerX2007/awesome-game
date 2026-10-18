@@ -6,8 +6,6 @@
 <meta name="theme-color" content="#2b2418">
 <title>Родник</title>
 <meta name="description" content="Спокойная игра о заброшенном селе: руби лес, бей камень, копай глину и восстанавливай дома до праздника.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@500;700&family=Nunito:wght@400;600;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,6 +14,8 @@
     <div class="brand">
       <h1>Родник</h1>
       <span class="progress" id="built-label">Восстановлено 0/12</span>
+      <span class="progress clock" id="clock-label" title="Время года и день">Весна · день 1</span>
+      <span class="progress" id="bucket-label" hidden>Ведро 0/6</span>
     </div>
     <div class="top-actions">
       <button class="chip" id="btn-buildings" type="button" aria-controls="panel-buildings">Здания</button>
@@ -31,6 +31,12 @@
     <div class="res-item" data-res="berries"><dt><i class="ico berries"></i>Ягоды</dt><dd><b id="r-berries">0</b><small id="r-berries-rate"></small></dd></div>
     <div class="res-item" data-res="planks"><dt><i class="ico planks"></i>Доски</dt><dd><b id="r-planks">0</b><small id="r-planks-rate"></small></dd></div>
     <div class="res-item" data-res="bricks"><dt><i class="ico bricks"></i>Кирпич</dt><dd><b id="r-bricks">0</b><small id="r-bricks-rate"></small></dd></div>
+    <div class="res-item" data-res="vegetables" hidden><dt><i class="ico vegetables"></i>Овощи</dt><dd><b id="r-vegetables">0</b><small id="r-vegetables-rate"></small></dd></div>
+    <div class="res-item" data-res="honey" hidden><dt><i class="ico honey"></i>Мёд</dt><dd><b id="r-honey">0</b><small id="r-honey-rate"></small></dd></div>
+    <div class="res-item" data-res="apples" hidden><dt><i class="ico apples"></i>Яблоки</dt><dd><b id="r-apples">0</b><small id="r-apples-rate"></small></dd></div>
+    <div class="res-item" data-res="coins" hidden><dt><i class="ico coins"></i>Монеты</dt><dd><b id="r-coins">0</b><small id="r-coins-rate"></small></dd></div>
+    <div class="res-item" data-res="grapes" hidden><dt><i class="ico grapes"></i>Виноград</dt><dd><b id="r-grapes">0</b><small id="r-grapes-rate"></small></dd></div>
+    <div class="res-item" data-res="juice" hidden><dt><i class="ico juice"></i>Сок</dt><dd><b id="r-juice">0</b><small id="r-juice-rate"></small></dd></div>
   </dl>
 
   <main class="stage">
@@ -52,6 +58,13 @@
     <ul class="cost" id="pb-cost"></ul>
     <p class="small muted" id="pb-needs"></p>
     <div class="row"><button class="btn primary" id="btn-contribute" type="button">Внести</button></div>
+    <div id="pb-market" hidden>
+      <h3>Заказы жителей</h3>
+      <ul class="cost" id="orders-list"></ul>
+      <h3>Ярмарка</h3>
+      <p class="small muted" id="fair-note"></p>
+      <ul class="cost" id="fair-list"></ul>
+    </div>
   </section>
 
   <section class="panel" id="panel-buildings" hidden aria-labelledby="pbs-title">
@@ -110,10 +123,12 @@
 
 <script src="../i18n.js"></script>
 <script src="../nav.js"></script>
+<script src="../fx.js"></script>
 <script src="lang.js"></script>
 <script src="core.js"></script>
 <script src="view.js"></script>
 <script src="audio.js"></script>
+<script src="houses.js"></script>
 <script src="art.js"></script>
 <script src="game.js"></script>
 </body>

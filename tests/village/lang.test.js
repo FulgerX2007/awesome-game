@@ -22,7 +22,7 @@ function hasRo(key) {
 }
 
 test('every name from the core tables has a RO translation', () => {
-  const tables = { RESOURCES: V.RESOURCES, NODE_KINDS: V.NODE_KINDS, TOOLS: V.TOOLS, BUILDINGS: V.BUILDINGS, VILLAGERS: V.VILLAGERS, DECOR: V.DECOR };
+  const tables = { RESOURCES: V.RESOURCES, NODE_KINDS: V.NODE_KINDS, TOOLS: V.TOOLS, BUILDINGS: V.BUILDINGS, VILLAGERS: V.VILLAGERS, DECOR: V.DECOR, FAIR: V.FAIR };
   const missing = [];
   for (const [table, rows] of Object.entries(tables)) {
     for (const [id, row] of Object.entries(rows)) {
@@ -64,7 +64,21 @@ test('every Russian string in index.html has a RO translation', () => {
 test('index.html loads the scripts in order', () => {
   const html = fs.readFileSync(path.join(WEB, 'village', 'index.html'), 'utf8');
   const srcs = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', 'lang.js', 'core.js', 'view.js', 'audio.js', 'art.js', 'game.js']);
+  assert.deepEqual(srcs, ['../i18n.js', '../nav.js', '../fx.js', 'lang.js', 'core.js', 'view.js', 'audio.js', 'houses.js', 'art.js', 'game.js']);
+  for (const s of srcs) assert.ok(fs.existsSync(path.join(WEB, 'village', s)), s);
+});
+
+test('index.html uses only relative paths and needs no network', () => {
+  const html = fs.readFileSync(path.join(WEB, 'village', 'index.html'), 'utf8');
+  const refs = [...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(refs.length > 0);
+  for (const r of refs) {
+    assert.ok(!/^[a-z]+:|^\/\//i.test(r), `no scheme or protocol-relative URL: ${r}`);
+    assert.ok(!r.startsWith('/'), `no absolute path: ${r}`);
+    assert.ok(!r.startsWith('../') || ['../i18n.js', '../nav.js', '../fx.js'].includes(r), `only shared hub scripts above the folder: ${r}`);
+  }
+  const css = fs.readFileSync(path.join(WEB, 'village', 'style.css'), 'utf8');
+  assert.doesNotMatch(html + css, /@import|url\(|https?:/, 'no CSS imports, url() or links out of the page');
 });
 
 test('view.js and audio.js load in Node without errors', () => {
@@ -104,4 +118,24 @@ test('every Russian string in game.js has a RO translation', () => {
   assert.ok(keys.has('Восстановить: {name}'));
   const missing = [...keys].filter((k) => !hasRo(k));
   assert.deepEqual(missing, []);
+});
+
+test('the drawing code has no untranslated Russian strings', () => {
+  // The art draws with code only; any Russian text it ever shows must be in the RO dictionary too.
+  for (const file of ['art.js', 'houses.js', 'view.js']) {
+    const src = fs.readFileSync(path.join(WEB, 'village', file), 'utf8')
+      .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')
+      .replace(/\/\/[^'\n]*$/gm, '');
+    const missing = [];
+    for (const m of src.matchAll(/'((?:[^'\\\n]|\\.)*)'/g)) {
+      if (/[А-Яа-яЁё]/.test(m[1]) && !hasRo(m[1])) missing.push(m[1]);
+    }
+    assert.deepEqual(missing, [], file);
+  }
+});
+
+test('every villager role has a look in the art', () => {
+  const src = fs.readFileSync(path.join(WEB, 'village', 'art.js'), 'utf8');
+  const looks = src.slice(src.indexOf('const LOOKS = {'), src.indexOf('};', src.indexOf('const LOOKS = {')));
+  for (const role of Object.keys(V.VILLAGERS)) assert.match(looks, new RegExp(`\\b${role}: \\{`), role);
 });

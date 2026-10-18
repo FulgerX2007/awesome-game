@@ -5,6 +5,7 @@
   'use strict';
   const V = window.Village;
   const VV = window.VillageView;
+  const K = window.Fx;
   const { TILE: T, hash2, lerp, clamp } = VV;
   const TAU = Math.PI * 2;
   const ease = (x) => 1 - (1 - x) * (1 - x);
@@ -16,15 +17,36 @@
   let cw = 0, ch = 0, dpr = 1;
   let cam = { x: 0, y: 0 };
   let time = 0;               // animation clock, seconds (runs even when the world is idle)
+  let SUN = VV.sunAt(0.4, 'spring'); // this frame's daylight (view.sunAt)
+  let CLOCK = V.clock(0);
+  const lit = [];             // lights met while drawing this frame: { x, y, r, color, a }
+  const light = (x, y, r, color, a = 1) => lit.push({ x, y, r, color, a });
   let vignette = null;
 
 
   // ───────────── Palette ─────────────
-  const GRASS = { base: '#82ad55', dark: '#6f9c47', light: '#9cc46b', tuft: '#5c8a3b', tuftLight: '#a9cf73' };
+  // The ground and plant colours follow the season (view.palette); usePalette switches them. Sprites and
+  // ground chunks are painted synchronously, so a paint can switch to another season and back.
   const FLOWERS = ['#fff6e0', '#f4d35e', '#f2a7c3', '#b9d4f2', '#f6b26b'];
-  const SAND = { edge: '#cdb27c', main: '#e3cd98', pebble: '#bba373' };
-  const WATER = { shallow: '#72c0cc', deep: '#4d9bb8' };
-  const PATH = { edge: '#a78457', main: '#c9a670', speck: '#b39060' };
+  const SAND0 = { edge: '#cdb27c', main: '#e3cd98', pebble: '#bba373' };
+  const WATER0 = { shallow: '#72c0cc', deep: '#4d9bb8' };
+  const PATH0 = { edge: '#a78457', main: '#c9a670', speck: '#b39060' };
+  let LOOK, GRASS, SAND, WATER, PATH, SEASON;
+  function usePalette(season) {
+    SEASON = season;
+    LOOK = VV.palette(season);
+    GRASS = LOOK.grass;
+    SAND = LOOK.sand || SAND0;
+    WATER = LOOK.water || WATER0;
+    PATH = LOOK.path || PATH0;
+  }
+  function withPalette(season, fn) {
+    const keep = SEASON;
+    usePalette(season);
+    try { return fn(); } finally { usePalette(keep); }
+  }
+  usePalette('spring');
+  let FADE = { from: 'winter', to: 'spring', t: 1 }; // this frame's season change (view.seasonFade)
   const SQUARE = { edge: '#8c7a5d', gap: '#a39276', stones: ['#cdbd9b', '#d8c9a8', '#c2b18e', '#d2c4a0'] };
   const WOOD = { dark: '#6e4a2b', mid: '#8b5e36', light: '#b3834f', pale: '#d2a86c' };
   const STONE = { dark: '#7d786d', mid: '#9d978a', light: '#bdb7a8' };
@@ -100,28 +122,78 @@
     ctx.stroke();
   }
   // A soft irregular blob (rocks, clay): n points around an ellipse with seeded radii, smoothed by quadratic curves.
-  function blob(x, y, rx, ry, seed, color, n = 7, jag = 0.18) {
+  function blob(x, y, rx, ry, seed, color, n = 7, jag = 0.18, g = ctx) {
     const pts = [];
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU, k = 1 - jag + hash2(seed, i, 41) * jag * 2;
       pts.push([x + Math.cos(a) * rx * k, y + Math.sin(a) * ry * k]);
     }
-    ctx.fillStyle = color;
-    ctx.beginPath();
+    g.fillStyle = color;
+    g.beginPath();
     const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     let m = mid(pts[n - 1], pts[0]);
-    ctx.moveTo(m[0], m[1]);
+    g.moveTo(m[0], m[1]);
     for (let i = 0; i < n; i++) {
       m = mid(pts[i], pts[(i + 1) % n]);
-      ctx.quadraticCurveTo(pts[i][0], pts[i][1], m[0], m[1]);
+      g.quadraticCurveTo(pts[i][0], pts[i][1], m[0], m[1]);
     }
-    ctx.fill();
+    g.fill();
   }
   const shadow = (x, y, rx, ry) => ellipse(x, y, rx, ry, 'rgba(38, 48, 20, 0.26)');
 
+  // A shadow cast to the lower right, away from the top-left light: a contact patch at the foot and a longer,
+  // fainter patch stretched along the ground.
+  function castShadow(x, y, rx, len, a = 0.32) {
+    a *= SUN.shadow;
+    K.shadow(ctx, x + rx * 0.12, y, rx, rx * 0.38, a);
+    ctx.save();
+    ctx.translate(x + len * 0.45, y + len * 0.14);
+    ctx.rotate(0.3);
+    K.shadow(ctx, 0, 0, len * 0.6, rx * 0.46, a * 0.6);
+    ctx.restore();
+  }
+
+  // ───────────── Cached sprites ─────────────
+  // Static shapes are painted once into a small canvas at the device pixel ratio and blitted every frame.
+  // (ax, ay) is where the anchor (a node's foot) sits inside the sprite; least recently used ones are dropped.
+  const sprites = new Map();
+  let spriteRatio = 0;
+  function sprite(key, w, h, ax, ay, paint) {
+    if (spriteRatio !== dpr) { sprites.clear(); spriteRatio = dpr; }
+    let sp = sprites.get(key);
+    if (sp) { sprites.delete(key); sprites.set(key, sp); return sp; }
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(w * dpr));
+    cv.height = Math.max(1, Math.ceil(h * dpr));
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, ax * dpr, ay * dpr);
+    paint(g);
+    sp = { cv, w, h, ax, ay };
+    sprites.set(key, sp);
+    if (sprites.size > 400) sprites.delete(sprites.keys().next().value);
+    return sp;
+  }
+  const blit = (sp, x, y) => ctx.drawImage(sp.cv, x - sp.ax, y - sp.ay, sp.w, sp.h);
+  // A sprite as big as a node's silhouette (view.NODE_TALL), so the art and the tap area agree.
+  const nodeSprite = (kind, key, paint) => {
+    const t = VV.NODE_TALL[kind], pad = 3;
+    return sprite(key, t.hw * 2 + pad * 2, t.up + VV.NODE_FOOT + pad * 2, t.hw + pad, t.up + pad, paint);
+  };
+  // A node sprite that changes with the season: painted with that season's palette, and while a season
+  // changes the old look stays under the new one as it fades in.
+  function seasonal(kind, key, paint, x, y) {
+    const one = (season) => nodeSprite(kind, `${key}|${season}`, (g) => withPalette(season, () => paint(g)));
+    if (FADE.t < 1) {
+      blit(one(FADE.from), x, y);
+      ctx.globalAlpha = FADE.t;
+      blit(one(FADE.to), x, y);
+      ctx.globalAlpha = 1;
+    } else blit(one(FADE.to), x, y);
+  }
+
   // ───────────── Ground (cached in chunks) ─────────────
   // Terrain classes: g grass (ruin footprints too), s sand, w water (bridge site too), p path, q square.
-  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q' };
+  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q', g: 'f', '^': 'h', t: 'p' };
   const inSquare = (x, y) => x >= SQ.x0 && x <= SQ.x1 && y >= SQ.y0 && y <= SQ.y1;
   // Ruin footprints sit on grass, except the well, which stands in the middle of the cobbled square.
   const terr = (x, y) => {
@@ -132,9 +204,14 @@
   const chunks = new Map();
   let chunkRatio = 0;
 
-  function chunk(cx, cy) {
+  // Chunks of seasons that are no longer on screen are dropped.
+  function pruneChunks(keep) {
+    for (const key of chunks.keys()) if (!keep.includes(key.slice(0, key.indexOf('|')))) chunks.delete(key);
+  }
+
+  function chunk(cx, cy, season) {
     if (chunkRatio !== dpr) { chunks.clear(); chunkRatio = dpr; }
-    const key = cx + ',' + cy;
+    const key = season + '|' + cx + ',' + cy;
     let c = chunks.get(key);
     if (c) return c;
     const size = CHUNK * T;
@@ -144,7 +221,7 @@
     g.scale(dpr, dpr);
     g.translate(-cx * size, -cy * size);
     // One tile of overlap on every side, so blobs and rounded edges match across chunk borders.
-    paintGround(g, cx * CHUNK - 1, cy * CHUNK - 1, cx * CHUNK + CHUNK, cy * CHUNK + CHUNK);
+    withPalette(season, () => paintGround(g, cx * CHUNK - 1, cy * CHUNK - 1, cx * CHUNK + CHUNK, cy * CHUNK + CHUNK));
     chunks.set(key, c);
     return c;
   }
@@ -155,8 +232,12 @@
   const QUADS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
   const ARC = [0.38, 0.71, 0.92];
   function layer(g, x0, y0, x1, y1, inSet, color, inset, radius) {
-    const H = T / 2;
     g.fillStyle = color;
+    layerPath(g, x0, y0, x1, y1, inSet, inset, radius);
+    g.fill();
+  }
+  function layerPath(g, x0, y0, x1, y1, inSet, inset, radius) {
+    const H = T / 2;
     g.beginPath();
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       if (!inSet(x, y)) continue;
@@ -184,7 +265,43 @@
         g.closePath();
       }
     }
-    g.fill();
+  }
+
+  // A sunken area (water, a path) seen from above with the light at the top left: inside its shape the
+  // north and west banks cast a soft shadow, the south and east banks catch the light, and a thin rim marks
+  // the edge. `o`: { inset, radius, shadow: [width, alpha, rgb], lip: [width, alpha], rim }.
+  function sunken(g, x0, y0, x1, y1, inSet, o) {
+    const { EDGE } = VV;
+    const band = (x, y, side, w, color) => {
+      const px = x * T, py = y * T, i = o.inset;
+      let grd;
+      if (side === EDGE.N) grd = g.createLinearGradient(0, py + i, 0, py + i + w);
+      else if (side === EDGE.S) grd = g.createLinearGradient(0, py + T - i, 0, py + T - i - w);
+      else if (side === EDGE.W) grd = g.createLinearGradient(px + i, 0, px + i + w, 0);
+      else grd = g.createLinearGradient(px + T - i, 0, px + T - i - w, 0);
+      grd.addColorStop(0, color);
+      grd.addColorStop(1, color.replace(/[\d.]+\)$/, '0)'));
+      g.fillStyle = grd;
+      if (side === EDGE.N) g.fillRect(px, py, T, i + w);
+      else if (side === EDGE.S) g.fillRect(px, py + T - i - w, T, i + w);
+      else if (side === EDGE.W) g.fillRect(px, py, i + w, T);
+      else g.fillRect(px + T - i - w, py, i + w, T);
+    };
+    g.save();
+    layerPath(g, x0, y0, x1, y1, inSet, o.inset, o.radius);
+    g.clip();
+    const [sw, sa, rgb] = o.shadow, [lw, la] = o.lip;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const m = VV.edgeMask(inSet, x, y);
+      if (!m) continue;
+      if (m & EDGE.N) band(x, y, EDGE.N, sw, `rgba(${rgb}, ${sa})`);
+      if (m & EDGE.W) band(x, y, EDGE.W, sw * 0.8, `rgba(${rgb}, ${sa * 0.8})`);
+      const lip = o.lipRgb || '255, 252, 240';
+      if (m & EDGE.S) band(x, y, EDGE.S, lw, `rgba(${lip}, ${la})`);
+      if (m & EDGE.E) band(x, y, EDGE.E, lw * 0.8, `rgba(${lip}, ${la * 0.7})`);
+      if (o.rim) for (const side of [EDGE.N, EDGE.E, EDGE.S, EDGE.W]) if (m & side) band(x, y, side, 1.6, `rgba(255, 255, 255, ${o.rim})`);
+    }
+    g.restore();
   }
 
   function paintGround(g, x0, y0, x1, y1) {
@@ -210,8 +327,52 @@
     layer(g, x0, y0, x1, y1, sandy, SAND.main, 2, 9);
     layer(g, x0, y0, x1, y1, water, WATER.shallow, 5, 12);
     layer(g, x0, y0, x1, y1, deep, WATER.deep, 4, 12);
+    sunken(g, x0, y0, x1, y1, water, { inset: 5, radius: 12, shadow: [12, 0.34, '18, 52, 66'], lip: [5, 0.32], rim: 0.28 });
     layer(g, x0, y0, x1, y1, is('p'), PATH.edge, 0, 8);
     layer(g, x0, y0, x1, y1, is('p'), PATH.main, 2.5, 7);
+    sunken(g, x0, y0, x1, y1, is('p'), { inset: 2.5, radius: 7, shadow: [5, 0.2, '74, 50, 24'], lip: [3, 0.22] });
+    // The hill east of the village: a raised ridge, lit on its north-west slope and shaded to the south-east,
+    // with rocks poking out of the turf.
+    const hill = is('h');
+    layer(g, x0, y0, x1, y1, hill, K.shade(GRASS.base, -0.2), 0, 10);
+    // Lumpy mounds, each lit from the top left: together they read as a rounded ridge.
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (!hill(x, y)) continue;
+      for (let k = 0; k < 2; k++) {
+        const mx = x * T + 6 + hash2(x, y, 193 + k) * 20, my = y * T + 4 + hash2(x, y, 195 + k) * 22, r = 15 + hash2(x, y, 197 + k) * 8;
+        const grd = g.createRadialGradient(mx - r * 0.4, my - r * 0.45, r * 0.1, mx, my, r);
+        grd.addColorStop(0, K.shade(GRASS.base, 0.22));
+        grd.addColorStop(0.55, K.shade(GRASS.base, 0.02));
+        grd.addColorStop(1, K.withAlpha(K.shade(GRASS.base, -0.25), 0));
+        g.fillStyle = grd;
+        g.beginPath(); g.ellipse(mx, my, r, r * 0.85, 0, 0, TAU); g.fill();
+      }
+    }
+    sunken(g, x0, y0, x1, y1, hill, { inset: 0, radius: 10, shadow: [8, 0.22, '255, 250, 220'], lip: [14, 0.32], lipRgb: '30, 40, 20' });
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (!hill(x, y) || hash2(x, y, 190) > 0.45) continue;
+      const rx = x * T + 8 + hash2(x, y, 191) * 16, ry = y * T + 8 + hash2(x, y, 192) * 16;
+      g.fillStyle = 'rgba(30, 40, 20, 0.3)';
+      g.beginPath(); g.ellipse(rx + 2, ry + 2, 5, 3, 0, 0, TAU); g.fill();
+      g.fillStyle = LOOK.snow ? '#f2f6f9' : STONE.mid;
+      g.beginPath(); g.ellipse(rx, ry, 5, 3.6, 0, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      g.beginPath(); g.ellipse(rx - 1.5, ry - 1.2, 2.2, 1.2, 0, 0, TAU); g.fill();
+    }
+    // Garden beds: dark tilled soil in furrows, sunk a little into the grass.
+    layer(g, x0, y0, x1, y1, is('f'), '#6b4a2e', 1, 5);
+    layer(g, x0, y0, x1, y1, is('f'), LOOK.snow ? '#e6edf2' : '#7e5735', 3, 4);
+    sunken(g, x0, y0, x1, y1, is('f'), { inset: 3, radius: 4, shadow: [5, 0.3, '50, 30, 14'], lip: [2, 0.18] });
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (terr(x, y) !== 'f') continue;
+      for (let k = 0; k < 3; k++) {
+        const fy = y * T + 8 + k * 8;
+        g.fillStyle = LOOK.snow ? 'rgba(160, 175, 190, 0.5)' : 'rgba(60, 38, 20, 0.55)';
+        g.fillRect(x * T + 5, fy, T - 10, 2);
+        g.fillStyle = LOOK.snow ? 'rgba(255, 255, 255, 0.7)' : 'rgba(170, 120, 80, 0.4)';
+        g.fillRect(x * T + 5, fy - 1.5, T - 10, 1.2);
+      }
+    }
     layer(g, x0, y0, x1, y1, is('q'), SQUARE.edge, 0, 6);
     layer(g, x0, y0, x1, y1, is('q'), SQUARE.gap, 2, 5);
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -226,6 +387,7 @@
         }
       } else if (c === 'q') cobbles(g, x, y, px, py);
       else if (c === 's') sandDetail(g, x, y, px, py, water);
+      else if (c === 'w' && LOOK.ice) iceDetail(g, x, y, px, py);
       else if (c === 'w' && deep(x, y) && hash2(x, y, 90) < 0.07) lilyPad(g, x, y, px, py);
     }
   }
@@ -243,7 +405,21 @@
       g.moveTo(tx + 3, ty - 4); g.lineTo(tx + 1, ty);
       g.stroke();
     }
-    if (hash2(x, y, 3) < 0.16) {
+    if (LOOK.fallen && hash2(x, y, 160) < LOOK.fallen) {
+      // Fallen leaves in autumn.
+      for (let k = 0; k < 3; k++) {
+        g.fillStyle = ['#c9672f', '#e0a03d', '#a8452e'][k];
+        g.beginPath();
+        g.ellipse(px + 4 + hash2(x, y, 161 + k) * (T - 8), py + 4 + hash2(x, y, 165 + k) * (T - 8), 2.6, 1.4, hash2(x, y, 169 + k) * TAU, 0, TAU);
+        g.fill();
+      }
+    }
+    if (LOOK.snow && hash2(x, y, 170) < 0.3) {
+      // Glints on the snow.
+      g.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      for (let k = 0; k < 3; k++) g.fillRect(px + hash2(x, y, 171 + k) * T, py + hash2(x, y, 175 + k) * T, 1.2, 1.2);
+    }
+    if (hash2(x, y, 3) < LOOK.flowers) {
       const col = FLOWERS[Math.floor(hash2(x, y, 4) * FLOWERS.length)];
       const n = 3 + Math.floor(hash2(x, y, 6) * 3);
       const fx = px + 6 + hash2(x, y, 7) * (T - 12), fy = py + 6 + hash2(x, y, 9) * (T - 12);
@@ -267,6 +443,11 @@
     for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
       const k = j * 2 + i;
       const sx = px + i * 16 + 1.5 + (hash2(x, y, 100 + k) - 0.5) * 1.5, sy = py + j * 16 + 1.5 + (hash2(x, y, 110 + k) - 0.5) * 1.5;
+      // Each cobble is a low dome: a shadow to the lower right, the stone, then its lit top.
+      g.fillStyle = 'rgba(60, 48, 30, 0.35)';
+      g.beginPath();
+      g.roundRect(sx + 1.2, sy + 1.6, 13, 13, 4);
+      g.fill();
       g.fillStyle = SQUARE.stones[Math.floor(hash2(x, y, 120 + k) * SQUARE.stones.length)];
       g.beginPath();
       g.roundRect(sx, sy, 13, 13, 4);
@@ -308,8 +489,32 @@
     }
   }
 
+  // Frozen river: pale ice with a few cracks and drifts of snow.
+  function iceDetail(g, x, y, px, py) {
+    g.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    g.lineWidth = 1;
+    if (hash2(x, y, 180) < 0.45) {
+      const ax = px + hash2(x, y, 181) * T, ay = py + hash2(x, y, 182) * T;
+      g.beginPath();
+      g.moveTo(ax, ay);
+      g.lineTo(ax + (hash2(x, y, 183) - 0.5) * 22, ay + (hash2(x, y, 184) - 0.5) * 16);
+      g.lineTo(ax + (hash2(x, y, 185) - 0.5) * 30, ay + (hash2(x, y, 186) - 0.5) * 24);
+      g.stroke();
+    }
+    if (hash2(x, y, 187) < 0.25) {
+      g.fillStyle = 'rgba(250, 252, 255, 0.75)';
+      g.beginPath();
+      g.ellipse(px + hash2(x, y, 188) * T, py + hash2(x, y, 189) * T, 9, 4, 0, 0, TAU);
+      g.fill();
+    }
+  }
+
   function lilyPad(g, x, y, px, py) {
     const lx = px + 8 + hash2(x, y, 91) * 16, ly = py + 8 + hash2(x, y, 92) * 16, a = hash2(x, y, 93) * TAU;
+    g.fillStyle = 'rgba(16, 52, 64, 0.3)'; // the pad floats: its shadow lies on the water to the lower right
+    g.beginPath();
+    g.ellipse(lx + 1.5, ly + 2, 6, 5.4, 0, 0, TAU);
+    g.fill();
     g.fillStyle = '#5d9a4a';
     g.beginPath();
     g.moveTo(lx, ly);
@@ -326,6 +531,7 @@
 
   // Gentle ripples and glints on the visible water, drifting with the current.
   function drawWater(r) {
+    if (LOOK.ice) return; // frozen
     ctx.lineCap = 'round';
     for (let y = r.y0; y <= r.y1; y++) for (let x = r.x0; x <= r.x1; x++) {
       if (terr(x, y) !== 'w') continue;
@@ -355,44 +561,84 @@
   // ───────────── Nodes ─────────────
   const fx = { shake: new Map(), pop: new Map(), falls: [], parts: [], smoke: [], rockets: [], sparks: [] };
 
+  // A tree's look in the current season: pines stay green (snowy in winter); leafy trees follow the
+  // palette, blossom in spring, carry apples in summer and autumn and stand bare in winter.
   function treeLook(n) {
+    if (n.kind === 'apple') {
+      const bare = !LOOK.leaves;
+      return { pine: false, pal: bare ? null : LOOK.leaves[0], bare, snow: LOOK.snow > 0, apples: n.hp > 0, many: true, blossom: LOOK.blossom > 0 };
+    }
     const h = hash2(n.x, n.y, 300);
     const pine = V.zoneAt(n.x, n.y) === 'north' ? h < 0.6 : h < 0.18;
-    const autumn = !pine && hash2(n.x, n.y, 301) < 0.13;
-    const greens = [['#3f6e33', '#548a3f', '#78ad55'], ['#466f2e', '#5e8f3a', '#86b356'], ['#3a6a3f', '#4f8650', '#72a868']];
-    const pal = autumn ? ['#b8662e', '#d88a3a', '#efb75a'] : pine ? ['#2f5a37', '#3d7044', '#5a8f58'] : greens[Math.floor(hash2(n.x, n.y, 302) * 3)];
-    return { pine, pal, apples: !pine && !autumn && hash2(n.x, n.y, 303) < 0.15 };
+    const snow = LOOK.snow > 0;
+    if (pine) return { pine, pal: ['#2f5a37', '#3d7044', '#5a8f58'], snow };
+    const sets = LOOK.leaves;
+    const bare = !sets;
+    // A few leafy trees turn early in late summer.
+    const early = SEASON === 'summer' && hash2(n.x, n.y, 301) < 0.13;
+    const pal = bare ? null : early ? VV.palette('autumn').leaves[0] : sets[Math.floor(hash2(n.x, n.y, 302) * sets.length)];
+    const fruit = (SEASON === 'summer' || SEASON === 'autumn') && hash2(n.x, n.y, 303) < 0.15;
+    return { pine, pal, bare, snow, apples: !bare && fruit, blossom: hash2(n.x, n.y, 304) < LOOK.blossom };
   }
 
-  function drawTree(n, cx, by, sway) {
-    const L = treeLook(n);
-    shadow(cx + 3, by, 13, 4.5);
+  // Leafy crowns are clusters of lit balls; pines are stacked cones with a lit left face. Painted at the
+  // node's foot (0, 0); the trunk and the crown are separate sprites so the crown can sway.
+  const CROWN = [[0, -23, 14, 0], [-8, -27, 10, 1], [8, -26, 10, 1], [0, -35, 11, 1], [-5, -36, 6.5, 2], [-10, -28, 4.5, 2]];
+  function paintCrown(g, n, L) {
     if (L.pine) {
-      rect(cx - 2.5, by - 9, 5, 9, WOOD.mid, 1.5);
-      const tiers = [[13, -6, -22], [11, -16, -32], [8, -26, -42]];
-      tiers.forEach(([w, b, top], i) => {
-        const s = sway * (i + 1) * 0.5;
-        poly([cx - w, by + b, cx + w, by + b, cx + s, by + top], L.pal[i === 0 ? 0 : 1]);
-        poly([cx - w + 2, by + b - 1, cx + s * 0.8 - 1, by + top + 3, cx - 2 + s * 0.5, by + b - 1], L.pal[2]);
+      [[14, -6, -24], [12, -17, -35], [9, -28, -46]].forEach(([w, b, top], i) => {
+        g.fillStyle = 'rgba(20, 40, 20, 0.28)'; // the tier above shades the one below
+        g.beginPath(); g.ellipse(1, b + 1, w * 0.85, 2.6, 0, 0, TAU); g.fill();
+        g.fillStyle = K.shade(L.pal[0], -0.12);
+        g.beginPath(); g.moveTo(-w, b); g.lineTo(w, b); g.lineTo(0, top); g.closePath(); g.fill();
+        g.fillStyle = i ? L.pal[1] : L.pal[0];
+        g.beginPath(); g.moveTo(-w, b); g.lineTo(1, b + 0.5); g.lineTo(0, top); g.closePath(); g.fill();
+        g.strokeStyle = L.pal[2]; g.lineWidth = 1.4; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(-w + 2.5, b - 1); g.lineTo(-0.5, top + 2.5); g.stroke();
+        if (L.snow) { // snow lies on the upper slopes of each tier
+          g.fillStyle = '#f4f8fb';
+          g.beginPath(); g.moveTo(-w * 0.55, b - (b - top) * 0.45); g.lineTo(0, top); g.lineTo(w * 0.45, b - (b - top) * 0.5); g.lineTo(0, b - (b - top) * 0.62); g.closePath(); g.fill();
+        }
       });
       return;
     }
-    rect(cx - 3, by - 17, 6, 17, WOOD.mid, 2);
-    rect(cx - 3, by - 17, 2.2, 17, WOOD.light, 1);
-    const s = sway;
-    circle(cx + s * 0.5, by - 22, 14, L.pal[0]);
-    circle(cx - 7 + s, by - 26, 10, L.pal[1]);
-    circle(cx + 7 + s, by - 25, 10, L.pal[1]);
-    circle(cx + s, by - 33, 11, L.pal[1]);
-    circle(cx - 4 + s, by - 33, 6.5, L.pal[2]);
-    circle(cx - 9 + s, by - 27, 4, L.pal[2]);
-    if (L.apples) for (let k = 0; k < 4; k++) circle(cx - 8 + hash2(n.x, n.y, 310 + k) * 16 + s, by - 34 + hash2(n.x, n.y, 320 + k) * 16, 1.8, '#d2453a');
+    if (L.bare) { // winter: bare branches with a little snow on them
+      g.strokeStyle = K.shade(WOOD.mid, -0.15); g.lineCap = 'round';
+      for (const [x0, y0, x1, y1, w] of [[0, -18, 0, -40, 2.6], [0, -24, -10, -36, 1.8], [0, -27, 10, -38, 1.8], [-5, -31, -12, -42, 1.2], [5, -33, 9, -45, 1.2], [0, -34, -3, -46, 1.2]]) {
+        g.lineWidth = w;
+        g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+        if (L.snow) { g.fillStyle = '#f4f8fb'; g.beginPath(); g.ellipse((x0 + x1) / 2 - 0.5, (y0 + y1) / 2 - 1.2, 2.4, 1, 0, 0, TAU); g.fill(); }
+      }
+      return;
+    }
+    g.fillStyle = 'rgba(20, 36, 14, 0.3)';
+    g.beginPath(); g.ellipse(1, -14, 12, 5, 0, 0, TAU); g.fill();
+    for (const [dx, dy, r, c] of CROWN) K.sphere(g, dx, dy, r, L.pal[c], { gloss: false, shine: 0.3 });
+    if (L.blossom) for (let k = 0; k < 9; k++) {
+      g.fillStyle = k % 3 ? '#fbe3ec' : '#f2a7c3';
+      g.beginPath(); g.arc(-12 + hash2(n.x, n.y, 330 + k) * 24, -42 + hash2(n.x, n.y, 340 + k) * 24, 1.7, 0, TAU); g.fill();
+    }
+    if (L.apples) for (let k = 0; k < (L.many ? 3 + n.hp * 3 : 4); k++) {
+      K.sphere(g, -9 + hash2(n.x, n.y, 310 + k) * 18, -36 + hash2(n.x, n.y, 320 + k) * 17, 2.1, '#d2453a', { shine: 0.5 });
+    }
+  }
+  function paintTrunk(g, pine) {
+    const h = pine ? 9 : 19, rx = pine ? 2.6 : 3.2;
+    g.fillStyle = K.shade(WOOD.mid, -0.3);
+    g.beginPath(); g.ellipse(0, 0, rx + 2, 1.8, 0, 0, TAU); g.fill();
+    K.cylinder(g, 0, -h, rx, h, WOOD.mid, { cap: false, ry: 1.3 });
+  }
+
+  function drawTree(n, cx, by, sway) {
+    const pine = treeLook(n).pine;
+    castShadow(cx, by, 13, pine ? 36 : 34);
+    blit(nodeSprite('tree', 'trunk|' + (pine ? 1 : 0), (g) => paintTrunk(g, pine)), cx, by);
+    seasonal('tree', `crown|${n.x},${n.y}|${n.kind === 'apple' ? n.hp : ''}`, (g) => paintCrown(g, n, treeLook(n)), cx + sway, by);
   }
 
   function drawStump(n, cx, by) {
-    shadow(cx + 2, by, 9, 3.5);
-    rect(cx - 6, by - 7, 12, 7, WOOD.mid, 2);
-    ellipse(cx, by - 7, 6, 3, WOOD.pale);
+    castShadow(cx, by, 8, 12, 0.26);
+    K.cylinder(ctx, cx, by - 7, 6, 6, WOOD.mid, { capColor: LOOK.snow ? '#eef3f7' : WOOD.pale, ry: 3 });
     ctx.strokeStyle = 'rgba(110, 74, 43, 0.6)';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
@@ -411,15 +657,28 @@
     ellipse(x + 2 * k, y - 5 * k, 2.4 * k, 1.3 * k, '#7fae55');
   }
 
+  // A boulder: a dark base in its own shade, a lit body and a pale top facet, smaller as it is mined.
+  function paintRock(g, n, k) {
+    const seed = n.id * 7 + 1;
+    const body = g.createRadialGradient(-5 * k, -16 * k, 1, 0, -9 * k, 15 * k);
+    body.addColorStop(0, STONE.light);
+    body.addColorStop(0.55, STONE.mid);
+    body.addColorStop(1, STONE.dark);
+    blob(1, -8 * k, 14 * k, 10 * k, seed, K.shade(STONE.dark, -0.15), 7, 0.18, g);
+    blob(-1, -11 * k, 12 * k, 9.5 * k, seed + 1, body, 7, 0.18, g);
+    blob(-3 * k, -16 * k, 6.5 * k, 4 * k, seed + 2, 'rgba(232, 228, 214, 0.55)', 7, 0.18, g);
+    g.strokeStyle = 'rgba(70, 66, 58, 0.55)'; g.lineWidth = 1; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(2 * k, -14 * k); g.lineTo(5 * k, -7 * k); g.stroke();
+    if (LOOK.snow) blob(-2 * k, -17 * k, 8 * k, 3.6 * k, seed + 3, '#f4f8fb', 7, 0.2, g);
+    else if (hash2(n.x, n.y, 330) < 0.4) {
+      g.fillStyle = 'rgba(110, 150, 70, 0.85)';
+      g.beginPath(); g.ellipse(4 * k, -18 * k, 4 * k, 2 * k, 0, 0, TAU); g.fill();
+    }
+  }
   function drawRock(n, cx, by) {
     const k = 0.62 + 0.38 * (n.hp / V.NODE_KINDS.rock.hp);
-    const seed = n.id * 7 + 1;
-    shadow(cx + 3, by - 1, 14 * k, 5 * k);
-    blob(cx, by - 8 * k, 13 * k, 10 * k, seed, STONE.dark);
-    blob(cx - 1, by - 10 * k, 11 * k, 8 * k, seed + 1, STONE.mid);
-    blob(cx - 3 * k, by - 13 * k, 6 * k, 4 * k, seed + 2, STONE.light);
-    line(cx + 2 * k, by - 12 * k, cx + 5 * k, by - 6 * k, 'rgba(70, 66, 58, 0.55)', 1);
-    if (hash2(n.x, n.y, 330) < 0.4) ellipse(cx + 3 * k, by - 15 * k, 4 * k, 2 * k, 'rgba(110, 150, 70, 0.8)');
+    castShadow(cx, by - 1, 14 * k, 22 * k, 0.34);
+    seasonal('rock', `rock|${n.x},${n.y}|${n.hp}`, (g) => paintRock(g, n, k), cx, by);
   }
 
   function drawPebbles(n, cx, by) {
@@ -431,12 +690,24 @@
     sprout(n, cx + 6, by - 2);
   }
 
+  // A wet clay mound in a muddy pit: a glossy body lit from the top left.
+  function paintClay(g, n, k) {
+    g.fillStyle = '#7a5a3a';
+    g.beginPath(); g.ellipse(0, -5, 15, 8, 0, 0, TAU); g.fill();
+    g.fillStyle = '#5e4429';
+    g.beginPath(); g.ellipse(1, -3.5, 13, 5.5, 0, 0, Math.PI); g.fill();
+    const body = g.createRadialGradient(-4 * k, -11 * k, 1, 0, -7 * k, 13 * k);
+    body.addColorStop(0, '#e19a68');
+    body.addColorStop(0.5, '#c4703f');
+    body.addColorStop(1, '#8f4a26');
+    blob(0, -7 * k, 12 * k, 7 * k, n.id * 5 + 3, body, 8, 0.12, g);
+    g.fillStyle = 'rgba(255, 235, 210, 0.55)';
+    g.beginPath(); g.ellipse(-4 * k, -10.5 * k, 3.4 * k, 1.4 * k, -0.3, 0, TAU); g.fill();
+  }
   function drawClay(n, cx, by) {
     const k = 0.6 + 0.4 * (n.hp / V.NODE_KINDS.clay.hp);
-    ellipse(cx, by - 5, 15, 8, '#7a5a3a');
-    blob(cx, by - 7 * k, 12 * k, 7 * k, n.id * 5 + 3, '#b3643a', 8, 0.12);
-    blob(cx - 1, by - 9 * k, 9 * k, 5 * k, n.id * 5 + 4, '#cf8452', 8, 0.12);
-    ellipse(cx - 4 * k, by - 10 * k, 3 * k, 1.3 * k, 'rgba(255, 235, 210, 0.45)');
+    K.shadow(ctx, cx + 2, by - 3, 16, 6, 0.22);
+    blit(nodeSprite('clay', `clay|${n.x},${n.y}|${n.hp}`, (g) => paintClay(g, n, k)), cx, by);
   }
 
   function drawPit(n, cx, by) {
@@ -446,21 +717,30 @@
     sprout(n, cx + 9, by - 2);
   }
 
-  function drawBush(n, cx, by, sway) {
+  // A berry bush: a clump of lit leafy balls with glossy berries, paler and bare once picked.
+  const BUSH = [[-7, -7, 7, 0], [7, -7, 7, 0], [0, -12, 8, 0], [-3, -6, 7, 1], [4, -5, 7, 1], [-3, -14, 3.5, 2], [5, -11, 2.8, 2]];
+  const BUSH_LEAVES = { autumn: ['#8c5a2e', '#a8703a', '#c99350'] };
+  function paintBush(g, n) {
     const full = n.hp > 0;
-    shadow(cx + 2, by - 1, 13, 4);
-    const leaves = full ? ['#4b7c38', '#5f9446', '#7aae58'] : ['#5f8f45', '#77a456', '#93bf6c'];
-    const spots = [[-7, -7, 7], [7, -7, 7], [0, -12, 8], [-3, -6, 7], [4, -5, 7]];
-    spots.forEach(([dx, dy, r], i) => circle(cx + dx + sway * 0.3, by + dy, r, leaves[i < 3 ? 0 : 1]));
-    circle(cx - 3 + sway * 0.3, by - 13, 3.5, leaves[2]);
-    circle(cx + 5 + sway * 0.3, by - 10, 2.5, leaves[2]);
-    if (!full) { sprout(n, cx + 9, by - 1); return; }
-    const count = n.hp * 3;
-    for (let k = 0; k < count; k++) {
-      const bx = cx - 9 + hash2(n.x, n.y, 350 + k) * 18 + sway * 0.3, byy = by - 15 + hash2(n.x, n.y, 370 + k) * 11;
-      circle(bx, byy, 2, '#c2335a');
-      circle(bx - 0.6, byy - 0.7, 0.7, 'rgba(255, 220, 230, 0.8)');
+    if (LOOK.snow) { // winter: bare twigs under snow; berries left on them still show
+      g.strokeStyle = K.shade(WOOD.mid, -0.1); g.lineWidth = 1.3; g.lineCap = 'round';
+      for (let k = 0; k < 7; k++) {
+        const a = -Math.PI * (0.15 + 0.7 * (k / 6));
+        g.beginPath(); g.moveTo(0, -2); g.lineTo(Math.cos(a) * 12, -2 + Math.sin(a) * 14); g.stroke();
+      }
+      for (const [dx, dy, r] of [[-5, -12, 6], [5, -11, 5.5], [0, -15, 5]]) K.sphere(g, dx, dy, r, '#eef3f7', { gloss: false, shine: 0.2 });
+    } else {
+      const leaves = BUSH_LEAVES[SEASON] || (full ? ['#4b7c38', '#5f9446', '#86b860'] : ['#5f8f45', '#77a456', '#9cc674']);
+      for (const [dx, dy, r, c] of BUSH) K.sphere(g, dx, dy, r, leaves[c], { gloss: false, shine: 0.3 });
     }
+    for (let k = 0; k < n.hp * 3; k++) {
+      K.sphere(g, -9 + hash2(n.x, n.y, 350 + k) * 18, -15 + hash2(n.x, n.y, 370 + k) * 11, 2.2, '#c2335a', { shine: 0.6 });
+    }
+  }
+  function drawBush(n, cx, by, sway) {
+    castShadow(cx, by - 1, 13, 18, 0.3);
+    seasonal('bush', `bush|${n.x},${n.y}|${n.hp}`, (g) => paintBush(g, n), cx + sway * 0.3, by);
+    if (n.hp <= 0) sprout(n, cx + 9, by - 1);
   }
 
   function drawNode(n) {
@@ -488,6 +768,7 @@
     }
     const up = n.hp > 0;
     if (n.kind === 'tree') (up ? drawTree(n, cx, by, sway) : drawStump(n, cx, by));
+    else if (n.kind === 'apple') drawTree(n, cx, by, sway);
     else if (n.kind === 'rock') (up ? drawRock(n, cx, by) : drawPebbles(n, cx, by));
     else if (n.kind === 'clay') (up ? drawClay(n, cx, by) : drawPit(n, cx, by));
     else drawBush(n, cx, by, sway);
@@ -495,388 +776,83 @@
   }
 
   // ───────────── Buildings ─────────────
-  function windowBox(x, y, w, h, trim) {
-    rect(x - 2.5, y + 1, 2.5, h - 2, trim, 1);
-    rect(x + w, y + 1, 2.5, h - 2, trim, 1);
-    rect(x - 1, y - 1, w + 2, h + 2, '#f6efe0', 2);
-    const g = ctx.createLinearGradient(x, y, x, y + h);
-    g.addColorStop(0, '#fff1c4');
-    g.addColorStop(1, WINDOW);
-    rect(x, y, w, h, g, 1.5);
-    line(x + w / 2, y, x + w / 2, y + h, trim, 1.2);
-    line(x, y + h / 2, x + w, y + h / 2, trim, 1.2);
-    // Flower box under the window.
-    rect(x - 1.5, y + h + 1, w + 3, 3, WOOD.mid, 1);
-    for (let k = 0; k < 3; k++) circle(x + 1 + k * (w - 2) / 2, y + h, 1.6, k % 2 ? '#f4d35e' : '#e0607e');
-  }
-
-  function door(x, y, w, h, color = '#7b4f2e') {
-    rect(x, y, w, h, color, [w / 2, w / 2, 0, 0]);
-    for (let k = 1; k < 3; k++) line(x + (k * w) / 3, y + 3, x + (k * w) / 3, y + h, 'rgba(40, 24, 10, 0.35)', 0.8);
-    circle(x + w - 2.5, y + h * 0.6, 0.9, '#e9b44c');
-    rect(x - 1, y + h - 1, w + 2, 2, STONE.mid, 1);
-  }
-
-  // Roof seen from above at a tilt: a trapezoid from the ridge (top) to the eave over the front wall.
-  function roof(left, right, top, eave, col, dark, style = 'tile') {
-    poly([left, eave, right, eave, right - 4, top, left + 4, top], col);
-    const g = ctx.createLinearGradient(0, top, 0, eave);
-    g.addColorStop(0, 'rgba(0, 0, 0, 0.22)');
-    g.addColorStop(0.35, 'rgba(0, 0, 0, 0)');
-    g.addColorStop(1, 'rgba(255, 240, 210, 0.12)');
-    poly([left, eave, right, eave, right - 4, top, left + 4, top], g);
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(left, eave); ctx.lineTo(right, eave); ctx.lineTo(right - 4, top); ctx.lineTo(left + 4, top);
-    ctx.closePath();
-    ctx.clip();
-    if (style === 'thatch') {
-      ctx.lineWidth = 1;
-      for (let yy = top + 3, row = 0; yy < eave; yy += 4, row++) {
-        for (let xx = left + (row % 2) * 2; xx < right; xx += 4) line(xx, yy - 3, xx + 0.6, yy + 1, row % 3 ? dark : 'rgba(255, 236, 170, 0.5)', 1);
-      }
-    } else if (style === 'metal') {
-      for (let xx = left + 4; xx < right; xx += 6) line(xx, top, xx, eave, dark, 1);
-    } else {
-      for (let yy = top + 5, row = 0; yy < eave; yy += 5, row++) {
-        line(left, yy, right, yy, dark, 1);
-        for (let xx = left + (row % 2) * 4; xx < right; xx += 8) line(xx, yy - 5, xx, yy, dark, 0.7);
-      }
-    }
-    ctx.restore();
-    rect(left + 4, top - 1, right - left - 8, 3, dark, 1.5);
-    rect(left - 1, eave - 2, right - left + 2, 3, dark, 1.5);
-  }
-
-  // A cottage: white-washed walls with blue trim (as in the Moldovan villages), a roof and a chimney.
-  function house(b, o) {
-    const left = b.X + 5, right = b.X + b.Wp - 5, base = b.Y + b.Hp - 4;
-    const wallH = o.wallH || 24, wallTop = base - wallH, top = b.Y - (o.roofUp || 10);
-    rect(left + 4, base - 4, right - left, 9, 'rgba(38, 48, 20, 0.22)', 4);
-    rect(left, wallTop, right - left, wallH, o.wall);
-    if (o.planks) for (let xx = left + 4; xx < right; xx += 5) line(xx, wallTop, xx, base, 'rgba(60, 25, 15, 0.25)', 1);
-    rect(left, base - 4, right - left, 4, o.plinth || STONE.mid);
-    line(left, wallTop + 3, right, wallTop + 3, 'rgba(0, 0, 0, 0.18)', 3);
-    const mid = (left + right) / 2;
-    const dx = o.doorAt !== undefined ? o.doorAt : mid - 5;
-    if (o.door !== false) door(dx, base - 17, 10, 16, o.doorColor);
-    const wy = wallTop + 7;
-    for (const wx of o.windows || [left + 7, right - 17]) windowBox(wx, wy, 10, 9, o.trim);
-    roof(left - 5, right + 5, top, wallTop + 3, o.roof, o.roofDark, o.roofStyle);
-    if (o.chimney) {
-      const cxp = o.chimney === 'left' ? left + 8 : right - 15;
-      rect(cxp, top - 8, 8, 14, o.chimneyColor || '#9c4a35', 1);
-      rect(cxp - 1, top - 9, 10, 3, '#5b3324', 1);
-      emit(cxp + 4, top - 10, o.smoke || 1);
-    }
-    return { left, right, base, wallTop, top };
-  }
-
-  const ART = {
-    well(b) {
-      const cx = b.cx, cy = b.base - 22;
-      shadow(cx + 3, cy + 10, 22, 8);
-      ellipse(cx, cy + 3, 20, 13, STONE.dark);
-      ellipse(cx, cy, 20, 13, STONE.mid);
-      for (let k = 0; k < 10; k++) {
-        const a = (k / 10) * TAU;
-        line(cx + Math.cos(a) * 14, cy + Math.sin(a) * 9, cx + Math.cos(a) * 20, cy + Math.sin(a) * 13, STONE.dark, 1);
-      }
-      ellipse(cx, cy - 1, 13, 8, '#2f5f74');
-      ellipse(cx - 3, cy - 3, 4, 1.5, 'rgba(255, 255, 255, 0.4)');
-      rect(cx - 19, cy - 32, 4, 34, WOOD.mid, 1);
-      rect(cx + 15, cy - 32, 4, 34, WOOD.mid, 1);
-      line(cx - 15, cy - 24, cx + 15, cy - 24, WOOD.dark, 2.5);
-      line(cx + 2, cy - 24, cx + 2, cy - 12 + Math.sin(time * 1.4) * 1.5, '#d8c79a', 1);
-      rect(cx - 2, cy - 12 + Math.sin(time * 1.4) * 1.5, 8, 7, WOOD.light, 2);
-      poly([cx - 26, cy - 26, cx, cy - 44, cx + 26, cy - 26, cx + 22, cy - 22, cx, cy - 39, cx - 22, cy - 22], '#a8503a');
-      line(cx - 24, cy - 25, cx, cy - 42, '#c86a4c', 1.5);
-      // Pots of flowers around the well bring the square back to life.
-      for (const [dx, dy, c] of [[-24, 8, '#e0607e'], [24, 6, '#f4d35e']]) {
-        rect(cx + dx - 4, cy + dy - 4, 8, 7, '#b4643c', 2);
-        circle(cx + dx - 1.5, cy + dy - 5, 2.4, c);
-        circle(cx + dx + 1.8, cy + dy - 6, 2.4, c);
-        circle(cx + dx, cy + dy - 7.5, 2, '#5f9446');
-      }
-    },
-    home(b) {
-      house(b, { wall: '#f5efe2', trim: '#4d7fb6', roof: '#b9583b', roofDark: 'rgba(90, 30, 15, 0.45)', chimney: 'right' });
-    },
-    house1(b) {
-      house(b, { wall: '#f3ecdc', trim: '#3f8a7a', roof: '#cfa65c', roofDark: 'rgba(120, 80, 30, 0.55)', roofStyle: 'thatch', chimney: 'left' });
-    },
-    house2(b) {
-      house(b, { wall: '#efe7d6', trim: '#4d7fb6', roof: '#7a8792', roofDark: 'rgba(40, 45, 55, 0.5)', chimney: 'right', chimneyColor: STONE.mid });
-    },
-    house3(b) {
-      house(b, { wall: '#f6eadb', trim: '#9a5aa8', roof: '#a8563c', roofDark: 'rgba(90, 30, 15, 0.45)', chimney: 'left' });
-      // Drying pots by the potter's door.
-      for (let k = 0; k < 3; k++) {
-        const px = b.X + b.Wp - 2 + k * 5, py = b.base + 1;
-        ellipse(px, py, 3, 1.5, 'rgba(38, 48, 20, 0.25)');
-        rect(px - 2.5, py - 6, 5, 6, k % 2 ? '#c8794a' : '#b4643c', [1, 1, 2.5, 2.5]);
-        rect(px - 1.8, py - 7, 3.6, 1.6, '#d48a58', 0.8);
-      }
-    },
-    barn(b) {
-      const r = house(b, {
-        wall: '#a9553f', planks: true, trim: '#f2e9d8', roof: '#6e5241', roofDark: 'rgba(30, 18, 10, 0.5)',
-        door: false, windows: [b.X + 9, b.X + b.Wp - 19], plinth: STONE.dark,
-      });
-      const mid = (r.left + r.right) / 2;
-      rect(mid - 11, r.base - 20, 22, 20, '#8c4332', 1);
-      ctx.strokeStyle = '#f2e9d8';
-      ctx.lineWidth = 1.6;
-      ctx.strokeRect(mid - 11, r.base - 20, 22, 20);
-      line(mid - 11, r.base - 20, mid + 11, r.base, '#f2e9d8', 1.6);
-      line(mid + 11, r.base - 20, mid - 11, r.base, '#f2e9d8', 1.6);
-      line(mid, r.base - 20, mid, r.base, '#f2e9d8', 1.2);
-      // A hay bale and a barrel by the wall; the upgraded barn gets a lean-to with sacks.
-      ellipse(r.right + 5, r.base - 1, 6, 3, 'rgba(38, 48, 20, 0.25)');
-      rect(r.right - 1, r.base - 10, 12, 10, '#e2c071', 3);
-      line(r.right - 1, r.base - 5, r.right + 11, r.base - 5, '#c9a25a', 1);
-      if (S.barnLevel >= 2) {
-        rect(r.left - 14, r.base - 16, 14, 16, WOOD.light, 1);
-        poly([r.left - 17, r.base - 14, r.left, r.base - 22, r.left, r.base - 14], '#6e5241');
-        rect(r.left - 12, r.base - 8, 5, 7, '#e8d7b5', 2);
-        rect(r.left - 7, r.base - 9, 5, 8, '#dccaa4', 2);
-      }
-    },
-    sawmill(b) {
-      const left = b.X + 4, right = b.X + b.Wp - 4, base = b.base - 4, top = b.Y - 4, eave = base - 26;
-      rect(left + 4, base - 3, right - left, 8, 'rgba(38, 48, 20, 0.22)', 4);
-      rect(left + 2, eave, right - left - 4, base - eave, '#4a3524');
-      // Saw bench with a log inside the shed.
-      rect(left + 20, base - 12, 40, 4, WOOD.light, 1);
-      ellipse(left + 40, base - 15, 18, 4, WOOD.mid);
-      ellipse(left + 58, base - 15, 3, 4, WOOD.pale);
-      const a = time * 6;
-      ctx.save();
-      ctx.translate(left + 34, base - 16);
-      ctx.rotate(a);
-      circle(0, 0, 7, '#c9ccd1');
-      for (let k = 0; k < 8; k++) line(0, 0, Math.cos((k * TAU) / 8) * 7.5, Math.sin((k * TAU) / 8) * 7.5, '#8d9096', 1);
-      ctx.restore();
-      for (const px of [left + 2, (left + right) / 2 - 2, right - 6]) rect(px, eave - 2, 4, base - eave + 2, WOOD.mid, 1);
-      roof(left - 4, right + 4, top, eave + 2, '#9a7046', 'rgba(60, 35, 15, 0.45)', 'metal');
-      // Log pile on the left, plank stack on the right.
-      for (const [dx, dy] of [[-12, -4], [-4, -4], [-8, -11]]) {
-        circle(left + dx, base + dy, 4.5, WOOD.mid);
-        circle(left + dx, base + dy, 3.2, WOOD.pale);
-        circle(left + dx, base + dy, 1.2, WOOD.light);
-      }
-      for (let k = 0; k < 4; k++) rect(right - 6 + (k % 2), base - 3 - k * 3, 18, 3, k % 2 ? '#e0b779' : '#d7a560', 1);
-    },
-    kiln(b) {
-      const cx = b.cx, base = b.base - 4;
-      shadow(cx + 4, base, 26, 7);
-      ctx.fillStyle = '#b5583a';
-      ctx.beginPath();
-      ctx.ellipse(cx, base, 25, 34, 0, Math.PI, TAU);
-      ctx.closePath();
-      ctx.fill();
-      ctx.save();
-      ctx.clip();
-      for (let yy = base - 4, row = 0; yy > base - 36; yy -= 5, row++) {
-        line(cx - 26, yy, cx + 26, yy, 'rgba(90, 30, 15, 0.35)', 0.8);
-        for (let xx = cx - 26 + (row % 2) * 5; xx < cx + 26; xx += 10) line(xx, yy, xx, yy - 5, 'rgba(90, 30, 15, 0.3)', 0.8);
-      }
-      ctx.restore();
-      ellipse(cx - 9, base - 22, 7, 9, 'rgba(255, 220, 190, 0.14)');
-      rect(cx - 8, base - 17, 16, 17, '#2b1a12', [8, 8, 0, 0]);
-      const f = 0.75 + Math.sin(time * 9) * 0.12 + Math.sin(time * 23) * 0.08;
-      const g = ctx.createRadialGradient(cx, base - 4, 1, cx, base - 6, 13);
-      g.addColorStop(0, `rgba(255, 220, 120, ${f})`);
-      g.addColorStop(0.5, `rgba(240, 120, 40, ${f * 0.7})`);
-      g.addColorStop(1, 'rgba(200, 60, 20, 0)');
-      rect(cx - 8, base - 17, 16, 17, g, [8, 8, 0, 0]);
-      rect(cx + 8, base - 40, 8, 12, '#9c4a35', 1);
-      rect(cx + 7, base - 41, 10, 3, '#5b3324', 1);
-      emit(cx + 12, base - 42, 1.4);
-      for (let k = 0; k < 3; k++) {
-        const px = b.X + b.Wp + 2 + k * 6, py = base + 2;
-        rect(px - 3, py - 8, 6, 8, k === 1 ? '#a8432e' : '#c8794a', [2, 2, 3, 3]);
-      }
-    },
-    forge(b) {
-      const r = house(b, {
-        wall: '#9a958a', trim: '#5b5b63', roof: '#4d4f58', roofDark: 'rgba(15, 15, 20, 0.5)',
-        door: false, windows: [b.X + 10], chimney: 'left', chimneyColor: STONE.dark, smoke: 1.3,
-      });
-      for (let yy = r.wallTop + 6; yy < r.base - 4; yy += 6) line(r.left, yy, r.right, yy, 'rgba(60, 55, 48, 0.35)', 0.8);
-      // Open hearth on the right with a glow, an anvil in front.
-      const hx = r.right - 26, hy = r.base - 18;
-      rect(hx, hy, 20, 18, '#2a2420', [4, 4, 0, 0]);
-      const f = 0.7 + Math.sin(time * 7) * 0.15 + Math.sin(time * 19) * 0.08;
-      const g = ctx.createRadialGradient(hx + 10, hy + 14, 1, hx + 10, hy + 12, 14);
-      g.addColorStop(0, `rgba(255, 210, 110, ${f})`);
-      g.addColorStop(1, 'rgba(230, 90, 30, 0)');
-      rect(hx, hy, 20, 18, g, [4, 4, 0, 0]);
-      const ax = r.left + 8, ay = r.base + 6;
-      shadow(ax + 8, ay + 1, 10, 3);
-      rect(ax + 5, ay - 6, 6, 6, '#3d3c40', 1);
-      poly([ax, ay - 11, ax + 16, ay - 11, ax + 20, ay - 8, ax + 12, ay - 6, ax + 4, ay - 6], '#55545a');
-      line(ax + 1, ay - 10.5, ax + 15, ay - 10.5, '#8d8c92', 1);
-      if (Math.random() < 0.05) spark(hx + 10, hy + 8);
-    },
-    mill(b) {
-      const cx = b.cx, base = b.base - 4;
-      shadow(cx + 4, base, 20, 6);
-      poly([cx - 17, base, cx + 17, base, cx + 12, base - 42, cx - 12, base - 42], '#efe6d2');
-      poly([cx + 4, base, cx + 17, base, cx + 12, base - 42, cx + 3, base - 42], 'rgba(150, 120, 80, 0.18)');
-      for (let yy = base - 8; yy > base - 40; yy -= 8) line(cx - 16, yy, cx + 16, yy, 'rgba(150, 120, 80, 0.18)', 0.8);
-      door(cx - 5, base - 15, 10, 14);
-      circle(cx, base - 29, 3.5, '#4d7fb6');
-      circle(cx, base - 29, 2.4, WINDOW);
-      poly([cx - 15, base - 41, cx + 15, base - 41, cx, base - 60], '#7a5236');
-      poly([cx + 2, base - 41, cx + 15, base - 41, cx, base - 60], 'rgba(0, 0, 0, 0.18)');
-      const hubY = base - 44, rot = time * 0.9;
-      for (let k = 0; k < 4; k++) {
-        ctx.save();
-        ctx.translate(cx, hubY);
-        ctx.rotate(rot + (k * Math.PI) / 2);
-        line(0, 0, 0, -36, WOOD.dark, 2);
-        rect(1, -36, 9, 28, 'rgba(250, 240, 220, 0.9)', 1);
-        ctx.strokeStyle = WOOD.mid;
-        ctx.lineWidth = 0.8;
-        ctx.strokeRect(1, -36, 9, 28);
-        for (let yy = -31; yy < -8; yy += 5) line(1, yy, 10, yy, WOOD.mid, 0.6);
-        ctx.restore();
-      }
-      circle(cx, hubY, 3.5, WOOD.dark);
-      // Flour sacks by the door.
-      rect(cx + 10, base - 8, 7, 8, '#ece0c4', 3);
-      rect(cx + 16, base - 6, 6, 6, '#e2d4b4', 3);
-    },
-    chapel(b) {
-      const left = b.X + 8, right = b.X + b.Wp - 8, base = b.base - 4, wallH = 30, wallTop = base - wallH, top = b.Y - 4;
-      const cx = b.cx;
-      rect(left + 5, base - 4, right - left, 10, 'rgba(38, 48, 20, 0.22)', 4);
-      rect(left, wallTop, right - left, wallH, '#f6f1e6');
-      rect(left, base - 5, right - left, 5, STONE.mid);
-      for (const wx of [left + 6, right - 14]) {
-        rect(wx - 1, wallTop + 7, 10, 16, '#e6dccb', [5, 5, 1, 1]);
-        rect(wx, wallTop + 8, 8, 14, '#9ecbe0', [4, 4, 0, 0]);
-        rect(wx + 1, wallTop + 9, 3, 6, 'rgba(255, 255, 255, 0.5)', [2, 0, 0, 0]);
-      }
-      roof(left - 5, right + 5, top, wallTop + 3, '#4f8a7e', 'rgba(20, 50, 45, 0.45)', 'metal');
-      // Bell tower over the entrance: belfry, onion dome and a cross.
-      const tw = 24, tTop = base - 74;
-      rect(cx - tw / 2 + 3, tTop + 6, tw, base - tTop - 6, 'rgba(38, 48, 20, 0.12)');
-      rect(cx - tw / 2, tTop, tw, base - tTop, '#fbf6ec');
-      rect(cx + tw / 2 - 6, tTop, 6, base - tTop, 'rgba(150, 130, 100, 0.12)');
-      door(cx - 6, base - 18, 12, 17, '#8b5a32');
-      rect(cx - 7, tTop + 8, 14, 16, '#3d3226', [7, 7, 0, 0]);
-      const bellA = S.festival ? Math.sin(time * 3.2) * 0.45 : Math.sin(time * 0.8) * 0.04;
-      ctx.save();
-      ctx.translate(cx, tTop + 11);
-      ctx.rotate(bellA);
-      poly([-4, 9, 4, 9, 3, 2, 1.5, 0, -1.5, 0, -3, 2], '#e2b44a');
-      circle(0, 9.5, 1.3, '#a8802e');
-      ctx.restore();
-      rect(cx - tw / 2 - 2, tTop - 2, tw + 4, 4, '#4f8a7e', 1);
-      ctx.fillStyle = '#e2b44a';
-      ctx.beginPath();
-      ctx.moveTo(cx - 10, tTop - 2);
-      ctx.bezierCurveTo(cx - 16, tTop - 12, cx - 4, tTop - 18, cx, tTop - 28);
-      ctx.bezierCurveTo(cx + 4, tTop - 18, cx + 16, tTop - 12, cx + 10, tTop - 2);
-      ctx.closePath();
-      ctx.fill();
-      ellipse(cx - 4, tTop - 12, 2.5, 5, 'rgba(255, 245, 200, 0.55)');
-      line(cx, tTop - 28, cx, tTop - 40, '#d4a63c', 1.8);
-      line(cx - 4, tTop - 35, cx + 4, tTop - 35, '#d4a63c', 1.8);
-    },
-  };
-
-  // Stage 0: tumbled walls, a fallen beam and weeds. Stage 1: walls rising with the paid share, scaffolding.
-  function drawRuin(b) {
-    const left = b.X + 4, right = b.X + b.Wp - 4, base = b.base - 4;
-    rect(left, b.Y + b.Hp * 0.3, right - left, base - b.Y - b.Hp * 0.3, 'rgba(120, 100, 70, 0.45)', 6);
-    if (b.id === 'well') {
-      const cx = b.cx, cy = b.base - 22;
-      ctx.strokeStyle = STONE.mid;
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, 17, 11, 0, 0.6, 4.4);
-      ctx.stroke();
-      ellipse(cx, cy - 1, 11, 7, '#3b4a3f');
-      for (let k = 0; k < 4; k++) blob(cx + 10 + k * 5, cy + 4 + (k % 2) * 4, 3.5, 2.5, 900 + k, k % 2 ? STONE.light : STONE.mid);
-      rect(cx - 21, cy - 14, 4, 14, WOOD.dark, 1);
-      return;
-    }
-    const wallY = b.Y + b.Hp * 0.42;
-    for (let x = left, k = 0; x < right - 4; x += 8, k++) {
-      const hgt = 3 + hash2(b.x0, k, 400) * 13;
-      if (hash2(b.x0, k, 401) < 0.18) continue;
-      rect(x, wallY - hgt, 8, hgt + 4, STONE.mid, 1.5);
-      rect(x, wallY - hgt, 8, 2.5, STONE.light, 1);
-    }
-    for (const sx of [left, right - 7]) {
-      const hgt = 8 + hash2(b.x0, sx, 402) * 10;
-      rect(sx, base - hgt, 7, hgt, STONE.mid, 1.5);
-      rect(sx, base - hgt, 7, 2.5, STONE.light, 1);
-    }
-    ctx.save();
-    ctx.translate((left + right) / 2, base - 10);
-    ctx.rotate(-0.35 + hash2(b.x0, b.y0, 403) * 0.7);
-    rect(-b.Wp * 0.3, -2, b.Wp * 0.6, 4, WOOD.dark, 1);
-    ctx.restore();
-    for (let k = 0; k < 5; k++) {
-      const sx = left + hash2(b.x0, k, 404) * (right - left), sy = base - 2 - hash2(b.y0, k, 405) * 8;
-      blob(sx, sy, 3.5, 2.5, b.x0 * 13 + k, STONE.light);
-    }
-    for (let k = 0; k < 4; k++) {
-      const wx = left + 4 + hash2(b.x0, k, 406) * (right - left - 8), wy = base - hash2(b.y0, k, 407) * 4;
-      line(wx - 2, wy - 6, wx, wy, GRASS.tuft, 1.3);
-      line(wx + 2, wy - 7, wx, wy, GRASS.tuft, 1.3);
-    }
-  }
-
-  function drawScaffold(b, part) {
-    const left = b.X + 6, right = b.X + b.Wp - 6, base = b.base - 4;
-    const fullH = b.h >= 3 ? 30 : 24;
-    const h = Math.max(4, fullH * (0.25 + 0.75 * part));
-    rect(left - 2, base - 6, right - left + 4, 8, STONE.dark, 2);
-    const brick = b.id === 'kiln' || b.id === 'house1' || b.id === 'house2' || b.id === 'house3' || b.id === 'forge' || b.id === 'mill';
-    rect(left, base - h, right - left, h, brick ? '#b8664a' : STONE.mid, 1);
-    for (let yy = base - 5; yy > base - h; yy -= 5) line(left, yy, right, yy, 'rgba(60, 40, 30, 0.3)', 0.8);
-    const poleTop = base - fullH - 16;
-    for (const px of [left - 4, right + 1]) rect(px, poleTop, 3, base - poleTop, WOOD.pale, 1);
-    line(left - 4, base - h - 3, right + 4, base - h - 3, WOOD.light, 3);
-    line(left - 3, poleTop + 6, right + 3, base - 6, 'rgba(179, 131, 79, 0.85)', 1.6);
-    // A pile of materials waiting by the wall.
-    for (let k = 0; k < 3; k++) rect(right - 2, base - 3 - k * 3, 12, 3, k % 2 ? WOOD.light : WOOD.pale, 1);
-    blob(left - 6, base - 2, 5, 3.5, b.x0 + 77, STONE.light);
-  }
+  // Drawn by houses.js with this file's canvas helpers.
+  const HS = window.VillageHouses.create({
+    ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark,
+    state: () => S, time: () => time, sun: () => SUN, light, snow: () => LOOK.snow * FADE.t,
+  });
 
   // Bridge over the river: flat, drawn under the walkers. Posts first, planks as payment arrives.
+  // A plank bridge standing on posts: the deck has a top and a front edge, posts are lit round piles, and the
+  // whole thing casts its shadow on the water to the lower right.
   function drawBridge() {
     const b = BOX.bridge, st = V.stage(S, 'bridge');
     const x0 = b.X - 12, x1 = b.X + b.Wp + 12, y0 = b.Y + 5, y1 = b.Y + b.Hp - 5;
     const posts = [];
     for (let x = x0 + 6; x < x1; x += 22) posts.push(x);
-    for (const px of posts) for (const py of [y0 + 1, y1 - 1]) {
-      ellipse(px + 1, py + 3, 4, 2, 'rgba(30, 60, 70, 0.35)');
-      rect(px - 2.5, py - 5, 5, 8, WOOD.dark, 1.5);
-    }
+    const pile = (px, py, h) => {
+      K.shadow(ctx, px + 3, py + 3, 5, 2.4, 0.4);
+      K.cylinder(ctx, px, py - h, 2.6, h, WOOD.dark);
+    };
+    for (const px of posts) for (const py of [y0 + 1, y1 - 1]) pile(px, py, 7);
     if (st === 0) {
       ctx.save();
       ctx.translate(b.cx + 10, b.Y + b.Hp / 2 + 4);
       ctx.rotate(0.5 + Math.sin(time * 0.9) * 0.05);
-      rect(-14, -3, 28, 6, WOOD.mid, 1);
+      K.shadow(ctx, 3, 5, 16, 4, 0.35);
+      K.block(ctx, -14, -3, 28, 6, 1.5, WOOD.mid);
       ctx.restore();
       return;
     }
     const k = st === 2 ? 1 : clamp(share('bridge'), 0.1, 0.95);
     const end = x0 + (x1 - x0) * k;
-    ellipse((x0 + end) / 2, y1 + 4, (end - x0) / 2, 4, 'rgba(30, 60, 70, 0.25)');
-    for (let x = x0, i = 0; x < end; x += 6, i++) rect(x, y0, Math.min(6, end - x) - 0.6, y1 - y0, i % 2 ? WOOD.light : '#a8774a', 1);
-    for (let x = x0 + 3; x < end; x += 12) circle(x, y0 + 3, 0.7, WOOD.dark);
+    const lift = 3; // the deck stands this high above the water: the front edge shows below the top
+    K.shadow(ctx, (x0 + end) / 2 + 7, y1 + 6, (end - x0) / 2 + 4, 7, 0.38);
+    rect(x0, y1 - lift, end - x0, lift + 3, WOOD.dark, 1.5);
+    for (let x = x0, i = 0; x < end; x += 6, i++) {
+      const w = Math.min(6, end - x) - 0.6;
+      K.block(ctx, x, y0 - lift, w, y1 - y0, 1, i % 2 ? WOOD.light : '#a8774a', { top: 0.18, bottom: -0.12 });
+    }
+    for (let x = x0 + 3; x < end; x += 12) circle(x, y0 - lift + 3, 0.7, WOOD.dark);
     if (st === 2) {
       for (const py of [y0, y1]) {
-        rect(x0, py - 4, x1 - x0, 3, WOOD.mid, 1.5);
-        for (const px of posts) rect(px - 1.5, py - 8, 3, 8, WOOD.dark, 1);
+        for (const px of posts) K.cylinder(ctx, px, py - lift - 9, 1.6, 9, WOOD.dark);
+        K.block(ctx, x0, py - lift - 8, x1 - x0, 3.4, 1.5, WOOD.mid, { top: 0.35, bottom: -0.25 });
       }
+    }
+  }
+
+  // The trail over the hill: blocked by fallen rocks and a log until the road is built, then a stone-edged
+  // path. Flat, drawn under everything that stands.
+  function drawRoad() {
+    const b = BOX.road, st = V.stage(S, 'road');
+    if (b.X > cam.x + cw || b.X + b.Wp < cam.x) return;
+    const y = b.Y + b.Hp / 2;
+    if (st === 2) {
+      // Stones set along both edges of the trail.
+      for (let i = 0, x = b.X - 6; x < b.X + b.Wp + 6; i++, x += 7 + hash2(i, 1, 720) * 6) {
+        for (const [dy, salt] of [[-12, 721], [11, 722]]) {
+          const r = 2.6 + hash2(i, salt, 723) * 2;
+          blob(x + 1, y + dy + 1, r, r * 0.7, i * 7 + salt, 'rgba(30, 30, 20, 0.3)');
+          blob(x, y + dy, r, r * 0.7, i * 7 + salt, hash2(i, salt, 724) < 0.5 ? STONE.mid : STONE.light);
+        }
+      }
+      return;
+    }
+    const k = st === 1 ? 1 - share('road') : 1;
+    for (let i = 0; i < 4; i++) {
+      if (i / 4 >= k) continue;
+      const x = b.X + 10 + i * 20, r = 8 + (i % 2) * 3;
+      castShadow(x, y + 6, r, 12, 0.3);
+      blob(x, y - 2, r, r * 0.75, 700 + i, STONE.mid);
+      blob(x - 2, y - 5, r * 0.6, r * 0.4, 710 + i, STONE.light);
+    }
+    if (k > 0.5) {
+      ctx.save();
+      ctx.translate(b.X + b.Wp / 2, y + 4);
+      ctx.rotate(-0.2);
+      K.block(ctx, -b.Wp / 2, -3, b.Wp, 6, 3, WOOD.dark);
+      ctx.restore();
     }
   }
 
@@ -898,6 +874,7 @@
       rect(cx + 2, by - 25, 8, 9, '#3d3226', 2);
       rect(cx + 3.5, by - 23.5, 5, 6, '#ffd27a', 1);
       glow(cx + 6, by - 20, 22, 0.32 + Math.sin(time * 2 + d.x) * 0.05, '255, 205, 120');
+      light(cx + 6, by - 20, 40, '#ffc870', 0.9 + Math.sin(time * 2 + d.x) * 0.08);
     } else if (d.kind === 'bench') {
       shadow(cx + 2, by, 14, 3);
       rect(cx - 13, by - 8, 3, 8, WOOD.dark, 1);
@@ -906,6 +883,54 @@
       rect(cx - 14, by - 18, 28, 3, WOOD.mid, 1.5);
       rect(cx - 12, by - 16, 2, 6, WOOD.mid, 1);
       rect(cx + 10, by - 16, 2, 6, WOOD.mid, 1);
+    } else if (d.kind === 'swing') {
+      castShadow(cx, by, 12, 26, 0.28);
+      for (const px of [cx - 12, cx + 12]) K.cylinder(ctx, px, by - 30, 1.6, 30, WOOD.dark, { ry: 0.8 });
+      K.block(ctx, cx - 14, by - 32, 28, 3, 1, WOOD.mid, { top: 0.35 });
+      const a = Math.sin(time * 1.6 + d.x) * 0.25;
+      ctx.save();
+      ctx.translate(cx, by - 30);
+      ctx.rotate(a);
+      line(-5, 0, -5, 20, '#d8c79a', 1);
+      line(5, 0, 5, 20, '#d8c79a', 1);
+      K.block(ctx, -7, 19, 14, 3, 1, WOOD.light, { top: 0.4 });
+      ctx.restore();
+    } else if (d.kind === 'sweep') {
+      // A well sweep: a tall post with a long pole, a bucket on one end and a weight on the other.
+      castShadow(cx, by, 8, 30, 0.28);
+      K.cylinder(ctx, cx, by - 28, 2, 28, WOOD.dark, { ry: 1 });
+      const a = -0.35 + Math.sin(time * 0.7 + d.y) * 0.08;
+      ctx.save();
+      ctx.translate(cx, by - 27);
+      ctx.rotate(a);
+      line(-18, 0, 16, 0, WOOD.mid, 2.4);
+      K.block(ctx, -21, -2, 5, 5, 1, STONE.dark);
+      line(15, 0, 15, 12, '#d8c79a', 1);
+      K.block(ctx, 12, 12, 6, 5, 1.5, WOOD.light);
+      ctx.restore();
+    } else if (d.kind === 'scarecrow') {
+      castShadow(cx, by, 7, 22, 0.26);
+      K.cylinder(ctx, cx, by - 22, 1.3, 22, WOOD.dark, { ry: 0.6 });
+      line(cx - 10, by - 16, cx + 10, by - 16, WOOD.mid, 2);
+      K.block(ctx, cx - 5, by - 18, 10, 9, 2, '#b5523b', { top: 0.2 });
+      K.sphere(ctx, cx, by - 22, 3.6, '#e2c071', { gloss: false });
+      ellipse(cx, by - 25, 6, 2, '#d4ad5a');
+      K.block(ctx, cx - 3, by - 30, 6, 5, 2, '#c99a4e', { top: 0.3 });
+    } else if (d.kind === 'arch') {
+      castShadow(cx, by, 12, 24, 0.26);
+      ctx.strokeStyle = WOOD.mid;
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(cx - 11, by);
+      ctx.lineTo(cx - 11, by - 18);
+      ctx.quadraticCurveTo(cx, by - 32, cx + 11, by - 18);
+      ctx.lineTo(cx + 11, by);
+      ctx.stroke();
+      for (let k = 0; k < 12; k++) {
+        const u = k / 11, ang = Math.PI * (1 - u);
+        const x = cx + Math.cos(ang) * 11, y = by - 18 - Math.sin(ang) * 10 + (k % 2) * 1.5;
+        K.sphere(ctx, x, y, 2.2, FLOWERS[k % FLOWERS.length], { gloss: false });
+      }
     } else {
       for (const px of [d.x * T + 3, cx - 1.5, (d.x + 1) * T - 6]) rect(px, by - 16, 3, 16, WOOD.mid, [1.5, 1.5, 0, 0]);
       line(d.x * T, by - 12, (d.x + 1) * T, by - 12, WOOD.light, 2.4);
@@ -954,7 +979,7 @@
     const sw = o.moving ? Math.sin(o.phase) : 0;
     const side = o.face === 'left' || o.face === 'right';
     const flip = o.face === 'left' ? -1 : 1;
-    shadow(x, y, 7, 2.6);
+    castShadow(x, y, 6.5, 13, 0.3);
     // Legs and boots.
     if (side) {
       rect(x - 3 + sw * 2.2, y - 7, 3, 7, o.pants, 1);
@@ -970,17 +995,22 @@
     const toolOut = o.tool && (o.swing >= 0 || o.holding);
     const hand = { x: x + (side ? flip * 3 : 6.5), y: y - 11 + bob };
     if (toolOut && o.face === 'up') toolAt(hand, o, flip);
-    // Body, apron, belt and arms.
-    rect(x - 6, y - 17 + bob, 12, 11, o.shirt, 4);
+    // Body (lit from the left), apron, belt and arms.
+    const torso = ctx.createLinearGradient(x - 6, 0, x + 6, 0);
+    torso.addColorStop(0, K.shade(o.shirt, 0.18));
+    torso.addColorStop(0.5, o.shirt);
+    torso.addColorStop(1, K.shade(o.shirt, -0.28));
+    rect(x - 6, y - 17 + bob, 12, 11, torso, 4);
     if (o.apron) rect(x - 4, y - 13 + bob, 8, 7, o.apron, 2);
     rect(x - 6, y - 9 + bob, 12, 1.6, 'rgba(60, 40, 20, 0.55)');
+    const arm = { gloss: false, shine: 0.25 };
     if (!side) {
-      circle(x - 6.5, y - 12 + bob + sw * 1.2, 2.2, o.shirt);
-      if (!toolOut) circle(x + 6.5, y - 12 + bob - sw * 1.2, 2.2, o.shirt);
-    } else if (!toolOut) circle(x - flip * 1 + sw * 2.5, y - 11 + bob, 2.2, o.shirt);
+      K.sphere(ctx, x - 6.5, y - 12 + bob + sw * 1.2, 2.3, o.shirt, arm);
+      if (!toolOut) K.sphere(ctx, x + 6.5, y - 12 + bob - sw * 1.2, 2.3, o.shirt, arm);
+    } else if (!toolOut) K.sphere(ctx, x - flip * 1 + sw * 2.5, y - 11 + bob, 2.3, o.shirt, arm);
     // Head.
     const hy = y - 21 + bob;
-    circle(x, hy, 5.2, o.skin);
+    K.sphere(ctx, x, hy, 5.2, o.skin, { gloss: false, shine: 0.3 });
     if (o.face !== 'up') {
       if (side) circle(x + flip * 2.6, hy + 0.3, 0.8, '#3b2c1a');
       else {
@@ -991,8 +1021,9 @@
       }
     }
     if (o.hat === 'straw') {
+      ellipse(x + 0.8, hy - 2.2, 8.5, 3.2, 'rgba(40, 24, 8, 0.22)'); // the brim shades the face
       ellipse(x, hy - 3, 8.5, 3.2, '#e2c071');
-      rect(x - 4.5, hy - 9, 9, 6.5, '#d4ad5a', [3.5, 3.5, 1, 1]);
+      K.block(ctx, x - 4.5, hy - 9, 9, 6.5, 3, '#d4ad5a', { top: 0.3, bottom: -0.15 });
       rect(x - 4.5, hy - 4.8, 9, 1.6, '#b5523b');
     } else if (o.hat === 'scarf') {
       ctx.fillStyle = o.hatColor;
@@ -1033,6 +1064,8 @@
     woodcutter: { shirt: '#b5523b', pants: '#4a3d30', skin: '#e8b98f', hat: 'cap', hatColor: '#5b3a2a', hair: '#4a3020' },
     mason: { shirt: '#8d8f86', pants: '#4f4a40', skin: '#f0c49a', hat: 'cap', hatColor: '#3f4a5a', hair: '#7a5a3a', apron: '#c9b28a' },
     potter: { shirt: '#7f6aa8', pants: '#5a4a3a', skin: '#f3cfa6', hat: 'scarf', hatColor: '#d8506a', hair: '#8a5a32', apron: '#e9dcc2' },
+    beekeeper: { shirt: '#f0e6c8', pants: '#6b5a3a', skin: '#e8b98f', hat: 'straw', hair: '#5a3a20', apron: '#e2c26a' },
+    gardener: { shirt: '#5f9446', pants: '#4a3d30', skin: '#f1c9a0', hat: 'scarf', hatColor: '#e8892e', hair: '#7a4a2a', apron: '#c9b28a' },
   };
 
 
@@ -1059,10 +1092,10 @@
   function drawHen(h) {
     const peck = Math.abs(Math.sin(time * 3 + h.k * 2)) > 0.85 ? 3 : 0;
     const x = h.x, y = h.y, f = h.face;
-    shadow(x, y, 5, 1.8);
-    ellipse(x - f * 3, y - 6, 2.5, 3, '#efe8da');
-    ellipse(x, y - 5, 5, 4, '#fbf6ec');
-    circle(x + f * 4, y - 9 + peck, 2.6, '#fbf6ec');
+    castShadow(x, y, 5, 8, 0.28);
+    ellipse(x - f * 3, y - 6, 2.5, 3, '#e4dccb');
+    K.sphere(ctx, x, y - 5, 4.6, '#fbf6ec', { gloss: false, shine: 0.25 });
+    K.sphere(ctx, x + f * 4, y - 9 + peck, 2.6, '#fbf6ec', { gloss: false, shine: 0.25 });
     circle(x + f * 4, y - 11.5 + peck, 1.2, '#d2453a');
     poly([x + f * 6.2, y - 9 + peck, x + f * 8, y - 8.3 + peck, x + f * 6.2, y - 7.8 + peck], '#e9a43c');
     circle(x + f * 4.6, y - 9.4 + peck, 0.5, '#3b2c1a');
@@ -1071,7 +1104,9 @@
   }
 
   // ───────────── Effects ─────────────
+  const MAX_PARTS = 300; // the oldest go first when a big moment spawns more
   function part(x, y, o) {
+    if (fx.parts.length >= MAX_PARTS) fx.parts.shift();
     fx.parts.push({ x, y, vx: o.vx || 0, vy: o.vy || 0, g: o.g ?? 160, life: o.life || 0.6, max: o.life || 0.6, size: o.size || 2, color: o.color, z: 0 });
   }
 
@@ -1099,6 +1134,15 @@
 
   // Smoke puffs from chimneys. Emitters are registered while drawing (only visible chimneys smoke).
   let smokeClock = 0;
+  // A soft round puff, lit on its upper left.
+  const PUFF = () => K.bake('village-puff', 64, (c, z) => {
+    const grd = c.createRadialGradient(z * 0.4, z * 0.38, 0, z / 2, z / 2, z / 2);
+    grd.addColorStop(0, 'rgba(255, 252, 244, 1)');
+    grd.addColorStop(0.45, 'rgba(236, 230, 218, 0.7)');
+    grd.addColorStop(1, 'rgba(220, 214, 204, 0)');
+    c.fillStyle = grd;
+    c.fillRect(0, 0, z, z);
+  });
   const emitters = [];
   function emit(x, y, rate) { emitters.push({ x, y, rate }); }
 
@@ -1144,8 +1188,18 @@
 
   // Fireworks over the square after the festival: frequent at first, then now and then.
   let fwNext = 1, festBoost = 0;
+  let hwNext = 0, harvestBoost = 0; // the harvest festival's own burst over the hamlet
   const FW_COLORS = ['#ff4d6d', '#ffd60a', '#4cc9f0', '#f72585', '#80ed99', '#ff9f1c'];
   function updateFireworks(dt) {
+    if (S.harvestFestival && harvestBoost > 0) {
+      harvestBoost = Math.max(0, harvestBoost - dt);
+      hwNext -= dt;
+      if (hwNext <= 0) {
+        hwNext = 0.5 + Math.random() * 0.7;
+        const h = BOX.harvest;
+        fx.rockets.push({ x: h.X + Math.random() * h.Wp, y: h.base, vy: -230 - Math.random() * 60, color: ['#f2cf62', '#e8892e', '#8ee08a', '#c46ad8'][Math.floor(Math.random() * 4)] });
+      }
+    }
     if (S.festival) {
       festBoost = Math.max(0, festBoost - dt);
       fwNext -= dt;
@@ -1200,8 +1254,8 @@
   const POLES = [[SQ.x0 * T + 4, SQ.y0 * T + 4], [(SQ.x1 + 1) * T - 4, SQ.y0 * T + 4], [SQ.x0 * T + 4, (SQ.y1 + 1) * T - 3], [(SQ.x1 + 1) * T - 4, (SQ.y1 + 1) * T - 3]];
   const POLE_H = 38;
   function drawPole(x, y) {
-    shadow(x + 2, y, 4, 1.8);
-    rect(x - 1.5, y - POLE_H, 3, POLE_H, WOOD.mid, 1);
+    castShadow(x, y, 3, POLE_H * 0.8, 0.28);
+    K.cylinder(ctx, x, y - POLE_H, 1.7, POLE_H, WOOD.mid, { ry: 0.8 });
     poly([x - 1.5, y - POLE_H, x + 9, y - POLE_H + 4, x - 1.5, y - POLE_H + 8], '#d8506a');
   }
   function drawGarlands() {
@@ -1246,6 +1300,7 @@
         continue;
       }
       const flap = Math.abs(Math.sin(time * 14 + b.k));
+      K.shadow(ctx, x + 4, y + 14, 3 * flap + 1, 1.2, 0.25); // flying above the ground
       ellipse(x - 2.2 * flap, y, 2.6 * flap + 0.4, 2, b.col);
       ellipse(x + 2.2 * flap, y, 2.6 * flap + 0.4, 2, b.col);
       line(x, y - 1.5, x, y + 1.5, '#3b2c1a', 0.8);
@@ -1282,8 +1337,21 @@
     } else if (e.type === 'festival') {
       festBoost = 25;
       fwNext = 0.5;
+    } else if (e.type === 'harvest-festival') {
+      harvestBoost = 30;
+      hwNext = 0.3;
     } else if (e.type === 'decor') {
       sparkle((e.x + 0.5) * T, (e.y + 0.5) * T, 14);
+    } else if (e.type === 'plot') {
+      const x = (e.x + 0.5) * T, y = (e.y + 0.6) * T;
+      if (e.result === 'watered') for (let k = 0; k < 12; k++) part(x + (Math.random() - 0.5) * 18, y - 10, { vx: (Math.random() - 0.5) * 40, vy: -20 - Math.random() * 40, life: 0.6, size: 1.4, color: k % 2 ? '#9fd4f0' : '#e6f6ff' });
+      else if (e.result === 'harvest') chips('bush', x, y, 10);
+      else if (e.result === 'sown') chips('clay', x, y, 5);
+    } else if (e.type === 'ripe') {
+      sparkle((e.x + 0.5) * T, (e.y + 0.4) * T, 8, ['#fff3c4', '#b7e08a', '#ffffff']);
+    } else if (e.type === 'bucket' && !e.full) {
+      const b = BOX.well;
+      for (let k = 0; k < 14; k++) part(b.cx + (Math.random() - 0.5) * 16, b.base - 26, { vx: (Math.random() - 0.5) * 50, vy: -40 - Math.random() * 40, life: 0.7, size: 1.5, color: '#bfe6f6' });
     }
   }
 
@@ -1303,23 +1371,135 @@
 
   // people: [{ role, x, y (tiles, feet), face, phase, moving, swing, tool, holding, front? }]; LOOKS[role]
   // gives the clothes. `front` lifts one above another person on the same line (the player).
+  // ───────────── Garden plots ─────────────
+  // What grows on a plot, by its stage: rows of sprouts that grow with it, wet soil while watered, and a ripe
+  // crop (cabbages, pumpkins or carrots, by plot) ready to pick.
+  const CROPS = ['cabbage', 'pumpkin', 'carrot'];
+  function drawPlot(i) {
+    const pl = S.plots[i], at = V.PLOTS[i];
+    const px = at.x * T, py = at.y * T;
+    if (pl.water) {
+      ctx.fillStyle = 'rgba(40, 24, 10, 0.35)';
+      ctx.fillRect(px + 4, py + 4, T - 8, T - 8);
+      if (Math.sin(time * 2 + i) > 0.6) circle(px + 10 + i * 3, py + 12, 1.2, 'rgba(220, 240, 255, 0.8)');
+    }
+    if (pl.stage === 'empty') return;
+    const crop = CROPS[i % CROPS.length];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) {
+      const x = px + 9 + c * 14, y = py + 10 + r * 8;
+      if (pl.stage === 'planted') {
+        const k = 0.35 + 0.65 * pl.grow;
+        line(x, y, x, y - 4 * k, '#4f8a3a', 1.2);
+        ellipse(x - 2 * k, y - 4 * k, 2.4 * k, 1.2 * k, '#7bbd58');
+        ellipse(x + 2 * k, y - 4.5 * k, 2.4 * k, 1.2 * k, '#6aab4a');
+      } else if (crop === 'cabbage') {
+        K.shadow(ctx, x + 1.5, y + 1, 5, 2, 0.3);
+        K.sphere(ctx, x, y - 3, 4.6, '#8cc46a', { gloss: false, shine: 0.35 });
+        K.sphere(ctx, x - 0.5, y - 3.5, 2.6, '#c6e6a2', { gloss: false });
+      } else if (crop === 'pumpkin') {
+        K.shadow(ctx, x + 1.5, y + 1, 5.5, 2, 0.3);
+        K.sphere(ctx, x, y - 3, 4.8, '#e8892e', { gloss: false, shine: 0.4 });
+        line(x, y - 7.5, x + 1, y - 9.5, '#4f7a33', 1.4);
+      } else {
+        circle(x, y - 1, 1.8, '#e2712e');
+        for (const d of [-2, 0, 2]) line(x, y - 2, x + d, y - 7, '#5f9a3e', 1.3);
+      }
+    }
+  }
+  // A low wattle fence along the top and the bottom of the beds once the garden stands.
+  const BEDS = (() => {
+    const xs = V.PLOTS.map((p) => p.x), ys = V.PLOTS.map((p) => p.y);
+    return { x0: Math.min(...xs) * T - 3, x1: (Math.max(...xs) + 1) * T + 3, y0: Math.min(...ys) * T - 1, y1: (Math.max(...ys) + 1) * T + 2 };
+  })();
+  function drawFence(y) {
+    const { x0, x1 } = BEDS;
+    for (let x = x0; x <= x1; x += 12) K.cylinder(ctx, x, y - 10, 1.4, 10, WOOD.mid, { ry: 0.7 });
+    for (const h of [3.5, 7]) line(x0, y - h, x1, y - h, WOOD.light, 1.6);
+  }
+
+  // ───────────── Daylight ─────────────
+  // The whole view is multiplied by the hour's tint, then windows, lanterns and fires glow on top.
+  function drawNightLight() {
+    if (SUN.shade > 0.005) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = `rgb(${SUN.tint[0]}, ${SUN.tint[1]}, ${SUN.tint[2]})`;
+      ctx.fillRect(cam.x, cam.y, cw, ch);
+      ctx.restore();
+    }
+    if (SUN.lights < 0.02) return;
+    for (const l of lit) {
+      if (l.x < cam.x - l.r || l.x > cam.x + cw + l.r || l.y < cam.y - l.r || l.y > cam.y + ch + l.r) continue;
+      K.glow(ctx, l.x, l.y, l.r, l.color, SUN.lights * l.a);
+    }
+  }
+
+  // Falling things that belong to the season, drifting across the view: snow in winter, leaves in autumn,
+  // petals in spring.
+  const WEATHER = { winter: { n: 70, size: 1.6, fall: 26, colors: ['#ffffff', '#eef4fa'] },
+    autumn: { n: 18, size: 2.6, fall: 18, colors: ['#c9672f', '#e0a03d', '#a8452e'] },
+    spring: { n: 12, size: 1.8, fall: 12, colors: ['#fbe3ec', '#f2a7c3'] } };
+  function drawWeather() {
+    const w = WEATHER[CLOCK.season];
+    if (!w) return;
+    const n = Math.round(w.n * FADE.t);
+    for (let k = 0; k < n; k++) {
+      const speed = w.fall * (0.7 + hash2(k, 4, 610) * 0.6);
+      const x = cam.x + ((hash2(k, 1, 610) * cw + Math.sin(time * 0.8 + k) * 24 + time * 9) % cw + cw) % cw;
+      const y = cam.y + ((hash2(k, 2, 610) * ch + time * speed) % ch + ch) % ch;
+      ctx.fillStyle = w.colors[k % w.colors.length];
+      ctx.beginPath();
+      if (CLOCK.season === 'winter') ctx.arc(x, y, w.size * (0.6 + hash2(k, 3, 610) * 0.8), 0, TAU);
+      else ctx.ellipse(x, y, w.size * 1.3, w.size * 0.6, time * 2 + k, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  // Fireflies over the meadow on warm nights.
+  const FLY_N = 16;
+  function drawFireflies() {
+    const warm = CLOCK.season === 'summer' ? 1 : CLOCK.season === 'spring' ? 0.5 : 0;
+    const a = warm * clamp((SUN.lights - 0.5) * 2, 0, 1);
+    if (a <= 0) return;
+    for (let k = 0; k < FLY_N * warm; k++) {
+      const bx = hash2(k, 1, 600) * cw, by = hash2(k, 2, 600) * ch;
+      const x = cam.x + ((bx + Math.sin(time * 0.3 + k) * 60 + time * 4) % cw + cw) % cw;
+      const y = cam.y + by + Math.sin(time * 0.5 + k * 2) * 30;
+      const blink = Math.max(0, Math.sin(time * (1.3 + hash2(k, 3, 600)) + k * 1.7));
+      K.glow(ctx, x, y, 7, '#d9ff8a', a * blink);
+    }
+  }
+
   function draw(px, py, people) {
+    CLOCK = V.clock(S.t);
+    SUN = VV.sunAt(CLOCK.phase, CLOCK.season);
+    const fade = VV.seasonFade(CLOCK);
+    if (fade.from !== FADE.from || fade.to !== FADE.to || (fade.t < 1) !== (FADE.t < 1)) pruneChunks(fade.t < 1 ? [fade.from, fade.to] : [fade.to]);
+    FADE = fade;
+    usePalette(CLOCK.season);
+    lit.length = 0;
     const target = VV.clampCamera(px * T, py * T, cw, ch, V.W * T, V.H * T);
     cam = { x: VV.snap(target.x, dpr), y: VV.snap(target.y, dpr) };
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#4f7a33';
+    ctx.fillStyle = GRASS.dark;
     ctx.fillRect(0, 0, cw, ch);
     ctx.translate(-cam.x, -cam.y);
     // Ground: cached chunks that touch the view.
     const size = CHUNK * T;
     for (let cy = Math.max(0, Math.floor(cam.y / size)); cy * size < Math.min(V.H * T, cam.y + ch); cy++) {
       for (let cx = Math.max(0, Math.floor(cam.x / size)); cx * size < Math.min(V.W * T, cam.x + cw); cx++) {
-        ctx.drawImage(chunk(cx, cy), cx * size, cy * size, size, size);
+        if (FADE.t < 1) {
+          ctx.drawImage(chunk(cx, cy, FADE.from), cx * size, cy * size, size, size);
+          ctx.globalAlpha = FADE.t;
+        }
+        ctx.drawImage(chunk(cx, cy, FADE.to), cx * size, cy * size, size, size);
+        ctx.globalAlpha = 1;
       }
     }
     const r = VV.visibleRange(cam, cw, ch, V.W, V.H);
     drawWater(r);
     drawBridge();
+    drawRoad();
     // Everything that stands is drawn back to front by its base line.
     const wide = VV.visibleRange(cam, cw, ch, V.W, V.H, T, 3);
     const inView = (x, y) => x >= wide.x0 && x <= wide.x1 && y >= wide.y0 && y <= wide.y1;
@@ -1327,10 +1507,15 @@
     for (const nd of S.nodes) if (inView(nd.x, nd.y)) items.push([(nd.y + 1) * T - 5, drawNode, nd]);
     for (const id of Object.keys(BOX)) {
       const b = BOX[id];
-      if (id === 'bridge' || b.x0 + b.w < wide.x0 || b.x0 > wide.x1 || b.y0 + b.h < wide.y0 || b.y0 > wide.y1) continue;
+      if (id === 'bridge' || id === 'road' || b.x0 + b.w < wide.x0 || b.x0 > wide.x1 || b.y0 + b.h < wide.y0 || b.y0 > wide.y1) continue;
       items.push([b.base, drawBuilding, id]);
     }
     for (const d of S.decor) if (inView(d.x, d.y)) items.push([(d.y + 1) * T - 4, drawDecor, d]);
+    V.PLOTS.forEach((p, i) => { if (inView(p.x, p.y)) items.push([(p.y + 1) * T - 6, drawPlot, i]); });
+    if (S.built.garden.done && inView(V.PLOTS[0].x, V.PLOTS[0].y)) {
+      items.push([BEDS.y0, drawFence, BEDS.y0]);
+      items.push([BEDS.y1, drawFence, BEDS.y1]);
+    }
     for (const p of people) items.push([p.y * T + 9 + (p.front ? 0.5 : 0), drawPeople, p]);
     if (S.built.barn.done) for (const h of hens) items.push([h.y, drawHen, h]);
     if (S.festival) for (const [x, y] of POLES) items.push([y, () => drawPole(x, y)]);
@@ -1344,24 +1529,23 @@
     }
     ctx.globalAlpha = 1;
     for (const s of fx.smoke) {
-      ctx.globalAlpha = 0.3 * Math.min(1, s.life / s.max * 1.6) * Math.min(1, (s.max - s.life) * 3);
-      circle(s.x, s.y, s.r, '#f1ece2');
+      ctx.globalAlpha = 0.5 * Math.min(1, s.life / s.max * 1.6) * Math.min(1, (s.max - s.life) * 3);
+      ctx.drawImage(PUFF(), s.x - s.r * 1.6, s.y - s.r * 1.6, s.r * 3.2, s.r * 3.2);
     }
     ctx.globalAlpha = 1;
+    drawWeather();
+    drawNightLight();
     if (S.festival) drawGarlands();
-    drawButterflies();
+    if (SUN.shade < 0.35) drawButterflies();
+    drawFireflies();
     drawFireworks();
-    drawCloudShadows();
+    if (SUN.shade < 0.5) drawCloudShadows();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, cw, ch); }
   }
 
   function drawBuilding(id) {
-    const b = BOX[id];
-    const st = V.stage(S, id);
-    if (st === 2) ART[id](b);
-    else if (st === 1 && id !== 'well') drawScaffold(b, share(id));
-    else drawRuin(b);
+    HS.draw(id, V.stage(S, id), BOX[id], share(id));
   }
 
   const drawPeople = (p) => drawPerson(p.x * T, p.y * T + 9, { ...LOOKS[p.role], ...p });

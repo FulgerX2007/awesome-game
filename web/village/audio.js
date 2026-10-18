@@ -244,8 +244,34 @@
       [74, 76, 78, 81, 83, 86, 83, 81, 78, 81, 86].forEach((m, k) =>
         tone(sfxBus, freq(m), { at: 0.3 + k * 0.14, d: 0.45, vol: 0.05, type: 'triangle', attack: 0.01 }));
     },
+    water() { // a soft splash from the bucket onto the soil
+      noise(sfxBus, { d: 0.35, vol: 0.28, f: vary(1800), q: 0.7, type: 'bandpass', attack: 0.03 });
+      noise(sfxBus, { at: 0.06, d: 0.25, vol: 0.12, f: 3600, q: 1.2, type: 'highpass' });
+    },
+    bucket() { // water poured into a bucket: a few rising bubbles
+      noise(sfxBus, { d: 0.5, vol: 0.18, f: 900, q: 0.8, type: 'lowpass', attack: 0.05 });
+      for (let k = 0; k < 4; k++) tone(sfxBus, vary(500 + k * 120, 0.1), { at: 0.08 + k * 0.09, d: 0.07, vol: 0.04, to: 900 + k * 150 });
+    },
+    coins() { // a couple of coins on the counter
+      for (const [at, f] of [[0, 2400], [0.07, 2900], [0.13, 2600]]) {
+        tone(sfxBus, vary(f, 0.03), { at, d: 0.18, vol: 0.035 });
+        tone(sfxBus, vary(f, 0.03) * 1.5, { at, d: 0.1, vol: 0.015 });
+      }
+    },
+    fair() { // a short fiddle-like jingle up the scale
+      [69, 71, 74, 76, 78, 81].forEach((m, k) => tone(sfxBus, freq(m), { at: k * 0.09, d: 0.22, vol: 0.05, type: 'sawtooth', attack: 0.01 }));
+      tone(sfxBus, freq(81), { at: 0.55, d: 0.6, vol: 0.04, type: 'triangle' });
+    },
+    harvest() { // a deep bell, then a warm round dance tune
+      for (const at of [0, 1.1]) {
+        tone(sfxBus, freq(50), { at, d: 3, vol: 0.08, attack: 0.01 });
+        tone(sfxBus, freq(50) * 2.76, { at, d: 1.6, vol: 0.025 });
+      }
+      [62, 66, 69, 66, 62, 69, 74, 69, 66, 69, 62].forEach((m, k) =>
+        tone(sfxBus, freq(m), { at: 0.5 + k * 0.18, d: 0.4, vol: 0.05, type: 'triangle', attack: 0.01 }));
+    },
   };
-  const GAPS = { axe: 80, pick: 80, shovel: 80, berries: 80, contribute: 120 };
+  const GAPS = { axe: 80, pick: 80, shovel: 80, berries: 80, contribute: 120, water: 120, coins: 120 };
 
   function play(name) {
     if (!state.sounds || !SOUNDS[name] || !ensure()) return;
@@ -302,21 +328,46 @@
     musicTimer = setTimeout(nextPhrase, wait * 1000);
   }
 
-  // Birdsong: a few short chirps from a random side every so often.
+  // The sounds of the place by the hour and the season (game.js tells setScene): birds by day, crickets on
+  // warm nights, wind in winter, and now and then bees on a spring or summer day.
+  const scene = { part: 'day', season: 'spring' };
+  function ambience(sc) {
+    if (sc.season === 'winter') return 'wind';
+    if (sc.part === 'night' || sc.part === 'dusk') return 'crickets';
+    return 'birds';
+  }
+  const AMBIENT = {
+    birds() {
+      const base = 2600 + Math.random() * 1600, pan = Math.random() * 1.4 - 0.7;
+      const n = 2 + Math.floor(Math.random() * 4);
+      for (let k = 0; k < n; k++) {
+        const f = base * (1 + (Math.random() - 0.5) * 0.25);
+        tone(musicIn, f, { at: k * (0.1 + Math.random() * 0.08), d: 0.08 + Math.random() * 0.06, vol: 0.05, to: f * (Math.random() < 0.5 ? 1.3 : 0.8), attack: 0.01, pan });
+      }
+      if ((scene.season === 'spring' || scene.season === 'summer') && Math.random() < 0.3) { // a bee passing by
+        tone(musicIn, 190 + Math.random() * 40, { at: 0.6, d: 1.4, vol: 0.02, type: 'sawtooth', to: 230, attack: 0.3, pan: -pan });
+      }
+    },
+    crickets() {
+      const pan = Math.random() * 1.2 - 0.6, f = 4200 + Math.random() * 600;
+      for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) tone(musicIn, f, { at: r * 0.45 + k * 0.05, d: 0.03, vol: 0.025, attack: 0.004, pan });
+    },
+    wind() {
+      noise(musicIn, { d: 3.5, vol: 0.05, f: 400 + Math.random() * 300, q: 0.6, type: 'bandpass', attack: 1.4 });
+    },
+  };
   function birds() {
     birdTimer = null;
     if (!state.music || !ensure()) return;
     if (!hidden()) {
-      try {
-        const base = 2600 + Math.random() * 1600, pan = Math.random() * 1.4 - 0.7;
-        const n = 2 + Math.floor(Math.random() * 4);
-        for (let k = 0; k < n; k++) {
-          const f = base * (1 + (Math.random() - 0.5) * 0.25);
-          tone(musicIn, f, { at: k * (0.1 + Math.random() * 0.08), d: 0.08 + Math.random() * 0.06, vol: 0.05, to: f * (Math.random() < 0.5 ? 1.3 : 0.8), attack: 0.01, pan });
-        }
-      } catch { /* ignore */ }
+      try { AMBIENT[ambience(scene)](); } catch { /* ignore */ }
     }
     birdTimer = setTimeout(birds, (9 + Math.random() * 16) * 1000);
+  }
+  // game.js reports the hour and the season; ambience follows on its next sound.
+  function setScene(part, season) {
+    scene.part = part;
+    scene.season = season;
   }
 
   function startMusic() {
@@ -366,6 +417,8 @@
     PENTATONIC,
     MELODY,
     SOUND_NAMES: Object.keys(SOUNDS),
+    ambience,
+    setScene,
     phrase,
     unlock,
     play,

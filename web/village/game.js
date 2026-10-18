@@ -199,31 +199,61 @@
   // Set innerHTML only when it changed, so buttons under the pointer aren't replaced between press and release.
   function setHTML(el, html) { if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } }
 
+  const FARM_HINT = { ripe: 'Урожай созрел — собери на огороде', water: 'Полей грядки на огороде', sow: 'Посади овощи на огороде' };
   function goalText(g) {
     if (placing) return t('Ставь: {name}', { name: t(V.DECOR[placing].name) });
+    const farm = VV.farmHint(S, V);
+    if (farm === 'ripe') return t(FARM_HINT[farm]);
+    if (V.fairOpen(S) && Object.keys(V.FAIR).some((id) => !S.bought.includes(id) && S.res.coins >= V.FAIR[id].price)) return t('Сегодня ярмарка: загляни к рядам');
+    if (S.orders.some((o) => V.canAfford(S, o.need))) return t('Заказ на доске можно выполнить');
+    if (farm) return t(FARM_HINT[farm]);
     if (!g) return t('Осмотрись вокруг');
     if (g.type === 'build') return t('Восстановить: {name}', { name: t(V.BUILDINGS[g.id].name) });
     if (g.type === 'tool') return t('Нужен инструмент: {name}', { name: t(V.TOOLS[g.tool].name) });
+    if (g.type === 'fair') return t('Купи на ярмарке: {name}', { name: t(V.FAIR[g.item].name) });
     return t('Украшай село');
   }
+
+  // The six starting resources are always in the HUD; later ones show up once they matter: when their
+  // building stands or once the player has had some.
+  const BASE_RES = new Set(['wood', 'stone', 'clay', 'berries', 'planks', 'bricks']);
+  const RES_UNLOCK = { vegetables: 'garden', honey: 'apiary', coins: 'market', grapes: 'vineyard', juice: 'press' };
+  const resShown = (r) => BASE_RES.has(r) || S.res[r] > 0 || S.stats.gathered[r] > 0 || (RES_UNLOCK[r] && S.built[RES_UNLOCK[r]].done);
 
   function renderHUD() {
     const inc = VV.income(S, V);
     for (const r of V.RES_IDS) {
+      const box = $(`r-${r}`).closest('.res-item');
+      box.hidden = !resShown(r);
+      if (box.hidden) continue;
       $(`r-${r}`).textContent = VV.fmt(S.res[r]);
       const rate = VV.fmtRate(inc.rate[r]);
       $(`r-${r}-rate`).textContent = rate ? t('{v}/мин', { v: rate }) : '';
-      const item = $(`r-${r}`).closest('.res-item');
       const full = inc.full.includes(r);
-      item.classList.toggle('full', full);
-      item.title = full ? t('Амбар полон: жители и мастерские ждут') : '';
+      box.classList.toggle('full', full);
+      box.title = full ? t('Амбар полон: жители и мастерские ждут') : '';
     }
     const done = V.BUILDING_IDS.filter((id) => S.built[id].done).length;
     $('built-label').textContent = t('Восстановлено {n}/{total}', { n: done, total: V.BUILDING_IDS.length });
     $('goal-text').textContent = goalText(V.nextGoal(S));
+    renderClock();
+    const bucket = $('bucket-label');
+    bucket.hidden = !S.built.garden.done;
+    if (!bucket.hidden) bucket.textContent = t('Ведро {n}/{max}', { n: S.bucket, max: V.bucketSize(S) });
     if (openId === 'panel-building') renderBuilding();
     else if (openId === 'panel-buildings') renderBuildings();
     else if (openId === 'panel-tools') renderTools();
+  }
+
+  // The season and the day in the header, with the sun or the moon by the hour.
+  const SEASON_NAMES = { spring: 'Весна', summer: 'Лето', autumn: 'Осень', winter: 'Зима' };
+  function renderClock() {
+    const c = V.clock(S.t);
+    const icon = c.part === 'night' || c.part === 'dusk' ? '☾' : '☀';
+    const text = `${icon} ${t('{season} · день {n}', { season: t(SEASON_NAMES[c.season]), n: c.seasonDay + 1 })}`;
+    const el = $('clock-label');
+    if (el.textContent !== text) el.textContent = text;
+    A.setScene(c.part, c.season);
   }
 
   // ───────────── Floats and toasts ─────────────
@@ -299,6 +329,15 @@
     forge: 'Кузнец откует инструменты третьего уровня.',
     mill: 'Все жители работают на {n}% быстрее.',
     chapel: 'Зазвонит колокол, и село устроит праздник.',
+    garden: 'Шесть грядок: посади ягоду, полей из ведра у колодца, через сутки собери овощи.',
+    apiary: 'Пчёлы сами носят мёд — все сезоны, кроме зимы.',
+    market: 'Жители вывесят заказы за монеты, а в первый день каждого сезона здесь шумит ярмарка.',
+    road: 'Расчистит тропу через холм: за ним хутор с садом и полем.',
+    vineyard: 'Лозы из черенков с ярмарки сами дают виноград — все сезоны, кроме зимы.',
+    press: 'Сама давит сок: виноград {ratio} → сок 1.',
+    house4: 'Поселится пасечник и будет носить мёд, кроме зимы.',
+    house5: 'Поселится садовник и будет приносить яблоки, кроме зимы.',
+    harvest: 'Хутор отпразднует Праздник урожая.',
   };
   // The numbers in EFFECT come from core's tuning, so re-balancing keeps the texts right.
   const EFFECT_VARS = {
@@ -306,6 +345,7 @@
     sawmill: { ratio: V.WORKSHOPS.sawmill.ratio, reserve: V.WORKSHOP_RESERVE },
     kiln: { ratio: V.WORKSHOPS.kiln.ratio, reserve: V.WORKSHOP_RESERVE },
     mill: { n: Math.round((V.MILL_BONUS - 1) * 100) },
+    press: { ratio: V.WORKSHOPS.press.ratio },
   };
   const needsLeft = (id) => V.BUILDINGS[id].needs.filter((d) => !S.built[d].done);
   const needsText = (left) => t('Сначала: {list}', { list: left.map((d) => t(V.BUILDINGS[d].name)).join(', ') });
@@ -341,6 +381,31 @@
     $('pb-needs').textContent = note;
     btn.hidden = own.done;
     btn.disabled = own.done || left.length > 0;
+    const market = $('pb-market');
+    market.hidden = id !== 'market' || !own.done;
+    if (!market.hidden) renderMarket();
+  }
+
+  // The market rows: the villagers' orders and, on a season's first day, the fair.
+  const WHO = { woodcutter: 'Лесоруб', mason: 'Каменщик', potter: 'Гончар', neighbour: 'Соседи' };
+  function renderMarket() {
+    const orders = S.orders.map((o) => {
+      const can = V.canAfford(S, o.need);
+      return `<li><span>${esc(t(WHO[o.who] || WHO.neighbour))}: ${esc(costText(o.need))}</span>`
+        + `<b>+${o.reward.coins} ${esc(resName('coins'))}</b>`
+        + `<button class="btn small" type="button" data-order="${o.id}"${can ? '' : ' disabled'}>${esc(t('Отдать'))}</button></li>`;
+    });
+    setHTML($('orders-list'), orders.length ? orders.join('') : `<li class="muted">${esc(t('Новые заказы появляются на рассвете.'))}</li>`);
+    const open = V.fairOpen(S);
+    $('fair-note').textContent = open ? t('Сегодня ярмарка!') : t('Ярмарка — в первый день каждого сезона, днём.');
+    const items = Object.entries(V.FAIR).map(([id, item]) => {
+      const owned = S.bought.includes(id);
+      const label = owned ? t('куплено') : t('{n} монет', { n: item.price });
+      const can = open && !owned && S.res.coins >= item.price;
+      return `<li class="${owned ? 'ok' : ''}"><span>${esc(t(item.name))}</span><b>${esc(label)}</b>`
+        + (owned ? '' : `<button class="btn small" type="button" data-buy="${id}"${can ? '' : ' disabled'}>${esc(t('Купить'))}</button>`) + '</li>';
+    });
+    setHTML($('fair-list'), items.join(''));
   }
 
   function contribute() {
@@ -374,7 +439,7 @@
     const dec = $('decor');
     dec.hidden = !S.festival;
     if (!dec.hidden) {
-      setHTML($('decor-list'), Object.entries(V.DECOR).map(([k, d]) =>
+      setHTML($('decor-list'), Object.entries(V.DECOR).filter(([k, d]) => !d.fair || S.bought.includes(k)).map(([k, d]) =>
         `<li><button class="btn${placing === k ? ' primary' : ''}" type="button" data-decor="${k}"${V.canAfford(S, d.cost) ? '' : ' disabled'}>${esc(t(d.name))}</button> <small>${esc(costText(d.cost))}</small></li>`).join(''));
     }
   }
@@ -432,8 +497,35 @@
       [{ label: t('Ура!'), primary: true }]);
     } else if (e.type === 'decor') {
       save();
+    } else if (e.type === 'plot') {
+      const wx = (e.x + 0.5) * T, wy = e.y * T;
+      const say = PLOT_SAY[e.result];
+      if (e.result === 'harvest') float(`+${e.gain} ${resName('vegetables')}`, wx, wy, 'vegetables');
+      else if (e.result === 'sown' || e.result === 'watered') float(t(say), wx, wy);
+      else if (say) toast(t(say), 2200);
+    } else if (e.type === 'harvest-festival') {
+      closePanels();
+      modal(t('Праздник урожая!'), `<p>${esc(t('Хутор за холмом ожил: сок в кружках, мёд и яблоки на столах, музыка до утра.'))}</p>`
+        + `<p>${esc(t('Дальше — свободная игра: заказы, ярмарки и украшения.'))}</p>`,
+      [{ label: t('Ура!'), primary: true }]);
+    } else if (e.type === 'order') {
+      toast(t('Заказ выполнен: +{n} монет', { n: e.coins }), 2200);
+      save();
+    } else if (e.type === 'order-new') {
+      toast(t('Новый заказ на доске у рядов'), 2200);
+    } else if (e.type === 'buy') {
+      toast(t('Куплено: {name}', { name: t(V.FAIR[e.id].name) }), 2400);
+      save();
+    } else if (e.type === 'season') {
+      if (S.built.market.done) toast(t('Новый сезон — сегодня ярмарка у рядов!'), 3500);
+    } else if (e.type === 'bucket') {
+      toast(e.full ? t('Ведро уже полное') : t('Ведро полное: {n} поливов', { n: e.n }), 1800);
     }
   }
+  const PLOT_SAY = {
+    sown: 'посажено', watered: 'полито', growing: 'Растёт — полито до рассвета',
+    winter: 'Зимой грядки отдыхают', seed: 'На семена нужна ягода', bucket: 'Ведро пустое — набери воды в колодце',
+  };
 
   // ───────────── Actions ─────────────
   let placing = null; // decoration kind waiting for a tap on the square
@@ -441,7 +533,7 @@
   function act(a, x, y) {
     if (a.type === 'tool') { toast(t('Нужен инструмент: {name}', { name: t(V.TOOLS[a.tool].name) })); return; }
     if (a.type === 'ruin' && nearBuilding(a.id)) { openBuilding(a.id); return; }
-    if (a.type === 'gather' || a.type === 'ruin') {
+    if (a.type === 'gather' || a.type === 'ruin' || a.type === 'plot' || a.type === 'well') {
       if (V.interact(S, x, y) === 'none') toast(t('Туда пока не пройти'));
       return;
     }
@@ -464,7 +556,7 @@
   // The action key and the touch button: whatever is in front of the player.
   function actFront() {
     const a = VV.pickFront(S, V, S.player.x, S.player.y, P.face);
-    if (!a) { toast(t('Подойди к дереву, камню, кусту или руине'), 1800); return; }
+    if (!a) { toast(t('Подойди к дереву, камню, кусту, грядке или руине'), 1800); return; }
     act(a, a.x, a.y);
   }
 
@@ -508,6 +600,10 @@
       case 'KeyE': actFront(); break;
       case 'KeyB': togglePanel('panel-buildings'); break;
       case 'KeyT': togglePanel('panel-tools'); break;
+      case 'KeyO':
+        if (S.built.market.done) goToBuilding('market');
+        else toast(t('Сначала восстанови ярмарочные ряды'));
+        break;
       case 'KeyM': toggleMute(); break;
       case 'Escape': placing = null; closePanels(); break;
       default:
@@ -527,7 +623,9 @@
     A.unlock();
     e.preventDefault();
     const r = canvas.getBoundingClientRect();
-    const p = VV.screenToTile(e.clientX - r.left, e.clientY - r.top, ART.cam);
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    // Placing a decoration wants the ground tile; otherwise a tall crown or roof picks its own object.
+    const p = placing ? VV.screenToTile(sx, sy, ART.cam) : VV.tapAt(S, V, sx + ART.cam.x, sy + ART.cam.y);
     tapTile(p.x, p.y);
   }
 
@@ -566,6 +664,13 @@
     let data = null;
     try { data = JSON.parse(raw); } catch { /* load reports it as recovered */ }
     const s = V.load(data);
+    if (s.recovered === 'old') {
+      // A village from an earlier version: keep it aside and forget its cloud code, so the new village
+      // never overwrites the old cloud copy.
+      store.set(`${SAVE_KEY}.v${data.v}`, raw);
+      store.del(CLOUD_KEY);
+      return { s: null, savedAt: null, old: true };
+    }
     if (s.recovered) {
       store.set(`${SAVE_KEY}.broken`, raw); // keep the unreadable copy aside instead of losing it silently
       return { s: null, savedAt: null, broken: true };
@@ -699,6 +804,7 @@
         if (!res.ok) throw new Error(await res.text());
         const s = V.load(await res.json());
         if (gen !== stateGen) return;
+        if (s.recovered === 'old') { $('cloud-msg').textContent = t('Это сохранение от старой версии игры: его нельзя загрузить.'); return; }
         if (s.recovered) { $('cloud-msg').textContent = t('Это сохранение не подходит к игре.'); return; }
         replaceState(s);
         setCloudCode(c);
@@ -734,6 +840,20 @@
     $('buildings-list').addEventListener('click', (e) => {
       const b = e.target.closest('[data-go]');
       if (b) goToBuilding(b.dataset.go);
+    });
+    $('orders-list').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-order]');
+      if (!b) return;
+      if (V.fulfill(S, Number(b.dataset.order)) === 'cost') toast(t('Не хватает для заказа'));
+      renderHUD();
+    });
+    $('fair-list').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-buy]');
+      if (!b) return;
+      const r = V.buy(S, b.dataset.buy);
+      if (r === 'coins') toast(t('Не хватает монет'));
+      else if (r === 'closed') toast(t('Ярмарка — в первый день каждого сезона, днём.'));
+      renderHUD();
     });
     $('decor-list').addEventListener('click', (e) => {
       const b = e.target.closest('[data-decor]');
@@ -794,6 +914,7 @@
       catchUp(away, away > SHOW_AWAY_BOOT);
     }
     if (saved.broken) toast(t('Сохранение повреждено — начато новое село'), 4000);
+    if (saved.old) toast(t('Новая версия игры — новое село: с днями, ночами и сезонами'), 5000);
     if (document.visibilityState === 'hidden') hiddenAt = Date.now(); // opened in a background tab
     save();
     renderHUD();

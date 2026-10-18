@@ -20,7 +20,8 @@ function finish(s, ...ids) {
   }
 }
 
-const ALL_BUT_CHAPEL = Object.keys(V.BUILDINGS).filter((id) => id !== 'chapel');
+// The village before the festival (the hamlet's buildings come after it).
+const ALL_BUT_CHAPEL = Object.keys(V.BUILDINGS).filter((id) => id !== 'chapel' && !V.BUILDINGS[id].after);
 
 test('contribute: partial then full contribution, stages and events', () => {
   const s = V.newGame(1);
@@ -222,7 +223,8 @@ test('offline: caps at 8 h, is deterministic and regrows nodes', () => {
   assert.deepEqual(V.save(a), V.save(b));
   assert.equal(ra.seconds, 3600);
   assert.equal(a.t, t0 + 3600);
-  assert.equal(ra.regrown, 1);
+  const fruit = make().nodes.filter((n) => n.kind === 'apple' && n.regrowAt <= t0 + 3600).length; // summer comes
+  assert.equal(ra.regrown, 1 + fruit);
   assert.equal(a.nodes[0].hp, V.NODE_KINDS[a.nodes[0].kind].hp);
   assert.deepEqual(a.events, [], 'no burst of regrow events');
   assert.ok(ra.gains.bricks > 0);
@@ -273,6 +275,8 @@ test('nextGoal: the cheapest available building, then decorations after the fest
   const s = V.newGame(1);
   assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'well' });
   finish(s, 'well');
+  assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'garden' }, 'the garden is the cheapest after the well');
+  finish(s, 'garden');
   assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'home' });
   // Pay the barn until less is left than for the home.
   const homeLeft = Object.values(V.BUILDINGS.home.cost).reduce((a, n) => a + n, 0);
@@ -285,11 +289,15 @@ test('nextGoal: the cheapest available building, then decorations after the fest
   t.tools.shovel = 0;
   t.built.sawmill.done = true;
   t.built.well.done = true;
+  t.built.garden.done = true;
   t.built.barn.done = true;
   t.built.forge.done = true; // leaves the kiln (needs clay) as the cheapest
   assert.deepEqual(V.nextGoal(t), { type: 'tool', tool: 'shovel' });
   finish(s, ...ALL_BUT_CHAPEL, 'chapel');
-  assert.deepEqual(V.nextGoal(s), { type: 'decor' });
+  assert.deepEqual(V.nextGoal(s), { type: 'build', id: 'road' }, 'after the festival: the road to the hamlet');
+  s.bought.push('cuttings');
+  for (const id of Object.keys(V.BUILDINGS)) if (V.BUILDINGS[id].after) finish(s, id);
+  assert.deepEqual(V.nextGoal(s), { type: 'decor' }, 'then decorations');
 });
 
 test('placeDecor: only after the festival, on free square tiles, for resources', () => {
