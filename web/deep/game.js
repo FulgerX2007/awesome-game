@@ -67,6 +67,8 @@
       zone(z) { tone(330 / (1 + z * 0.25), { d: 2.2, vol: 0.06, to: 220 / (1 + z * 0.25) }); tone(495 / (1 + z * 0.25), { t: 0.3, d: 2, vol: 0.04 }); },
       discover() { [0, 7, 12].forEach((s, i) => tone(660 * 2 ** (s / 12), { t: i * 0.08, d: 0.9, vol: 0.05, type: 'triangle' })); },
       whale() { tone(220, { d: 3, vol: 0.06, to: 330 }); tone(330, { t: 1.4, d: 3, vol: 0.05, to: 196 }); },
+      // a legend's call: deeper, with a low drone under the song
+      legend() { tone(110, { d: 4, vol: 0.08, to: 82, type: 'triangle' }); tone(165, { t: 0.8, d: 3.5, vol: 0.05, to: 110 }); tone(55, { d: 5, vol: 0.06 }); },
       setDanger(k) { if (ac) danger.gain.setTargetAtTime(muted ? 0 : k * 0.12, ac.currentTime, 0.3); },
     };
   })();
@@ -175,8 +177,8 @@
     ctx.beginPath(); ctx.moveTo(0, SH);
     for (let x = 0; x <= SW + step; x += step) ctx.lineTo(x, ground(x));
     ctx.lineTo(SW, SH); ctx.closePath(); ctx.fill();
-    // vents every ~1200 world units
-    const span = 1200;
+    // vents every ~1200 world units, sparser in world terms once the camera is far out
+    const span = 1200 * 2 ** Math.max(0, Math.round(Math.log2(C.viewSize(W.player.r) / 7000)));
     const w0 = (0 - SW / 2) / cam.z + cam.x, w1 = (SW - SW / 2) / cam.z + cam.x;
     for (let wx = Math.ceil(w0 / span) * span; wx < w1; wx += span) {
       const x = sx(wx), y = ground(x);
@@ -245,6 +247,12 @@
   }
   function orient(e) {
     const round = e.cls === 'cell' || e.cls === 'plankton';
+    if (M.upright(e.sp)) {
+      // face left or right, only tilting a little with the climb
+      if (Math.cos(e.angle) < 0) ctx.scale(-1, 1);
+      ctx.rotate(Math.sin(e.angle) * 0.25);
+      return;
+    }
     ctx.rotate(e.angle);
     if (Math.cos(e.angle) < 0 && !round) ctx.scale(1, -1);
   }
@@ -330,7 +338,7 @@
     $('btn-atlas').textContent = tr('Атлас {n}/{total}', { n: known(), total: C.SPECIES.length });
     const pr = C.progress(p.r), pct = Math.floor(pr.k * 100);
     $('next-label').textContent = pr.next === null
-      ? tr('Кит растёт до 45 м · {pct}%', { pct })
+      ? tr('Рост до {len} · {pct}%', { len: C.lengthText(C.MAX_R), pct })
       : tr('Дальше: {stage} · {pct}%', { stage: stageName(pr.next), pct });
     $('next-fill').style.width = `${pr.k * 100}%`;
     $('next').classList.toggle('lost', p.invuln > 0 && W.deaths > 0);
@@ -354,8 +362,11 @@
     'Ты рыба. Здесь уже водятся хищники, держи ухо востро.',
     'Щупальца ловят всё, что меньше. Ты быстрый и опасный.',
     'Ты акула. Опасаться почти некого.',
-    'Ты стал китом. Океан теперь спокоен, и он твой дом.',
+    'Ты стал китом. Но моряки рассказывают о тех, кто ещё больше.',
+    'Ты стал легендой. Теперь о тебе рассказывают страшные истории.',
+    'Ты Левиафан, царь глубин. Океан снова спокоен, и он твой.',
   ];
+  const WHALE = C.STAGES.findIndex((st) => st.kind === 'whale');
   function handleEvents() {
     const p = W.player;
     for (const e of W.events) {
@@ -374,7 +385,8 @@
       if (e.type === 'dash') Sound.dash();
       if (e.type === 'stage') {
         Sound.stage();
-        if (e.stage === 6) Sound.whale();
+        if (e.stage === WHALE) Sound.whale();
+        if (e.stage > WHALE) Sound.legend();
         toast(`${stageName(e.stage)}<small>${tr(STAGE_TEXT[e.stage])}</small>`, 5);
         save();
       }
@@ -419,7 +431,7 @@
       const li = document.createElement('li');
       li.className = seen ? 'seen' : '';
       li.append(thumb(sp, seen));
-      const zones = sp.zones.map((z) => tr(C.ZONES[z].name)).join(', ');
+      const zones = (sp.legend ? [tr('Легенда')] : []).concat(sp.zones.map((z) => tr(C.ZONES[z].name))).join(', ');
       const body = document.createElement('div');
       body.innerHTML = seen
         ? `<b>${spName(sp.id)}</b><span class="zone">${zones}</span><p>${tr(sp.fact)}</p><span class="count">${tr('встречено: {seen} · съедено: {eaten}', { seen: rec.seen, eaten: rec.eaten })}</span>`

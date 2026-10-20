@@ -5,16 +5,16 @@ I18n.add({
     // Page (the language switch names Russian in Russian)
     'Русский': 'Русский',
     'Глубина': 'Adâncul',
-    'Спокойная игра про океан: начни клеткой, ешь тех, кто меньше, и вырасти до кита.':
-      'Un joc liniștit despre ocean: începi ca o celulă, îi mănânci pe cei mai mici și crești până devii balenă.',
+    'Спокойная игра про океан: начни клеткой, ешь тех, кто меньше, и вырасти от кита до морской легенды.':
+      'Un joc liniștit despre ocean: începi ca o celulă, îi mănânci pe cei mai mici și crești de la balenă până la o legendă a mării.',
     'Океан': 'Ocean',
 
     // HUD
     'Клетка': 'Celulă',
     '10 мкм': '10 μm',
-    'Путь до кита': 'Drumul până la balenă',
+    'Путь до Левиафана': 'Drumul până la Leviatan',
     'Дальше: {stage} · {pct}%': 'Urmează: {stage} · {pct}%',
-    'Кит растёт до 45 м · {pct}%': 'Balena crește până la 45 m · {pct}%',
+    'Рост до {len} · {pct}%': 'Creștere până la {len} · {pct}%',
     'длина {len}': 'lungime {len}',
     'рекорд: {len}': 'record: {len}',
     'Звук: вкл': 'Sunet: pornit',
@@ -35,10 +35,12 @@ I18n.add({
     'Кальмар': 'Calmar',
     'Акула': 'Rechin',
     'Кит': 'Balenă',
+    'Кракен': 'Kraken',
+    'Левиафан': 'Leviatan',
 
     // Menu
-    'Ты — крошечная клетка в толще океана. Ешь тех, кто меньше тебя, и расти: рачок, малёк, рыба, кальмар, акула, кит.':
-      'Ești o celulă minusculă în largul oceanului. Mănâncă-i pe cei mai mici decât tine și crește: racușor, puiet, pește, calmar, rechin, balenă.',
+    'Ты — крошечная клетка в толще океана. Ешь тех, кто меньше тебя, и расти: рачок, малёк, рыба, кальмар, акула, кит. А дальше — то, что встречается только в морских легендах.':
+      'Ești o celulă minusculă în largul oceanului. Mănâncă-i pe cei mai mici decât tine și crește: racușor, puiet, pește, calmar, rechin, balenă. Iar mai departe, ce se întâlnește doar în legendele mării.',
     'Плыви за курсором или пальцем.': 'Înoată după cursor sau după deget.',
     'Пробел': 'Space',
     ', зажатая кнопка мыши или кнопка «рывок» — короткое ускорение.':
@@ -60,7 +62,9 @@ I18n.add({
     'Ты рыба. Здесь уже водятся хищники, держи ухо востро.': 'Ești pește. Pe aici sunt deja prădători, fii cu ochii-n patru.',
     'Щупальца ловят всё, что меньше. Ты быстрый и опасный.': 'Tentaculele prind tot ce e mai mic. Ești iute și de temut.',
     'Ты акула. Опасаться почти некого.': 'Ești rechin. Aproape nimeni nu-ți mai poate face rău.',
-    'Ты стал китом. Океан теперь спокоен, и он твой дом.': 'Ai devenit balenă. Oceanul e liniștit acum și e casa ta.',
+    'Ты стал китом. Но моряки рассказывают о тех, кто ещё больше.': 'Ai devenit balenă. Dar marinarii povestesc despre unii și mai mari.',
+    'Ты стал легендой. Теперь о тебе рассказывают страшные истории.': 'Ai devenit o legendă. Acum se spun povești înfricoșătoare despre tine.',
+    'Ты Левиафан, царь глубин. Океан снова спокоен, и он твой.': 'Ești Leviatanul, regele adâncurilor. Oceanul e din nou liniștit și e al tău.',
 
     'Ты потерял половину размера, но плывёшь дальше.': 'Ai pierdut jumătate din mărime, dar înoți mai departe.',
 
@@ -79,8 +83,8 @@ I18n.add({
     'Самое дно океана. Сюда добирались единицы.': 'Chiar fundul oceanului. Puțini au ajuns vreodată aici.',
 
     // Menu additions
-    'Спокойная игра про океан: начни клеткой, ешь тех, кто меньше, вырасти до кита и опустись на дно Марианской впадины.':
-      'Un joc liniștit despre ocean: începi ca o celulă, îi mănânci pe cei mai mici, crești până la balenă și cobori pe fundul Gropii Marianelor.',
+    'Спокойная игра про океан: начни клеткой, ешь тех, кто меньше, вырасти до кита, а потом до морской легенды, и опустись на дно Марианской впадины.':
+      'Un joc liniștit despre ocean: începi ca o celulă, îi mănânci pe cei mai mici, crești până la balenă, apoi până la o legendă a mării, și cobori pe fundul Gropii Marianelor.',
     'Океан уходит вниз на 11 километров. Чем глубже, тем темнее, но и еда там сытнее, а живут там удивительные существа.':
       'Oceanul coboară 11 kilometri. Cu cât mai adânc, cu atât mai întuneric, dar hrana e mai sățioasă, iar acolo trăiesc creaturi uimitoare.',
     'В темноте видно только то, что рядом, и тех, кто светится сам. Не плыви на одинокий огонёк.':
@@ -89,6 +93,7 @@ I18n.add({
 
     // Atlas
     'Атлас': 'Atlas',
+    'Легенда': 'Legendă',
     'Атлас {n}/{total}': 'Atlas {n}/{total}',
     'Закрыть': 'Închide',
     '{n} из {total}': '{n} din {total}',
@@ -166,5 +171,17 @@ I18n.add({
     'Ныряет на 2 км за гигантскими кальмарами и задерживает дыхание на час.': 'Se scufundă la 2 km după calmari giganți și își ține respirația o oră.',
     'Сифонофора': 'Sifonofor',
     'Колония из тысяч крошечных существ, вытянутая на 40 метров. Одно из самых длинных животных в мире.': 'O colonie din mii de vietăți mici, lungă de 40 de metri. Unul dintre cele mai lungi animale din lume.',
+
+    // Legends
+    'Морской змей': 'Șarpele de mare',
+    'О нём рассказывали моряки всех морей. Часто за змея принимали сельдяного короля — настоящую рыбу длиной до 8 метров с красным гребнем.':
+      'Despre el povesteau marinarii de pe toate mările. Adesea îl confundau cu peștele-vâslă, un pește adevărat de până la 8 metri, cu o creastă roșie.',
+    'Чудовище из скандинавских легенд, которое утаскивает корабли на дно. Скорее всего, моряки видели гигантского кальмара.':
+      'Monstrul din legendele scandinave care trage corăbiile la fund. Cel mai probabil, marinarii vedeau un calmar gigant.',
+    'Аспидохелон': 'Aspidochelone',
+    'Из средневековых бестиариев: черепаха такого размера, что моряки принимали её спину за остров, высаживались и разводили костёр.':
+      'Din bestiarele medievale: o broască-țestoasă atât de mare încât marinarii îi luau spatele drept insulă, debarcau și făceau focul.',
+    'Морское чудовище из Библии: «нет на земле подобного ему». В его честь назван ископаемый кашалот Livyatan, который охотился на китов 9 миллионов лет назад.':
+      'Monstrul marin din Biblie: „nu este pe pământ asemenea lui”. După el a fost numit cașalotul fosil Livyatan, care vâna balene acum 9 milioane de ani.',
   },
 });

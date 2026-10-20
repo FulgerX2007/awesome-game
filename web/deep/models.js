@@ -322,6 +322,52 @@
         ctx.beginPath(); ctx.moveTo(a.x - s * 0.1, a.y + a.t * 0.7); ctx.lineTo(b.x, b.y + b.t * 0.55); ctx.stroke();
       },
     },
+    // Legend: an armoured sea dragon with a glowing lateral line and ember eyes.
+    leviathan: (() => {
+      const row = bellyRow(12, 0.16, 0.86, '80,240,210', 0.05, 0.1);
+      return {
+        L: 3.4, H: 0.5, k: 0.45, top: '#10262e', mid: '#1d4148', belly: '#8fa89a', finColor: '#14323a', tail: 'fork', tailSize: 1.3, swim: 0.3, nose: 0.8,
+        fins: [{ u: 0.7, len: 0.1, h: 0.5 }, { u: 0.6, len: 0.1, h: 0.45, side: 'bottom' }, { u: 0.24, len: 0.34, h: 0.7, front: true, angle: -0.1 }],
+        eye: { u: 0.08, r: 0.06, up: 0.3, iris: '#ffb347' }, edge: 'rgba(0,10,12,0.55)',
+        extra(ctx, pts, s) {
+          // overlapping scales
+          ctx.strokeStyle = 'rgba(140,210,195,0.16)'; ctx.lineWidth = Math.max(0.5, s * 0.025);
+          for (let k = 0; k < 16; k++) {
+            const p = pts.at(0.1 + k * 0.05);
+            for (let j = -1; j <= 1; j++) { ctx.beginPath(); ctx.arc(p.x, p.y + j * p.t * 0.5, s * 0.09, -Math.PI / 2, Math.PI / 2); ctx.stroke(); }
+          }
+        },
+        head(ctx, pts, s) {
+          // a crest of spikes along the back
+          ctx.fillStyle = '#0b1c22';
+          for (let k = 0; k < 11; k++) {
+            const p = pts.at(0.1 + k * 0.06), h = s * (0.38 - k * 0.025);
+            ctx.beginPath(); ctx.moveTo(p.x + s * 0.07, p.y - p.t * 0.92); ctx.lineTo(p.x - s * 0.12, p.y - p.t - h); ctx.lineTo(p.x - s * 0.13, p.y - p.t * 0.88); ctx.fill();
+          }
+          // swept-back horns
+          const h = pts.at(0.06);
+          ctx.fillStyle = '#d8cfb8';
+          for (const [dx, k] of [[0, 1], [-s * 0.14, 0.75]]) {
+            ctx.beginPath(); ctx.moveTo(h.x + dx + s * 0.06, h.y - h.t * 0.75); ctx.quadraticCurveTo(h.x + dx - s * 0.05, h.y - h.t - s * 0.2 * k, h.x + dx - s * 0.32 * k, h.y - h.t - s * 0.24 * k);
+            ctx.quadraticCurveTo(h.x + dx - s * 0.06, h.y - h.t - s * 0.05, h.x + dx - s * 0.06, h.y - h.t * 0.7); ctx.fill();
+          }
+          // the jaw line and teeth
+          const a = pts.at(0), b = pts.at(0.13);
+          ctx.strokeStyle = 'rgba(5,12,14,0.8)'; ctx.lineWidth = Math.max(0.6, s * 0.03);
+          ctx.beginPath(); ctx.moveTo(a.x, a.y + a.t * 0.1); ctx.lineTo(b.x, b.y + b.t * 0.25); ctx.stroke();
+          ctx.strokeStyle = '#efe6d6'; ctx.lineWidth = Math.max(0.5, s * 0.02);
+          ctx.beginPath();
+          for (let k = 0; k < 6; k++) { const x = a.x - (a.x - b.x) * (k + 0.5) / 6, y = a.y + (b.y + b.t * 0.25 - a.y) * (k + 0.5) / 6; ctx.moveTo(x, y); ctx.lineTo(x - s * 0.02, y + s * 0.07); }
+          ctx.stroke();
+        },
+        dots: row.dots,
+        lights(ctx, pts, s, ph) {
+          row.lights(ctx, pts, s, ph);
+          const e = pts.at(0.08);
+          glowDot(ctx, e.x, e.y - e.t * 0.3, Math.max(5, s * 0.35), '255,170,70', 0.9);
+        },
+      };
+    })(),
   };
 
   function angLure(pts, s, ph) {
@@ -533,7 +579,10 @@
     squid(ctx, s, ph, mode, opt = {}) {
       const L = s * 2.4, H = s * 0.7;
       const mantle = opt.mantle || ['#e9785d', '#c8513b'], arm = opt.arm || '#d0573c';
-      if (mode === 'lights') return;
+      if (mode === 'lights') {
+        if (opt.glowEye) glowDot(ctx, L * 0.22, -H * 0.15, Math.max(5, s * 0.6), opt.glowEye, 0.85);
+        return;
+      }
       // arms trail ahead of the head (+x), two long tentacles for the giant
       ctx.strokeStyle = arm; ctx.lineCap = 'round';
       const arms = 8;
@@ -654,11 +703,90 @@
         ctx.beginPath(); ctx.ellipse(p.x, p.y, rr * 1.3, rr, 0, 0, TAU); ctx.fill();
       }
     },
+    // Legend: the sea serpent, long and silver with the red crest of an oarfish.
+    serpent(ctx, s, ph, mode) {
+      if (mode === 'lights') return;
+      const L = s * 4.6, N = 26;
+      const at = (u) => ({ x: L * (0.32 - u), y: Math.sin(ph * 2.2 - u * 7) * s * 0.45 * Math.min(1, u * 3) });
+      const th = (u) => s * (0.3 * (1 - u * 0.85) + 0.04);
+      const top = [], bot = [];
+      for (let i = 0; i <= N; i++) { const u = i / N, p = at(u); top.push({ x: p.x, y: p.y - th(u) }); bot.push({ x: p.x, y: p.y + th(u) }); }
+      // the red crest, rippling along the back
+      ctx.fillStyle = 'rgba(215,45,55,0.85)';
+      ctx.beginPath(); ctx.moveTo(top[1].x, top[1].y);
+      for (let i = 1; i <= N - 2; i++) { const u = i / N; ctx.lineTo(top[i].x, top[i].y - s * 0.28 * (1 - u * 0.6) * (0.7 + 0.3 * Math.sin(u * 40 + ph * 4))); }
+      for (let i = N - 2; i >= 1; i--) ctx.lineTo(top[i].x, top[i].y + s * 0.02);
+      ctx.closePath(); ctx.fill();
+      // the plume on the head
+      ctx.strokeStyle = 'rgba(230,60,70,0.9)'; ctx.lineWidth = Math.max(0.6, s * 0.05); ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let k = 0; k < 5; k++) { const p = top[1 + k]; ctx.moveTo(p.x, p.y); ctx.quadraticCurveTo(p.x - s * 0.2, p.y - s * 0.8, p.x - s * (0.6 + k * 0.15), p.y - s * (0.9 + Math.sin(ph * 2 + k) * 0.12)); }
+      ctx.stroke();
+      smooth(ctx, top.concat(bot.reverse()));
+      const g = ctx.createLinearGradient(0, -s * 0.4, 0, s * 0.4);
+      g.addColorStop(0, '#5f7f92'); g.addColorStop(0.5, '#b9ccd2'); g.addColorStop(1, '#e8f0ee');
+      ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = 'rgba(20,35,45,0.4)'; ctx.lineWidth = Math.max(0.5, s * 0.03); ctx.stroke();
+      // dark wavy bands
+      ctx.strokeStyle = 'rgba(40,60,75,0.35)'; ctx.lineWidth = Math.max(0.5, s * 0.04);
+      ctx.beginPath();
+      for (let k = 1; k < 12; k++) { const u = k / 13, p = at(u), t = th(u); ctx.moveTo(p.x, p.y - t * 0.9); ctx.quadraticCurveTo(p.x - s * 0.12, p.y, p.x, p.y + t * 0.6); }
+      ctx.stroke();
+      const h = at(0.03);
+      eye(ctx, h.x, h.y - s * 0.08, Math.max(0.7, s * 0.09), '#d9c37a');
+    },
+    // Legend: a turtle the size of an island, with a grove growing on its shell.
+    aspidochelone(ctx, s, ph, mode) {
+      if (mode === 'lights') return;
+      const fl = Math.sin(ph * 1.5) * 0.35;
+      const flipper = (x, y, rx, ry, a, color) => { ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, a, 0, TAU); ctx.fill(); };
+      // far-side flippers
+      flipper(s * 0.55, s * 0.4, s * 0.85, s * 0.2, 0.7 + fl, '#3f4a31');
+      flipper(-s * 1.05, s * 0.35, s * 0.45, s * 0.16, -0.5 - fl * 0.6, '#3f4a31');
+      // neck and head
+      ctx.fillStyle = '#6b7550';
+      ctx.beginPath(); ctx.moveTo(s * 0.9, -s * 0.05); ctx.quadraticCurveTo(s * 1.3, -s * 0.15, s * 1.6, -s * 0.05);
+      ctx.quadraticCurveTo(s * 1.85, s * 0.08, s * 1.6, s * 0.22); ctx.quadraticCurveTo(s * 1.3, s * 0.3, s * 0.9, s * 0.3); ctx.fill();
+      eye(ctx, s * 1.62, s * 0.02, Math.max(0.7, s * 0.06), '#c9a24a');
+      // belly plate
+      ctx.fillStyle = '#c4b183';
+      ctx.beginPath(); ctx.ellipse(-s * 0.05, s * 0.28, s * 1.3, s * 0.2, 0, 0, TAU); ctx.fill();
+      // the shell dome
+      ctx.beginPath(); ctx.moveTo(-s * 1.45, s * 0.25); ctx.bezierCurveTo(-s * 1.2, -s * 0.85, s * 1.0, -s * 0.9, s * 1.25, s * 0.25); ctx.closePath();
+      const g = ctx.createLinearGradient(0, -s * 0.7, 0, s * 0.25);
+      g.addColorStop(0, '#6e6c4a'); g.addColorStop(1, '#3a4130');
+      ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = 'rgba(20,24,14,0.45)'; ctx.lineWidth = Math.max(0.6, s * 0.03); ctx.stroke();
+      // scutes
+      ctx.beginPath();
+      for (let k = -2; k <= 2; k++) { const x = k * s * 0.5; ctx.moveTo(x, s * 0.22); ctx.lineTo(x * 0.85, -s * 0.2); }
+      ctx.moveTo(-s * 1.1, -s * 0.2); ctx.quadraticCurveTo(0, -s * 0.32, s * 0.95, -s * 0.2);
+      ctx.stroke();
+      // algae hanging from the rim
+      ctx.strokeStyle = 'rgba(80,130,60,0.6)'; ctx.lineWidth = Math.max(0.5, s * 0.03);
+      ctx.beginPath();
+      for (let k = 0; k < 9; k++) { const x = -s * 1.3 + k * s * 0.3; ctx.moveTo(x, s * 0.25); ctx.quadraticCurveTo(x + Math.sin(ph + k) * s * 0.1, s * 0.4, x + Math.sin(ph * 1.3 + k) * s * 0.12, s * (0.5 + (k % 3) * 0.08)); }
+      ctx.stroke();
+      // the island on top: rocks, grass and a lone tree
+      ctx.fillStyle = '#7a7466';
+      ctx.beginPath(); ctx.ellipse(-s * 0.45, -s * 0.58, s * 0.28, s * 0.12, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(s * 0.5, -s * 0.55, s * 0.2, s * 0.09, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#5c8a3e';
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.64, s * 0.55, s * 0.12, 0, Math.PI, TAU); ctx.fill();
+      ctx.strokeStyle = '#5a4128'; ctx.lineWidth = Math.max(0.7, s * 0.05);
+      ctx.beginPath(); ctx.moveTo(s * 0.05, -s * 0.68); ctx.quadraticCurveTo(s * 0.12, -s * 1.0, s * 0.02, -s * 1.3); ctx.stroke();
+      ctx.fillStyle = '#4f7d36';
+      for (let k = 0; k < 5; k++) { const a = Math.PI * (1.05 + k * 0.22); ctx.beginPath(); ctx.ellipse(s * 0.02 + Math.cos(a) * s * 0.22, -s * 1.3 + Math.sin(a) * s * 0.1 + s * 0.08, s * 0.24, s * 0.06, a + Math.PI / 2 + Math.sin(ph) * 0.05, 0, TAU); ctx.fill(); }
+      // near-side flippers
+      flipper(s * 0.75, s * 0.3, s * 0.95, s * 0.22, 0.5 - fl, '#5d6845');
+      flipper(-s * 1.15, s * 0.28, s * 0.5, s * 0.17, -0.35 + fl * 0.6, '#5d6845');
+    },
   };
 
   const SQUIDS = {
     squid: {},
     giantsquid: { mantle: ['#c4553f', '#8f3326'], arm: '#a8402f', tentacles: true, eye: 0.2, thick: 1.2 },
+    kraken: { mantle: ['#5a3f72', '#2c1b3c'], arm: '#45305a', tentacles: true, eye: 0.24, thick: 1.6, glowEye: '255,170,60' },
   };
 
   // Overall extent in units of s, used to fit thumbnails: [back, front, half-height].
@@ -667,10 +795,11 @@
     foram: [2, 2, 2], xeno: [1.3, 1.3, 1.1], copepod: [1.8, 1.3, 2.3], krill: [1.8, 2.8, 1], shrimp: [1.8, 3.7, 1], amphipod: [1, 2.1, 1.2],
     moonjelly: [1.6, 0.9, 1.1], combjelly: [1.1, 1.1, 0.9], squid: [1.4, 2.1, 0.8], giantsquid: [1.4, 4.2, 1.1], vampire: [1.1, 1.6, 1],
     dumbo: [1, 1.3, 1.1], gulper: [2.7, 2.3, 1.1], siphonophore: [2.5, 2.6, 1.4],
+    kraken: [1.4, 4.2, 1.2], serpent: [3.2, 1.7, 1.4], aspidochelone: [1.6, 1.9, 1.5],
   };
   for (const [id, c] of Object.entries(FISH)) {
     const back = c.L * 0.5 + c.H * (c.tailSize ?? 1) * (c.tail === 'shark' ? 1.3 : 1);
-    BOX[id] = [back, c.L * 0.5 + (id === 'goblin' ? 0.85 : id === 'angler' ? 0.3 : id === 'tripod' ? 1.3 : 0.1), c.H * (id === 'tripod' ? 3.6 : 1.4)];
+    BOX[id] = [back, c.L * 0.5 + (id === 'goblin' ? 0.85 : id === 'angler' ? 0.3 : id === 'tripod' ? 1.3 : 0.1), c.H * (id === 'tripod' ? 3.6 : id === 'leviathan' ? 1.8 : 1.4)];
   }
 
   function draw(ctx, id, s, ph, mode = 'body') {
@@ -681,5 +810,8 @@
     return undefined;
   }
 
-  root.DeepModels = { draw, box: (id) => BOX[id] || [1.5, 1.5, 1] };
+  // Creatures that stay level when they swim up or down (an island does not stand on end).
+  const UPRIGHT = new Set(['aspidochelone']);
+
+  root.DeepModels = { draw, box: (id) => BOX[id] || [1.5, 1.5, 1], upright: (id) => UPRIGHT.has(id) };
 })(typeof window !== 'undefined' ? window : globalThis);

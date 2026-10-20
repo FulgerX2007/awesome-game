@@ -2,6 +2,7 @@
 // Everything is in world units; the camera zooms out as the player grows.
 // The vertical axis is depth: five real ocean zones from the sunlit surface to the trench floor.
 // Each zone has its own species, more food value and less light.
+// Past the whale the game leaves biology: the last two stages are sea legends (kraken, leviathan).
 (function (root) {
   'use strict';
   const I18n = typeof module === 'object' && module.exports ? require('../i18n.js') : root.I18n;
@@ -15,7 +16,9 @@
     { id: 'fish', max: 70, speed: 0.78, flee: true, hunter: true },
     { id: 'squid', max: 150, speed: 0.8, flee: true, hunter: true },
     { id: 'shark', max: 330, speed: 0.82, hunter: true },
-    { id: 'whale', max: Infinity, speed: 0.4 },
+    { id: 'whale', max: 700, speed: 0.4 },
+    { id: 'kraken', max: 1500, speed: 0.82, flee: true, hunter: true },
+    { id: 'leviathan', max: Infinity, speed: 0.45 },
   ];
   const KIND = Object.fromEntries(KINDS.map((k) => [k.id, k]));
 
@@ -38,6 +41,7 @@
 
   // Real species. cls is the size class; zones lists where they live; the rest overrides class traits.
   // glow: bioluminescent (seen in the dark); lure: anglerfish bait; ambush: waits, then lunges.
+  // legend: a creature from sea tales, not a real species (the fact tells what sailors may have seen).
   const SPECIES = [
     { id: 'diatom', cls: 'plankton', zones: [0, 1], name: 'Диатомея',
       fact: 'Одноклеточная водоросль в стеклянном панцире. Диатомеи дают около пятой части всего кислорода Земли.' },
@@ -101,6 +105,14 @@
       fact: 'Ныряет на 2 км за гигантскими кальмарами и задерживает дыхание на час.' },
     { id: 'siphonophore', cls: 'whale', zones: [3, 4], glow: true, hunter: false, name: 'Сифонофора',
       fact: 'Колония из тысяч крошечных существ, вытянутая на 40 метров. Одно из самых длинных животных в мире.' },
+    { id: 'serpent', cls: 'kraken', zones: [0, 1, 2], legend: true, name: 'Морской змей',
+      fact: 'О нём рассказывали моряки всех морей. Часто за змея принимали сельдяного короля — настоящую рыбу длиной до 8 метров с красным гребнем.' },
+    { id: 'kraken', cls: 'kraken', zones: [2, 3, 4], legend: true, glow: true, name: 'Кракен',
+      fact: 'Чудовище из скандинавских легенд, которое утаскивает корабли на дно. Скорее всего, моряки видели гигантского кальмара.' },
+    { id: 'aspidochelone', cls: 'leviathan', zones: [0, 1], legend: true, hunter: false, name: 'Аспидохелон',
+      fact: 'Из средневековых бестиариев: черепаха такого размера, что моряки принимали её спину за остров, высаживались и разводили костёр.' },
+    { id: 'leviathan', cls: 'leviathan', zones: [2, 3, 4], legend: true, glow: true, hunter: false, name: 'Левиафан',
+      fact: 'Морское чудовище из Библии: «нет на земле подобного ему». В его честь назван ископаемый кашалот Livyatan, который охотился на китов 9 миллионов лет назад.' },
   ];
   const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
   // The player's own body at each stage.
@@ -112,9 +124,11 @@
     { kind: 'squid', species: 'squid', name: 'Кальмар', from: 70 },
     { kind: 'shark', species: 'shark', name: 'Акула', from: 150 },
     { kind: 'whale', species: 'humpback', name: 'Кит', from: 330 },
+    { kind: 'kraken', species: 'kraken', name: 'Кракен', from: 700 },
+    { kind: 'leviathan', species: 'leviathan', name: 'Левиафан', from: 1500 },
   ];
   const START_R = 3;
-  const MAX_R = 360;        // about 45 m: growth stops at a record-size whale
+  const MAX_R = 3000;       // about 400 m: growth stops at a leviathan out of legend
   const EAT_RATIO = 1.12;   // must be this much bigger to swallow
   const GAIN = 0.5;         // share of prey mass you keep
   const DASH_TIME = 0.6, DASH_COOLDOWN = 3, DASH_MULT = 2.3;
@@ -175,8 +189,16 @@
   // How far the player sees in the dark, in world units.
   const lightRadius = (p) => p.r * 5 + viewSize(p.r) * 0.12;
 
-  // Real-world length for the HUD: 10 µm cell up to a ~30 m whale.
-  function lengthMeters(r) { return 1e-5 * (r / 3) ** 3.2; }
+  // Real-world length for the HUD: 10 µm cell up to a ~34 m whale, then a power law through
+  // knots: the whale grows to 45 m, the kraken to 140 m, the leviathan to 400 m.
+  const LEN_KNOTS = [[330, 1e-5 * 110 ** 3.2], [700, 45], [1500, 140], [MAX_R, 400]];
+  function lengthMeters(r) {
+    if (r <= LEN_KNOTS[0][0]) return 1e-5 * (r / 3) ** 3.2;
+    let i = 0;
+    while (i < LEN_KNOTS.length - 2 && r > LEN_KNOTS[i + 1][0]) i++;
+    const [r0, m0] = LEN_KNOTS[i], [r1, m1] = LEN_KNOTS[i + 1];
+    return m0 * (r / r0) ** (Math.log(m1 / m0) / Math.log(r1 / r0));
+  }
   function lengthText(r) {
     const m = lengthMeters(r);
     const f = (v) => (v < 10 ? v.toFixed(1) : Math.round(v)).toString().replace('.', ',');
@@ -301,7 +323,7 @@
     } else {
       e.heading += (w.R() - 0.5) * dt * 2;
       dirX = Math.cos(e.heading); dirY = Math.sin(e.heading);
-      const drift = e.cls === 'plankton' || e.cls === 'whale' || SPECIES_BY_ID[e.sp].jelly;
+      const drift = e.cls === 'plankton' || e.cls === 'whale' || e.cls === 'leviathan' || SPECIES_BY_ID[e.sp].jelly;
       speed *= t.ambush ? 0.1 : drift ? 0.6 : 0.35;
     }
     if (e.rest > 0) { e.rest -= dt; speed *= 0.5; }
