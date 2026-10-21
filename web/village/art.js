@@ -15,7 +15,11 @@
   const canvas = document.getElementById('scene');
   const screen = canvas.getContext('2d');
   let ctx = screen;             // where the drawing helpers paint: the screen, or a sprite being baked
-  let cw = 0, ch = 0, dpr = 1;
+  // sw×sh: the canvas in CSS px; cw×ch: the part of the world it shows (world px, sw / zoom).
+  // dpr: device px per CSS px; zoom: CSS px per world px; R: device px per world px in cached images
+  // (capped, so chunks and sprites stay small enough for phones).
+  let sw = 0, sh = 0, cw = 0, ch = 0, dpr = 1, zoom = 1, R = 1;
+  const MAX_RASTER = 2.5;
   let cam = { x: 0, y: 0 };
   let time = 0;               // animation clock, seconds (runs even when the world is idle)
   let SUN = VV.sunAt(0.4, 'spring'); // this frame's daylight (view.sunAt)
@@ -76,17 +80,21 @@
   // Fit the backing store to the canvas's CSS size and the device pixel ratio.
   function resize() {
     const r = canvas.getBoundingClientRect();
-    cw = Math.max(1, Math.round(r.width));
-    ch = Math.max(1, Math.round(r.height));
-    const fit = VV.fitCanvas(cw, ch, window.devicePixelRatio || 1);
+    sw = Math.max(1, Math.round(r.width));
+    sh = Math.max(1, Math.round(r.height));
+    const fit = VV.fitCanvas(sw, sh, window.devicePixelRatio || 1);
     dpr = fit.ratio;
+    zoom = VV.zoomFor(sw, sh);
+    cw = sw / zoom;
+    ch = sh / zoom;
+    R = Math.min(dpr * zoom, MAX_RASTER);
     canvas.width = fit.w;
     canvas.height = fit.h;
-    vignette = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.35, cw / 2, ch / 2, Math.hypot(cw, ch) * 0.62);
+    vignette = ctx.createRadialGradient(sw / 2, sh / 2, Math.min(sw, sh) * 0.35, sw / 2, sh / 2, Math.hypot(sw, sh) * 0.62);
     vignette.addColorStop(0, 'rgba(40, 30, 10, 0)');
     vignette.addColorStop(1, 'rgba(40, 30, 10, 0.2)');
     // A soft grade: warm light from the top left, a cooler shade towards the bottom right.
-    grade = ctx.createLinearGradient(0, 0, cw, ch);
+    grade = ctx.createLinearGradient(0, 0, sw, sh);
     grade.addColorStop(0, 'rgba(255, 236, 180, 0.07)');
     grade.addColorStop(0.5, 'rgba(255, 236, 180, 0)');
     grade.addColorStop(1, 'rgba(20, 50, 70, 0.07)');
@@ -165,14 +173,14 @@
   const sprites = new Map();
   let spriteRatio = 0;
   function sprite(key, w, h, ax, ay, paint) {
-    if (spriteRatio !== dpr) { sprites.clear(); spriteRatio = dpr; }
+    if (spriteRatio !== R) { sprites.clear(); spriteRatio = R; }
     let sp = sprites.get(key);
     if (sp) { sprites.delete(key); sprites.set(key, sp); return sp; }
     const cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.ceil(w * dpr));
-    cv.height = Math.max(1, Math.ceil(h * dpr));
+    cv.width = Math.max(1, Math.ceil(w * R));
+    cv.height = Math.max(1, Math.ceil(h * R));
     const g = cv.getContext('2d');
-    g.setTransform(dpr, 0, 0, dpr, ax * dpr, ay * dpr);
+    g.setTransform(R, 0, 0, R, ax * R, ay * R);
     paint(g);
     sp = { cv, w, h, ax, ay };
     sprites.set(key, sp);
@@ -212,7 +220,8 @@
     return CLASS[V.MAP[y][x]] || (inSquare(x, y) ? 'q' : 'g');
   };
   const CHUNK = 16;
-  const chunks = new Map();
+  const chunks = new Map(); // least recently used first
+  const MAX_CHUNKS = 12;
   let chunkRatio = 0;
 
   // Chunks of seasons that are no longer on screen are dropped.
@@ -221,15 +230,16 @@
   }
 
   function chunk(cx, cy, season) {
-    if (chunkRatio !== dpr) { chunks.clear(); chunkRatio = dpr; }
+    if (chunkRatio !== R) { chunks.clear(); chunkRatio = R; }
     const key = season + '|' + cx + ',' + cy;
     let c = chunks.get(key);
-    if (c) return c;
+    if (c) { chunks.delete(key); chunks.set(key, c); return c; }
+    if (chunks.size >= MAX_CHUNKS) chunks.delete(chunks.keys().next().value);
     const size = CHUNK * T;
     c = document.createElement('canvas');
-    c.width = c.height = Math.round(size * dpr);
+    c.width = c.height = Math.round(size * R);
     const g = c.getContext('2d');
-    g.scale(dpr, dpr);
+    g.scale(R, R);
     g.translate(-cx * size, -cy * size);
     // One tile of overlap on every side, so blobs and rounded edges match across chunk borders.
     withPalette(season, () => paintGround(g, cx * CHUNK - 1, cy * CHUNK - 1, cx * CHUNK + CHUNK, cy * CHUNK + CHUNK));
@@ -1060,6 +1070,123 @@
     if (scale !== 1) ctx.restore();
   }
 
+  // ───────────── Flora: low plants that are only decoration ─────────────
+  // Shrubs, ferns, tall grass, mushrooms and little stones fill the meadow the way the resources alone can't.
+  // They stand only on open grass away from paths, the square, water, beds, the map edge and the resources,
+  // are low enough to walk through, and are not in the rules: taps and movement don't see them.
+  let FLORA = [];
+  const FLORA_KINDS = ['shrub', 'fern', 'tall', 'shrub', 'tall', 'fern', 'mush', 'stones', 'tall', 'shrub'];
+  const CLOSED = new Set(['=', '#', '~', 'b', 't', 'o', 'j', 'f', 'Q', 'g', '^']);
+  function plantFlora() {
+    FLORA = [];
+    const near = new Set();
+    for (const n of S.nodes) for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) near.add((n.x + dx) + ',' + (n.y + dy));
+    const open = (x, y) => { const c = (V.MAP[y] || '')[x]; return c !== undefined && !CLOSED.has(c); };
+    for (let y = 1; y < V.H - 1; y++) for (let x = 1; x < V.W - 1; x++) {
+      if (V.MAP[y][x] !== '.' || near.has(x + ',' + y) || V.plotAt(x, y) >= 0) continue;
+      let ok = true;
+      for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) if (!open(x + dx, y + dy)) { ok = false; break; }
+      if (!ok) continue;
+      const grove = vnoise(x / 4.5, y / 4.5, 91);
+      if (hash2(x, y, 92) >= (grove > 0.6 ? 0.8 : grove > 0.48 ? 0.32 : 0.1)) continue;
+      FLORA.push({
+        x, y, kind: FLORA_KINDS[Math.floor(hash2(x, y, 93) * FLORA_KINDS.length)], v: Math.floor(hash2(x, y, 94) * 3),
+        dx: (hash2(x, y, 95) - 0.5) * 14, dy: (hash2(x, y, 96) - 0.5) * 10,
+      });
+    }
+  }
+  // A sprite that follows the season, cross-faded while the season changes (like seasonal() for nodes).
+  function seasonalSprite(key, w, h, ax, ay, paint, x, y) {
+    const one = (season) => sprite(`${key}|${season}`, w, h, ax, ay, (g) => withPalette(season, () => paint(g)));
+    if (FADE.t < 1) {
+      blit(one(FADE.from), x, y);
+      ctx.globalAlpha = FADE.t;
+      blit(one(FADE.to), x, y);
+      ctx.globalAlpha = 1;
+    } else blit(one(FADE.to), x, y);
+  }
+  const FLORA_LEAVES = { autumn: ['#7d5a2a', '#a8763a', '#d3a14e'] };
+  function paintFlora(g, kind, v) {
+    const lv = LOOK.leaves ? LOOK.leaves[v % LOOK.leaves.length] : null;
+    const leaves = FLORA_LEAVES[SEASON] || lv;
+    if (kind === 'shrub') {
+      const k0 = 1.2 + v * 0.12;
+      const balls = [[-7, -5, 6], [6, -5, 6.5], [0, -4, 7], [-3, -10, 6], [4, -10, 5.5]].map(([x, y, r]) => [x * k0, y * k0, r * k0]);
+      if (LOOK.snow) { for (const [x, y, r] of balls) K.sphere(g, x, y, r, '#eef3f7', { gloss: false, shine: 0.2 }); return; }
+      g.fillStyle = K.shade(leaves[0], -0.5);
+      g.beginPath();
+      for (const [x, y, r] of balls) { g.moveTo(x + r + 1, y); g.arc(x, y, r + 1, 0, TAU); }
+      g.fill();
+      balls.forEach(([x, y, r], i) => {
+        K.sphere(g, x, y, r, leaves[i < 3 ? 0 : 1], { gloss: false, shine: 0.25 });
+        for (let k = 0; k < 3; k++) { const a = -2.4 + k * 0.6; K.sphere(g, x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55, r * 0.32, leaves[i < 3 ? 1 : 2], { gloss: false, shine: 0.3 }); }
+      });
+      if (v === 2 && LOOK.flowers > 0.1) for (let k = 0; k < 5; k++) { // a flowering shrub
+        g.fillStyle = k % 2 ? '#fff4f8' : '#ffd23f';
+        g.beginPath(); g.arc(-8 + hash2(k, v, 97) * 16, -13 + hash2(k, v, 98) * 9, 1.4, 0, TAU); g.fill();
+      }
+    } else if (kind === 'fern') {
+      if (LOOK.snow) return;
+      const col = leaves ? leaves[1] : '#5a8a3a', lit = leaves ? leaves[2] : '#8ab85a';
+      g.lineCap = 'round';
+      for (let k = 0; k < 7; k++) {
+        const a = -Math.PI / 2 + (k - 3) * 0.45 + (hash2(k, v, 99) - 0.5) * 0.2, l = 15 + hash2(k, v, 100) * 6;
+        const ex = Math.cos(a) * l, ey = Math.sin(a) * l * 0.75 - 1;
+        g.strokeStyle = K.shade(col, -0.2); g.lineWidth = 1;
+        g.beginPath(); g.moveTo(0, -1); g.quadraticCurveTo(ex * 0.5, ey * 0.7 - 3, ex, ey); g.stroke();
+        for (let q = 1; q <= 5; q++) { // leaflets along the frond
+          const u = q / 6, px = ex * u, py = ey * u - Math.sin(u * Math.PI) * 2.5, r = 3.4 * (1 - u * 0.55);
+          g.fillStyle = K.shade(q % 2 ? lit : col, -0.05);
+          g.beginPath(); g.ellipse(px, py, r, r * 0.45, a + 1.2, 0, TAU); g.ellipse(px, py, r, r * 0.45, a - 1.2, 0, TAU); g.fill();
+        }
+      }
+    } else if (kind === 'tall') {
+      const dry = !leaves || SEASON === 'autumn';
+      const cols = LOOK.snow ? ['#b9a77a', '#d6c79a'] : dry ? ['#b59a52', '#d8bf72'] : [K.shade(GRASS.tuft, -0.1), GRASS.tuftLight];
+      g.lineCap = 'round';
+      const n = 9 + v * 2;
+      for (let k = 0; k < n; k++) {
+        const a = (k / (n - 1) - 0.5) * 1.1 + (hash2(k, v, 101) - 0.5) * 0.3, l = 11 + hash2(k, v, 102) * 8;
+        const ex = Math.sin(a) * l, ey = -Math.cos(a) * l;
+        g.strokeStyle = cols[k % 2]; g.lineWidth = 1.3;
+        g.beginPath(); g.moveTo((k - n / 2) * 0.7, 0); g.quadraticCurveTo(ex * 0.3, ey * 0.6, ex, ey); g.stroke();
+        if (k % 4 === 1) { // a seed head
+          g.fillStyle = LOOK.snow ? '#ffffff' : '#e8d9a0';
+          g.beginPath(); g.ellipse(ex, ey - 1.5, 1.2, 2.6, a, 0, TAU); g.fill();
+        }
+      }
+    } else if (kind === 'mush') {
+      if (LOOK.snow) return;
+      for (let k = 0; k < 3; k++) {
+        const x = -6 + k * 5.5 + (hash2(k, v, 103) - 0.5) * 2, h = 4 + hash2(k, v, 104) * 3, r = 2.6 + hash2(k, v, 105) * 1.6;
+        g.fillStyle = '#efe6d2'; g.fillRect(x - 0.9, -h, 1.8, h);
+        const cap = v === 1 ? '#a8673a' : '#d93a2f';
+        K.sphere(g, x, -h, r, cap, { gloss: true, shine: 0.4 });
+        g.fillStyle = K.shade(cap, -0.35);
+        g.fillRect(x - r, -h, r * 2, 1);
+        if (v !== 1) { g.fillStyle = '#fff'; for (const [dx, dy] of [[-1, -1.2], [1, -0.4], [0, -2]]) { g.beginPath(); g.arc(x + dx * r * 0.5, -h + dy * r * 0.4, 0.5, 0, TAU); g.fill(); } }
+      }
+    } else {
+      for (let k = 0; k < 3; k++) {
+        const x = -7 + k * 6 + (hash2(k, v, 106) - 0.5) * 3, r = 2.2 + hash2(k, v, 107) * 2.4, y = -r * 0.6;
+        const grd = g.createRadialGradient(x - r * 0.4, y - r * 0.4, 0.3, x, y, r * 1.1);
+        grd.addColorStop(0, '#dad7cf'); grd.addColorStop(0.6, '#a5a198'); grd.addColorStop(1, '#757169');
+        blob(x, y, r, r * 0.75, k * 7 + v, grd, 6, 0.15, g);
+        if (LOOK.snow) blob(x - 0.3, y - r * 0.4, r * 0.8, r * 0.35, k * 7 + v + 1, '#f4f8fb', 6, 0.2, g);
+        else if (k === 1) { g.fillStyle = 'rgba(100, 150, 60, 0.8)'; g.beginPath(); g.ellipse(x + 0.5, y - r * 0.5, r * 0.5, r * 0.25, 0, 0, TAU); g.fill(); }
+      }
+    }
+  }
+  const FLORA_SIZE = { shrub: [21, 26], fern: [24, 22], tall: [16, 24], mush: [14, 12], stones: [14, 10] };
+  function drawFlora(f) {
+    const cx = (f.x + 0.5) * T + f.dx, by = (f.y + 1) * T - 6 + f.dy;
+    const [hw, up] = FLORA_SIZE[f.kind];
+    if (f.kind === 'shrub' || f.kind === 'tall') K.shadow(ctx, cx + 3, by, hw * 0.9, 3.4, 0.32 * SUN.shadow);
+    else K.shadow(ctx, cx + 1.5, by, hw * 0.7, 2.4, 0.25 * SUN.shadow);
+    const sway = f.kind === 'tall' || f.kind === 'fern' ? Math.sin(time * 1.3 + f.x * 0.7 + f.y) * 0.6 : 0;
+    seasonalSprite(`flora|${f.kind}|${f.v}`, hw * 2 + 4, up + 6, hw + 2, up + 2, (g) => paintFlora(g, f.kind, f.v), cx + sway, by);
+  }
+
   // ───────────── Buildings ─────────────
   // Drawn by houses.js with this file's canvas helpers.
   const HS = window.VillageHouses.create({
@@ -1300,6 +1427,8 @@
   }
 
   // ───────────── Decorations ─────────────
+  // A decoration the player placed on a tile hides the flora there.
+  const decorAt = (x, y) => S.decor.length > 0 && S.decor.some((d) => d.x === x && d.y === y);
   function drawDecor(d) {
     const cx = (d.x + 0.5) * T, by = (d.y + 1) * T - 4;
     if (d.kind === 'bed') {
@@ -1884,6 +2013,7 @@
   // A new state (boot, reset, cloud load, another tab's save): effects tied to the old one start over.
   function setState(s) {
     S = s;
+    plantFlora();
     fx.shake.clear(); fx.pop.clear(); fx.falls.length = 0;
     for (const h of hens) h.placed = false;
   }
@@ -2005,8 +2135,8 @@
     lit.length = 0;
     PL = { x: px * T, y: py * T + 9 };
     const target = VV.clampCamera(px * T, py * T, cw, ch, V.W * T, V.H * T);
-    cam = { x: VV.snap(target.x, dpr), y: VV.snap(target.y, dpr) };
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cam = { x: VV.snap(target.x, dpr * zoom), y: VV.snap(target.y, dpr * zoom) };
+    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
     ctx.fillStyle = GRASS.dark;
     ctx.fillRect(0, 0, cw, ch);
     ctx.translate(-cam.x, -cam.y);
@@ -2042,6 +2172,7 @@
       items.push([b.base, drawBuilding, id]);
     }
     for (const d of S.decor) if (inView(d.x, d.y)) items.push([(d.y + 1) * T - 4, drawDecor, d]);
+    for (const f of FLORA) if (inView(f.x, f.y) && !decorAt(f.x, f.y)) items.push([(f.y + 1) * T - 6 + f.dy, drawFlora, f]);
     V.PLOTS.forEach((p, i) => { if (inView(p.x, p.y)) items.push([(p.y + 1) * T - 6, drawPlot, i]); });
     if (S.built.garden.done && inView(V.PLOTS[0].x, V.PLOTS[0].y)) {
       items.push([BEDS.y0, drawFence, BEDS.y0]);
@@ -2076,8 +2207,8 @@
     drawSkyLanterns();
     if (SUN.shade < 0.5) drawCloudShadows();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (grade) { ctx.fillStyle = grade; ctx.fillRect(0, 0, cw, ch); }
-    if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, cw, ch); }
+    if (grade) { ctx.fillStyle = grade; ctx.fillRect(0, 0, sw, sh); }
+    if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, sw, sh); }
   }
 
   // Paint with every helper (here and in houses.js) aimed at another canvas, e.g. a sprite being baked.
@@ -2120,6 +2251,7 @@
   window.VillageArt = {
     BOX, SWING, resize, setState, update, onEvent, chips, draw,
     get cam() { return cam; },
+    get zoom() { return zoom; },
     get time() { return time; },
   };
 })();

@@ -45,6 +45,16 @@
     };
   }
 
+  // How much the camera magnifies the world (screen CSS px per world px) for a view of viewW×viewH CSS px:
+  // up to ZOOM_MAX on big screens, never so much that fewer than ZOOM_TILES tiles fit across the short
+  // way, and never below 1 (the old, unmagnified view).
+  const ZOOM_MAX = 1.5;
+  const ZOOM_TILES = 11;
+  function zoomFor(viewW, viewH) {
+    const w = Math.max(0, Number(viewW) || 0), h = Math.max(0, Number(viewH) || 0);
+    return clamp(Math.min(w, h * 1.6) / (ZOOM_TILES * TILE), 1, ZOOM_MAX);
+  }
+
   // Snap a camera offset to whole device pixels, so tiles and chunk images don't shimmer.
   const snap = (v, ratio) => Math.round(v * ratio) / ratio;
 
@@ -335,7 +345,7 @@
   }
 
   const api = {
-    TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
+    TILE, STEP, MAX_DPR, ZOOM_MAX, ZOOM_TILES, zoomFor, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
     fmt, fmtRate, splitDuration, income, tapAction, FLAT, frontTiles, pickFront, footprintDist, soundFor,
     sunAt, SEASON_LOOKS, palette, seasonFade, farmHint, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };

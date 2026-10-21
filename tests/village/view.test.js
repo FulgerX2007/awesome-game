@@ -578,3 +578,15 @@ test('soundFor covers fishing and the lantern festival', () => {
   assert.equal(VV.soundFor({ type: 'built', effect: 'lanterns' }), null, 'the pavilion leaves it to the festival tune');
   assert.equal(VV.soundFor({ type: 'early' }), null);
 });
+
+test('zoomFor: up to ZOOM_MAX on big screens, at least ZOOM_TILES tiles across, never below 1', () => {
+  const T = VV.TILE;
+  assert.equal(VV.zoomFor(1600, 900), VV.ZOOM_MAX);
+  assert.equal(VV.zoomFor(300, 500), 1, 'a small phone keeps the unmagnified view');
+  for (const [w, h] of [[390, 650], [600, 400], [800, 600], [1280, 800], [2560, 1400]]) {
+    const z = VV.zoomFor(w, h);
+    assert.ok(z >= 1 && z <= VV.ZOOM_MAX, `${w}×${h}: ${z}`);
+    if (z > 1) assert.ok(Math.min(w, h * 1.6) / z / T >= VV.ZOOM_TILES - 1e-9, `${w}×${h}: enough tiles fit`);
+  }
+  assert.equal(VV.zoomFor(NaN, undefined), 1);
+});

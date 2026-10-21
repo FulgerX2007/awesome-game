@@ -123,12 +123,14 @@ async function nearestTreePoint(page, save) {
     const V = window.Village;
     const c = document.getElementById('scene').getBoundingClientRect();
     const T = VV.TILE;
-    const cam = VV.clampCamera(s.player.x * T, s.player.y * T, Math.round(c.width), Math.round(c.height), V.W * T, V.H * T);
+    // The camera magnifies the world: world px × z = screen px (the same rule as art.js).
+    const z = VV.zoomFor(Math.round(c.width), Math.round(c.height));
+    const cam = VV.clampCamera(s.player.x * T, s.player.y * T, Math.round(c.width) / z, Math.round(c.height) / z, V.W * T, V.H * T);
     let best = null;
     for (const n of s.nodes) {
       if (n.kind !== 'tree' || n.hp <= 0) continue;
-      const sx = (n.x + 0.5) * T - cam.x;
-      const sy = (n.y + 0.5) * T - cam.y;
+      const sx = ((n.x + 0.5) * T - cam.x) * z;
+      const sy = ((n.y + 0.5) * T - cam.y) * z;
       if (sx < T || sy < T || sx > c.width - T || sy > c.height - T) continue;
       const d = Math.hypot(n.x + 0.5 - s.player.x, n.y + 0.5 - s.player.y);
       if (!best || d < best.d) best = { d, x: c.left + sx, y: c.top + sy, id: n.id };
@@ -752,8 +754,9 @@ async function lakePhoneChecks() {
         const VV = window.VillageView, V = window.Village;
         const c = document.getElementById('scene').getBoundingClientRect();
         const T = VV.TILE;
-        const cam = VV.clampCamera((x + 0.5) * T, (y - 0.5) * T, Math.round(c.width), Math.round(c.height), V.W * T, V.H * T);
-        return { x: c.left + (x + 0.5) * T - cam.x, y: c.top + (y + 0.5) * T - cam.y };
+        const z = VV.zoomFor(Math.round(c.width), Math.round(c.height));
+        const cam = VV.clampCamera((x + 0.5) * T, (y - 0.5) * T, Math.round(c.width) / z, Math.round(c.height) / z, V.W * T, V.H * T);
+        return { x: c.left + ((x + 0.5) * T - cam.x) * z, y: c.top + ((y + 0.5) * T - cam.y) * z };
       }, spot);
       await page.touchscreen.tap(pt.x, pt.y);
       return pt;
