@@ -1359,6 +1359,7 @@
     for (const f of fx.falls) f.t += dt;
     fx.falls = fx.falls.filter((f) => f.t < 1);
     updateFireworks(dt);
+    updateLanterns(dt);
   }
 
   function drawFalls() {
@@ -1377,6 +1378,49 @@
   // Fireworks over the square after the festival: frequent at first, then now and then.
   let fwNext = 1, festBoost = 0;
   let hwNext = 0, harvestBoost = 0; // the harvest festival's own burst over the hamlet
+  // The lantern festival: paper lanterns rise from the pavilion (a burst after the festival, then now and then
+  // at dusk and at night) and small ones float on the lake for good.
+  let lanternBoost = 0, slNext = 0;
+  const skyLanterns = [];
+  const LAKE_WATER = [];
+  V.MAP.forEach((row, y) => [...row].forEach((c, x) => { if (y > V.LAKE_Y + 4 && c === '~') LAKE_WATER.push({ x, y }); }));
+  const FLOATERS = Array.from({ length: 16 }, (_, k) => LAKE_WATER[Math.floor(hash2(k, 3, 780) * LAKE_WATER.length)]);
+  function updateLanterns(dt) {
+    if (!S.lanternFestival) { skyLanterns.length = 0; return; }
+    lanternBoost = Math.max(0, lanternBoost - dt);
+    slNext -= dt;
+    const evening = SUN.lights > 0.2;
+    if (slNext <= 0 && (lanternBoost > 0 || evening)) {
+      slNext = lanternBoost > 0 ? 0.25 + Math.random() * 0.3 : 2.5 + Math.random() * 3.5;
+      const b = BOX.pavilion;
+      skyLanterns.push({ x: b.cx + (Math.random() - 0.5) * b.Wp * 0.8, y: b.base - 30, vx: 4 + Math.random() * 6, vy: -16 - Math.random() * 10, life: 9, max: 9, k: Math.floor(Math.random() * 4) });
+    }
+    for (const l of skyLanterns) { l.x += (l.vx + Math.sin(time * 0.7 + l.k) * 4) * dt; l.y += l.vy * dt; l.life -= dt; }
+    for (let i = skyLanterns.length - 1; i >= 0; i--) if (skyLanterns[i].life <= 0) skyLanterns.splice(i, 1);
+  }
+  const LANTERN_COLORS = ['#ff9f43', '#ff6b6b', '#ffd166', '#f78fb3'];
+  function drawFloaters() {
+    if (!S.lanternFestival) return;
+    FLOATERS.forEach((t, k) => {
+      if (!t) return;
+      const x = (t.x + 0.5) * T + Math.sin(time * 0.3 + k) * 10, y = (t.y + 0.5) * T + Math.cos(time * 0.25 + k * 1.3) * 5;
+      if (x < cam.x - 20 || x > cam.x + cw + 20 || y < cam.y - 20 || y > cam.y + ch + 20) return;
+      ellipse(x + 2, y + 3, 5, 2, 'rgba(20, 40, 50, 0.3)');
+      rect(x - 3.5, y - 6, 7, 7, LANTERN_COLORS[k % 4], 2);
+      rect(x - 2, y - 4.5, 4, 3.5, 'rgba(255, 245, 210, 0.75)', 1);
+      light(x, y - 3, 22, '#ffb35a', 0.85);
+    });
+  }
+  function drawSkyLanterns() {
+    for (const l of skyLanterns) {
+      const a = Math.min(1, l.life / 2, (l.max - l.life) * 2);
+      ctx.globalAlpha = a;
+      rect(l.x - 3, l.y - 5, 6, 8, LANTERN_COLORS[l.k], [3, 3, 1.5, 1.5]);
+      rect(l.x - 1.6, l.y - 3, 3.2, 3, 'rgba(255, 245, 210, 0.85)', 1);
+      ctx.globalAlpha = 1;
+      light(l.x, l.y - 1, 24, '#ffb35a', a);
+    }
+  }
   const FW_COLORS = ['#ff4d6d', '#ffd60a', '#4cc9f0', '#f72585', '#80ed99', '#ff9f1c'];
   function updateFireworks(dt) {
     if (S.harvestFestival && harvestBoost > 0) {
@@ -1528,6 +1572,9 @@
     } else if (e.type === 'harvest-festival') {
       harvestBoost = 30;
       hwNext = 0.3;
+    } else if (e.type === 'lantern-festival') {
+      lanternBoost = 30;
+      slNext = 0.2;
     } else if (e.type === 'decor') {
       sparkle((e.x + 0.5) * T, (e.y + 0.5) * T, 14);
     } else if (e.type === 'plot') {
@@ -1701,6 +1748,7 @@
     drawGlade();
     drawPier();
     drawShoals(r);
+    drawFloaters();
     // Everything that stands is drawn back to front by its base line.
     const wide = VV.visibleRange(cam, cw, ch, V.W, V.H, T, 3);
     const inView = (x, y) => x >= wide.x0 && x <= wide.x1 && y >= wide.y0 && y <= wide.y1;
@@ -1744,6 +1792,7 @@
     if (SUN.shade < 0.35) drawButterflies();
     drawFireflies();
     drawFireworks();
+    drawSkyLanterns();
     if (SUN.shade < 0.5) drawCloudShadows();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, cw, ch); }

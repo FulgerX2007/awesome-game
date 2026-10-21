@@ -390,6 +390,17 @@ async function edgeChecks() {
       ['forest', lake([]), 15.5, 34.5],
       ['shore', (() => { const h = lake(['glade']); h.built.pier.paid.planks = 120; return h; })(), 24.5, 40.5],
       ['winter', lake(['glade', 'pier'], V.DAY * 9 + V.DAY * 0.3), 24.5, 40.5],
+      ['works', (() => {
+        const h = lake(['glade', 'pier', 'smokehouse']);
+        h.bought.push('boat');
+        h.built.house6.paid.planks = 100; h.built.pavilion.paid.planks = 150;
+        return h;
+      })(), 12.5, 43.5],
+      ['lanterns', (() => {
+        const h = lake(['glade', 'pier', 'smokehouse', 'house6', 'boathouse', 'pavilion'], V.DAY * 4 + V.DAY * 0.8);
+        h.bought.push('boat');
+        return h;
+      })(), 22.5, 40.5],
     ];
     for (const [name, h, x, y] of shots) {
       h.player.x = x; h.player.y = y;
@@ -400,6 +411,11 @@ async function edgeChecks() {
       await sleep(700);
       const fill = await canvasFilled(page);
       check(fill.ok, `the lake is drawn (${name})`, JSON.stringify(fill));
+      if (name === 'lanterns') {
+        const sv = await readSave(page);
+        check(sv.lanternFestival === true && sv.villagers.length === 6, 'the lake loads with its festival and six villagers', JSON.stringify(sv.villagers));
+        check(!(await modalText(page)).includes('фонарик'), 'the festival window does not come back on load');
+      }
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/lake-${name}.png` });
       check(errors.length === 0, `no console errors (lake, ${name})`, errors.join('\n'));
       await ctx.close();
