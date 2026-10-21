@@ -202,14 +202,14 @@
 - Create: `tests/village/fixtures/nodes-v3.json`
 - Create: `tests/village/layout.test.js`
 
-- [ ] снять снимок до любых правок карты: для сидов 1…50 — `nodes` (id, вид, x, y) и `s.rng` из `newGame(seed)`;
+- [x] снять снимок до любых правок карты: для сидов 1…50 — `nodes` (id, вид, x, y) и `s.rng` из `newGame(seed)`;
       записать скрипт-генератор в комментарии теста
-- [ ] поднять `VERSION` до 4; в `load()` сейвы `v: 2` и `v: 3` поднимать как есть, v1 по-прежнему `'old'`
-- [ ] добавить `lanternFestival: false` в `newGame()`; добавить `fish` в `TRANSIENT_PLAYER`
-- [ ] тест `layout.test.js`: узлы и `s.rng` совпадают со снимком (будет охранять задачи 2–6)
-- [ ] тест: сейв v3 с пройденным хутором грузится без `recovered`, все узлы сохраняют hp; v2 грузится
+- [x] поднять `VERSION` до 4; в `load()` сейвы `v: 2` и `v: 3` поднимать как есть, v1 по-прежнему `'old'`
+- [x] добавить `lanternFestival: false` в `newGame()`; добавить `fish` в `TRANSIENT_PLAYER`
+- [x] тест `layout.test.js`: узлы и `s.rng` совпадают со снимком (будет охранять задачи 2–6)
+- [x] тест: сейв v3 с пройденным хутором грузится без `recovered`, все узлы сохраняют hp; v2 грузится
       (переименовать тест в save.test.js:19); v1 даёт `'old'`; v5 и мусор дают `recovered: true`
-- [ ] run tests - must pass before task 2
+- [x] run tests - must pass before task 2
 
 ### Task 2: The lake on the map with its building data
 

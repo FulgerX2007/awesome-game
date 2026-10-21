@@ -6,7 +6,8 @@
 
   // 2: the world clock (days and seasons). Older saves start a new village (load says recovered: 'old').
   // 3: the map grows east (the hamlet). A version 2 save loads as is: only the nodes are laid out anew.
-  const VERSION = 3;
+  // 4: the map grows south (the lake). Version 2 and 3 saves load as they are; the old nodes keep their places.
+  const VERSION = 4;
 
   // ── World clock ──
   // A day is 8 minutes: dawn, 6 minutes of daylight, dusk and night. Three days make a season, four a year.
@@ -413,6 +414,7 @@
       bucket: 0,
       festival: false,
       harvestFestival: false,
+      lanternFestival: false,
       stats: { gathered: zeroRes(), playTime: 0, orders: 0 },
     };
   }
@@ -1174,7 +1176,7 @@
   }
 
   // ── Save / load ──
-  const TRANSIENT_PLAYER = ['target', 'path', 'cd', 'dir'];
+  const TRANSIENT_PLAYER = ['target', 'path', 'cd', 'dir', 'fish'];
 
   // Plain JSON object without transient fields (events, the player's order and cooldown).
   function save(s) {
@@ -1202,7 +1204,7 @@
     try {
       if (typeof data === 'string') data = JSON.parse(data);
       if (!isObj(data) || !Number.isFinite(data.seed)) return recovered();
-      if (data.v === 2) data = { ...data, v: VERSION }; // same state; restore() re-lays the nodes for the new map
+      if (data.v === 2 || data.v === 3) data = { ...data, v: VERSION }; // same state; restore() lays out the nodes for the new map
       if (Number.isInteger(data.v) && data.v >= 1 && data.v < VERSION) return recovered('old');
       if (data.v !== VERSION) return recovered();
       return restore(data);
