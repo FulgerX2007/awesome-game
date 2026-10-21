@@ -124,6 +124,19 @@ h1 {
   background: var(--leaf); color: #fff; font-weight: 800; font-size: 16px; cursor: pointer;
 }
 @media (hover: none) and (pointer: coarse) { .act { display: block; } .act kbd { display: none; } }
+/* Fishing: the bar at the bottom of the scene; on a bite it lights up. The toast moves up over it. */
+.fishbar {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: calc(100% - 16px);
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border-radius: 999px;
+  background: rgba(243, 231, 207, .94); color: var(--ink); box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+}
+.fishbar[hidden] { display: none; }
+.fish-text { font-weight: 800; white-space: nowrap; }
+.fishbar.bite { background: #ffb35a; animation: bite .35s ease-in-out infinite alternate; }
+/* Only the glow pulses: the buttons stay still under the finger. */
+@keyframes bite { to { box-shadow: 0 0 0 6px rgba(255, 179, 90, .45), 0 4px 12px rgba(0, 0, 0, .35); } }
+.scene-wrap.fishing .toast { bottom: 70px; }
+@media (prefers-reduced-motion: reduce) { .fishbar.bite { animation: none; } }
 
 /* ── Panels ── */
 .panel {

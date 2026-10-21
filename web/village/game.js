@@ -188,10 +188,26 @@
     ART.draw(px, py, people());
     hudClock -= dt;
     if (hudClock <= 0) { hudClock = 0.25; renderHUD(); }
+    renderFishBar();
+  }
+
+  // ───────────── Fishing bar ─────────────
+  // The line is in: the bar shows the wait or the bite, with «Подсечь» and «Смотать».
+  const fishingNow = () => !!(S.player.fish && S.player.target && S.player.target.type === 'fish');
+  let fishShown = '';
+  function renderFishBar() {
+    const f = fishingNow() ? S.player.fish.phase : '';
+    if (f === fishShown) return;
+    fishShown = f;
+    $('fishbar').hidden = !f;
+    $('scene-wrap').classList.toggle('fishing', !!f);
+    $('fishbar').classList.toggle('bite', f === 'bite');
+    $('fish-text').textContent = f === 'bite' ? t('Подсекай!') : t('Ждём поклёвку…');
   }
 
   // ───────────── HUD ─────────────
   let hudClock = 0;
+  let castHint = false; // the first cast of the session explains the bobber
   const resName = (r) => t(V.RESOURCES[r].name);
   // "Дерево 30, Камень 20" — names first, so the Russian words stay in the nominative case.
   const costText = (cost) => Object.entries(cost).map(([r, n]) => `${resName(r)} ${n}`).join(', ');
@@ -489,6 +505,18 @@
     if (e.type === 'hit') {
       const res = V.NODE_KINDS[e.kind].res;
       float(`+${e.gain} ${resName(res)}`, (e.x + 0.5) * T, e.y * T, res);
+    } else if (e.type === 'catch') {
+      float(`+${e.gain} ${resName('fish')}`, (e.x + 0.5) * T, e.y * T, 'fish');
+      save();
+    } else if (e.type === 'escape') {
+      float(t('Сорвалась!'), (e.x + 0.5) * T, e.y * T);
+    } else if (e.type === 'early') {
+      float(t('Рано — рыба испугалась'), (e.x + 0.5) * T, e.y * T);
+    } else if (e.type === 'gone') {
+      toast(t('Рыба ушла. Подсекай, когда поплавок нырнёт.'), 3000);
+    } else if (e.type === 'cast' && !castHint) {
+      castHint = true;
+      toast(t('Жди: когда поплавок нырнёт — жми «Подсечь»'), 3500);
     } else if (e.type === 'ruin') {
       openBuilding(e.id);
     } else if (e.type === 'built') {
@@ -514,7 +542,12 @@
     } else if (e.type === 'harvest-festival') {
       closePanels();
       modal(t('Праздник урожая!'), `<p>${esc(t('Хутор за холмом ожил: сок в кружках, мёд и яблоки на столах, музыка до утра.'))}</p>`
-        + `<p>${esc(t('Дальше — свободная игра: заказы, ярмарки и украшения.'))}</p>`,
+        + `<p>${esc(t('А за старым лесом к югу лежит озеро. Расчисти к нему просеку.'))}</p>`,
+      [{ label: t('Ура!'), primary: true }]);
+    } else if (e.type === 'lantern-festival') {
+      closePanels();
+      modal(t('Праздник фонариков!'), `<p>${esc(t('Над озером поднимаются бумажные фонарики, у беседки поют до рассвета. Родник снова живой край — спасибо тебе.'))}</p>`
+        + `<p>${esc(t('Дальше — свободная игра: рыбалка, заказы, ярмарки и украшения.'))}</p>`,
       [{ label: t('Ура!'), primary: true }]);
     } else if (e.type === 'order') {
       toast(t('Заказ выполнен: +{n} монет', { n: e.coins }), 2200);
@@ -539,9 +572,10 @@
   let placing = null; // decoration kind waiting for a tap on the square
 
   function act(a, x, y) {
+    if (a.type === 'strike') { V.strike(S); return; }
     if (a.type === 'tool') { toast(t('Нужен инструмент: {name}', { name: t(V.TOOLS[a.tool].name) })); return; }
     if (a.type === 'ruin' && nearBuilding(a.id)) { openBuilding(a.id); return; }
-    if (a.type === 'gather' || a.type === 'ruin' || a.type === 'plot' || a.type === 'well') {
+    if (a.type === 'gather' || a.type === 'fish' || a.type === 'ruin' || a.type === 'plot' || a.type === 'well') {
       if (V.interact(S, x, y) === 'none') toast(t('Туда пока не пройти'));
       return;
     }
@@ -561,8 +595,9 @@
     act(VV.tapAction(S, V, x, y), x, y);
   }
 
-  // The action key and the touch button: whatever is in front of the player.
+  // The action key and the touch button: a strike while fishing, otherwise whatever is in front of the player.
   function actFront() {
+    if (fishingNow()) { V.strike(S); return; }
     const a = VV.pickFront(S, V, S.player.x, S.player.y, P.face);
     if (!a) { toast(t('Подойди к дереву, камню, кусту, грядке или руине'), 1800); return; }
     act(a, a.x, a.y);
@@ -836,6 +871,8 @@
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', releaseKeys);
     $('btn-act').addEventListener('click', () => { A.unlock(); actFront(); });
+    $('btn-strike').addEventListener('click', () => { A.unlock(); V.strike(S); });
+    $('btn-reel').addEventListener('click', () => { V.stopFishing(S); });
     $('btn-buildings').addEventListener('click', () => togglePanel('panel-buildings'));
     $('btn-tools').addEventListener('click', () => togglePanel('panel-tools'));
     $('btn-settings').addEventListener('click', () => togglePanel('panel-settings'));
