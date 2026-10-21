@@ -25,8 +25,15 @@
   let SUN = VV.sunAt(0.4, 'spring'); // this frame's daylight (view.sunAt)
   let CLOCK = V.clock(0);
   const lit = [];             // lights met while drawing this frame: { x, y, r, color, a }
-  const light = (x, y, r, color, a = 1) => lit.push({ x, y, r, color, a });
-  let vignette = null, grade = null;
+  // While a building is being baked into a sprite its lights and chimneys are recorded instead (see bake()),
+  // then replayed every frame, so baked windows still light up and baked chimneys still smoke.
+  let recording = null;
+  const light = (x, y, r, color, a = 1) => (recording ? recording.lights : lit).push({ x, y, r, color, a });
+  let finish = null;            // the vignette and the colour grade, baked into one small image (finishLayer)
+  // Adaptive resolution (view.adaptQuality): the canvas renders at dpr = the device ratio × quality.q, so a
+  // phone that can't keep up draws fewer pixels. Cached chunks and sprites keep their full sharpness (R).
+  let quality = VV.qualityStart(), lastFrame = 0, full = 1;
+  const MIN_RATIO = 0.85;       // never blurrier than this many device px per CSS px
 
 
   // ───────────── Palette ─────────────
@@ -82,22 +89,50 @@
     const r = canvas.getBoundingClientRect();
     sw = Math.max(1, Math.round(r.width));
     sh = Math.max(1, Math.round(r.height));
-    const fit = VV.fitCanvas(sw, sh, window.devicePixelRatio || 1);
-    dpr = fit.ratio;
+    full = VV.fitCanvas(sw, sh, window.devicePixelRatio || 1).ratio;
+    dpr = Math.max(Math.min(full, MIN_RATIO), full * quality.q);
     zoom = VV.zoomFor(sw, sh);
     cw = sw / zoom;
     ch = sh / zoom;
-    R = Math.min(dpr * zoom, MAX_RASTER);
-    canvas.width = fit.w;
-    canvas.height = fit.h;
-    vignette = ctx.createRadialGradient(sw / 2, sh / 2, Math.min(sw, sh) * 0.35, sw / 2, sh / 2, Math.hypot(sw, sh) * 0.62);
-    vignette.addColorStop(0, 'rgba(40, 30, 10, 0)');
-    vignette.addColorStop(1, 'rgba(40, 30, 10, 0.2)');
-    // A soft grade: warm light from the top left, a cooler shade towards the bottom right.
-    grade = ctx.createLinearGradient(0, 0, sw, sh);
+    R = Math.min(full * zoom, MAX_RASTER);
+    canvas.width = Math.max(1, Math.round(sw * dpr));
+    canvas.height = Math.max(1, Math.round(sh * dpr));
+    finish = finishLayer(sw, sh);
+  }
+
+  // The last pass over the frame, painted once at a quarter size (it is all soft gradients) and stretched:
+  // a soft grade (warm light from the top left, cooler shade to the bottom right) and a light vignette.
+  function finishLayer(w, h) {
+    const k = 0.25;
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(w * k));
+    cv.height = Math.max(1, Math.ceil(h * k));
+    const g = cv.getContext('2d');
+    g.scale(cv.width / w, cv.height / h);
+    const grade = g.createLinearGradient(0, 0, w, h);
     grade.addColorStop(0, 'rgba(255, 236, 180, 0.07)');
     grade.addColorStop(0.5, 'rgba(255, 236, 180, 0)');
     grade.addColorStop(1, 'rgba(20, 50, 70, 0.07)');
+    g.fillStyle = grade;
+    g.fillRect(0, 0, w, h);
+    const vig = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.hypot(w, h) * 0.62);
+    vig.addColorStop(0, 'rgba(40, 30, 10, 0)');
+    vig.addColorStop(1, 'rgba(40, 30, 10, 0.2)');
+    g.fillStyle = vig;
+    g.fillRect(0, 0, w, h);
+    return cv;
+  }
+
+  // Feed the time since the last frame to the quality controller; re-fit the canvas when it changes its mind.
+  function pace() {
+    const now = performance.now();
+    if (lastFrame) {
+      const next = VV.adaptQuality(quality, now - lastFrame);
+      const changed = next.q !== quality.q;
+      quality = next;
+      if (changed) resize();
+    }
+    lastFrame = now;
   }
 
   // ───────────── Drawing primitives ─────────────
@@ -1820,7 +1855,7 @@
     c.fillRect(0, 0, z, z);
   });
   const emitters = [];
-  function emit(x, y, rate) { emitters.push({ x, y, rate }); }
+  function emit(x, y, rate) { (recording ? recording.emits : emitters).push({ x, y, rate }); }
 
   function updateEffects(dt) {
     for (const p of fx.parts) {
@@ -2211,7 +2246,9 @@
     if (fade.from !== FADE.from || fade.to !== FADE.to || (fade.t < 1) !== (FADE.t < 1)) pruneChunks(fade.t < 1 ? [fade.from, fade.to] : [fade.to]);
     FADE = fade;
     usePalette(CLOCK.season);
+    pace();
     lit.length = 0;
+    bakeBudget = BAKE_BUDGET;
     PL = { x: px * T, y: py * T + 9 };
     const target = VV.clampCamera(px * T, py * T, cw, ch, V.W * T, V.H * T);
     cam = { x: VV.snap(target.x, dpr * zoom), y: VV.snap(target.y, dpr * zoom) };
@@ -2286,8 +2323,7 @@
     drawSkyLanterns();
     if (SUN.shade < 0.5) drawCloudShadows();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (grade) { ctx.fillStyle = grade; ctx.fillRect(0, 0, sw, sh); }
-    if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, sw, sh); }
+    if (finish) ctx.drawImage(finish, 0, 0, sw, sh);
   }
 
   // Paint with every helper (here and in houses.js) aimed at another canvas, e.g. a sprite being baked.
@@ -2319,21 +2355,54 @@
     return true;
   }
 
-  // Ruins don't move, so each is baked once into a sprite (per season and shadow strength) instead of
-  // repainting its many stone blocks every frame.
+  // ───────────── Baked buildings ─────────────
+  // What stands still in a building (walls, roofs, windows, ruins, scaffolding) is painted once into an image
+  // and blitted; only the moving parts (houses.js 'live': bees, flags, the boat, lanterns, the saw, fire, sails,
+  // the bell) are drawn every frame on top. The image is repainted when something it shows changes: the
+  // season, snow on the roofs, the strength of shadows (dusk), the festivals, the barn's lean-to, the order
+  // notes on the market board, the paid share of scaffolding, the painted materials arriving. One image per
+  // building (the latest look), and at most BAKE_BUDGET repaints a frame: the rest keep their old image for
+  // a frame or two, so dusk doesn't repaint the whole village at once. The well, nearly all water and
+  // motion, is drawn live.
+  const BAKE_PAD = { l: 48, t: 120, r: 48, b: 34 }; // room for roofs, towers, chimneys and cast shadows
+  const BAKE_BUDGET = 3;
+  const baked = new Map(); // id → { look, cv, w, h, ratio, rec: { lights, emits } }
+  let bakeBudget = BAKE_BUDGET;
+  function buildingLook(id, st, part) {
+    return [st, part, SEASON, Math.round(LOOK.snow * FADE.t * 4), Math.round(SUN.shadow * 4), S.barnLevel | 0,
+      S.festival ? 1 : 0, S.harvestFestival ? 1 : 0, S.lanternFestival ? 1 : 0,
+      id === 'market' && S.orders ? S.orders.length : 0, PNG ? 1 : 0].join('|');
+  }
+  function bake(id, st, part, b) {
+    const look = buildingLook(id, st, part);
+    let e = baked.get(id);
+    if (e && e.ratio === R && (e.look === look || (bakeBudget <= 0 && e.st === st))) return e;
+    bakeBudget--;
+    const w = b.Wp + BAKE_PAD.l + BAKE_PAD.r, h = b.Hp + BAKE_PAD.t + BAKE_PAD.b;
+    const cv = e && e.ratio === R && e.cv.width === Math.ceil(w * R) ? e.cv : document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(w * R));
+    cv.height = Math.max(1, Math.ceil(h * R));
+    const g = cv.getContext('2d');
+    g.setTransform(R, 0, 0, R, (BAKE_PAD.l - b.X) * R, (BAKE_PAD.t - b.Y) * R);
+    const rec = { lights: [], emits: [] };
+    recording = rec;
+    try { paintWith(g, () => HS.draw(id, st, b, part, 'body')); } finally { recording = null; }
+    e = { look, cv, w, h, ratio: R, st, rec };
+    baked.set(id, e);
+    return e;
+  }
+
   function drawBuilding(id) {
     const st = V.stage(S, id), b = BOX[id];
-    if (st === 0 && id !== 'well' && id !== 'pavilion' && drawPaintedRuin(b)) return;
-    if (st === 0 && id !== 'well' && id !== 'pavilion') {
-      const ox = b.X - 24, oy = b.Y - 32;
-      const sp = sprite(`ruin|${id}|${SEASON}|${Math.round(SUN.shadow * 4)}`, b.Wp + 56, b.Hp + 52, 0, 0, (g) => {
-        g.translate(-ox, -oy);
-        paintWith(g, () => HS.draw(id, 0, b, 0));
-      });
-      blit(sp, ox, oy);
-      return;
+    if (id === 'well') { HS.draw(id, st, b, share(id)); return; }
+    if (!(st === 0 && id !== 'pavilion' && drawPaintedRuin(b))) {
+      const part = st === 1 ? Math.round(clamp(share(id), 0, 1) * 24) / 24 : 0;
+      const e = bake(id, st, part, b);
+      ctx.drawImage(e.cv, b.X - BAKE_PAD.l, b.Y - BAKE_PAD.t, e.w, e.h);
+      for (const l of e.rec.lights) lit.push(l);
+      for (const m of e.rec.emits) emitters.push(m);
     }
-    HS.draw(id, st, b, share(id));
+    if (st === 2) HS.draw(id, st, b, 1, 'live');
   }
 
   // People are drawn a little larger than their feet's footprint so they read well next to the big crowns;
@@ -2354,6 +2423,7 @@
     BOX, SWING, resize, setState, update, onEvent, chips, draw,
     get cam() { return cam; },
     get zoom() { return zoom; },
+    get quality() { return quality.q; },
     get time() { return time; },
   };
 })();

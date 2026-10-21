@@ -55,6 +55,31 @@
     return clamp(Math.min(w, h * 1.6) / (ZOOM_TILES * TILE), 1, ZOOM_MAX);
   }
 
+  // Adaptive resolution: how sharply the canvas is rendered (a scale on the device pixel ratio, QUALITY_MIN..1),
+  // steered by the time between frames. When the smoothed frame time stays over SLOW_MS for SLOW_HOLD ms the
+  // scale drops a step; when it stays under FAST_MS for FAST_HOLD ms it rises a step. After a change the
+  // average restarts in the middle, so one change has time to show before the next. Gaps over GAP_MS (a hidden
+  // tab, a long pause) are ignored. Pure: takes a state ({ q, ema, slowFor, fastFor }) and returns the next one.
+  const QUALITY = { MIN: 0.6, STEP: 0.1, SLOW_MS: 24, FAST_MS: 18, SLOW_HOLD: 1500, FAST_HOLD: 4000, GAP_MS: 250 };
+  const qualityStart = () => ({ q: 1, ema: (QUALITY.SLOW_MS + QUALITY.FAST_MS) / 2, slowFor: 0, fastFor: 0 });
+  function adaptQuality(st, frameMs) {
+    if (!(frameMs > 0) || frameMs > QUALITY.GAP_MS) return st;
+    const ema = st.ema * 0.9 + frameMs * 0.1;
+    const mid = (QUALITY.SLOW_MS + QUALITY.FAST_MS) / 2;
+    const round = (v) => Math.round(v * 100) / 100;
+    if (ema > QUALITY.SLOW_MS) {
+      const slowFor = st.slowFor + frameMs;
+      if (slowFor >= QUALITY.SLOW_HOLD && st.q > QUALITY.MIN) return { q: round(Math.max(QUALITY.MIN, st.q - QUALITY.STEP)), ema: mid, slowFor: 0, fastFor: 0 };
+      return { q: st.q, ema, slowFor, fastFor: 0 };
+    }
+    if (ema < QUALITY.FAST_MS) {
+      const fastFor = st.fastFor + frameMs;
+      if (fastFor >= QUALITY.FAST_HOLD && st.q < 1) return { q: round(Math.min(1, st.q + QUALITY.STEP)), ema: mid, slowFor: 0, fastFor: 0 };
+      return { q: st.q, ema, slowFor: 0, fastFor };
+    }
+    return { q: st.q, ema, slowFor: 0, fastFor: 0 };
+  }
+
   // Snap a camera offset to whole device pixels, so tiles and chunk images don't shimmer.
   const snap = (v, ratio) => Math.round(v * ratio) / ratio;
 
@@ -345,7 +370,7 @@
   }
 
   const api = {
-    TILE, STEP, MAX_DPR, ZOOM_MAX, ZOOM_TILES, zoomFor, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
+    TILE, STEP, MAX_DPR, ZOOM_MAX, ZOOM_TILES, zoomFor, QUALITY, qualityStart, adaptQuality, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
     fmt, fmtRate, splitDuration, income, tapAction, FLAT, frontTiles, pickFront, footprintDist, soundFor,
     sunAt, SEASON_LOOKS, palette, seasonFade, farmHint, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };

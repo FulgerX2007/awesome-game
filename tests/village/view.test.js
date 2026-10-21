@@ -590,3 +590,30 @@ test('zoomFor: up to ZOOM_MAX on big screens, at least ZOOM_TILES tiles across, 
   }
   assert.equal(VV.zoomFor(NaN, undefined), 1);
 });
+
+test('adaptQuality: slow frames lower the render scale step by step to the floor, fast ones raise it back', () => {
+  const Q = VV.QUALITY;
+  let st = VV.qualityStart();
+  assert.equal(st.q, 1);
+  const run = (ms, total) => { for (let t = 0; t < total; t += ms) st = VV.adaptQuality(st, ms); };
+  run(16.7, 10000);
+  assert.equal(st.q, 1, 'a smooth 60 fps keeps full sharpness');
+  run(40, 2000);
+  assert.ok(st.q < 1 && st.q >= Q.MIN, `25 fps for 2 s lowers it (${st.q})`);
+  run(40, 60000);
+  assert.equal(st.q, Q.MIN, 'never below the floor');
+  run(10, Q.FAST_HOLD + 1000);
+  assert.ok(st.q > Q.MIN, 'fast frames raise it again');
+  run(10, 60000);
+  assert.equal(st.q, 1, 'back to full, never above');
+});
+
+test('adaptQuality ignores pauses and junk, and does not flip on one slow frame', () => {
+  let st = VV.qualityStart();
+  st = VV.adaptQuality(st, 5000);   // a hidden tab coming back
+  st = VV.adaptQuality(st, NaN);
+  st = VV.adaptQuality(st, -3);
+  assert.deepEqual(st, VV.qualityStart());
+  for (let k = 0; k < 100; k++) st = VV.adaptQuality(st, k === 50 ? 200 : 16.7);
+  assert.equal(st.q, 1);
+});

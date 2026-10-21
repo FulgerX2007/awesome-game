@@ -186,9 +186,14 @@
     }
 
     // A cottage: white-washed walls with coloured trim (as in the Moldovan villages), a roof and a chimney.
-    function house(b, o) {
+    // Where a cottage's walls and roof go (house() draws them; animated parts find their places from it).
+    function houseFrame(b, o) {
       const left = b.X + 5, right = b.X + b.Wp - 5 - SIDE, base = b.Y + b.Hp - 4;
-      const wallH = o.wallH || 24, wallTop = base - wallH, top = b.Y - (o.roofUp || 10);
+      const wallH = o.wallH || 24;
+      return { left, right, base, wallH, wallTop: base - wallH, top: b.Y - (o.roofUp || 10) };
+    }
+    function house(b, o) {
+      const { left, right, base, wallH, wallTop, top } = houseFrame(b, o);
       castBlock(left, right, base, base - top + 8);
       const mat = o.planks ? 'planks' : o.mat || matFor(o.wall);
       sideWall(right, wallTop, base, o.wall, mat);
@@ -365,6 +370,12 @@
 
     // Any restored building without art of its own: a plain cottage.
     const PLAIN = { wall: '#f3ecdc', trim: '#7a6a4f', roof: '#a8563c', roofDark: 'rgba(90, 30, 15, 0.45)' };
+    const HOUSE4 = { wall: '#f6eedb', trim: '#c99a2e', roof: '#c9893a', roofDark: 'rgba(110, 60, 20, 0.5)', chimney: 'right', roofStyle: 'thatch' };
+    const BOATHOUSE = { wall: '#9a6a3e', trim: '#5b3a2a', roof: '#6b4a3a', roofDark: 'rgba(40, 20, 10, 0.5)', planks: true, door: false, windows: null, wallH: 26 };
+    const FORGE = {
+      wall: '#9a958a', trim: '#5b5b63', roof: '#4d4f58', roofDark: 'rgba(15, 15, 20, 0.5)',
+      door: false, windows: null, chimney: 'left', chimneyColor: STONE.dark, smoke: 1.3,
+    };
     const ART = {
       well(b) {
         const cx = b.cx, cy = b.base - 24;
@@ -410,24 +421,32 @@
         door((left + right) / 2 - 5, base - 15, 10, 14, '#6e4a2b');
         roof(left - 4, right + 4, base - 30, base - 16, '#7d8a52', 'rgba(40, 50, 20, 0.45)', 'thatch');
       },
-      apiary(b) {
+      apiary: {
         // Painted hives on a low bench, bees drifting around them.
-        const left = b.X + 6, base = b.base - 6;
-        K.block(ctx, left - 2, base - 3, b.Wp - 10, 5, 2, WOOD.mid, { top: 0.3 });
-        const cols = ['#e2c26a', '#8ec0d8', '#e59b7a'];
-        for (let k = 0; k < 3; k++) {
-          const hx = left + k * 17, hy = base - 4;
-          shadow(hx + 10, hy + 3, 9, 3, 0.3);
-          K.prism(ctx, hx, hy - 14, 13, 14, 4, cols[k], { r: 1.5 });
-          K.block(ctx, hx - 1.5, hy - 21, 16, 3.5, 1.2, WOOD.dark, { top: 0.35 });
-          rect(hx + 4, hy - 3.5, 5, 1.8, '#3b2c1a', 0.8);
-          for (let j = 0; j < 2; j++) {
-            const a = time * (2.2 + j) + k * 2 + j * 3;
-            circle(hx + 6.5 + Math.cos(a) * (8 + j * 3), hy - 12 + Math.sin(a * 1.3) * 5, 1.2, '#2b2014');
+        body(b) {
+          const left = b.X + 6, base = b.base - 6;
+          K.block(ctx, left - 2, base - 3, b.Wp - 10, 5, 2, WOOD.mid, { top: 0.3 });
+          const cols = ['#e2c26a', '#8ec0d8', '#e59b7a'];
+          for (let k = 0; k < 3; k++) {
+            const hx = left + k * 17, hy = base - 4;
+            shadow(hx + 10, hy + 3, 9, 3, 0.3);
+            K.prism(ctx, hx, hy - 14, 13, 14, 4, cols[k], { r: 1.5 });
+            K.block(ctx, hx - 1.5, hy - 21, 16, 3.5, 1.2, WOOD.dark, { top: 0.35 });
+            rect(hx + 4, hy - 3.5, 5, 1.8, '#3b2c1a', 0.8);
           }
-        }
+        },
+        live(b) {
+          const left = b.X + 6, base = b.base - 6;
+          for (let k = 0; k < 3; k++) {
+            const hx = left + k * 17, hy = base - 4;
+            for (let j = 0; j < 2; j++) {
+              const a = time * (2.2 + j) + k * 2 + j * 3;
+              circle(hx + 6.5 + Math.cos(a) * (8 + j * 3), hy - 12 + Math.sin(a * 1.3) * 5, 1.2, '#2b2014');
+            }
+          }
+        },
       },
-      market(b) {
+      market: { body(b) {
         // Three stalls under striped awnings, a notice board for the villagers' orders on the left.
         const base = b.base - 4, colours = [['#d8506a', '#f6efe0'], ['#4d7fb6', '#f6efe0'], ['#e2a43a', '#f6efe0']];
         const w = (b.Wp - 18) / 3;
@@ -457,9 +476,11 @@
           const goods = [['#d2453a', '#e8892e', '#8cc46a'], ['#e9b44c', '#f6e7a8', '#e9b44c'], ['#c99a5e', '#d7a560', '#b4643c']][k];
           for (let j = 0; j < 3; j++) K.sphere(ctx, x + 4 + j * (w - 8) / 2, base - 13, 2.6, goods[j], { gloss: false });
         }
+      },
+      live(b) {
         // On a fair day: a string of flags over the rows.
         if (window.Village.fairOpen(S)) {
-          const x0 = b.X + 16, x1 = b.X + b.Wp - 4, y = base - 40;
+          const base = b.base - 4, x0 = b.X + 16, x1 = b.X + b.Wp - 4, y = base - 40;
           line(x0, y, x1, y, 'rgba(60, 40, 25, 0.7)', 1);
           const flags = ['#ff7b6b', '#ffd166', '#8ee08a', '#7bc8f2', '#f7aef8'];
           for (let k = 0, x = x0 + 3; x < x1 - 4; x += 8, k++) {
@@ -467,7 +488,7 @@
             poly([x, y, x + 6, y, x + 3 + sway, y + 7], flags[k % flags.length]);
           }
         }
-      },
+      } },
       vineyard(b) {
         // Rows of vines on trellises; grapes hang from them except in winter.
         const winter = env.snow() > 0.5;
@@ -502,15 +523,23 @@
           line(bx - 4, by - 6, bx + 4, by - 6, '#3d3c40', 0.9);
         }
       },
-      house4(b) {
-        const r = house(b, { wall: '#f6eedb', trim: '#c99a2e', roof: '#c9893a', roofDark: 'rgba(110, 60, 20, 0.5)', chimney: 'right', roofStyle: 'thatch' });
-        // Two hives by the beekeeper's door.
-        for (let k = 0; k < 2; k++) {
-          const hx = r.left - 12 + k * 10, hy = r.base + 2;
-          shadow(hx + 4, hy, 5, 2, 0.3);
-          K.prism(ctx, hx, hy - 9, 8, 9, 3, k ? '#8ec0d8' : '#e2c26a', { r: 1 });
-          circle(hx + 4 + Math.cos(time * 3 + k) * 6, hy - 12 + Math.sin(time * 4 + k) * 3, 1, '#2b2014');
-        }
+      house4: {
+        body(b) {
+          const r = house(b, HOUSE4);
+          // Two hives by the beekeeper's door.
+          for (let k = 0; k < 2; k++) {
+            const hx = r.left - 12 + k * 10, hy = r.base + 2;
+            shadow(hx + 4, hy, 5, 2, 0.3);
+            K.prism(ctx, hx, hy - 9, 8, 9, 3, k ? '#8ec0d8' : '#e2c26a', { r: 1 });
+          }
+        },
+        live(b) {
+          const r = houseFrame(b, HOUSE4);
+          for (let k = 0; k < 2; k++) {
+            const hx = r.left - 12 + k * 10, hy = r.base + 2;
+            circle(hx + 4 + Math.cos(time * 3 + k) * 6, hy - 12 + Math.sin(time * 4 + k) * 3, 1, '#2b2014');
+          }
+        },
       },
       house5(b) {
         const r = house(b, { wall: '#eef3e2', trim: '#4f8a3a', roof: '#6a8f4a', roofDark: 'rgba(30, 60, 20, 0.5)', chimney: 'left' });
@@ -570,7 +599,7 @@
         ctx.strokeStyle = 'rgba(220, 210, 180, 0.8)';
         ctx.lineWidth = 0.7;
         ctx.beginPath();
-        for (let k = 0; k <= 4; k++) { ctx.moveTo(nx + k * 4, ny - 21); ctx.lineTo(nx + k * 4 + Math.sin(time + k) * 0.6, ny - 6); }
+        for (let k = 0; k <= 4; k++) { ctx.moveTo(nx + k * 4, ny - 21); ctx.lineTo(nx + k * 4 + Math.sin(k) * 0.6, ny - 6); }
         for (let k = 0; k <= 3; k++) { ctx.moveTo(nx, ny - 21 + k * 5); ctx.quadraticCurveTo(nx + 8, ny - 19 + k * 5, nx + 16, ny - 21 + k * 5); }
         ctx.stroke();
         for (let k = 0; k < 4; k++) circle(nx + 2 + k * 4, ny - 6, 1, '#e8892e');
@@ -581,18 +610,10 @@
         ellipse(0, -4, 3, 6, WOOD.mid);
         ctx.restore();
       },
-      boathouse(b) {
+      boathouse: { body(b) {
         // A wide plank shed open to the water on its left; the boat from the fair rocks at the slip.
-        const r = house(b, { wall: '#9a6a3e', trim: '#5b3a2a', roof: '#6b4a3a', roofDark: 'rgba(40, 20, 10, 0.5)', planks: true, door: false, windows: [b.X + b.Wp - 30], wallH: 26 });
+        const r = house(b, { ...BOATHOUSE, windows: [b.X + b.Wp - 30] });
         rect(r.left + 4, r.base - 22, 26, 22, '#2b2014', [3, 3, 0, 0]);
-        const bob = Math.sin(time * 1.3) * 1.2;
-        const bx = b.X - 18, by = r.base - 6 + bob;
-        K.shadow(ctx, bx + 4, by + 6, 17, 4, 0.3);
-        poly([bx - 16, by - 3, bx + 16, by - 3, bx + 11, by + 5, bx - 11, by + 5], '#8b5e36');
-        poly([bx - 14, by - 3, bx + 14, by - 3, bx + 10, by + 1, bx - 10, by + 1], '#5f3d22');
-        line(bx - 4, by - 3, bx - 4, by + 1, WOOD.light, 1.6);
-        line(bx + 5, by - 3, bx + 5, by + 1, WOOD.light, 1.6);
-        line(bx + 2, by - 1, bx + 22, by - 8, WOOD.light, 1.4);
         if (S.lanternFestival) {
           // Lanterns strung over the opening, made here for the festival.
           for (let k = 0; k < 4; k++) {
@@ -602,7 +623,18 @@
           }
         }
       },
-      pavilion(b) {
+      live(b) {
+        const r = houseFrame(b, BOATHOUSE);
+        const bob = Math.sin(time * 1.3) * 1.2;
+        const bx = b.X - 18, by = r.base - 6 + bob;
+        K.shadow(ctx, bx + 4, by + 6, 17, 4, 0.3);
+        poly([bx - 16, by - 3, bx + 16, by - 3, bx + 11, by + 5, bx - 11, by + 5], '#8b5e36');
+        poly([bx - 14, by - 3, bx + 14, by - 3, bx + 10, by + 1, bx - 10, by + 1], '#5f3d22');
+        line(bx - 4, by - 3, bx - 4, by + 1, WOOD.light, 1.6);
+        line(bx + 5, by - 3, bx + 5, by + 1, WOOD.light, 1.6);
+        line(bx + 2, by - 1, bx + 22, by - 8, WOOD.light, 1.4);
+      } },
+      pavilion: { body(b) {
         // An eight-sided gazebo on stilts over the water: a plank deck, slim posts, a teal roof and paper
         // lanterns under the eaves that glow at dusk.
         const cx = b.cx, base = b.base - 10, deckY = base - 6;
@@ -625,6 +657,9 @@
         poly([cx, roofY - 20, cx + rx + 6, roofY + 8, cx + rx * 0.6, roofY + 14], 'rgba(10, 40, 40, 0.3)');
         line(cx - rx - 4, roofY + 8, cx, roofY - 18, '#7cc6bd', 1.5);
         K.sphere(ctx, cx, roofY - 21, 2.6, '#e9b44c');
+      },
+      live(b) {
+        const cx = b.cx, deckY = b.base - 16, rx = b.Wp / 2 - 6, ry = b.Hp / 2 - 14, roofY = deckY - ry - 30;
         const n = S.lanternFestival ? 7 : 4;
         for (let k = 0; k < n; k++) {
           const lx = cx - rx + (k + 0.5) * (2 * rx) / n, ly = roofY + 16 + Math.sin(time * 1.5 + k) * 1.2;
@@ -632,7 +667,7 @@
           ellipse(lx, ly + 3, 3, 4, ['#ff9f43', '#ff6b6b', '#ffd166', '#f78fb3', '#c3a6ff', '#7bdff2', '#ff9f43'][k]);
           env.light(lx, ly + 3, 20, '#ffb35a', 0.9);
         }
-      },
+      } },
       home(b) {
         house(b, { wall: '#f5efe2', trim: '#4d7fb6', roof: '#b9583b', roofDark: 'rgba(90, 30, 15, 0.45)', chimney: 'right' });
       },
@@ -676,7 +711,7 @@
           K.block(ctx, r.left - 7, r.base - 9, 5, 8, 2, '#dccaa4');
         }
       },
-      sawmill(b) {
+      sawmill: { body(b) {
         const left = b.X + 4, right = b.X + b.Wp - 4 - SIDE, base = b.base - 4, top = b.Y - 4, eave = base - 26;
         castBlock(left, right, base, base - top + 6);
         rect(left + 2, eave, right - left - 4, base - eave, '#3e2c1e');
@@ -685,12 +720,6 @@
         K.block(ctx, left + 20, base - 12, 40, 4, 1, WOOD.light);
         K.cylinder(ctx, left + 40, base - 19, 18, 0.1, WOOD.mid, { ry: 4, capColor: WOOD.mid });
         ellipse(left + 58, base - 15, 3, 4, WOOD.pale);
-        ctx.save();
-        ctx.translate(left + 34, base - 16);
-        ctx.rotate(time * 6);
-        K.sphere(ctx, 0, 0, 7, '#c9ccd1', { gloss: false });
-        for (let k = 0; k < 8; k++) line(0, 0, Math.cos((k * TAU) / 8) * 7.5, Math.sin((k * TAU) / 8) * 7.5, '#8d9096', 1);
-        ctx.restore();
         for (const px of [left + 4, (left + right) / 2, right - 4]) K.cylinder(ctx, px, eave - 2, 2, base - eave + 2, WOOD.mid, { ry: 1 });
         roof(left - 4, right + 4, top, eave + 2, '#9a7046', 'rgba(60, 35, 15, 0.45)', 'metal');
         // A log pile on the left, a plank stack on the right.
@@ -701,7 +730,19 @@
         }
         for (let k = 0; k < 4; k++) K.block(ctx, right - 6 + (k % 2), base - 3 - k * 3, 18, 3, 1, k % 2 ? '#e0b779' : '#d7a560');
       },
-      kiln(b) {
+      live(b) {
+        // The spinning blade, with the shed's middle post in front of it again.
+        const left = b.X + 4, right = b.X + b.Wp - 4 - SIDE, base = b.base - 4, eave = base - 26;
+        ctx.save();
+        ctx.translate(left + 34, base - 16);
+        ctx.rotate(time * 6);
+        K.sphere(ctx, 0, 0, 7, '#c9ccd1', { gloss: false });
+        for (let k = 0; k < 8; k++) line(0, 0, Math.cos((k * TAU) / 8) * 7.5, Math.sin((k * TAU) / 8) * 7.5, '#8d9096', 1);
+        ctx.restore();
+        const mid = (left + right) / 2;
+        if (Math.abs(mid - (left + 34)) < 10) K.cylinder(ctx, mid, eave - 2, 2, base - eave + 2, WOOD.mid, { ry: 1 });
+      } },
+      kiln: { body(b) {
         const cx = b.cx, base = b.base - 4;
         castBlock(cx - 24, cx + 18, base, 40);
         const dome = ctx.createRadialGradient(cx - 10, base - 26, 2, cx, base - 12, 36);
@@ -721,6 +762,16 @@
         }
         ctx.restore();
         rect(cx - 8, base - 17, 16, 17, '#2b1a12', [8, 8, 0, 0]);
+        chimney(cx + 8, base - 34, '#9c4a35', 1.4);
+        for (let k = 0; k < 3; k++) {
+          const px = b.X + b.Wp + 2 + k * 6, py = base + 2;
+          shadow(px + 1.5, py, 4, 1.6, 0.3);
+          K.cylinder(ctx, px, py - 8, 3, 7, k === 1 ? '#a8432e' : '#c8794a', { ry: 1.1 });
+        }
+      },
+      live(b) {
+        // The fire in the mouth flickers.
+        const cx = b.cx, base = b.base - 4;
         const f = 0.75 + Math.sin(time * 9) * 0.12 + Math.sin(time * 23) * 0.08;
         const g = ctx.createRadialGradient(cx, base - 4, 1, cx, base - 6, 13);
         g.addColorStop(0, `rgba(255, 220, 120, ${f})`);
@@ -729,22 +780,23 @@
         rect(cx - 8, base - 17, 16, 17, g, [8, 8, 0, 0]);
         K.glow(ctx, cx, base - 6, 16, '#ff9a40', 0.35 * f);
         env.light(cx, base - 8, 46, '#ff9a40', f);
-        chimney(cx + 8, base - 34, '#9c4a35', 1.4);
-        for (let k = 0; k < 3; k++) {
-          const px = b.X + b.Wp + 2 + k * 6, py = base + 2;
-          shadow(px + 1.5, py, 4, 1.6, 0.3);
-          K.cylinder(ctx, px, py - 8, 3, 7, k === 1 ? '#a8432e' : '#c8794a', { ry: 1.1 });
-        }
-      },
-      forge(b) {
-        const r = house(b, {
-          wall: '#9a958a', trim: '#5b5b63', roof: '#4d4f58', roofDark: 'rgba(15, 15, 20, 0.5)',
-          door: false, windows: [b.X + 10], chimney: 'left', chimneyColor: STONE.dark, smoke: 1.3,
-        });
+      } },
+      forge: { body(b) {
+        const r = house(b, { ...FORGE, windows: [b.X + 10] });
         for (let yy = r.wallTop + 6; yy < r.base - 4; yy += 6) line(r.left, yy, r.right, yy, 'rgba(60, 55, 48, 0.35)', 0.8);
         // An open hearth on the right with a glow, an anvil in front.
         const hx = r.right - 26, hy = r.base - 18;
         rect(hx, hy, 20, 18, '#2a2420', [4, 4, 0, 0]);
+        const ax = r.left + 8, ay = r.base + 6;
+        shadow(ax + 9, ay + 1, 11, 3.4, 0.35);
+        K.block(ctx, ax + 5, ay - 6, 6, 6, 1, '#3d3c40');
+        poly([ax, ay - 11, ax + 16, ay - 11, ax + 20, ay - 8, ax + 12, ay - 6, ax + 4, ay - 6], '#55545a');
+        line(ax + 1, ay - 10.5, ax + 15, ay - 10.5, '#b4b3ba', 1.2);
+      },
+      live(b) {
+        // The open hearth glows and now and then throws a spark.
+        const r = houseFrame(b, FORGE);
+        const hx = r.right - 26, hy = r.base - 18;
         const f = 0.7 + Math.sin(time * 7) * 0.15 + Math.sin(time * 19) * 0.08;
         const g = ctx.createRadialGradient(hx + 10, hy + 14, 1, hx + 10, hy + 12, 14);
         g.addColorStop(0, `rgba(255, 210, 110, ${f})`);
@@ -752,14 +804,9 @@
         rect(hx, hy, 20, 18, g, [4, 4, 0, 0]);
         K.glow(ctx, hx + 10, hy + 12, 18, '#ff8a30', 0.35 * f);
         env.light(hx + 10, hy + 12, 44, '#ff8a30', f);
-        const ax = r.left + 8, ay = r.base + 6;
-        shadow(ax + 9, ay + 1, 11, 3.4, 0.35);
-        K.block(ctx, ax + 5, ay - 6, 6, 6, 1, '#3d3c40');
-        poly([ax, ay - 11, ax + 16, ay - 11, ax + 20, ay - 8, ax + 12, ay - 6, ax + 4, ay - 6], '#55545a');
-        line(ax + 1, ay - 10.5, ax + 15, ay - 10.5, '#b4b3ba', 1.2);
         if (Math.random() < 0.05) spark(hx + 10, hy + 8);
-      },
-      mill(b) {
+      } },
+      mill: { body(b) {
         const cx = b.cx, base = b.base - 4;
         castBlock(cx - 16, cx + 10, base, 60);
         const body = ctx.createLinearGradient(cx - 17, 0, cx + 17, 0);
@@ -775,6 +822,10 @@
         poly([cx - 15, base - 41, cx + 15, base - 41, cx, base - 60], '#8a5e3e');
         poly([cx + 2, base - 41, cx + 15, base - 41, cx, base - 60], 'rgba(0, 0, 0, 0.25)');
         line(cx - 14, base - 41.5, cx - 1, base - 59, 'rgba(255, 220, 180, 0.35)', 1.2);
+      },
+      live(b) {
+        // The sails turn; the flour sacks by the door stay in front of them.
+        const cx = b.cx, base = b.base - 4;
         const hubY = base - 44, rot = time * 0.9;
         for (let k = 0; k < 4; k++) {
           ctx.save();
@@ -792,8 +843,8 @@
         // Flour sacks by the door.
         K.block(ctx, cx + 10, base - 8, 7, 8, 3, '#ece0c4');
         K.block(ctx, cx + 16, base - 6, 6, 6, 3, '#e2d4b4');
-      },
-      chapel(b) {
+      } },
+      chapel: { body(b) {
         const left = b.X + 8, right = b.X + b.Wp - 8 - SIDE, base = b.base - 4, wallH = 30, wallTop = base - wallH, top = b.Y - 4;
         const cx = (left + right) / 2;
         castBlock(left, right, base, 70);
@@ -813,13 +864,6 @@
         wall(cx - tw / 2, tTop, tw, base - tTop, '#fbf6ec');
         door(cx - 6, base - 18, 12, 17, '#8b5a32');
         rect(cx - 7, tTop + 8, 14, 16, '#3d3226', [7, 7, 0, 0]);
-        const bellA = S.festival ? Math.sin(time * 3.2) * 0.45 : Math.sin(time * 0.8) * 0.04;
-        ctx.save();
-        ctx.translate(cx, tTop + 11);
-        ctx.rotate(bellA);
-        poly([-4, 9, 4, 9, 3, 2, 1.5, 0, -1.5, 0, -3, 2], '#e2b44a');
-        circle(0, 9.5, 1.3, '#a8802e');
-        ctx.restore();
         K.block(ctx, cx - tw / 2 - 2, tTop - 2, tw + 4, 4, 1, '#4f8a7e', { top: 0.4 });
         const gold = ctx.createRadialGradient(cx - 5, tTop - 14, 1, cx, tTop - 10, 16);
         gold.addColorStop(0, '#fff2b8');
@@ -835,6 +879,17 @@
         line(cx, tTop - 28, cx, tTop - 40, '#d4a63c', 1.8);
         line(cx - 4, tTop - 35, cx + 4, tTop - 35, '#d4a63c', 1.8);
       },
+      live(b) {
+        // The bell in the belfry: barely moving, rung hard on the festival.
+        const left = b.X + 8, right = b.X + b.Wp - 8 - SIDE, base = b.base - 4, cx = (left + right) / 2, tTop = base - 74;
+        const bellA = S.festival ? Math.sin(time * 3.2) * 0.45 : Math.sin(time * 0.8) * 0.04;
+        ctx.save();
+        ctx.translate(cx, tTop + 11);
+        ctx.rotate(bellA);
+        poly([-4, 9, 4, 9, 3, 2, 1.5, 0, -1.5, 0, -3, 2], '#e2b44a');
+        circle(0, 9.5, 1.3, '#a8802e');
+        ctx.restore();
+      } },
     };
 
     // The pavilion before it is done: old stilts in the water (stage 0), then a deck laid with the paid share.
@@ -946,11 +1001,21 @@
     }
 
     // Draw a building at its stage: 0 ruin, 1 scaffolding (rises with `part`, the paid share), 2 restored.
-    function draw(id, stage, b, part) {
+    // `mode`: 'all' draws everything; 'body' only what stands still (art.js bakes it into a sprite); 'live'
+    // only what moves (bees, flags, the boat, lanterns, the saw, fire, sails, the bell), drawn over the body
+    // every frame. A restored building is either a function (all of it stands still) or { body, live }.
+    function draw(id, stage, b, part, mode = 'all') {
       S = env.state();
       time = env.time();
-      if (stage === 2) (ART[id] || ((box) => house(box, PLAIN)))(b);
-      else if (id === 'pavilion') pavilionWorks(b, stage, clamp(part, 0, 1)); // over the water: no stone walls
+      if (stage === 2) {
+        const art = ART[id] || ((box) => house(box, PLAIN));
+        const body = typeof art === 'function' ? art : art.body, live = typeof art === 'function' ? null : art.live;
+        if (mode !== 'live' && body) body(b);
+        if (mode !== 'body' && live) live(b);
+        return;
+      }
+      if (mode === 'live') return; // ruins and scaffolding stand still
+      if (id === 'pavilion') pavilionWorks(b, stage, clamp(part, 0, 1)); // over the water: no stone walls
       else if (id === 'well') wellRuin(b, stage === 1 ? clamp(part, 0, 1) : 0);
       else if (stage === 1) drawScaffold(b, clamp(part, 0, 1));
       else drawRuin(b);
