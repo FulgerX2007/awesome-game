@@ -280,15 +280,15 @@
 - Modify: `tests/village/lake.test.js`, `tests/village/orders.test.js`, `tests/village/core.test.js`,
   `tests/village/lang.test.js`
 
-- [ ] ресурсы `fish`, `smoked`; инструмент `rod` (start 0, уровни 2–3); житель `fisher`; мастерская `smokehouse`
-- [ ] `ORDER_GOODS.fish/smoked`; `openGoods()` открывает их после мостков и коптильни
-- [ ] слоты `#r-fish`, `#r-smoked` в HUD с иконками SVG «рыба» и «копчёная рыба»; `RES_UNLOCK`; RO для ресурсов,
+- [x] ресурсы `fish`, `smoked`; инструмент `rod` (start 0, уровни 2–3); житель `fisher`; мастерская `smokehouse`
+- [x] `ORDER_GOODS.fish/smoked`; `openGoods()` открывает их после мостков и коптильни
+- [x] слоты `#r-fish`, `#r-smoked` в HUD с иконками SVG «рыба» и «копчёная рыба»; `RES_UNLOCK`; RO для ресурсов,
       инструмента, жителя, лодки; `LOOKS.fisher` в `art.js`
-- [ ] обновить старые тесты: `core.test.js:117` список инструментов; `lang.test.js` — иконок не меньше 14
-- [ ] тест: удочка 0 до мостков (`upgradeTool` → `'locked'`), после — уровни 2–3 по обычным правилам
-- [ ] тест: коптильня делает копчёную рыбу сверх запаса; рыбак ловит круглый год; до мостков в заказах нет рыбы,
+- [x] обновить старые тесты: `core.test.js:117` список инструментов; `lang.test.js` — иконок не меньше 14
+- [x] тест: удочка 0 до мостков (`upgradeTool` → `'locked'`), после — уровни 2–3 по обычным правилам
+- [x] тест: коптильня делает копчёную рыбу сверх запаса; рыбак ловит круглый год; до мостков в заказах нет рыбы,
       после — бывает; копчёная — только с коптильней
-- [ ] run tests (с e2e) - must pass before task 5
+- [x] run tests (с e2e) - must pass before task 5
 
 ### Task 5: Fishing mini-game in the rules
 

@@ -147,7 +147,7 @@
   const ORDER_GOODS = {
     wood: { n: 30, worth: 1 }, stone: { n: 25, worth: 1 }, clay: { n: 20, worth: 1.2 }, berries: { n: 12, worth: 1.5 },
     planks: { n: 20, worth: 2.5 }, bricks: { n: 15, worth: 3 }, vegetables: { n: 8, worth: 4 }, honey: { n: 6, worth: 5 },
-    apples: { n: 6, worth: 4 },
+    apples: { n: 6, worth: 4 }, fish: { n: 10, worth: 3 }, smoked: { n: 6, worth: 6 },
   };
 
   // The fair: on the first day of every season, in daylight, at the market rows. Each thing is bought once.
@@ -173,6 +173,7 @@
     sawmill: { from: 'wood', to: 'planks', ratio: 2, rate: 0.3 },
     kiln: { from: 'clay', to: 'bricks', ratio: 2, rate: 0.25 },
     press: { from: 'grapes', to: 'juice', ratio: 3, rate: 0.1 },
+    smokehouse: { from: 'fish', to: 'smoked', ratio: 2, rate: 0.15 },
   };
   const OFFLINE_MAX = 8 * 3600;
 
@@ -1046,6 +1047,8 @@
     if (gardenOpen(s)) out.push('vegetables');
     if (s.built.apiary.done) out.push('honey');
     if (s.stats.gathered.apples > 0) out.push('apples');
+    if (s.built.pier.done) out.push('fish');
+    if (s.built.smokehouse.done) out.push('smoked');
     return out;
   }
 

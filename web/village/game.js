@@ -338,6 +338,12 @@
     house4: 'Поселится пасечник и будет носить мёд, кроме зимы.',
     house5: 'Поселится садовник и будет приносить яблоки, кроме зимы.',
     harvest: 'Хутор отпразднует Праздник урожая.',
+    glade: 'Расчистит просеку через старый лес: за ним озеро.',
+    pier: 'Мостки над водой: с них ловят рыбу. Тут найдётся и удочка.',
+    smokehouse: 'Сама коптит рыбу: рыба {ratio} → копчёная 1. Запас рыбы до {reserve} всегда остаётся тебе.',
+    house6: 'Поселится рыбак и будет ловить рыбу круглый год, зимой — в лунке.',
+    boathouse: 'Под крышу встанет лодка с ярмарки, а в сарае смастерят фонарики для праздника.',
+    pavilion: 'Озеро отпразднует Праздник фонариков.',
   };
   // The numbers in EFFECT come from core's tuning, so re-balancing keeps the texts right.
   const EFFECT_VARS = {
@@ -346,6 +352,7 @@
     kiln: { ratio: V.WORKSHOPS.kiln.ratio, reserve: V.WORKSHOP_RESERVE },
     mill: { n: Math.round((V.MILL_BONUS - 1) * 100) },
     press: { ratio: V.WORKSHOPS.press.ratio },
+    smokehouse: { ratio: V.WORKSHOPS.smokehouse.ratio, reserve: V.WORKSHOP_RESERVE },
   };
   const needsLeft = (id) => V.BUILDINGS[id].needs.filter((d) => !S.built[d].done);
   const needsText = (left) => t('Сначала: {list}', { list: left.map((d) => t(V.BUILDINGS[d].name)).join(', ') });

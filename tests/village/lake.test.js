@@ -185,3 +185,61 @@ test('a save with the pavilion brings back the lantern festival, the boat and th
   // And the festival flag alone, without the pavilion, is not trusted.
   assert.equal(V.load({ ...V.save(harvested()), lanternFestival: true }).lanternFestival, false);
 });
+
+test('the rod upgrades like any tool once the pier stands', () => {
+  const s = harvested();
+  build(s, 'glade'); build(s, 'pier');
+  for (const lvl of [2, 3]) {
+    assert.equal(V.upgradeTool(s, 'rod'), 'cost');
+    for (const [r, n] of Object.entries(V.TOOLS.rod.costs[lvl])) s.res[r] += n;
+    assert.equal(V.upgradeTool(s, 'rod'), 'ok');
+    assert.equal(s.tools.rod, lvl);
+  }
+  assert.equal(V.upgradeTool(s, 'rod'), 'max');
+});
+
+test('the smokehouse smokes fish above the reserve; the fisher works all year', () => {
+  const s = harvested();
+  for (const id of ['glade', 'pier', 'smokehouse', 'house6']) build(s, id);
+  for (const r of V.RES_IDS) s.res[r] = 0;
+  const w = V.WORKSHOPS.smokehouse;
+  s.res.fish = V.WORKSHOP_RESERVE + w.ratio * 4;
+  s.villagers = []; // the smokehouse alone
+  V.step(s, 4 / w.rate + 1);
+  assert.equal(s.res.smoked, 4);
+  assert.equal(s.res.fish, V.WORKSHOP_RESERVE, 'the reserve stays');
+  V.step(s, 60);
+  assert.equal(s.res.smoked, 4, 'nothing below the reserve');
+  // The fisher, in winter too.
+  const f = harvested();
+  for (const id of ['glade', 'pier', 'house6']) build(f, id);
+  const season = V.DAY * V.SEASON_DAYS;
+  f.t = season * 3 + V.DAY * 0.2; // winter
+  assert.equal(V.clock(f.t).season, 'winter');
+  const before = f.res.fish;
+  V.step(f, 100);
+  const rate = V.VILLAGERS.fisher.rate * V.MILL_BONUS;
+  assert.ok(f.res.fish - before >= Math.floor(rate * 100) - 1, `fish in winter: ${f.res.fish - before}`);
+  assert.ok(V.rates(f).rate.fish > 0);
+});
+
+test('fish come into the orders after the pier, smoked fish after the smokehouse', () => {
+  const s = harvested();
+  assert.ok(!V.openGoods(s).includes('fish'));
+  build(s, 'glade'); build(s, 'pier');
+  assert.ok(V.openGoods(s).includes('fish'));
+  assert.ok(!V.openGoods(s).includes('smoked'));
+  build(s, 'smokehouse');
+  assert.ok(V.openGoods(s).includes('smoked'));
+  // Over many dawns some orders ask for fish.
+  const wants = new Set();
+  for (let d = 0; d < 60; d++) {
+    s.orders = [];
+    V.step(s, V.DAY);
+    for (const o of s.orders) for (const r of Object.keys(o.need)) wants.add(r);
+  }
+  assert.ok(wants.has('fish') && wants.has('smoked'), [...wants].join(','));
+  // And such orders survive a save.
+  s.orders = [{ id: s.orderSeq, who: 'fisher', need: { fish: 10, smoked: 4 }, reward: { coins: 10 }, day: 0 }];
+  assert.deepEqual(V.load(V.save(s)).orders[0].need, { fish: 10, smoked: 4 });
+});
