@@ -96,29 +96,37 @@
   }
 
   // What a tap (or the action key) on a tile means:
+  //   { type: 'strike' }        anywhere while the player is fishing (the line is in): strike
   //   { type: 'gather', node }  a standing node the player has a tool for
+  //   { type: 'fish', node }    a shoal at the lake, with the rod
   //   { type: 'tool', tool }    a standing node that needs a tool the player doesn't have yet
   //   { type: 'plot', i }       a garden plot once the garden stands (walk up and tend it)
   //   { type: 'well' }          the restored well once the garden stands (walk up and fill the bucket)
   //   { type: 'ruin', id }      a ruin or a restored building (walk up and open its panel); plots before
   //                             the garden stands belong to the garden's ruin
-  //   { type: 'walk' }          a walkable tile (also the restored bridge)
+  //   { type: 'walk' }          a walkable tile (also the restored bridge, road, clearing and pier)
   //   { type: 'none' }          water, the map edge
   function tapAction(s, core, x, y) {
+    if (fishing(s)) return { type: 'strike' };
     x = Math.floor(x); y = Math.floor(y);
     if (core.tileAt(x, y) === null) return { type: 'none' };
     const n = core.nodeAt(s, x, y);
     if (n && n.hp > 0) {
       const tool = core.NODE_KINDS[n.kind].tool;
-      return s.tools[tool] > 0 ? { type: 'gather', node: n.id } : { type: 'tool', tool };
+      if (!(s.tools[tool] > 0)) return { type: 'tool', tool };
+      return { type: n.kind === 'shoal' ? 'fish' : 'gather', node: n.id };
     }
     const pi = core.plotAt(x, y);
     if (pi >= 0) return s.built.garden.done ? { type: 'plot', i: pi } : { type: 'ruin', id: 'garden' };
     const id = core.ruinAt(x, y);
     if (id === 'well' && s.built.well.done && s.built.garden.done) return { type: 'well' };
-    if (id && !((id === 'bridge' || id === 'road') && s.built[id].done)) return { type: 'ruin', id };
+    if (id && !(FLAT.has(id) && s.built[id].done)) return { type: 'ruin', id };
     return core.isWalkable(s, x, y) ? { type: 'walk' } : { type: 'none' };
   }
+  // Buildings that lie flat on the ground: once done, they are walked on, not opened.
+  const FLAT = new Set(['bridge', 'road', 'glade', 'pier']);
+  // The line is in the water (walking up to a shoal is not fishing yet).
+  const fishing = (s) => !!(s.player && s.player.fish && s.player.target && s.player.target.type === 'fish');
 
   // ── 2.5D ground ──
   // Sides of a tile whose neighbour is outside a terrain set (bits N, E, S, W): where a sunken area such as
@@ -247,7 +255,7 @@
     };
     for (const n of s.nodes) if (n.hp > 0) consider(tallBox(n.kind, n.x, n.y), n.x, n.y);
     for (const [id, tiles] of Object.entries(core.FOOTPRINTS)) {
-      if (id === 'bridge' || id === 'road' || !tiles.length) continue; // the bridge and the road lie flat
+      if (FLAT.has(id) || !tiles.length) continue; // the bridge, the road, the clearing and the pier lie flat
       const hit = tiles.find((t) => t.x === tx && t.y === ty) || tiles[0];
       consider(houseBox(tiles, core.stage(s, id)), hit.x, hit.y);
     }
@@ -286,7 +294,7 @@
   function pickFront(s, core, px, py, face) {
     for (const p of frontTiles(px, py, face)) {
       const a = tapAction(s, core, p.x, p.y);
-      if (['gather', 'tool', 'ruin', 'plot', 'well'].includes(a.type)) return { ...a, x: p.x, y: p.y };
+      if (['gather', 'fish', 'tool', 'ruin', 'plot', 'well'].includes(a.type)) return { ...a, x: p.x, y: p.y };
     }
     return null;
   }
@@ -302,8 +310,8 @@
     return best;
   }
 
-  // The sound name (VillageAudio) for a core event, or null. The chapel's 'built' stays quiet:
-  // the 'festival' event right after it plays the bigger tune.
+  // The sound name (VillageAudio) for a core event, or null. The chapel's and the pavilion's 'built' stay quiet:
+  // the festival event right after each plays the bigger tune.
   const HIT_SOUND = { tree: 'axe', rock: 'pick', clay: 'shovel', bush: 'berries', apple: 'berries' };
   function soundFor(e) {
     switch (e && e.type) {
@@ -314,7 +322,12 @@
       case 'order': return 'coins';
       case 'buy': return 'fair';
       case 'harvest-festival': return 'harvest';
-      case 'built': return e.effect === 'festival' ? null : 'built';
+      case 'lantern-festival': return 'lanterns';
+      case 'cast': return 'cast';
+      case 'bite': return 'bite';
+      case 'catch': return 'catch';
+      case 'escape': case 'gone': return 'escape';
+      case 'built': return e.effect === 'festival' || e.effect === 'lanterns' ? null : 'built';
       case 'tool': return 'tool';
       case 'festival': return 'festival';
       default: return null;
@@ -323,7 +336,7 @@
 
   const api = {
     TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
-    fmt, fmtRate, splitDuration, income, tapAction, frontTiles, pickFront, footprintDist, soundFor,
+    fmt, fmtRate, splitDuration, income, tapAction, FLAT, frontTiles, pickFront, footprintDist, soundFor,
     sunAt, SEASON_LOOKS, palette, seasonFade, farmHint, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

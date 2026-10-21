@@ -351,12 +351,12 @@
 - Modify: `web/village/view.js`
 - Modify: `tests/village/view.test.js`
 
-- [ ] `tapAction`: пока идёт ловля, тап → `{ type: 'strike' }`; тап по месту клёва → `fish`
-- [ ] `pickFront` принимает `'fish'`; `tapAt` и плоские здания: `glade`/`pier` как `bridge`/`road`
-- [ ] `soundFor`: `cast`, `bite`, `catch`, `escape`, `lantern-festival`
-- [ ] тест: тап во время ловли — подсечка, без ловли — как раньше; построенные мостки плоские и проходимы для тапа
-- [ ] тест: `soundFor` для новых событий
-- [ ] run tests - must pass before task 8
+- [x] `tapAction`: пока идёт ловля, тап → `{ type: 'strike' }`; тап по месту клёва → `fish`
+- [x] `pickFront` принимает `'fish'`; `tapAt` и плоские здания: `glade`/`pier` как `bridge`/`road`
+- [x] `soundFor`: `cast`, `bite`, `catch`, `escape`, `lantern-festival`
+- [x] тест: тап во время ловли — подсечка, без ловли — как раньше; построенные мостки плоские и проходимы для тапа
+- [x] тест: `soundFor` для новых событий
+- [x] run tests - must pass before task 8
 
 ### Task 8: Drawing the lake — terrain, pier, spots, fishing
 

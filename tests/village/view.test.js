@@ -504,3 +504,65 @@ test('soundFor covers the garden and the bucket', () => {
   assert.equal(VV.soundFor({ type: 'bucket', n: 6, full: true }), null);
   assert.equal(VV.soundFor({ type: 'hit', kind: 'apple' }), 'berries');
 });
+
+// The lake chapter: taps while fishing, shoals, the flat clearing and pier.
+function lakeState() {
+  const s = V.newGame(2);
+  for (const id of V.BUILDING_IDS) {
+    if (['smokehouse', 'house6', 'boathouse', 'pavilion'].includes(id)) continue;
+    s.built[id].done = true;
+    for (const r of Object.keys(s.built[id].paid)) s.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+  }
+  s.festival = true; s.harvestFestival = true; s.bought = ['cuttings'];
+  s.tools.rod = 1;
+  return s;
+}
+
+test('tapAction at the lake: a shoal means fishing, any tap while the line is in means strike', () => {
+  const s = lakeState();
+  const shoal = s.nodes.find((n) => n.kind === 'shoal');
+  assert.deepEqual(VV.tapAction(s, V, shoal.x, shoal.y), { type: 'fish', node: shoal.id });
+  s.tools.rod = 0;
+  assert.deepEqual(VV.tapAction(s, V, shoal.x, shoal.y), { type: 'tool', tool: 'rod' });
+  s.tools.rod = 1;
+  // Walking up is not fishing yet; once the line is in, every tap strikes.
+  assert.equal(V.interact(s, shoal.x, shoal.y), 'fish');
+  assert.equal(VV.tapAction(s, V, V.START.x, V.START.y).type, 'walk');
+  for (let k = 0; k < 4000 && !s.player.fish; k++) V.step(s, V.MAX_DT);
+  assert.ok(s.player.fish, 'the line is in');
+  for (const [x, y] of [[V.START.x, V.START.y], [shoal.x, shoal.y], [0, 9]]) assert.deepEqual(VV.tapAction(s, V, x, y), { type: 'strike' });
+  assert.equal(VV.tapAt(s, V, (V.START.x + 0.5) * T, (V.START.y + 0.5) * T).type, 'strike');
+  V.stopFishing(s);
+  assert.equal(VV.tapAction(s, V, V.START.x, V.START.y).type, 'walk', 'reeled in: taps walk again');
+});
+
+test('the clearing and the pier: ruins until built, then flat ground you walk on', () => {
+  const s = V.newGame(2);
+  for (const id of ['glade', 'pier']) {
+    const t = V.FOOTPRINTS[id][0];
+    assert.deepEqual(VV.tapAction(s, V, t.x, t.y), { type: 'ruin', id });
+    s.built[id].done = true;
+    assert.equal(VV.tapAction(s, V, t.x, t.y).type, 'walk', `${id} done`);
+    assert.ok(VV.FLAT.has(id));
+    assert.equal(VV.tapAt(s, V, (t.x + 0.5) * T, (t.y + 0.5) * T).type, 'walk');
+  }
+});
+
+test('the action key picks a shoal next to the player', () => {
+  const s = lakeState();
+  const shoal = s.nodes.find((n) => n.kind === 'shoal' && V.tileAt(n.x, n.y - 1) === ':');
+  const a = VV.pickFront(s, V, shoal.x + 0.5, shoal.y - 0.5, 'down');
+  assert.equal(a.type, 'fish');
+  assert.equal(a.node, shoal.id);
+});
+
+test('soundFor covers fishing and the lantern festival', () => {
+  assert.equal(VV.soundFor({ type: 'cast' }), 'cast');
+  assert.equal(VV.soundFor({ type: 'bite' }), 'bite');
+  assert.equal(VV.soundFor({ type: 'catch', gain: 1 }), 'catch');
+  assert.equal(VV.soundFor({ type: 'escape' }), 'escape');
+  assert.equal(VV.soundFor({ type: 'gone' }), 'escape');
+  assert.equal(VV.soundFor({ type: 'lantern-festival' }), 'lanterns');
+  assert.equal(VV.soundFor({ type: 'built', effect: 'lanterns' }), null, 'the pavilion leaves it to the festival tune');
+  assert.equal(VV.soundFor({ type: 'early' }), null);
+});
