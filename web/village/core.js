@@ -75,6 +75,11 @@
   const TOOL_CD = [0.6, 0.6, 0.5, 0.4];  // seconds between hits, by tool level
   const MAX_TOOL = 3;
 
+  // Fishing at a shoal: cast, wait [min, max] seconds for a bite, strike within the rod's window, or the fish
+  // gets away and the line goes back in. A strike before the bite scares the fish: `early` more seconds.
+  // After `giveUp` escapes in a row the player stops (so the game is quiet while nobody is there).
+  const FISHING = { wait: [2, 6], window: [0, 0.9, 1.2, 1.5], early: 1.5, giveUp: 3 };
+
   // ch is the ruin footprint character in MAP. Effects are applied when a building is done.
   // Costs tuned by the balance bot: the festival in about 2¼ h, something new at least every 15 min.
   const BUILDINGS = {
@@ -613,6 +618,7 @@
   function clearOrder(p) {
     p.target = null;
     p.path = null;
+    p.fish = null;
   }
 
   // Keyboard movement: a direction held by the player (0, 0 stops). Any non-zero direction cancels an order.
@@ -628,6 +634,7 @@
     p.dir = null;
     p.target = target;
     p.path = path;
+    p.fish = null;
   }
 
   // Walk to a tile along an A* path. Returns false (and keeps the current order) when it can't be reached.
@@ -667,8 +674,9 @@
       if (!s.tools[NODE_KINDS[n.kind].tool]) return 'tool';
       const path = pathNextTo(s, p, [n]);
       if (!path) return 'none';
-      setOrder(p, { type: 'node', id: n.id }, path);
-      return 'gather';
+      const fish = n.kind === 'shoal';
+      setOrder(p, { type: fish ? 'fish' : 'node', id: n.id }, path);
+      return fish ? 'fish' : 'gather';
     }
     const ruin = pi >= 0 ? 'garden' : ruinAt(x, y);
     if (ruin) {
@@ -723,7 +731,7 @@
     const p = s.player;
     const t = p.target;
     let path = null;
-    if (t && t.type === 'node') path = pathNextTo(s, p, [s.nodes[t.id]]);
+    if (t && (t.type === 'node' || t.type === 'fish')) path = pathNextTo(s, p, [s.nodes[t.id]]);
     else if (t && t.type === 'ruin') path = pathNextTo(s, p, FOOTPRINTS[t.id]);
     else if (t && t.type === 'plot') path = pathNextTo(s, p, [PLOTS[t.i]]);
     else if (t && t.type === 'well') path = pathNextTo(s, p, FOOTPRINTS.well);
@@ -755,6 +763,74 @@
       s.events.push({ type: 'deplete', kind: n.kind, id: n.id, x: n.x, y: n.y });
       clearOrder(p);
     }
+  }
+
+  // ── Fishing ──
+  // The line goes in: a bite comes after a random wait (from s.rng, so a seed always plays the same way).
+  function cast(s, n, misses, extra) {
+    const [lo, hi] = FISHING.wait;
+    s.player.fish = { id: n.id, phase: 'wait', at: s.t + lo + rand(s) * (hi - lo) + (extra || 0), misses };
+    s.events.push({ type: 'cast', id: n.id, x: n.x, y: n.y });
+  }
+
+  function fishTick(s) {
+    const p = s.player;
+    const n = s.nodes[p.target.id];
+    if (!n || n.hp <= 0) { clearOrder(p); return; }
+    if (Math.hypot(n.x + 0.5 - p.x, n.y + 0.5 - p.y) > NEAR_NODE) { repath(s); return; }
+    const level = s.tools.rod;
+    if (!level) { clearOrder(p); return; }
+    const f = p.fish;
+    if (!f) { cast(s, n, 0); return; }
+    if (s.t < f.at - EPS) return;
+    if (f.phase === 'wait') {
+      f.phase = 'bite';
+      f.at = s.t + FISHING.window[level];
+      s.events.push({ type: 'bite', id: n.id, x: n.x, y: n.y });
+      return;
+    }
+    // The window is over: the fish got away.
+    const misses = f.misses + 1;
+    s.events.push({ type: 'escape', id: n.id, x: n.x, y: n.y, misses });
+    if (misses >= FISHING.giveUp) {
+      s.events.push({ type: 'gone', id: n.id, x: n.x, y: n.y });
+      clearOrder(p);
+    } else cast(s, n, misses);
+  }
+
+  // The player strikes. Returns 'catch' (a fish on the bite) | 'early' (before the bite: the fish is scared,
+  // the wait grows) | 'none' (not fishing, or the line is not in yet).
+  function strike(s) {
+    const p = s.player, f = p.fish;
+    if (!f || !p.target || p.target.type !== 'fish') return 'none';
+    const n = s.nodes[f.id];
+    if (f.phase === 'wait') {
+      f.at += FISHING.early;
+      s.events.push({ type: 'early', id: n.id, x: n.x, y: n.y });
+      return 'early';
+    }
+    const kind = NODE_KINDS[n.kind];
+    const gain = TOOL_YIELD[s.tools.rod] || 1;
+    n.hp--;
+    s.res.fish += gain;
+    s.stats.gathered.fish += gain;
+    s.events.push({ type: 'catch', id: n.id, x: n.x, y: n.y, gain });
+    if (n.hp <= 0) {
+      const [lo, hi] = kind.regrow;
+      n.regrowAt = s.t + lo + rand(s) * (hi - lo);
+      noteRegrow(s, n.regrowAt);
+      s.events.push({ type: 'deplete', kind: n.kind, id: n.id, x: n.x, y: n.y });
+      clearOrder(p);
+    } else cast(s, n, 0);
+    return 'catch';
+  }
+
+  // Reel in (the «Смотать» button). Returns 'ok' | 'none' (not fishing).
+  function stopFishing(s) {
+    const p = s.player;
+    if (!p.target || p.target.type !== 'fish') return 'none';
+    clearOrder(p);
+    return 'ok';
   }
 
   // ── Regrowth ──
@@ -855,6 +931,7 @@
     else if (p.path) followPath(s, dt);
     if (!p.path && p.target) {
       if (p.target.type === 'node') gatherTick(s);
+      else if (p.target.type === 'fish') fishTick(s);
       else if (p.target.type === 'ruin') {
         s.events.push({ type: 'ruin', id: p.target.id });
         p.target = null;
@@ -1184,6 +1261,7 @@
   // The player doesn't move. Returns a summary for the "while you were away" window.
   function offline(s, seconds) {
     const total = Math.floor(Math.min(Math.max(Number(seconds) || 0, 0), OFFLINE_MAX));
+    stopFishing(s); // nobody holds the rod while the game is closed
     const before = { ...s.res };
     let days = 0;
     const mark = s.events.length;
@@ -1410,7 +1488,7 @@
     MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, LAKE_Y, SPOTS, FAIR, BIG_BUCKET, fairOpen, fairItems, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
-    placeDecor, save, load,
+    placeDecor, save, load, FISHING, strike, stopFishing,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Village = api;

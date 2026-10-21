@@ -296,20 +296,20 @@
 - Modify: `web/village/core.js`
 - Create: `tests/village/fishing.test.js`
 
-- [ ] `FISHING`, состояние `player.fish`; `interact()` на `shoal` → `'fish'` (`'tool'` без удочки)
-- [ ] ветка `'fish'` в `tick()` и `repath()`: заброс, ожидание, поклёвка, срыв, повторный заброс, `gone` после
+- [x] `FISHING`, состояние `player.fish`; `interact()` на `shoal` → `'fish'` (`'tool'` без удочки)
+- [x] ветка `'fish'` в `tick()` и `repath()`: заброс, ожидание, поклёвка, срыв, повторный заброс, `gone` после
       `giveUp` срывов
-- [ ] `strike(s)` → `'catch'` / `'early'` / `'none'`; улов `TOOL_YIELD[rod]`; опустевший косяк → `deplete`
+- [x] `strike(s)` → `'catch'` / `'early'` / `'none'`; улов `TOOL_YIELD[rod]`; опустевший косяк → `deplete`
       и восстановление
-- [ ] `setOrder` и `clearOrder` чистят ловлю; `stopFishing(s)`; `offline()` прекращает ловлю; экспорт `strike`,
+- [x] `setOrder` и `clearOrder` чистят ловлю; `stopFishing(s)`; `offline()` прекращает ловлю; экспорт `strike`,
       `stopFishing`, `FISHING`, `SPOTS`
-- [ ] тест: подсечка в окне ловит; после окна рыба срывается и заброс повторяется; ранняя подсечка даёт `'early'`
+- [x] тест: подсечка в окне ловит; после окна рыба срывается и заброс повторяется; ранняя подсечка даёт `'early'`
       и более долгое ожидание; три срыва подряд → `gone`
-- [ ] тест: окно и улов растут с уровнем удочки; один сид даёт ту же последовательность событий; подсечка ровно
+- [x] тест: окно и улов растут с уровнем удочки; один сид даёт ту же последовательность событий; подсечка ровно
       на краю окна
-- [ ] тест: новый тап, клавиши, `stopFishing` и `offline` отменяют ловлю; `save()` её не пишет; `strike`
+- [x] тест: новый тап, клавиши, `stopFishing` и `offline` отменяют ловлю; `save()` её не пишет; `strike`
       без ловли → `'none'`
-- [ ] run tests - must pass before task 6
+- [x] run tests - must pass before task 6
 
 ### Task 6: Balance bot plays the lake chapter
 
