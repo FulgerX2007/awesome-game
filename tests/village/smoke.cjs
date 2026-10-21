@@ -373,6 +373,39 @@ async function edgeChecks() {
     await ctx.close();
   }
   {
+    // The lake: before the glade (brush in the clearing), then open with the pier half laid; drawn without errors.
+    const V = require('../../web/village/core.js');
+    const lake = (open, t) => {
+      const h = V.newGame(14);
+      for (const id of V.BUILDING_IDS) {
+        if (V.BUILDINGS[id].after === 'harvest' && !open.includes(id)) continue;
+        h.built[id].done = true;
+        for (const r of Object.keys(h.built[id].paid)) h.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+      }
+      h.festival = true; h.harvestFestival = true; h.bought = ['cuttings'];
+      if (t !== undefined) h.t = t;
+      return h;
+    };
+    const shots = [
+      ['forest', lake([]), 15.5, 34.5],
+      ['shore', (() => { const h = lake(['glade']); h.built.pier.paid.planks = 120; return h; })(), 24.5, 40.5],
+      ['winter', lake(['glade', 'pier'], V.DAY * 9 + V.DAY * 0.3), 24.5, 40.5],
+    ];
+    for (const [name, h, x, y] of shots) {
+      h.player.x = x; h.player.y = y;
+      const data = JSON.stringify({ ...V.save(h), savedAt: Date.now() });
+      const { ctx, page, errors } = await preparedPage(([key, d]) => {
+        if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, d); sessionStorage.setItem('prepared', '1'); }
+      }, [SAVE_KEY, data]);
+      await sleep(700);
+      const fill = await canvasFilled(page);
+      check(fill.ok, `the lake is drawn (${name})`, JSON.stringify(fill));
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/lake-${name}.png` });
+      check(errors.length === 0, `no console errors (lake, ${name})`, errors.join('\n'));
+      await ctx.close();
+    }
+  }
+  {
     // A village from version 1 with a cloud code: kept aside, the code forgotten, a friendly toast.
     const old = JSON.stringify({ v: 1, seed: 5, t: 100, res: { wood: 40 } });
     const { ctx, page, errors } = await preparedPage(([key, data]) => {

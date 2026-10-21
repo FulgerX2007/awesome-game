@@ -35,7 +35,7 @@
     P.moving = dist > 0.0005;
     if (P.moving) P.phase += dist * 9;
     const tg = S.player.target;
-    const node = tg && tg.type === 'node' ? S.nodes[tg.id] : null;
+    const node = tg && (tg.type === 'node' || tg.type === 'fish') ? S.nodes[tg.id] : null; // fishing: face the water, rod out
     if (node && !S.player.path) P.face = VV.facing(node.x + 0.5 - px, node.y + 0.5 - py, P.face);
     else P.face = VV.facing(dx, dy, P.face);
     if (node) P.tool = TOOL_OF[node.kind];
