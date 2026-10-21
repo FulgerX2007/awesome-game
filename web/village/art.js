@@ -188,9 +188,44 @@
     return sp;
   }
   const blit = (sp, x, y) => ctx.drawImage(sp.cv, x - sp.ax, y - sp.ay, sp.w, sp.h);
+
+  // ───────────── Painted sprites ─────────────
+  // web/village/sprites holds PNGs baked by tools/village-sprites/generate.py (or painted by hand to the
+  // same sizes): crowns, pines, bushes, shrubs, rocks, trunks and the meadow texture. sprites.json gives each
+  // its world size, its anchor (the foot) and the palette colour it was painted for. Until they have loaded,
+  // or if they can't be, the code-drawn art below stands in. Berries, blossom, apples and snow stay code.
+  let PNG = null;
+  (function loadPainted() {
+    if (typeof fetch !== 'function' || typeof Image !== 'function') return;
+    fetch('sprites/sprites.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((m) => Promise.all(Object.entries(m.sprites).map(([name, e]) => new Promise((ok, bad) => {
+        const img = new Image();
+        img.onload = () => ok([name, { ...e, img }]);
+        img.onerror = () => bad(new Error(e.file));
+        img.src = 'sprites/' + e.file;
+      }))))
+      .then((list) => {
+        const idx = {};
+        for (const [name, e] of list) {
+          idx[name] = e;
+          if (e.kind === 'crown' || e.kind === 'bush' || e.kind === 'shrub') idx[`${e.kind}|${e.mid}|${e.shape}`] = e;
+          else if (e.kind === 'pine') idx[`pine|${e.snow}|${e.shape}`] = e;
+          else if (e.kind === 'rock') idx[`rock|${e.shape}`] = e;
+          else if (e.kind === 'trunk') idx[`trunk|${e.pine}`] = e;
+        }
+        PNG = idx;
+        sprites.clear();
+        chunks.clear();
+      })
+      .catch(() => { /* keep the code-drawn art */ });
+  })();
+  const png = (key) => (PNG && PNG[key]) || null;
+  // A painted sprite at the painter's origin (the foot), optionally scaled around it.
+  const put = (g, e, k = 1) => g.drawImage(e.img, -e.ax * k, -e.ay * k, e.w * k, e.h * k);
   // How big a node's art may be. Crowns and bushes spill over their neighbours for a lush look; the tap area
   // stays the smaller silhouette of view.NODE_TALL, so taps and gameplay don't change with the art.
-  const ART_TALL = { tree: { hw: 31, up: 74 }, apple: { hw: 31, up: 74 }, bush: { hw: 21, up: 30 }, rock: { hw: 21, up: 32 } };
+  const ART_TALL = { tree: { hw: 36, up: 84 }, apple: { hw: 36, up: 84 }, bush: { hw: 24, up: 33 }, rock: { hw: 24, up: 35 } };
   const nodeSprite = (kind, key, paint) => {
     const t = ART_TALL[kind] || VV.NODE_TALL[kind], pad = 3;
     return sprite(key, t.hw * 2 + pad * 2, t.up + VV.NODE_FOOT + pad * 2, t.hw + pad, t.up + pad, paint);
@@ -379,6 +414,19 @@
 
   function paintGround(g, x0, y0, x1, y1) {
     grassField(g, x0, y0, x1, y1);
+    // The painted meadow texture (soft brush strokes and tufts) over the colour field, in world space so it
+    // runs on seamlessly from chunk to chunk.
+    const tex = png('grass');
+    if (tex) {
+      const pat = g.createPattern(tex.img, 'repeat');
+      pat.setTransform(new DOMMatrix().scale(tex.w / tex.img.width));
+      g.save();
+      g.globalCompositeOperation = 'soft-light';
+      g.globalAlpha = 0.75;
+      g.fillStyle = pat;
+      g.fillRect(x0 * T, y0 * T, (x1 - x0 + 1) * T, (y1 - y0 + 1) * T);
+      g.restore();
+    }
     const is = (c) => (x, y) => terr(x, y) === c;
     const sandy = (x, y) => terr(x, y) === 's' || terr(x, y) === 'w';
     const water = is('w');
@@ -478,7 +526,8 @@
   function grassDetail(g, x, y, px, py) {
     const lush = 1 - fbm(x + 0.5, y + 0.5, 11);
     const dark = K.withAlpha(K.mix(GRASS.dark, GRASS.tuft, 0.7), 0.8), mid = K.withAlpha(K.mix(GRASS.base, GRASS.tuft, 0.6), 0.85), lit = K.withAlpha(K.mix(GRASS.light, GRASS.tuftLight, 0.6), 0.85);
-    const n = 1 + Math.floor(hash2(x, y, 1) * 2 + lush * 3);
+    // With the painted texture the blades are only an accent; without it they carry the grass.
+    const n = png('grass') ? Math.floor(hash2(x, y, 1) * 1.6 + lush * 1.4) : 1 + Math.floor(hash2(x, y, 1) * 2 + lush * 3);
     for (let k = 0; k < n; k++) {
       const tx = px + 3 + hash2(x, y, 2 + k) * (T - 6), ty = py + 6 + hash2(x, y, 30 + k) * (T - 7);
       const seed = x * 131 + y * 7 + k;
@@ -799,6 +848,13 @@
   ];
   const PINE = [[18, -6, -28], [15.5, -18, -40], [12.5, -30, -52], [8.5, -42, -64]];
   function paintCrown(g, n, L) {
+    const shape = Math.floor(hash2(n.x, n.y, 309) * 3);
+    const painted = L.pine ? png(`pine|${L.snow ? 1 : 0}|${shape}`) : L.bare ? null : png(`crown|${L.pal[1]}|${shape}`);
+    if (painted) {
+      put(g, painted);
+      if (!L.pine) crownExtras(g, n, L);
+      return;
+    }
     if (L.pine) {
       const outline = K.shade(L.pal[0], -0.5);
       const tier = (w, b, top, grow) => {
@@ -868,6 +924,10 @@
         g.beginPath(); g.arc(dx + Math.cos(a) * r * 0.7, dy + Math.sin(a) * r * 0.7, r * 0.26, 0, TAU); g.fill();
       }
     }
+    crownExtras(g, n, L);
+  }
+  // Blossom and apples over a leafy crown (code-drawn or painted).
+  function crownExtras(g, n, L) {
     if (L.blossom) for (let k = 0; k < 14; k++) {
       const bx = -18 + hash2(n.x, n.y, 330 + k) * 36, by = -58 + hash2(n.x, n.y, 340 + k) * 34;
       g.fillStyle = k % 3 ? '#fde8f0' : '#f5a3c4';
@@ -880,6 +940,8 @@
     }
   }
   function paintTrunk(g, pine) {
+    const painted = png(`trunk|${pine ? 1 : 0}`);
+    if (painted) { put(g, painted); return; }
     const h = pine ? 10 : 22, rx = pine ? 3 : 4;
     // Root flare: two small roots and a dark collar of earth.
     g.fillStyle = 'rgba(30, 20, 8, 0.4)';
@@ -928,6 +990,12 @@
   // A boulder: a dark outline and base in its own shade, a rounded lit body, a pale top facet and a smaller
   // stone leaning on it; smaller as it is mined.
   function paintRock(g, n, k) {
+    const painted = png(`rock|${Math.floor(hash2(n.x, n.y, 331) * 4)}`);
+    if (painted) {
+      put(g, painted, k);
+      if (LOOK.snow) blob(-2 * k * 1.2, -18 * k * 1.2, 9 * k * 1.2, 3.8 * k * 1.2, n.id * 7 + 4, '#f4f8fb', 7, 0.2, g);
+      return;
+    }
     const seed = n.id * 7 + 1;
     k *= 1.2;
     const body = g.createRadialGradient(-6 * k, -17 * k, 1, 0, -9 * k, 16 * k);
@@ -1011,6 +1079,9 @@
       for (const [dx, dy, r] of [[-6, -13, 7], [6, -12, 6.5], [0, -17, 6]]) K.sphere(g, dx, dy, r, '#eef3f7', { gloss: false, shine: 0.2 });
     } else {
       const leaves = BUSH_LEAVES[SEASON] || (full ? ['#2f7a2c', '#4b9a36', '#7cc64c'] : ['#4f8a3c', '#6aa54e', '#94c86c']);
+      const painted = png(`bush|${leaves[1]}|${Math.floor(hash2(n.x, n.y, 332) * 3)}`);
+      if (painted) put(g, painted);
+      else {
       g.fillStyle = K.shade(leaves[0], -0.5);
       g.beginPath();
       for (const [dx, dy, r] of BUSH) { g.moveTo(dx + r + 1.2, dy); g.arc(dx, dy, r + 1.2, 0, TAU); }
@@ -1021,6 +1092,7 @@
           const a = -2.5 + k * 0.5;
           K.sphere(g, dx + Math.cos(a) * r * 0.6, dy + Math.sin(a) * r * 0.6, r * 0.3, leaves[Math.min(2, c + 1)], { gloss: false, shine: 0.3 });
         }
+      }
       }
     }
     for (let k = 0; k < n.hp * 3; k++) {
@@ -1075,7 +1147,8 @@
   // They stand only on open grass away from paths, the square, water, beds, the map edge and the resources,
   // are low enough to walk through, and are not in the rules: taps and movement don't see them.
   let FLORA = [];
-  const FLORA_KINDS = ['shrub', 'fern', 'tall', 'shrub', 'tall', 'fern', 'mush', 'stones', 'tall', 'shrub'];
+  // (paintFlora also knows 'fern'; at this scale ferns read as fans, so the meadow doesn't use them.)
+  const FLORA_KINDS = ['shrub', 'tall', 'shrub', 'tall', 'mush', 'stones', 'tall', 'shrub', 'shrub', 'tall'];
   const CLOSED = new Set(['=', '#', '~', 'b', 't', 'o', 'j', 'f', 'Q', 'g', '^']);
   function plantFlora() {
     FLORA = [];
@@ -1113,6 +1186,9 @@
       const k0 = 1.2 + v * 0.12;
       const balls = [[-7, -5, 6], [6, -5, 6.5], [0, -4, 7], [-3, -10, 6], [4, -10, 5.5]].map(([x, y, r]) => [x * k0, y * k0, r * k0]);
       if (LOOK.snow) { for (const [x, y, r] of balls) K.sphere(g, x, y, r, '#eef3f7', { gloss: false, shine: 0.2 }); return; }
+      const painted = png(`shrub|${leaves[1]}|${v}`);
+      if (painted) put(g, painted);
+      else {
       g.fillStyle = K.shade(leaves[0], -0.5);
       g.beginPath();
       for (const [x, y, r] of balls) { g.moveTo(x + r + 1, y); g.arc(x, y, r + 1, 0, TAU); }
@@ -1121,6 +1197,7 @@
         K.sphere(g, x, y, r, leaves[i < 3 ? 0 : 1], { gloss: false, shine: 0.25 });
         for (let k = 0; k < 3; k++) { const a = -2.4 + k * 0.6; K.sphere(g, x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55, r * 0.32, leaves[i < 3 ? 1 : 2], { gloss: false, shine: 0.3 }); }
       });
+      }
       if (v === 2 && LOOK.flowers > 0.1) for (let k = 0; k < 5; k++) { // a flowering shrub
         g.fillStyle = k % 2 ? '#fff4f8' : '#ffd23f';
         g.beginPath(); g.arc(-8 + hash2(k, v, 97) * 16, -13 + hash2(k, v, 98) * 9, 1.4, 0, TAU); g.fill();
@@ -1177,7 +1254,7 @@
       }
     }
   }
-  const FLORA_SIZE = { shrub: [21, 26], fern: [24, 22], tall: [16, 24], mush: [14, 12], stones: [14, 10] };
+  const FLORA_SIZE = { shrub: [23, 27], fern: [24, 22], tall: [16, 24], mush: [14, 12], stones: [14, 10] };
   function drawFlora(f) {
     const cx = (f.x + 0.5) * T + f.dx, by = (f.y + 1) * T - 6 + f.dy;
     const [hw, up] = FLORA_SIZE[f.kind];
