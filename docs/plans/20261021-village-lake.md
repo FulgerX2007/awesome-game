@@ -406,14 +406,14 @@
 - Modify: `web/village/audio.js`
 - Modify: `tests/village/audio.test.js`
 
-- [ ] звуки:
+- [x] звуки:
   - заброс — свист лески;
   - поклёвка — бульк;
   - улов — всплеск и звон;
   - срыв — тихий всплеск;
   - мотив Праздника фонариков
-- [ ] тест: новые звуки строятся без ошибок на фейковом AudioContext, как остальные
-- [ ] run tests - must pass before task 12
+- [x] тест: новые звуки строятся без ошибок на фейковом AudioContext, как остальные
+- [x] run tests - must pass before task 12
 
 ### Task 12: E2E — the lake chapter on a phone
 

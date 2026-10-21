@@ -270,8 +270,34 @@
       [62, 66, 69, 66, 62, 69, 74, 69, 66, 69, 62].forEach((m, k) =>
         tone(sfxBus, freq(m), { at: 0.5 + k * 0.18, d: 0.4, vol: 0.05, type: 'triangle', attack: 0.01 }));
     },
+    cast() { // the line whistles out, the float plops in
+      noise(sfxBus, { d: 0.22, vol: 0.12, f: vary(2600), q: 3, type: 'bandpass', attack: 0.04 });
+      tone(sfxBus, vary(420), { at: 0.24, d: 0.09, vol: 0.06, to: 220 });
+      noise(sfxBus, { at: 0.24, d: 0.08, vol: 0.1, f: 1400, q: 1.2 });
+    },
+    bite() { // two quick bloops: the float goes under
+      tone(sfxBus, vary(330, 0.05), { d: 0.08, vol: 0.09, to: 520 });
+      tone(sfxBus, vary(300, 0.05), { at: 0.1, d: 0.08, vol: 0.08, to: 480 });
+    },
+    catch() { // a splash and a bright two-note chime
+      noise(sfxBus, { d: 0.3, vol: 0.3, f: vary(1600), q: 0.7, type: 'bandpass', attack: 0.01 });
+      tone(sfxBus, freq(76), { at: 0.12, d: 0.4, vol: 0.05, type: 'triangle', attack: 0.01 });
+      tone(sfxBus, freq(83), { at: 0.22, d: 0.6, vol: 0.05, type: 'triangle', attack: 0.01 });
+    },
+    escape() { // a small splash, the fish is off
+      noise(sfxBus, { d: 0.18, vol: 0.14, f: vary(1100), q: 0.9, type: 'bandpass', attack: 0.01 });
+      tone(sfxBus, vary(260), { d: 0.14, vol: 0.04, to: 160 });
+    },
+    lanterns() { // soft high bells like lanterns rising, over a slow low drone
+      tone(sfxBus, freq(50), { d: 4, vol: 0.05, attack: 0.4 });
+      tone(sfxBus, freq(57), { at: 0.2, d: 4, vol: 0.035, attack: 0.4 });
+      [81, 86, 88, 93, 90, 86, 88, 81, 86].forEach((m, k) => {
+        tone(sfxBus, freq(m), { at: 0.4 + k * 0.32, d: 1.1, vol: 0.035, attack: 0.01 });
+        tone(sfxBus, freq(m) * 2.76, { at: 0.4 + k * 0.32, d: 0.4, vol: 0.008 });
+      });
+    },
   };
-  const GAPS = { axe: 80, pick: 80, shovel: 80, berries: 80, contribute: 120, water: 120, coins: 120 };
+  const GAPS = { axe: 80, pick: 80, shovel: 80, berries: 80, contribute: 120, water: 120, coins: 120, bite: 150, escape: 150 };
 
   function play(name) {
     if (!state.sounds || !SOUNDS[name] || !ensure()) return;

@@ -88,7 +88,8 @@ test('audio.js loads in Node without AudioContext and every call is a no-op', ()
 });
 
 test('all the planned sounds exist', () => {
-  for (const n of ['axe', 'pick', 'shovel', 'berries', 'contribute', 'built', 'tool', 'festival', 'water', 'bucket', 'coins', 'fair', 'harvest']) {
+  for (const n of ['axe', 'pick', 'shovel', 'berries', 'contribute', 'built', 'tool', 'festival', 'water', 'bucket', 'coins', 'fair', 'harvest',
+    'cast', 'bite', 'catch', 'escape', 'lanterns']) {
     assert.ok(audio.SOUND_NAMES.includes(n), n);
   }
 });
@@ -232,9 +233,21 @@ test('every sound soundFor names exists in the synth', () => {
     { type: 'hit', kind: 'tree' }, { type: 'hit', kind: 'apple' }, { type: 'contribute' }, { type: 'built' }, { type: 'tool' },
     { type: 'festival' }, { type: 'plot', result: 'watered' }, { type: 'plot', result: 'sown' }, { type: 'plot', result: 'harvest' },
     { type: 'bucket', n: 6 }, { type: 'order' }, { type: 'buy' }, { type: 'harvest-festival' },
+    { type: 'cast' }, { type: 'bite' }, { type: 'catch', gain: 1 }, { type: 'escape' }, { type: 'gone' }, { type: 'lantern-festival' },
   ];
   for (const e of events) {
     const n = VV.soundFor(e);
     assert.ok(n && audio.SOUND_NAMES.includes(n), `${e.type}: ${n}`);
+  }
+});
+
+test('the fishing and lantern sounds each play through the fake graph', () => {
+  const { A, stats } = browserAudio();
+  A.setSounds(true);
+  A.unlock();
+  for (const n of ['cast', 'bite', 'catch', 'escape', 'lanterns']) {
+    const before = stats.started;
+    A.play(n);
+    assert.ok(stats.started > before, `${n} starts its voices`);
   }
 });
