@@ -204,7 +204,7 @@
     if (placing) return t('Ставь: {name}', { name: t(V.DECOR[placing].name) });
     const farm = VV.farmHint(S, V);
     if (farm === 'ripe') return t(FARM_HINT[farm]);
-    if (V.fairOpen(S) && Object.keys(V.FAIR).some((id) => !S.bought.includes(id) && S.res.coins >= V.FAIR[id].price)) return t('Сегодня ярмарка: загляни к рядам');
+    if (V.fairOpen(S) && V.fairItems(S).some((id) => !S.bought.includes(id) && S.res.coins >= V.FAIR[id].price)) return t('Сегодня ярмарка: загляни к рядам');
     if (S.orders.some((o) => V.canAfford(S, o.need))) return t('Заказ на доске можно выполнить');
     if (farm) return t(FARM_HINT[farm]);
     if (!g) return t('Осмотрись вокруг');
@@ -398,7 +398,7 @@
     setHTML($('orders-list'), orders.length ? orders.join('') : `<li class="muted">${esc(t('Новые заказы появляются на рассвете.'))}</li>`);
     const open = V.fairOpen(S);
     $('fair-note').textContent = open ? t('Сегодня ярмарка!') : t('Ярмарка — в первый день каждого сезона, днём.');
-    const items = Object.entries(V.FAIR).map(([id, item]) => {
+    const items = V.fairItems(S).map((id) => [id, V.FAIR[id]]).map(([id, item]) => {
       const owned = S.bought.includes(id);
       const label = owned ? t('куплено') : t('{n} монет', { n: item.price });
       const can = open && !owned && S.res.coins >= item.price;
@@ -455,11 +455,12 @@
 
   function renderTools() {
     $('tools-hint').hidden = S.built.home.done;
-    const rows = Object.entries(V.TOOLS).map(([id, tool]) => {
+    // The rod is shown once the lake chapter has begun.
+    const rows = Object.entries(V.TOOLS).filter(([id]) => id !== 'rod' || S.harvestFestival || S.tools.rod > 0).map(([id, tool]) => {
       const lvl = S.tools[id];
       const next = lvl + 1;
       let what, btn = '';
-      if (lvl < 1) what = t('найдётся за мостом');
+      if (lvl < 1) what = t(id === 'rod' ? 'появится с мостками' : 'найдётся за мостом');
       else if (lvl >= V.MAX_TOOL) what = t('лучший уровень');
       else {
         const need = V.TOOL_NEEDS[next];

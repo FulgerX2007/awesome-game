@@ -116,7 +116,7 @@ test('zones: east and north are cut off by the river', () => {
 test('new game state: starting tools, built skeleton, empty events', () => {
   const s = V.newGame(3);
   assert.equal(s.v, V.VERSION);
-  assert.deepEqual(s.tools, { axe: 1, pick: 1, shovel: 0, basket: 1 });
+  assert.deepEqual(s.tools, { axe: 1, pick: 1, shovel: 0, basket: 1, rod: 0 });
   assert.deepEqual(Object.keys(s.built), Object.keys(V.BUILDINGS));
   for (const [id, b] of Object.entries(s.built)) {
     assert.equal(b.done, false);
@@ -211,7 +211,7 @@ test('missing fields get defaults and junk is dropped', () => {
   assert.equal(junk.player.junk, undefined, 'unknown player keys are dropped');
   assert.equal(V.save(junk).player.junk, undefined);
   assert.deepEqual(junk.res, { wood: 0, stone: 0, clay: 0, berries: 4, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0, grapes: 0, juice: 0, fish: 0, smoked: 0 });
-  assert.deepEqual(junk.tools, { axe: 1, pick: 2, shovel: 0, basket: 1 });
+  assert.deepEqual(junk.tools, { axe: 1, pick: 2, shovel: 0, basket: 1, rod: 0 });
   assert.deepEqual(junk.nodes, fresh.nodes, 'node layout comes from the seed');
   assert.equal(junk.built.well.done, false);
   assert.deepEqual(junk.built.well.paid, { stone: V.BUILDINGS.well.cost.stone, wood: 0 }, 'paid is clamped to the cost');

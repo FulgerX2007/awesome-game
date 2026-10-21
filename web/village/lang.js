@@ -206,6 +206,7 @@ I18n.add({ ro: {
   'Удочка': 'Undița',
   'Рыбак': 'Pescarul',
   'Лодка': 'Barca',
+  'появится с мостками': 'vine odată cu pontonul',
   'Пасечник': 'Prisăcarul',
   'Садовник': 'Grădinarul',
   'Заказы жителей': 'Comenzile sătenilor',

@@ -67,6 +67,8 @@
     pick: { name: 'Кирка', node: 'rock', start: 1, costs: { 2: { wood: 40, stone: 20 }, 3: { bricks: 50, planks: 100 } } },
     shovel: { name: 'Лопата', node: 'clay', start: 0, costs: { 2: { wood: 50 }, 3: { bricks: 40, planks: 80 } } },
     basket: { name: 'Корзина', node: 'bush', start: 1, costs: { 2: { wood: 30 }, 3: { planks: 80 } } },
+    // The rod comes with the pier.
+    rod: { name: 'Удочка', node: 'shoal', start: 0, costs: { 2: { planks: 60, wood: 40 }, 3: { bricks: 40, planks: 80 } } },
   };
   const TOOL_NEEDS = { 2: 'home', 3: 'forge' };
   const TOOL_YIELD = [0, 1, 2, 3];       // per hit, by tool level
@@ -156,6 +158,8 @@
     sweep: { name: 'Колодезный журавль', price: 18 },
     scarecrow: { name: 'Пугало', price: 10 },
     arch: { name: 'Арка с цветами', price: 14 },
+    // Sold only after the harvest festival: the boathouse needs it.
+    boat: { name: 'Лодка', price: 90, after: 'harvest' },
   };
   const BIG_BUCKET = 10;
 
@@ -935,6 +939,7 @@
     if (b.effect === 'market') while (s.orders.length < ORDERS.atMarket) postOrder(s, false);
     if (b.effect === 'festival') s.events.push({ type: 'festival' });
     if (b.effect === 'harvest') s.events.push({ type: 'harvest-festival' });
+    if (b.effect === 'lanterns') s.events.push({ type: 'lantern-festival' });
     return 'built';
   }
 
@@ -943,9 +948,11 @@
     const b = BUILDINGS[id];
     if (b.effect === 'storage' && s.barnLevel < 1) setBarn(s, 1);
     else if (b.effect === 'bridge' && s.tools.shovel < 1) s.tools.shovel = 1;
+    else if (b.effect === 'pier' && s.tools.rod < 1) s.tools.rod = 1;
     else if (b.effect === 'villager' && !s.villagers.some((v) => v.house === id)) s.villagers.push({ role: b.role, house: id });
     else if (b.effect === 'festival') s.festival = true;
     else if (b.effect === 'harvest') s.harvestFestival = true;
+    else if (b.effect === 'lanterns') s.lanternFestival = true;
   }
 
   function setBarn(s, level) {
@@ -1076,6 +1083,10 @@
   }
 
   // ── Fair ──
+  // What the fair sells by now: some things only once a festival has been held.
+  const fairSells = (s, id) => !!FAIR[id] && (FAIR[id].after !== 'harvest' || s.harvestFestival);
+  const fairItems = (s) => Object.keys(FAIR).filter((id) => fairSells(s, id));
+
   // Open on a season's first day while it is light, once the market rows stand.
   function fairOpen(s) {
     if (!s.built.market.done) return false;
@@ -1083,11 +1094,13 @@
     return c.seasonDay === 0 && (c.part === 'dawn' || c.part === 'day');
   }
 
-  // Buy one thing at the fair. Returns 'ok' | 'closed' | 'coins' (not enough) | 'owned' | 'unknown'.
+  // Buy one thing at the fair. Returns 'ok' | 'closed' | 'coins' (not enough) | 'owned' | 'locked' (not sold yet)
+  // | 'unknown'.
   function buy(s, id) {
     const item = FAIR[id];
     if (!item) return 'unknown';
     if (s.bought.includes(id)) return 'owned';
+    if (!fairSells(s, id)) return 'locked';
     if (!fairOpen(s)) return 'closed';
     if (s.res.coins < item.price) return 'coins';
     s.res.coins -= item.price;
@@ -1191,7 +1204,8 @@
   // points at something that can't be paid yet.
   const PRODUCT_OF = Object.fromEntries(Object.entries(WORKSHOPS).map(([id, w]) => [w.to, id]));
   function nextGoal(s) {
-    const stage = s.festival ? 'festival' : undefined; // before the festival only the village, after it the hamlet
+    // Before the festival only the village, after it the hamlet, after the harvest festival the lake.
+    const stage = s.harvestFestival ? 'harvest' : s.festival ? 'festival' : undefined;
     let best = null, bestLeft = Infinity;
     for (const id of BUILDING_IDS) {
       if (BUILDINGS[id].after !== stage || s.built[id].done || !needsMet(s, id)) continue;
@@ -1390,7 +1404,7 @@
     VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS, PRODUCERS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
-    MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, LAKE_Y, SPOTS, FAIR, BIG_BUCKET, fairOpen, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
+    MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, LAKE_Y, SPOTS, FAIR, BIG_BUCKET, fairOpen, fairItems, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
     placeDecor, save, load,

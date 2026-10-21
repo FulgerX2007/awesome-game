@@ -253,21 +253,23 @@
 - Modify: `web/village/core.js`
 - Modify: `tests/village/lake.test.js`, `tests/village/build.test.js`, `tests/village/hamlet.test.js`
 
-- [ ] `applyEffect`:
+- [x] `applyEffect`:
   - `glade` и `pier` открывают проходы;
   - `pier` даёт удочку 1;
   - `lanterns` ставит `s.lanternFestival`;
   - `contribute` шлёт `lantern-festival`;
   - `restore` поднимает финал из беседки
-- [ ] `nextGoal`: третий этап по `s.harvestFestival`
-- [ ] `FAIR.boat` с `after: 'harvest'`; в `buy()` проверка этапа → `'locked'`
-- [ ] обновить старые тесты: после урожая цель — `glade` (`hamlet.test.js:107`, `build.test.js:301`);
+- [x] `nextGoal`: третий этап по `s.harvestFestival`
+- [x] `FAIR.boat` с `after: 'harvest'`; в `buy()` проверка этапа → `'locked'`
+- [x] обновить старые тесты: после урожая цель — `glade` (`hamlet.test.js:107`, `build.test.js:301`);
       `build.test.js:299` `finish()` покупает и `boat`
-- [ ] тест: цепочка просека → мостки → коптильня / дом рыбака / сарай → беседка
-- [ ] тест: до урожая ни одно здание озера и лодка недоступны; Праздники в селе и урожая не требуют озера
-- [ ] тест: без лодки сарай `'locked'`, подсказка ведёт на ярмарку; сейв с беседкой восстанавливает `lanternFestival`
+- [x] тест: цепочка просека → мостки → коптильня / дом рыбака / сарай → беседка
+- [x] тест: до урожая ни одно здание озера и лодка недоступны; Праздники в селе и урожая не требуют озера
+- [x] тест: без лодки сарай `'locked'`, подсказка ведёт на ярмарку; сейв с беседкой восстанавливает `lanternFestival`
       и лодку в `bought`
-- [ ] run tests - must pass before task 4
+- [x] ➕ сюда же — инструмент `rod` из задачи 4 (его даёт `pier`), `V.fairItems()` для панели ярмарки и подсказки,
+      строка удочки в панели инструментов появляется с главой
+- [x] run tests - must pass before task 4
 
 ### Task 4: Lake economy — fish, smoked fish, rod, fisher, orders
 

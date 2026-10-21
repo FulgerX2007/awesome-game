@@ -104,7 +104,7 @@ test('the chain: road → vineyard → press, the houses, then the harvest hall'
   assert.equal(s.harvestFestival, true);
   assert.deepEqual(s.events.filter((e) => e.type === 'harvest-festival').length, 1);
   assert.equal(build(s, 'harvest'), 'done', 'only once');
-  assert.deepEqual(V.nextGoal(s), { type: 'decor' });
+  assert.equal(V.nextGoal(s).id, 'glade', 'then on to the lake');
 });
 
 test('the vineyard grows grapes except in winter; the press makes juice above the reserve', () => {
