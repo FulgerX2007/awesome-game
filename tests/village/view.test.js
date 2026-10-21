@@ -444,6 +444,18 @@ test('palette gives every season its own ground and crowns', () => {
   assert.equal(VV.palette('nope'), VV.palette('spring'));
 });
 
+test('spring and summer meadows are a vivid green, ordered dark < base < light', () => {
+  const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const lum = (c) => rgb(c).reduce((a, v, i) => a + v * [0.3, 0.59, 0.11][i], 0);
+  for (const x of ['spring', 'summer']) {
+    const g = VV.palette(x).grass;
+    const [r, gg, b] = rgb(g.base);
+    assert.ok(gg > r * 1.4 && gg > b * 2, `${x} grass is clearly green, not olive`);
+    assert.ok(lum(g.dark) < lum(g.base) && lum(g.base) < lum(g.light), `${x} shades are ordered`);
+    for (const set of VV.palette(x).leaves) assert.ok(lum(set[0]) < lum(set[1]) && lum(set[1]) < lum(set[2]), `${x} crowns: dark, mid, lit`);
+  }
+});
+
 test('seasonFade blends over the first day of a season, never at the very start', () => {
   const at = (t) => VV.seasonFade(V.clock(t));
   assert.deepEqual(at(0), { from: 'winter', to: 'spring', t: 1 }, 'the first spring needs no fade');

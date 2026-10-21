@@ -178,12 +178,12 @@
   //   blossom: the share of leafy trees in bloom; fallen: leaves lying on the grass; snow: 0..1 snow cover
   const SEASON_LOOKS = {
     spring: {
-      grass: { base: '#8cbf5a', dark: '#77ab48', light: '#a9d475', tuft: '#5c9a3b', tuftLight: '#b5dc80' },
-      flowers: 0.28, leaves: [['#4f8a3a', '#68a64a', '#92cc66'], ['#578f36', '#73ad45', '#9ad06a']], blossom: 0.35, fallen: 0, snow: 0,
+      grass: { base: '#72b444', dark: '#5a9a33', light: '#94cc58', tuft: '#3f7f27', tuftLight: '#aadd6c' },
+      flowers: 0.28, leaves: [['#2f7a2c', '#4f9e36', '#86cf4f'], ['#3a8530', '#5aa93b', '#97d85a'], ['#2c6e34', '#47934a', '#7cc764']], blossom: 0.3, fallen: 0, snow: 0,
     },
     summer: {
-      grass: { base: '#82ad55', dark: '#6f9c47', light: '#9cc46b', tuft: '#5c8a3b', tuftLight: '#a9cf73' },
-      flowers: 0.16, leaves: [['#3f6e33', '#548a3f', '#78ad55'], ['#466f2e', '#5e8f3a', '#86b356'], ['#3a6a3f', '#4f8650', '#72a868']], blossom: 0, fallen: 0, snow: 0,
+      grass: { base: '#68a83e', dark: '#528e30', light: '#88c052', tuft: '#3a7425', tuftLight: '#9fd064' },
+      flowers: 0.18, leaves: [['#2a6a2a', '#438c35', '#72bb4c'], ['#33702a', '#4d9437', '#80c454'], ['#285f33', '#3f8448', '#68b162']], blossom: 0, fallen: 0, snow: 0,
     },
     autumn: {
       grass: { base: '#a3a65a', dark: '#8f9049', light: '#bfba6c', tuft: '#7e7c3c', tuftLight: '#cbbf73' },

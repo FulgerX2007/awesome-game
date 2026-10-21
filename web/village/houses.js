@@ -13,7 +13,8 @@
   //        state() → the rules state, time() → the animation clock, sun() → view.sunAt of this frame,
   //        light(x, y, r, color, a) → a light that glows after dark, snow() → 0..1 snow cover }
   function create(env) {
-    const { ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark } = env;
+    const { K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark } = env;
+    let ctx = env.ctx; // art.js points it at a sprite while baking one (setCtx)
     let S = null, time = 0; // refreshed on every draw()
     const shadow = (x, y, rx, ry, a = 0.32) => K.shadow(ctx, x, y, rx, ry, a);
     const SIDE = 7; // how far the shaded right side wall shows, px
@@ -151,34 +152,195 @@
       return { left, right, base, wallTop, top };
     }
 
+    // ── The spring (the well on the square) ──
+    // A round wall of dressed stone blocks seen from above and in front: two courses of blocks on the front
+    // face, a ring of capstones on top, the inner wall showing at the back and the water a little below the rim.
+    // `missing` lists capstones (0..13) that have fallen; `murky` is the old, choked water of the ruin.
+    const RING = 14;
+    function wellRing(cx, cy, o) {
+      const R = 22, ry = 13.5, H = 10, inR = R - 6.5, inRy = ry - 4.2;
+      const sun = env.sun();
+      const stoneCol = (k, j) => K.shade(STONE.mid, (hash2(k, j, 950) - 0.5) * 0.22);
+      // Ground: an oblique shadow to the lower right and a soft contact shadow all round.
+      ctx.save();
+      ctx.translate(cx + 12, cy + H + 6);
+      ctx.rotate(0.3);
+      K.shadow(ctx, 0, 0, R + 10, ry + 2, 0.3 * sun.shadow);
+      ctx.restore();
+      K.shadow(ctx, cx + 2, cy + H + 1, R + 5, ry + 4, 0.42 * sun.shadow);
+      // Front face: two courses of blocks, offset by half a block, lit from the left.
+      const arc = (a, yy, r = R, rr = ry) => [cx + Math.cos(a) * r, yy + Math.sin(a) * rr];
+      for (let j = 0; j < 2; j++) {
+        const y0 = cy + j * (H / 2), n = 7, off = j ? Math.PI / n / 2 : 0;
+        for (let k = -1; k < n; k++) {
+          const a0 = Math.max(0, off + (k * Math.PI) / n), a1 = Math.min(Math.PI, off + ((k + 1) * Math.PI) / n);
+          if (a1 <= a0) continue;
+          const pts = [];
+          for (let q = 0; q <= 4; q++) pts.push(arc(lerpA(a0, a1, q / 4), y0));
+          for (let q = 4; q >= 0; q--) pts.push(arc(lerpA(a0, a1, q / 4), y0 + H / 2));
+          const lightness = Math.cos((a0 + a1) / 2) * 0.2 - 0.05; // left (cos > 0 is right): flip below
+          ctx.fillStyle = K.shade(stoneCol(k + 7, j), -lightness - 0.08);
+          ctx.beginPath();
+          ctx.moveTo(pts[0][0], pts[0][1]);
+          for (const p of pts) ctx.lineTo(p[0], p[1]);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(40, 36, 30, 0.45)';
+          ctx.lineWidth = 0.9;
+          ctx.stroke();
+          // A lit upper edge on each block.
+          ctx.strokeStyle = 'rgba(255, 250, 235, 0.25)';
+          ctx.beginPath();
+          ctx.moveTo(pts[0][0], pts[0][1] + 0.8);
+          for (let q = 1; q <= 4; q++) ctx.lineTo(pts[q][0], pts[q][1] + 0.8);
+          ctx.stroke();
+        }
+      }
+      // Capstones: a dark joint ring, then each stone as a ring segment, lit towards the top left.
+      ctx.fillStyle = K.shade(STONE.dark, -0.3);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, R + 0.6, ry + 0.6, 0, 0, TAU);
+      ctx.ellipse(cx, cy, inR - 0.6, inRy - 0.6, 0, 0, TAU, true);
+      ctx.fill('evenodd');
+      for (let k = 0; k < RING; k++) {
+        const a0 = (k / RING) * TAU + 0.04, a1 = ((k + 1) / RING) * TAU - 0.04, mid = (a0 + a1) / 2;
+        const gone = o.missing.includes(k);
+        const dy = gone ? H / 2 : 0;
+        const lit = Math.cos(mid - 3.9) * 0.16; // towards the top-left light (angle ≈ 225°) is brighter
+        ctx.fillStyle = gone ? K.shade(STONE.dark, -0.15) : K.shade(K.shade(STONE.light, (hash2(k, 3, 951) - 0.5) * 0.18), lit);
+        ctx.beginPath();
+        for (let q = 0; q <= 4; q++) { const p = arc(lerpA(a0, a1, q / 4), cy + dy); q ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }
+        for (let q = 4; q >= 0; q--) { const p = arc(lerpA(a0, a1, q / 4), cy + dy, inR, inRy); ctx.lineTo(p[0], p[1]); }
+        ctx.closePath();
+        ctx.fill();
+        if (!gone && hash2(k, 4, 952) < (o.murky ? 0.4 : 0.12)) { // moss on the capstone
+          const p = arc(mid, cy, (R + inR) / 2, (ry + inRy) / 2);
+          ctx.fillStyle = 'rgba(96, 150, 60, 0.8)';
+          ctx.beginPath(); ctx.ellipse(p[0], p[1], 2.6, 1.4, mid + Math.PI / 2, 0, TAU); ctx.fill();
+        }
+      }
+      // The shaft: the inner wall shows at the back; the water lies a little lower, clipped by the rim.
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, inR, inRy, 0, 0, TAU);
+      ctx.clip();
+      const inner = ctx.createLinearGradient(0, cy - inRy, 0, cy + inRy);
+      inner.addColorStop(0, '#3e4040');
+      inner.addColorStop(1, '#6b6a63');
+      ctx.fillStyle = inner;
+      ctx.fillRect(cx - inR, cy - inRy, inR * 2, inRy * 2);
+      for (let k = 0; k < 6; k++) { // block joints on the inner wall
+        const x = cx - inR + 3 + k * (inR * 2 - 6) / 5;
+        ctx.strokeStyle = 'rgba(20, 20, 20, 0.35)'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(x, cy - inRy); ctx.lineTo(x, cy - inRy + 5); ctx.stroke();
+      }
+      const wy = cy + o.depth, wrx = inR - 0.5, wry = inRy - 0.4;
+      const water = ctx.createRadialGradient(cx - 5, wy - 4, 1, cx, wy, wrx * 1.1);
+      if (o.murky) {
+        water.addColorStop(0, '#79b9a6'); water.addColorStop(0.6, '#3f8277'); water.addColorStop(1, '#25514b');
+      } else {
+        water.addColorStop(0, '#a8f0ff'); water.addColorStop(0.35, '#3fc0ec'); water.addColorStop(0.8, '#1688cf'); water.addColorStop(1, '#0d5a95');
+      }
+      ctx.fillStyle = water;
+      ctx.beginPath(); ctx.ellipse(cx, wy, wrx, wry, 0, 0, TAU); ctx.fill();
+      // The rim's own shadow on the water along the top.
+      const rimShade = ctx.createLinearGradient(0, wy - wry, 0, wy - wry + 6);
+      rimShade.addColorStop(0, 'rgba(10, 30, 50, 0.45)');
+      rimShade.addColorStop(1, 'rgba(10, 30, 50, 0)');
+      ctx.fillStyle = rimShade;
+      ctx.fillRect(cx - wrx, wy - wry, wrx * 2, 6);
+      // Ripples spreading from the middle, and a slow drifting glint.
+      for (let k = 0; k < 3; k++) {
+        const ph = (time * (o.murky ? 0.18 : 0.4) + k / 3) % 1;
+        ctx.strokeStyle = `rgba(230, 252, 255, ${((o.murky ? 0.25 : 0.55) * (1 - ph)).toFixed(3)})`;
+        ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.ellipse(cx + 1, wy + 1, 2 + ph * wrx, (2 + ph * wrx) * (wry / wrx), 0, 0, TAU); ctx.stroke();
+      }
+      const gx = cx - 6 + Math.sin(time * 0.6) * 3;
+      ctx.fillStyle = o.murky ? 'rgba(220, 255, 240, 0.25)' : 'rgba(255, 255, 255, 0.6)';
+      ctx.beginPath(); ctx.ellipse(gx, wy - 2.5, 4.5, 1.3, -0.15, 0, TAU); ctx.fill();
+      if (o.murky) for (let k = 0; k < 3; k++) { // leaves floating on the old water
+        ctx.fillStyle = ['#8a9a3a', '#b5893a', '#6f8a35'][k];
+        ctx.beginPath(); ctx.ellipse(cx - 6 + k * 6 + Math.sin(time * 0.3 + k) * 1.2, wy + (k - 1) * 2.2, 2, 1.1, k, 0, TAU); ctx.fill();
+      } else for (let k = 0; k < 4; k++) { // sparkles
+        const tw = Math.sin(time * 2.3 + k * 1.9);
+        if (tw < 0.6) continue;
+        const sx = cx - wrx * 0.6 + hash2(k, Math.floor(time * 0.5 + k), 953) * wrx * 1.2, sy = wy - wry * 0.5 + hash2(k, Math.floor(time * 0.5 + k), 954) * wry;
+        const z = (tw - 0.6) * 5;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.beginPath(); ctx.moveTo(sx - z, sy); ctx.lineTo(sx, sy - z * 0.35); ctx.lineTo(sx + z, sy); ctx.lineTo(sx, sy + z * 0.35); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(sx, sy - z * 0.7); ctx.lineTo(sx + z * 0.25, sy); ctx.lineTo(sx, sy + z * 0.7); ctx.lineTo(sx - z * 0.25, sy); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+      // Grass growing at the foot of the wall.
+      for (let k = 0; k < (o.murky ? 7 : 4); k++) {
+        const a = 0.25 + (k / 6) * 2.6, p = arc(a, cy + H, R + 0.5, ry + 0.5);
+        ctx.strokeStyle = k % 2 ? GRASS.tuft : GRASS.tuftLight; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(p[0] - 2, p[1] + 1); ctx.lineTo(p[0] - 3, p[1] - 4);
+        ctx.moveTo(p[0], p[1] + 1); ctx.lineTo(p[0], p[1] - 5.5);
+        ctx.moveTo(p[0] + 2, p[1] + 1); ctx.lineTo(p[0] + 3.5, p[1] - 4);
+        ctx.stroke();
+      }
+      return { R, ry, H, wy };
+    }
+    const lerpA = (a, b, t) => a + (b - a) * t;
+
+    // The ruined spring: capstones fallen into the grass, a broken post, choked water. While it is being
+    // restored (stage 1) the fallen stones go back as the payment arrives.
+    const FALLEN = [2, 5, 6, 9, 11, 12];
+    function wellRuin(b, part) {
+      const cx = b.cx, cy = b.base - 24;
+      const left = Math.round(FALLEN.length * (1 - part));
+      const missing = FALLEN.slice(0, left);
+      wellRing(cx, cy, { missing, murky: true, depth: 5 });
+      // The stones that fell, lying around the well.
+      for (let k = 0; k < left; k++) {
+        const a = 0.4 + k * 0.95, x = cx + Math.cos(a) * 31, y = cy + 12 + Math.sin(a) * 15;
+        K.shadow(ctx, x + 2, y + 3, 6, 2.6, 0.35);
+        K.prism(ctx, x - 4.5, y - 3, 9, 4, 3, K.shade(STONE.mid, (hash2(k, 1, 955) - 0.5) * 0.2), { r: 1.2 });
+      }
+      // A broken post of the old windlass.
+      K.cylinder(ctx, cx - 24, cy - 14, 2.4, 16, WOOD.dark, { ry: 1, capColor: WOOD.pale });
+      ctx.save();
+      ctx.translate(cx + 18, cy + 20);
+      ctx.rotate(0.25);
+      K.shadow(ctx, 2, 3, 14, 2.4, 0.3);
+      K.block(ctx, -14, -2, 28, 4, 1.5, WOOD.dark);
+      ctx.restore();
+    }
+
     // Any restored building without art of its own: a plain cottage.
     const PLAIN = { wall: '#f3ecdc', trim: '#7a6a4f', roof: '#a8563c', roofDark: 'rgba(90, 30, 15, 0.45)' };
     const ART = {
       well(b) {
-        const cx = b.cx, cy = b.base - 22;
-        castBlock(cx - 20, cx + 12, cy + 12, 40);
-        shadow(cx + 3, cy + 10, 23, 8, 0.3);
-        K.cylinder(ctx, cx, cy - 2, 20, 6, STONE.mid, { ry: 13, capColor: STONE.light });
-        for (let k = 0; k < 10; k++) {
-          const a = (k / 10) * TAU;
-          line(cx + Math.cos(a) * 14, cy - 2 + Math.sin(a) * 9, cx + Math.cos(a) * 20, cy - 2 + Math.sin(a) * 13, STONE.dark, 1);
+        const cx = b.cx, cy = b.base - 24;
+        const sun = env.sun();
+        // A restrained glow over the clear water by day; after dark it lights the square.
+        K.glow(ctx, cx, cy + 4, 30, '#9ff0ff', 0.12 * (1 - sun.shade));
+        env.light(cx, cy + 2, 46, '#8fe2ff', 0.55);
+        const { R, wy } = wellRing(cx, cy, { missing: [], murky: false, depth: 4 });
+        // The windlass: two lit posts on the rim, a beam with a crank, a rope and a bucket that bobs.
+        for (const px of [cx - R + 2, cx + R - 2]) {
+          K.shadow(ctx, px + 2, cy + 1, 4, 1.6, 0.35);
+          K.cylinder(ctx, px, cy - 34, 2.6, 34, WOOD.mid, { ry: 1.1, capColor: WOOD.pale });
         }
-        const water = ctx.createRadialGradient(cx - 4, cy - 6, 1, cx, cy - 3, 13);
-        water.addColorStop(0, '#5aa3bb');
-        water.addColorStop(1, '#1f4a5c');
-        ellipse(cx, cy - 3, 13, 8, water);
-        ellipse(cx - 3, cy - 5, 4, 1.5, 'rgba(255, 255, 255, 0.45)');
-        K.cylinder(ctx, cx - 17, cy - 34, 2.2, 34, WOOD.mid, { ry: 1 });
-        K.cylinder(ctx, cx + 17, cy - 34, 2.2, 34, WOOD.mid, { ry: 1 });
-        line(cx - 15, cy - 26, cx + 15, cy - 26, WOOD.dark, 2.5);
+        K.block(ctx, cx - R + 1, cy - 31, R * 2 - 2, 4, 2, WOOD.light, { top: 0.35, bottom: -0.3 });
+        line(cx + R + 1, cy - 29, cx + R + 6, cy - 29, WOOD.dark, 2);
+        line(cx + R + 6, cy - 29, cx + R + 6, cy - 23, WOOD.dark, 2);
         const bob = Math.sin(time * 1.4) * 1.5;
-        line(cx + 2, cy - 26, cx + 2, cy - 14 + bob, '#d8c79a', 1);
-        K.block(ctx, cx - 2, cy - 14 + bob, 8, 7, 2, WOOD.light);
-        poly([cx - 26, cy - 28, cx, cy - 46, cx + 26, cy - 28, cx + 22, cy - 24, cx, cy - 41, cx - 22, cy - 24], '#a8503a');
-        poly([cx, cy - 46, cx + 26, cy - 28, cx + 22, cy - 24, cx, cy - 41], 'rgba(40, 10, 0, 0.25)');
-        line(cx - 24, cy - 27, cx, cy - 44, '#d57a5a', 1.5);
+        line(cx + 1, cy - 27, cx + 1, wy - 14 + bob, '#e0cf9e', 1);
+        K.shadow(ctx, cx + 3, wy - 2, 5, 1.6, 0.35);
+        K.cylinder(ctx, cx + 1, wy - 14 + bob, 4.2, 7, WOOD.light, { ry: 1.8, capColor: '#5ab8e0' });
+        line(cx - 3.2, wy - 11 + bob, cx + 5.2, wy - 11 + bob, '#6a6a6a', 0.9);
+        // Now and then a drop falls from the bucket and rings the water.
+        const ph = (time * 0.7) % 1;
+        if (ph < 0.25) {
+          ctx.fillStyle = 'rgba(200, 245, 255, 0.85)';
+          ctx.beginPath(); ctx.ellipse(cx + 1, wy - 7 + bob + ph * 28, 0.9, 1.4, 0, 0, TAU); ctx.fill();
+        }
         // Pots of flowers around the well bring the square back to life.
-        for (const [px, py, c] of [[-24, 8, '#e0607e'], [24, 6, '#f4d35e']]) {
+        for (const [px, py, c] of [[-30, 14, '#e0607e'], [30, 12, '#f4d35e']]) {
           shadow(cx + px + 2, cy + py + 3, 6, 2.2, 0.3);
           K.cylinder(ctx, cx + px, cy + py - 4, 4, 6, '#b4643c', { ry: 1.6 });
           K.sphere(ctx, cx + px - 1.5, cy + py - 5, 2.4, c, { gloss: false });
@@ -640,52 +802,71 @@
       }
     }
 
-    // Stage 0: tumbled walls of stone blocks, a fallen beam and weeds.
+    // Stage 0: tumbled walls of dressed stone blocks on a patch of bare earth, a fallen beam, rubble and weeds.
     function drawRuin(b) {
       const left = b.X + 4, right = b.X + b.Wp - 4, base = b.base - 4;
-      rect(left, b.Y + b.Hp * 0.3, right - left, base - b.Y - b.Hp * 0.3, 'rgba(120, 100, 70, 0.45)', 6);
-      if (b.id === 'well') {
-        const cx = b.cx, cy = b.base - 22;
-        ctx.strokeStyle = STONE.dark;
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.ellipse(cx + 1, cy + 2, 17, 11, 0, 0.6, 4.4);
-        ctx.stroke();
-        ctx.strokeStyle = STONE.mid;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, 17, 11, 0, 0.6, 4.4);
-        ctx.stroke();
-        ellipse(cx, cy - 1, 11, 7, '#2c3a30');
-        for (let k = 0; k < 4; k++) blob(cx + 10 + k * 5, cy + 4 + (k % 2) * 4, 3.5, 2.5, 900 + k, k % 2 ? STONE.light : STONE.mid);
-        K.block(ctx, cx - 21, cy - 14, 4, 14, 1, WOOD.dark);
-        return;
-      }
+      // Bare, trodden earth where the house stood, soft at the edges.
+      const ex = (left + right) / 2, ey = b.Y + b.Hp * 0.62, erx = (right - left) / 2 + 3, ery = (base - b.Y) * 0.42;
+      const earth = ctx.createRadialGradient(ex, ey, 2, ex, ey, Math.max(erx, ery));
+      earth.addColorStop(0, 'rgba(112, 92, 58, 0.55)');
+      earth.addColorStop(0.7, 'rgba(112, 92, 58, 0.42)');
+      earth.addColorStop(1, 'rgba(112, 92, 58, 0)');
+      ctx.fillStyle = earth;
+      ctx.beginPath(); ctx.ellipse(ex, ey, erx, ery, 0, 0, TAU); ctx.fill();
+      // A column of `n` blocks, 5 px a course, each with its own shade; odd courses are set half a block in.
+      const BH = 5;
+      const column = (x, bottom, n, seed, w = 8.4) => {
+        for (let j = 0; j < n; j++) {
+          const col = K.shade(STONE.mid, (hash2(seed, j, 410) - 0.5) * 0.24);
+          const dx = j % 2 ? 0.8 : 0;
+          K.prism(ctx, x + dx, bottom - (j + 1) * BH + 1, w - 0.6, BH - 0.4, 2.6, col, { r: 1 });
+        }
+        if (n && hash2(seed, n, 411) < 0.4) { // moss on the top block
+          ctx.fillStyle = 'rgba(100, 155, 60, 0.85)';
+          ctx.beginPath(); ctx.ellipse(x + 4, bottom - n * BH - 0.8, 3, 1.3, 0, 0, TAU); ctx.fill();
+        }
+      };
+      // The back wall, broken to uneven heights.
       const wallY = b.Y + b.Hp * 0.42;
+      castBlock(left, right - SIDE, wallY + 3, 12);
       for (let x = left, k = 0; x < right - 4; x += 8, k++) {
-        const hgt = 3 + hash2(b.x0, k, 400) * 13;
-        if (hash2(b.x0, k, 401) < 0.18) continue;
-        K.prism(ctx, x, wallY - hgt + 3, 8, hgt + 1, 3, STONE.mid, { r: 1 });
+        if (hash2(b.x0, k, 401) < 0.16) continue;
+        column(x, wallY + 3, 1 + Math.floor(hash2(b.x0, k, 400) * 3.2), b.x0 * 31 + k);
       }
-      for (const sx of [left, right - 7]) {
-        const hgt = 8 + hash2(b.x0, sx, 402) * 10;
-        shadow(sx + 7, base, 6, 2.4, 0.3);
-        K.prism(ctx, sx, base - hgt + 3, 7, hgt - 3, 3, STONE.mid, { r: 1 });
+      // Corner stubs at the front.
+      for (const sx of [left, right - 8]) {
+        shadow(sx + 8, base, 7, 2.6, 0.32);
+        column(sx, base + 1, 1 + Math.floor(hash2(b.x0, sx, 402) * 3), b.y0 * 17 + sx);
       }
+      // A fallen roof beam with grain and a pale cut end.
       ctx.save();
       ctx.translate((left + right) / 2, base - 10);
       ctx.rotate(-0.35 + hash2(b.x0, b.y0, 403) * 0.7);
-      K.shadow(ctx, 3, 4, b.Wp * 0.3, 3, 0.3);
-      K.block(ctx, -b.Wp * 0.3, -2, b.Wp * 0.6, 4, 1, WOOD.dark);
+      const bw = b.Wp * 0.62;
+      K.shadow(ctx, 3, 4, bw / 2, 3, 0.35);
+      K.block(ctx, -bw / 2, -2.5, bw, 5, 1.5, WOOD.dark, { top: 0.3, bottom: -0.3 });
+      line(-bw / 2 + 3, -0.5, bw / 2 - 4, -0.8, 'rgba(40, 24, 10, 0.4)', 0.7);
+      ellipse(bw / 2 - 0.5, 0, 1.6, 2.5, WOOD.pale);
       ctx.restore();
-      for (let k = 0; k < 5; k++) {
-        const sx = left + hash2(b.x0, k, 404) * (right - left), sy = base - 2 - hash2(b.y0, k, 405) * 8;
-        blob(sx + 1, sy + 1, 3.5, 2.5, b.x0 * 13 + k, STONE.dark);
-        blob(sx, sy, 3.5, 2.5, b.x0 * 13 + k, STONE.light);
+      // Rubble: small lit stones with shadows.
+      for (let k = 0; k < 6; k++) {
+        const sx = left + hash2(b.x0, k, 404) * (right - left), sy = base - 2 - hash2(b.y0, k, 405) * 10;
+        const r = 2.4 + hash2(b.x0, k, 408) * 2;
+        K.shadow(ctx, sx + 1.5, sy + 1.8, r + 1, r * 0.6, 0.35);
+        blob(sx, sy, r, r * 0.75, b.x0 * 13 + k, K.shade(STONE.mid, 0.05));
+        blob(sx - r * 0.3, sy - r * 0.3, r * 0.5, r * 0.3, b.x0 * 13 + k + 1, 'rgba(255, 250, 235, 0.4)');
       }
-      for (let k = 0; k < 4; k++) {
-        const wx = left + 4 + hash2(b.x0, k, 406) * (right - left - 8), wy = base - hash2(b.y0, k, 407) * 4;
-        line(wx - 2, wy - 6, wx, wy, GRASS.tuft, 1.3);
-        line(wx + 2, wy - 7, wx, wy, GRASS.tuft, 1.3);
+      // Weeds pushing up through the floor.
+      ctx.lineCap = 'round';
+      for (let k = 0; k < 6; k++) {
+        const wx = left + 4 + hash2(b.x0, k, 406) * (right - left - 8), wy = base - hash2(b.y0, k, 407) * 12;
+        ctx.strokeStyle = k % 2 ? GRASS.tuft : K.shade(GRASS.tuft, 0.25);
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(wx, wy); ctx.lineTo(wx - 2.5, wy - 6);
+        ctx.moveTo(wx, wy); ctx.lineTo(wx, wy - 7.5);
+        ctx.moveTo(wx, wy); ctx.lineTo(wx + 2.8, wy - 5.5);
+        ctx.stroke();
       }
     }
 
@@ -717,11 +898,12 @@
       time = env.time();
       if (stage === 2) (ART[id] || ((box) => house(box, PLAIN)))(b);
       else if (id === 'pavilion') pavilionWorks(b, stage, clamp(part, 0, 1)); // over the water: no stone walls
-      else if (stage === 1 && id !== 'well') drawScaffold(b, clamp(part, 0, 1));
+      else if (id === 'well') wellRuin(b, stage === 1 ? clamp(part, 0, 1) : 0);
+      else if (stage === 1) drawScaffold(b, clamp(part, 0, 1));
       else drawRuin(b);
     }
 
-    return { draw };
+    return { draw, setCtx: (g) => { ctx = g; } };
   }
 
   window.VillageHouses = { create };
