@@ -350,10 +350,11 @@ async function edgeChecks() {
     await ctx.close();
   }
   {
-    // The hamlet after the harvest festival, every building standing, drawn without errors.
+    // The hamlet after the harvest festival, every building up to it standing, drawn without errors.
     const V = require('../../web/village/core.js');
     const h = V.newGame(14);
     for (const id of V.BUILDING_IDS) {
+      if (V.BUILDINGS[id].after === 'harvest') continue; // the lake has its own check
       h.built[id].done = true;
       for (const r of Object.keys(h.built[id].paid)) h.built[id].paid[r] = V.BUILDINGS[id].cost[r];
     }

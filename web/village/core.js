@@ -43,6 +43,8 @@
     coins: { name: 'Монеты' },
     grapes: { name: 'Виноград' },
     juice: { name: 'Сок' },
+    fish: { name: 'Рыба' },
+    smoked: { name: 'Копчёная рыба' },
   };
   const RES_IDS = Object.keys(RESOURCES);
 
@@ -55,6 +57,8 @@
     bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter'] },
     // Apples ripen in summer and autumn only; an apple tree is bare the rest of the year.
     apple: { name: 'Яблоня', res: 'apples', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter', 'spring'] },
+    // A shoal of fish by the lake shore: it stands on a fixed water tile ('f' in MAP), it is never scattered.
+    shoal: { name: 'Косяк рыбы', res: 'fish', hp: 3, tool: 'rod', regrow: [150, 300] },
   };
 
   // Level 2 needs the workbench (home), level 3 needs the forge. The shovel starts at 0 and comes with the bridge.
@@ -100,6 +104,16 @@
       id: 'harvest', ch: 'U', name: 'Дом урожая', cost: { planks: 280, bricks: 220, juice: 30, honey: 60, apples: 60, vegetables: 80 },
       needs: ['press', 'house4', 'house5'], effect: 'harvest', after: 'festival',
     },
+    // After the harvest festival: the lake beyond the old forest. `after: 'harvest'` keeps these out of the hamlet.
+    glade: { id: 'glade', ch: 'o', name: 'Просека к озеру', cost: { wood: 300, stone: 200 }, needs: ['harvest'], effect: 'glade', after: 'harvest' },
+    pier: { id: 'pier', ch: 'j', name: 'Мостки', cost: { planks: 200, wood: 150 }, needs: ['glade'], effect: 'pier', after: 'harvest' },
+    smokehouse: { id: 'smokehouse', ch: 'X', name: 'Коптильня', cost: { bricks: 160, stone: 150, planks: 80 }, needs: ['pier'], effect: 'smokehouse', after: 'harvest' },
+    house6: { id: 'house6', ch: '6', name: 'Дом рыбака', cost: { planks: 260, bricks: 180, fish: 40 }, needs: ['pier'], effect: 'villager', role: 'fisher', after: 'harvest' },
+    boathouse: { id: 'boathouse', ch: 'L', name: 'Лодочный сарай', cost: { planks: 240, wood: 120 }, needs: ['pier'], bought: 'boat', effect: 'boathouse', after: 'harvest' },
+    pavilion: {
+      id: 'pavilion', ch: 'Q', name: 'Беседка на воде', cost: { planks: 300, bricks: 200, smoked: 40, juice: 30, honey: 40, coins: 120 },
+      needs: ['smokehouse', 'house6', 'boathouse'], effect: 'lanterns', after: 'harvest',
+    },
   };
   const BUILDING_IDS = Object.keys(BUILDINGS);
   const BARN_UPGRADE = { planks: 100, bricks: 40 };
@@ -122,6 +136,7 @@
     potter: { name: 'Гончар', res: 'clay', rate: 0.15 },
     beekeeper: { name: 'Пасечник', res: 'honey', rate: 0.1, rests: ['winter'] },
     gardener: { name: 'Садовник', res: 'apples', rate: 0.1, rests: ['winter'] }, // keeps apples in the cellar till spring
+    fisher: { name: 'Рыбак', res: 'fish', rate: 0.1 }, // all year: through a hole in the ice in winter
   };
   const MILL_BONUS = 1.5;
   // Orders from the villagers, posted on the board at the market rows: a few goods for coins.
@@ -176,6 +191,8 @@
     north: { tree: 18, bush: 8, rock: 2 },
     east: { rock: 14, clay: 12, tree: 4, bush: 3 },
     hamlet: { apple: 8, tree: 8, bush: 5, rock: 3 },
+    // Last, and from its own generator (LAKE_SALT): the old zones and the random state stay as they were.
+    lake: { tree: 10, rock: 5, bush: 5 },
   };
 
   // ── Map ──
@@ -184,6 +201,9 @@
   // ^  the hill east of the village (never walkable)   t  the trail over it (blocked until the road is built)
   // W H A S K 1 2 3 F M C G P R V D 4 5 U  ruin footprints (see BUILDINGS[].ch)
   // g  a garden plot (part of the garden, never walkable)
+  // &  the old forest south of the village (never walkable)   o  the clearing through it (blocked until the glade)
+  // j  the pier site (water until the pier is built)          f  a fishing spot (water with a shoal of fish)
+  // X 6 L Q  the lake's ruin footprints
   const MAP = [
     '................................................^^^.............',
     '.......:::::....................................^^^.............',
@@ -221,6 +241,20 @@
     '..............CCC...........:~~~:...............^^^.............',
     '............................:~~~:...............^^^.............',
     '............................:~~~:...............^^^.............',
+    '&&&&&&&&&&&&&&ooo&&&&&&&&&&&&~~~&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&',
+    '&&&&&&&&&&&&&&ooo&&&&&&&&&&&&~~~&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&',
+    '............................:~~~:...............................',
+    '............................:~~~:...............................',
+    '..................:::::::::::~~~:::::::::::::::.................',
+    '........XX........:~~~~~j~~~~~~~~~f~~~~~f~~~~~:.................',
+    '........XX........:~~~~fjf~~~~~~~~~~~~~~~~~~~~:.................',
+    '..................:~~~~~j~~~~~~~~~~~~~~~~~~~~~LLL...............',
+    '..................:~~~~QQQ~~~~~~~~~~~~~~~~~~~~LLL...............',
+    '....66............:f~~~QQQ~~~~~~~~~~~~~~~~~~~~:.................',
+    '....66............:~~~~QQQ~~~~~~~~~~~~~~~~~~~f:.................',
+    '..................:~~~~~~~~~~~~~~~~~~~~~~~~~~~:.................',
+    '.................:::::::::::::::::::::::::::::::................',
+    '................................................................',
   ];
   const W = MAP[0].length;
   const H = MAP.length;
@@ -234,9 +268,13 @@
   // The building whose ruin footprint covers a tile, or null.
   const ruinAt = (x, y) => RUIN_CH[tileAt(x, y)] || null;
   const idx = (x, y) => y * W + x;
-  // Base terrain walkability, ignoring nodes; the bridge site counts only when open.
-  const groundWalkable = (c, bridgeOpen, roadOpen) =>
-    c === '.' || c === ':' || c === '=' || c === '#' || (c === 'b' && bridgeOpen) || (c === 't' && roadOpen);
+  // Base terrain walkability, ignoring nodes. `open` tells which closed passages are open:
+  // { bridge, road, glade, pier } (true for each opened one), or ALL_OPEN / NONE_OPEN.
+  const ALL_OPEN = { bridge: true, road: true, glade: true, pier: true };
+  const NONE_OPEN = {};
+  const groundWalkable = (c, open) =>
+    c === '.' || c === ':' || c === '=' || c === '#'
+    || (c === 'b' && !!open.bridge) || (c === 't' && !!open.road) || (c === 'o' && !!open.glade) || (c === 'j' && !!open.pier);
 
   // Tiles of each ruin footprint, keyed by building id.
   const FOOTPRINTS = {};
@@ -250,6 +288,10 @@
   const PLOTS = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === 'g') PLOTS.push({ x, y });
   const plotAt = (x, y) => PLOTS.findIndex((p) => p.x === x && p.y === y);
+
+  // Fishing spots in reading order, each with a shoal node of its own.
+  const SPOTS = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === 'f') SPOTS.push({ x, y });
 
   function flood(start, pass) {
     const seen = new Uint8Array(W * H);
@@ -269,16 +311,17 @@
     return { seen, count };
   }
 
-  // Zones: land reachable from the start without the bridge is west; the hamlet lies past the hill (x ≥ HAMLET_X);
-  // the rest is north (above the river) or east.
+  // Zones: the lake lies past the old forest (y ≥ LAKE_Y); land reachable from the start without the bridge is west;
+  // the hamlet lies past the hill (x ≥ HAMLET_X); the rest is north (above the river) or east.
   const HAMLET_X = 48;
+  const LAKE_Y = 36;
   const ZONES = new Array(W * H).fill(null);
   {
-    const west = flood(START, (x, y) => groundWalkable(MAP[y][x], false)).seen;
+    const west = flood(START, (x, y) => groundWalkable(MAP[y][x], NONE_OPEN)).seen;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const c = MAP[y][x];
-      if (c === '~' || c === 'b' || c === '^' || c === 't') continue;
-      ZONES[idx(x, y)] = west[idx(x, y)] ? 'west' : x >= HAMLET_X ? 'hamlet' : y < 8 ? 'north' : 'east';
+      if ('~b^t&ojf'.includes(c)) continue;
+      ZONES[idx(x, y)] = y >= LAKE_Y ? 'lake' : west[idx(x, y)] ? 'west' : x >= HAMLET_X ? 'hamlet' : y < 8 ? 'north' : 'east';
     }
   }
   const zoneAt = (x, y) => (inMap(x, y) ? ZONES[idx(x, y)] : null);
@@ -293,11 +336,14 @@
 
   // Grass tiles where a node may ever stand: away from paths (grass only), the square,
   // ruins (1 tile buffer, so each stays reachable), the bridge approach (2 tiles) and the start.
+  // The lake's passages and ruins keep their buffers only in the lake rows, so the old sites stay the same.
+  const LAKE_CH = new Set(BUILDING_IDS.filter((id) => BUILDINGS[id].after === 'harvest').map((id) => BUILDINGS[id].ch));
   const NODE_SITES = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (MAP[y][x] !== '.') continue;
-    if (near(x, y, 2, (c) => c === 'b' || c === 't')) continue;
-    if (near(x, y, 1, (c) => c === '#' || c === 'g' || RUIN_CH[c])) continue;
+    const lakeRow = y >= LAKE_Y;
+    if (near(x, y, 2, (c) => c === 'b' || c === 't' || (lakeRow && (c === 'o' || c === 'j')))) continue;
+    if (near(x, y, 1, (c) => c === '#' || c === 'g' || (RUIN_CH[c] && (lakeRow || !LAKE_CH.has(c))))) continue;
     if (Math.abs(x - START.x) <= 1 && Math.abs(y - START.y) <= 1) continue;
     NODE_SITES.push({ x, y, zone: ZONES[idx(x, y)] });
   }
@@ -327,15 +373,18 @@
   // ── Nodes ──
   // Scatter nodes by seed. A node never touches another one (8-neighbourhood) and never cuts off
   // walkable ground (checked by flood fill with the bridge open), so every node and every tile stays reachable.
-  function scatterNodes(R) {
+  // The lake zone is shuffled by its own generator, so adding it changed neither the old layout nor the state of R.
+  const LAKE_SALT = 0x1a4e;
+  function scatterNodes(R, seed) {
     const blocked = new Uint8Array(W * H);
-    const pass = (x, y) => !blocked[idx(x, y)] && groundWalkable(MAP[y][x], true, true);
+    const pass = (x, y) => !blocked[idx(x, y)] && groundWalkable(MAP[y][x], ALL_OPEN);
     let reach = flood(START, pass).count;
     const nodes = [];
     for (const zone of Object.keys(ZONE_NODES)) {
+      const R0 = zone === 'lake' ? rng((seed ^ LAKE_SALT) >>> 0) : R;
       const sites = NODE_SITES.filter((t) => t.zone === zone);
       for (let i = sites.length - 1; i > 0; i--) {
-        const j = Math.floor(R() * (i + 1));
+        const j = Math.floor(R0() * (i + 1));
         [sites[i], sites[j]] = [sites[j], sites[i]];
       }
       let k = 0;
@@ -353,6 +402,8 @@
         }
       }
     }
+    // Shoals on their fixed spots, after everything scattered.
+    for (const { x, y } of SPOTS) nodes.push({ id: nodes.length, kind: 'shoal', x, y, hp: NODE_KINDS.shoal.hp, regrowAt: null });
     return nodes;
   }
 
@@ -387,7 +438,7 @@
     if (!Number.isFinite(seed)) seed = Math.floor(Math.random() * 4294967296);
     seed = seed >>> 0;
     const R = rng(seed);
-    const nodes = scatterNodes(R);
+    const nodes = scatterNodes(R, seed);
     // Fruit that is out of season at the start waits for its season.
     for (const n of nodes) {
       const rests = NODE_KINDS[n.kind].rests;
@@ -421,13 +472,18 @@
 
   const bridgeOpen = (s) => !!(s.built.bridge && s.built.bridge.done);
   const roadOpen = (s) => !!(s.built.road && s.built.road.done);
+  const done = (s, id) => !!(s.built[id] && s.built[id].done);
+  // The building that opens each closed passage tile.
+  const PASSAGE = { b: 'bridge', t: 'road', o: 'glade', j: 'pier' };
 
   // Walkable for the player: in the map, not water, not a ruin or building, not a standing node.
   // The bridge site is water until the bridge is restored.
   function isWalkable(s, x, y) {
     x = Math.floor(x); y = Math.floor(y);
     const c = tileAt(x, y);
-    if (c === null || !groundWalkable(c, !!s && bridgeOpen(s), !!s && roadOpen(s))) return false;
+    if (c === null) return false;
+    const gate = PASSAGE[c];
+    if (gate ? !(s && done(s, gate)) : !groundWalkable(c, NONE_OPEN)) return false;
     const n = s ? nodeAt(s, x, y) : null;
     return !(n && n.hp > 0);
   }
@@ -1334,7 +1390,7 @@
     VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS, PRODUCERS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
-    MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, FAIR, BIG_BUCKET, fairOpen, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
+    MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, LAKE_Y, SPOTS, FAIR, BIG_BUCKET, fairOpen, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
     placeDecor, save, load,

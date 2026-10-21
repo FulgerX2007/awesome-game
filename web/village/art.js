@@ -193,7 +193,8 @@
 
   // ───────────── Ground (cached in chunks) ─────────────
   // Terrain classes: g grass (ruin footprints too), s sand, w water (bridge site too), p path, q square.
-  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q', g: 'f', '^': 'h', t: 'p' };
+  // The lake: forest & (drawn like the ridge for now), the clearing o (a path), the pier site j and fishing spots f (water).
+  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q', g: 'f', '^': 'h', t: 'p', '&': 'h', o: 'p', j: 'w', f: 'w' };
   const inSquare = (x, y) => x >= SQ.x0 && x <= SQ.x1 && y >= SQ.y0 && y <= SQ.y1;
   // Ruin footprints sit on grass, except the well, which stands in the middle of the cobbled square.
   const terr = (x, y) => {
@@ -744,6 +745,7 @@
   }
 
   function drawNode(n) {
+    if (n.kind === 'shoal') return; // TODO(lake plan, task 8): ripples and fish shadows
     let cx = (n.x + 0.5) * T;
     const by = (n.y + 1) * T - 5;
     const sh = fx.shake.get(n.id);
@@ -1066,6 +1068,7 @@
     potter: { shirt: '#7f6aa8', pants: '#5a4a3a', skin: '#f3cfa6', hat: 'scarf', hatColor: '#d8506a', hair: '#8a5a32', apron: '#e9dcc2' },
     beekeeper: { shirt: '#f0e6c8', pants: '#6b5a3a', skin: '#e8b98f', hat: 'straw', hair: '#5a3a20', apron: '#e2c26a' },
     gardener: { shirt: '#5f9446', pants: '#4a3d30', skin: '#f1c9a0', hat: 'scarf', hatColor: '#e8892e', hair: '#7a4a2a', apron: '#c9b28a' },
+    fisher: { shirt: '#3d6a8a', pants: '#4a4238', skin: '#e8b98f', hat: 'cap', hatColor: '#2f4f5f', hair: '#6a4a2a', apron: '#7f8a5a' },
   };
 
 

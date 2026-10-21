@@ -48,7 +48,8 @@ test(`the bot reaches both festivals with no deadlock on ${SEEDS.length} seeds`,
     assert.ok(r.festival, `seed ${seed}: festival reached (stopped at ${fmt(r.t)})`);
     assert.ok(r.festivalAt <= 4 * 3600, `seed ${seed}: festival at ${fmt(r.festivalAt)}`);
     assert.ok(r.harvest, `seed ${seed}: harvest festival reached (stopped at ${fmt(r.t)})`);
-    for (const id of Object.keys(V.BUILDINGS)) assert.ok(r.s.built[id].done, `seed ${seed}: ${id} built`);
+    // TODO(lake plan, task 6): the bot learns the lake chapter; until then it stops at the harvest festival.
+    for (const id of Object.keys(V.BUILDINGS)) if (V.BUILDINGS[id].after !== 'harvest') assert.ok(r.s.built[id].done, `seed ${seed}: ${id} built`);
     assert.ok(r.t <= 6 * 3600, `seed ${seed}: harvest festival at ${fmt(r.t)}`);
     assert.ok(maxGap(r.log) <= GAP, `seed ${seed}: longest gap ${fmt(maxGap(r.log))}`);
   }
@@ -71,6 +72,7 @@ test('after the bridge every resource node can be reached (BFS from the start)',
     }
     for (const n of s.nodes) {
       if (V.zoneAt(n.x, n.y) === 'hamlet' && !s.built.road.done) continue; // over the hill: after the road
+      if ((n.kind === 'shoal' || V.zoneAt(n.x, n.y) === 'lake') && !s.built.pier.done) continue; // past the forest: after the glade and the pier
       const ok = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has(`${n.x + dx},${n.y + dy}`));
       assert.ok(ok, `seed ${seed}: node ${n.id} (${n.kind} at ${n.x},${n.y}) reachable`);
     }

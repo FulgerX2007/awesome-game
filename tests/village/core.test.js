@@ -6,12 +6,12 @@ const V = require('../../web/village/core.js');
 const near = (n, x, y, r) => Math.abs(n.x - x) <= r && Math.abs(n.y - y) <= r;
 const bridgeTiles = V.FOOTPRINTS.bridge;
 
-test('map is 64×36 with only known tile characters', () => {
+test('map is 64×50 with only known tile characters', () => {
   assert.equal(V.W, 64);
-  assert.equal(V.H, 36);
+  assert.equal(V.H, 50);
   for (const row of V.MAP) {
     assert.equal(row.length, 64);
-    assert.match(row, /^[.~:=#bWHASK123FMCGgPR^tVD45U]+$/);
+    assert.match(row, /^[.~:=#bWHASK123FMCGgPR^tVD45U&ojfX6LQ]+$/);
   }
   for (const id of Object.keys(V.BUILDINGS)) assert.ok(V.FOOTPRINTS[id].length > 0, `${id} has a footprint`);
 });
@@ -28,6 +28,7 @@ test('node counts per zone match ZONE_NODES', () => {
     const s = V.newGame(seed);
     const counts = {};
     for (const n of s.nodes) {
+      if (n.kind === 'shoal') continue; // fixed on the fishing spots, see lake.test.js
       const z = V.zoneAt(n.x, n.y);
       counts[z] = counts[z] || {};
       counts[z][n.kind] = (counts[z][n.kind] || 0) + 1;
@@ -42,11 +43,12 @@ test('nodes avoid paths, sand, square, ruins, the bridge approach and the start'
   for (const seed of [1, 2, 3, 99]) {
     const s = V.newGame(seed);
     for (const n of s.nodes) {
+      if (n.kind === 'shoal') { assert.equal(V.tileAt(n.x, n.y), 'f', `shoal ${n.id} on a fishing spot`); continue; }
       assert.equal(V.tileAt(n.x, n.y), '.', `node ${n.id} on grass`);
       for (const b of bridgeTiles) assert.ok(!near(n, b.x, b.y, 2), `node ${n.id} near the bridge`);
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
         const c = V.tileAt(n.x + dx, n.y + dy);
-        assert.ok(c === null || !/[#WHASK123FMC]/.test(c), `node ${n.id} touches the square or a ruin`);
+        assert.ok(c === null || !/[#WHASK123FMCX6LQ]/.test(c), `node ${n.id} touches the square or a ruin`);
       }
       assert.ok(!near(n, V.START.x, V.START.y, 1));
       if (V.NODE_KINDS[n.kind].rests && V.NODE_KINDS[n.kind].rests.includes(V.clock(0).season)) {
@@ -80,11 +82,10 @@ test('the start tile is walkable, water/ruins/nodes/bridge site block', () => {
   assert.equal(V.isWalkable(s, V.W, 0), false);
 });
 
-test('all walkable ground is connected with every node standing (bridge and road open)', () => {
+test('all walkable ground is connected with every node standing (every passage open)', () => {
   for (const seed of [1, 5, 42]) {
     const s = V.newGame(seed);
-    s.built.bridge.done = true;
-    s.built.road.done = true;
+    for (const id of ['bridge', 'road', 'glade', 'pier']) s.built[id].done = true;
     const seen = new Set([`${V.START.x},${V.START.y}`]);
     const q = [[V.START.x, V.START.y]];
     while (q.length) {
@@ -178,7 +179,7 @@ test('load of garbage, null or a foreign version gives a new game with recovered
     const s = V.load(bad);
     assert.equal(s.recovered, true, `input ${JSON.stringify(bad)}`);
     assert.equal(s.v, V.VERSION);
-    assert.equal(s.nodes.length, Object.values(V.ZONE_NODES).reduce((a, z) => a + Object.values(z).reduce((b, n) => b + n, 0), 0));
+    assert.equal(s.nodes.length, Object.values(V.ZONE_NODES).reduce((a, z) => a + Object.values(z).reduce((b, n) => b + n, 0), 0) + V.SPOTS.length);
     assert.equal(V.save(s).recovered, undefined, 'the flag is not saved');
   }
 });
@@ -209,7 +210,7 @@ test('missing fields get defaults and junk is dropped', () => {
   assert.deepEqual([junk.player.x, junk.player.y], [fresh.player.x, fresh.player.y]);
   assert.equal(junk.player.junk, undefined, 'unknown player keys are dropped');
   assert.equal(V.save(junk).player.junk, undefined);
-  assert.deepEqual(junk.res, { wood: 0, stone: 0, clay: 0, berries: 4, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0, grapes: 0, juice: 0 });
+  assert.deepEqual(junk.res, { wood: 0, stone: 0, clay: 0, berries: 4, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0, grapes: 0, juice: 0, fish: 0, smoked: 0 });
   assert.deepEqual(junk.tools, { axe: 1, pick: 2, shovel: 0, basket: 1 });
   assert.deepEqual(junk.nodes, fresh.nodes, 'node layout comes from the seed');
   assert.equal(junk.built.well.done, false);
@@ -220,7 +221,7 @@ test('missing fields get defaults and junk is dropped', () => {
   assert.deepEqual(junk.villagers, [], 'villagers come only from done houses');
   assert.deepEqual(junk.decor, [{ kind: 'bench', x: 13, y: 20 }], 'square tiles only, one per tile');
   assert.equal(junk.festival, false);
-  assert.deepEqual(junk.stats.gathered, { wood: 5, stone: 0, clay: 0, berries: 0, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0, grapes: 0, juice: 0 });
+  assert.deepEqual(junk.stats.gathered, { wood: 5, stone: 0, clay: 0, berries: 0, planks: 0, bricks: 0, vegetables: 0, honey: 0, apples: 0, coins: 0, grapes: 0, juice: 0, fish: 0, smoked: 0 });
   assert.equal(junk.stats.playTime, 0);
 });
 
@@ -261,7 +262,8 @@ test('festival and done buildings must agree with the dependencies', () => {
   // Villagers: wrong roles, duplicates and junk are dropped; done houses missing one get it back.
   const mixed = V.load({ ...V.save(all), villagers: [{ role: 'mason', house: 'house2' }, { role: 'king', house: 'house1' }, { role: 'mason', house: 'house1' }, { role: 'mason', house: 'house2' }, 5] });
   assert.deepEqual(mixed.villagers, [{ role: 'mason', house: 'house2' }, { role: 'woodcutter', house: 'house1' },
-    { role: 'potter', house: 'house3' }, { role: 'beekeeper', house: 'house4' }, { role: 'gardener', house: 'house5' }]);
+    { role: 'potter', house: 'house3' }, { role: 'beekeeper', house: 'house4' }, { role: 'gardener', house: 'house5' },
+    { role: 'fisher', house: 'house6' }]);
   assert.ok(mixed.bought.includes('cuttings'), 'a standing vineyard means the cuttings were bought');
   assert.equal(mixed.harvestFestival, true, 'the harvest festival follows its hall');
 });

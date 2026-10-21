@@ -80,7 +80,8 @@ test('index.html uses only relative paths and needs no network', () => {
   const css = fs.readFileSync(path.join(WEB, 'village', 'style.css'), 'utf8');
   // The resource icons are inline SVGs (data URIs): they stay in the file, so they are the only url() allowed.
   const icons = css.match(/url\("data:image\/svg\+xml,[^"]*"\)/g) || [];
-  assert.ok(icons.length >= 12, 'every resource has an inline icon');
+  assert.ok(icons.length >= V.RES_IDS.length, 'every resource has an inline icon');
+  for (const r of V.RES_IDS) assert.ok(css.includes(`.ico.${r} {`), `icon for ${r}`);
   assert.doesNotMatch(html + css.replace(/url\("data:image\/svg\+xml,[^"]*"\)/g, ''), /@import|url\(|https?:/, 'no CSS imports, url() or links out of the page');
 });
 

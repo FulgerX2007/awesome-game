@@ -220,29 +220,32 @@
 - Modify: `tests/village/core.test.js`, `tests/village/gather.test.js`, `tests/village/hamlet.test.js`,
   `tests/village/balance.test.js`
 
-- [ ] дописать 14 строк к `MAP`:
+- [x] дописать 14 строк к `MAP`:
   - лес `&` с просекой `ooo`;
   - река водой через лес;
   - берег, озеро, мостки `j`, места клёва `f`;
   - руины четырёх зданий;
   - обновить легенду карты
-- [ ] данные шести зданий (`ch`, `cost`, `needs`, `after: 'harvest'`, `bought`) без эффектов
-- [ ] `groundWalkable`/`isWalkable`: `o` открыта после `glade`, `j` — после `pier`
-- [ ] `ZONES`: пропуск `& o j f`, зона `lake` первой; `ZONE_NODES.lake` последней (вместится на свободные `.`)
-- [ ] `NODE_SITES`: буферы `o`/`j` и новых руин только при `y ≥ LAKE_Y`; раскладка `lake` своим генератором
+- [x] данные шести зданий (`ch`, `cost`, `needs`, `after: 'harvest'`, `bought`) без эффектов
+- [x] `groundWalkable`/`isWalkable`: `o` открыта после `glade`, `j` — после `pier`
+- [x] `ZONES`: пропуск `& o j f`, зона `lake` первой; `ZONE_NODES.lake` последней (вместится на свободные `.`)
+- [x] `NODE_SITES`: буферы `o`/`j` и новых руин только при `y ≥ LAKE_Y`; раскладка `lake` своим генератором
       `rng(seed ^ LAKE_SALT)`
-- [ ] узел `shoal` и `SPOTS`; узлы `shoal` после случайных
-- [ ] RO для новых имён зданий и узла в `lang.js`; заглушки `BOX` для новых зданий в `art.js` (простая руина),
+- [x] узел `shoal` и `SPOTS`; узлы `shoal` после случайных
+- [x] RO для новых имён зданий и узла в `lang.js`; заглушки `BOX` для новых зданий в `art.js` (простая руина),
       чтобы страница рисовалась
-- [ ] обновить старые тесты:
+- [x] обновить старые тесты:
   - `core.test.js`: высота, регэксп, счёт узлов без `shoal`, связность с открытыми `glade`/`pier`;
   - `gather.test.js`: набор зон с `lake`, достижимость с `glade`/`pier`;
   - `hamlet.test.js:28`: только `y < LAKE_Y`;
   - `balance.test.js:51`: пока только здания без `after: 'harvest'` (до задачи 6)
-- [ ] тест `lake.test.js`: лес закрывает озеро везде, кроме просеки, и река не даёт обхода; узлы `lake` за лесом
+- [x] тест `lake.test.js`: лес закрывает озеро везде, кроме просеки, и река не даёт обхода; узлы `lake` за лесом
       и достижимы; каждое `f` — `shoal` на воде с соседней клеткой (DIRS4) на берегу или мостках
-- [ ] тест: `layout.test.js` зелёный — старые узлы и `s.rng` не изменились
-- [ ] run tests (с e2e) - must pass before task 3
+- [x] тест: `layout.test.js` зелёный — старые узлы и `s.rng` не изменились
+- [x] ➕ сюда же перенесены данные из задачи 4: ресурсы `fish`/`smoked` (без них вклады в здания с рыбой ломаются),
+      слоты HUD и иконки, житель `fisher` и `LOOKS.fisher`, RO для всех имён главы; проверка хутора в `smoke.cjs`
+      строит только здания до урожая
+- [x] run tests (с e2e) - must pass before task 3
 
 ### Task 3: Chapter gating — effects, goals, the finale
 
