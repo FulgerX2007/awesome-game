@@ -350,10 +350,11 @@ async function edgeChecks() {
     await ctx.close();
   }
   {
-    // The hamlet after the harvest festival, every building standing, drawn without errors.
+    // The hamlet after the harvest festival, every building up to it standing, drawn without errors.
     const V = require('../../web/village/core.js');
     const h = V.newGame(14);
     for (const id of V.BUILDING_IDS) {
+      if (V.BUILDINGS[id].after === 'harvest') continue; // the lake has its own check
       h.built[id].done = true;
       for (const r of Object.keys(h.built[id].paid)) h.built[id].paid[r] = V.BUILDINGS[id].cost[r];
     }
@@ -370,6 +371,55 @@ async function edgeChecks() {
     check(s.harvestFestival === true && s.villagers.length === 5, 'the hamlet loads with five villagers', JSON.stringify(s.villagers));
     check(errors.length === 0, 'no console errors (hamlet)', errors.join('\n'));
     await ctx.close();
+  }
+  {
+    // The lake: before the glade (brush in the clearing), then open with the pier half laid; drawn without errors.
+    const V = require('../../web/village/core.js');
+    const lake = (open, t) => {
+      const h = V.newGame(14);
+      for (const id of V.BUILDING_IDS) {
+        if (V.BUILDINGS[id].after === 'harvest' && !open.includes(id)) continue;
+        h.built[id].done = true;
+        for (const r of Object.keys(h.built[id].paid)) h.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+      }
+      h.festival = true; h.harvestFestival = true; h.bought = ['cuttings'];
+      if (t !== undefined) h.t = t;
+      return h;
+    };
+    const shots = [
+      ['forest', lake([]), 15.5, 34.5],
+      ['shore', (() => { const h = lake(['glade']); h.built.pier.paid.planks = 120; return h; })(), 24.5, 40.5],
+      ['winter', lake(['glade', 'pier'], V.DAY * 9 + V.DAY * 0.3), 24.5, 40.5],
+      ['works', (() => {
+        const h = lake(['glade', 'pier', 'smokehouse']);
+        h.bought.push('boat');
+        h.built.house6.paid.planks = 100; h.built.pavilion.paid.planks = 150;
+        return h;
+      })(), 12.5, 43.5],
+      ['lanterns', (() => {
+        const h = lake(['glade', 'pier', 'smokehouse', 'house6', 'boathouse', 'pavilion'], V.DAY * 4 + V.DAY * 0.8);
+        h.bought.push('boat');
+        return h;
+      })(), 22.5, 40.5],
+    ];
+    for (const [name, h, x, y] of shots) {
+      h.player.x = x; h.player.y = y;
+      const data = JSON.stringify({ ...V.save(h), savedAt: Date.now() });
+      const { ctx, page, errors } = await preparedPage(([key, d]) => {
+        if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, d); sessionStorage.setItem('prepared', '1'); }
+      }, [SAVE_KEY, data]);
+      await sleep(700);
+      const fill = await canvasFilled(page);
+      check(fill.ok, `the lake is drawn (${name})`, JSON.stringify(fill));
+      if (name === 'lanterns') {
+        const sv = await readSave(page);
+        check(sv.lanternFestival === true && sv.villagers.length === 6, 'the lake loads with its festival and six villagers', JSON.stringify(sv.villagers));
+        check(!(await modalText(page)).includes('фонарик'), 'the festival window does not come back on load');
+      }
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/lake-${name}.png` });
+      check(errors.length === 0, `no console errors (lake, ${name})`, errors.join('\n'));
+      await ctx.close();
+    }
   }
   {
     // A village from version 1 with a cloud code: kept aside, the code forgotten, a friendly toast.
@@ -653,6 +703,86 @@ async function edgeChecks() {
   }
 }
 
+// The lake chapter on a phone: a version 3 save goes on to the lake; fishing with the bar and with taps.
+async function lakePhoneChecks() {
+  const V = require('../../web/village/core.js');
+  const village = (lake) => {
+    const h = V.newGame(14);
+    for (const id of V.BUILDING_IDS) {
+      if (V.BUILDINGS[id].after === 'harvest' && !lake.includes(id)) continue;
+      h.built[id].done = true;
+      for (const r of Object.keys(h.built[id].paid)) h.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+    }
+    h.festival = true; h.harvestFestival = true; h.bought = ['cuttings'];
+    return h;
+  };
+  const phone = async (save) => {
+    const p = await newPage({ width: 390, height: 844 }, { hasTouch: true, isMobile: true, deviceScaleFactor: 3 });
+    await p.ctx.addInitScript(({ key, raw }) => {
+      if (!sessionStorage.getItem('prepared')) { localStorage.setItem(key, raw); sessionStorage.setItem('prepared', '1'); }
+    }, { key: SAVE_KEY, raw: JSON.stringify(save) });
+    await p.page.goto(`${BASE}/village/`, { waitUntil: 'load' });
+    await p.page.waitForFunction(() => window.Village && document.getElementById('scene').width > 1);
+    await sleep(500);
+    return p;
+  };
+  {
+    // A save from before the lake (version 3, no lake fields) carries on with the new chapter.
+    const h = village([]);
+    const v3 = { ...V.save(h), v: 3, savedAt: Date.now() };
+    delete v3.lanternFestival;
+    for (const id of V.BUILDING_IDS) if (V.BUILDINGS[id].after === 'harvest') delete v3.built[id];
+    const { ctx, page, errors } = await phone(v3);
+    check((await modalText(page)) === '', 'a version 3 save loads without the "new version" window', await modalText(page));
+    const goal = await page.textContent('#goal-text');
+    check(goal.includes('Просека'), 'the hint leads to the clearing', goal);
+    const s = await readSave(page);
+    check(s.v === V.VERSION && s.harvestFestival === true && s.villagers.length === 5, 'the old village is all there', JSON.stringify({ v: s.v, villagers: s.villagers.length }));
+    check(errors.length === 0, 'no console errors (v3 save)', errors.join('\n'));
+    await ctx.close();
+  }
+  {
+    const h = village(['glade', 'pier']);
+    const spot = V.SPOTS.find((p) => V.tileAt(p.x, p.y - 1) === ':' && p.y === 41);
+    h.player.x = spot.x + 0.5; h.player.y = spot.y - 0.5;
+    h.t = V.DAY * 13 + V.DAY * 0.2; // summer, morning
+    const { ctx, page, errors } = await phone({ ...V.save(h), savedAt: Date.now() });
+    const tapSpot = async () => {
+      const pt = await page.evaluate(({ x, y }) => {
+        const VV = window.VillageView, V = window.Village;
+        const c = document.getElementById('scene').getBoundingClientRect();
+        const T = VV.TILE;
+        const cam = VV.clampCamera((x + 0.5) * T, (y - 0.5) * T, Math.round(c.width), Math.round(c.height), V.W * T, V.H * T);
+        return { x: c.left + (x + 0.5) * T - cam.x, y: c.top + (y + 0.5) * T - cam.y };
+      }, spot);
+      await page.touchscreen.tap(pt.x, pt.y);
+      return pt;
+    };
+    const pt = await tapSpot();
+    const bar = await waitFor(() => page.evaluate(() => !document.getElementById('fishbar').hidden), 5000, 100);
+    check(bar, 'a tap on the fishing spot casts the line: the fishing bar shows');
+    const bite = await waitFor(() => page.evaluate(() => document.getElementById('fishbar').classList.contains('bite')), 12000, 50);
+    check(bite, 'a bite lights up the bar');
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/lake-phone-bite.png` });
+    await page.tap('#btn-strike');
+    const caught = await waitFor(async () => Number(await page.textContent('#r-fish')) > 0, 3000, 100);
+    check(caught, '«Подсечь» on the bite lands a fish', await page.textContent('#r-fish'));
+    // The next bite: a tap on the scene strikes too.
+    const bite2 = await waitFor(() => page.evaluate(() => document.getElementById('fishbar').classList.contains('bite')), 12000, 50);
+    const fish1 = Number(await page.textContent('#r-fish'));
+    if (bite2) await page.touchscreen.tap(pt.x, pt.y - 60);
+    const caught2 = await waitFor(async () => Number(await page.textContent('#r-fish')) > fish1, 3000, 100);
+    check(bite2 && caught2, 'a tap on the scene during a bite strikes', `${fish1} → ${await page.textContent('#r-fish')}`);
+    await page.tap('#btn-reel');
+    const gone = await waitFor(() => page.evaluate(() => document.getElementById('fishbar').hidden), 2000, 50);
+    check(gone, '«Смотать» reels in and hides the bar');
+    const s = await readSave(page);
+    check(s.res.fish >= 2 && !('fish' in s.player), 'the catch is saved, the line is not', JSON.stringify({ fish: s.res.fish, player: s.player }));
+    check(errors.length === 0, 'no console errors (fishing)', errors.join('\n'));
+    await ctx.close();
+  }
+}
+
 async function main() {
   if (await healthy()) throw new Error(`port ${PORT} is already in use`);
   startServer();
@@ -661,6 +791,7 @@ async function main() {
   browser = await chromium.launch(CHROMIUM ? { executablePath: CHROMIUM } : {});
   await desktopChecks();
   await roPhoneChecks();
+  await lakePhoneChecks();
   await edgeChecks();
 }
 

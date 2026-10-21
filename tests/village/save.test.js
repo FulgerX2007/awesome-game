@@ -16,7 +16,7 @@ test('a save of version 1 gives a new village marked old', () => {
   assert.equal(V.load(JSON.stringify({ v: 1, seed: 7 })).recovered, 'old');
 });
 
-test('a version 2 save loads into version 3: everything but the node layout carries over', () => {
+test('a version 2 save loads into the current version: everything but the node layout carries over', () => {
   const s = V.newGame(9);
   s.res.wood = 77;
   s.built.well.done = true;
@@ -30,6 +30,41 @@ test('a version 2 save loads into version 3: everything but the node layout carr
   assert.equal(back.built.well.done, true);
   assert.equal(back.t, s.t);
   assert.deepEqual(back.nodes.map((n) => [n.kind, n.x, n.y]), V.newGame(9).nodes.map((n) => [n.kind, n.x, n.y]), 'nodes from the seed');
+});
+
+test('a version 3 save (the hamlet done) loads as is, nodes and their state included', () => {
+  const s = V.newGame(11);
+  for (const id of V.BUILDING_IDS) {
+    if (V.BUILDINGS[id].after === 'harvest') continue;
+    s.built[id].done = true;
+    for (const r of Object.keys(s.built[id].paid)) s.built[id].paid[r] = V.BUILDINGS[id].cost[r];
+  }
+  s.bought = ['cuttings'];
+  s.festival = true; s.harvestFestival = true;
+  s.res.coins = 122; s.res.planks = 300;
+  s.t = V.DAY * 30;
+  s.nodes[0].hp = 0; s.nodes[0].regrowAt = s.t + 100;
+  s.nodes[1].hp = 1;
+  const v3 = { ...JSON.parse(JSON.stringify(V.save(s))), v: 3 };
+  delete v3.lanternFestival;
+  for (const id of V.BUILDING_IDS) if (V.BUILDINGS[id].after === 'harvest') delete v3.built[id];
+  const back = V.load(v3);
+  assert.equal(back.recovered, undefined);
+  assert.equal(back.v, V.VERSION);
+  assert.equal(back.harvestFestival, true);
+  assert.equal(back.festival, true);
+  assert.equal(back.lanternFestival, false);
+  assert.equal(back.res.coins, 122);
+  assert.equal(back.villagers.length, 5);
+  assert.equal(back.nodes[0].hp, 0);
+  assert.equal(back.nodes[0].regrowAt, s.t + 100);
+  assert.equal(back.nodes[1].hp, 1);
+});
+
+test('the fishing state is not saved', () => {
+  const s = V.newGame(3);
+  s.player.fish = { id: 0, phase: 'wait', at: 5, misses: 0 };
+  assert.equal('fish' in V.save(s).player, false);
 });
 
 test('junk, future versions and saves without a seed are broken, not old', () => {

@@ -267,8 +267,7 @@ test('a node regrowing on the path makes the player go around', () => {
 test('every zone and every node stays reachable after forced regrowth of all nodes', () => {
   for (const seed of [1, 2, 3]) {
     const s = V.newGame(seed);
-    s.built.bridge.done = true;
-    s.built.road.done = true;
+    for (const id of ['bridge', 'road', 'glade', 'pier']) s.built[id].done = true;
     for (const n of s.nodes) { n.hp = V.NODE_KINDS[n.kind].hp; n.regrowAt = null; }
     const zones = new Set();
     for (const n of s.nodes) {
@@ -277,9 +276,9 @@ test('every zone and every node stays reachable after forced regrowth of all nod
         return V.isWalkable(s, x, y) && V.findPath(s, startTile, { x, y });
       });
       assert.ok(ok, `seed ${seed}: node ${n.id} reachable`);
-      zones.add(V.zoneAt(n.x, n.y));
+      if (n.kind !== 'shoal') zones.add(V.zoneAt(n.x, n.y)); // shoals stand on water, outside every zone
     }
-    assert.deepEqual([...zones].sort(), ['east', 'hamlet', 'north', 'west']);
+    assert.deepEqual([...zones].sort(), ['east', 'hamlet', 'lake', 'north', 'west']);
     for (const id of Object.keys(V.BUILDINGS)) {
       const ok = V.FOOTPRINTS[id].some((f) => DIRS.some(([dx, dy]) => {
         const x = f.x + dx, y = f.y + dy;

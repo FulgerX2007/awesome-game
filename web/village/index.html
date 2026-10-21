@@ -37,6 +37,8 @@
     <div class="res-item" data-res="coins" hidden><dt><i class="ico coins"></i><span class="res-name">Монеты</span></dt><dd><b id="r-coins">0</b><small id="r-coins-rate"></small></dd></div>
     <div class="res-item" data-res="grapes" hidden><dt><i class="ico grapes"></i><span class="res-name">Виноград</span></dt><dd><b id="r-grapes">0</b><small id="r-grapes-rate"></small></dd></div>
     <div class="res-item" data-res="juice" hidden><dt><i class="ico juice"></i><span class="res-name">Сок</span></dt><dd><b id="r-juice">0</b><small id="r-juice-rate"></small></dd></div>
+    <div class="res-item" data-res="fish" hidden><dt><i class="ico fish"></i><span class="res-name">Рыба</span></dt><dd><b id="r-fish">0</b><small id="r-fish-rate"></small></dd></div>
+    <div class="res-item" data-res="smoked" hidden><dt><i class="ico smoked"></i><span class="res-name">Копчёная рыба</span></dt><dd><b id="r-smoked">0</b><small id="r-smoked-rate"></small></dd></div>
   </dl>
 
   <main class="stage">
@@ -48,6 +50,11 @@
       </div>
       <div class="floats" id="floats" aria-hidden="true"></div>
       <div class="toast" id="toast" role="status" hidden></div>
+      <div class="fishbar" id="fishbar" hidden>
+        <span class="fish-text" id="fish-text" aria-live="polite">Ждём поклёвку…</span>
+        <button class="btn primary" id="btn-strike" type="button">Подсечь</button>
+        <button class="btn" id="btn-reel" type="button">Смотать</button>
+      </div>
     </div>
     <button class="act" id="btn-act" type="button">Действие <kbd>E</kbd></button>
   </main>

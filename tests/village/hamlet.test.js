@@ -25,7 +25,7 @@ test('the hill walls off the hamlet except for the trail', () => {
   const s = V.newGame(1);
   assert.ok(trail().length >= 1);
   for (const t of trail()) assert.equal(V.tileAt(t.x, t.y), 't');
-  for (let y = 0; y < V.H; y++) {
+  for (let y = 0; y < V.LAKE_Y; y++) { // below LAKE_Y the old forest walls everything off (lake.test.js)
     const c = V.tileAt(V.HAMLET_X, y);
     assert.ok(c === '^' || c === 't', `row ${y}: ${c}`);
     assert.equal(V.isWalkable(s, V.HAMLET_X, y), false, 'nothing passes before the road');
@@ -104,7 +104,7 @@ test('the chain: road → vineyard → press, the houses, then the harvest hall'
   assert.equal(s.harvestFestival, true);
   assert.deepEqual(s.events.filter((e) => e.type === 'harvest-festival').length, 1);
   assert.equal(build(s, 'harvest'), 'done', 'only once');
-  assert.deepEqual(V.nextGoal(s), { type: 'decor' });
+  assert.equal(V.nextGoal(s).id, 'glade', 'then on to the lake');
 });
 
 test('the vineyard grows grapes except in winter; the press makes juice above the reserve', () => {

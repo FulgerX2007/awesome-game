@@ -6,7 +6,8 @@
 
   // 2: the world clock (days and seasons). Older saves start a new village (load says recovered: 'old').
   // 3: the map grows east (the hamlet). A version 2 save loads as is: only the nodes are laid out anew.
-  const VERSION = 3;
+  // 4: the map grows south (the lake). Version 2 and 3 saves load as they are; the old nodes keep their places.
+  const VERSION = 4;
 
   // ── World clock ──
   // A day is 8 minutes: dawn, 6 minutes of daylight, dusk and night. Three days make a season, four a year.
@@ -42,6 +43,8 @@
     coins: { name: 'Монеты' },
     grapes: { name: 'Виноград' },
     juice: { name: 'Сок' },
+    fish: { name: 'Рыба' },
+    smoked: { name: 'Копчёная рыба' },
   };
   const RES_IDS = Object.keys(RESOURCES);
 
@@ -54,6 +57,8 @@
     bush: { name: 'Ягодный куст', res: 'berries', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter'] },
     // Apples ripen in summer and autumn only; an apple tree is bare the rest of the year.
     apple: { name: 'Яблоня', res: 'apples', hp: 3, tool: 'basket', regrow: [150, 300], rests: ['winter', 'spring'] },
+    // A shoal of fish by the lake shore: it stands on a fixed water tile ('f' in MAP), it is never scattered.
+    shoal: { name: 'Косяк рыбы', res: 'fish', hp: 3, tool: 'rod', regrow: [150, 300] },
   };
 
   // Level 2 needs the workbench (home), level 3 needs the forge. The shovel starts at 0 and comes with the bridge.
@@ -62,11 +67,18 @@
     pick: { name: 'Кирка', node: 'rock', start: 1, costs: { 2: { wood: 40, stone: 20 }, 3: { bricks: 50, planks: 100 } } },
     shovel: { name: 'Лопата', node: 'clay', start: 0, costs: { 2: { wood: 50 }, 3: { bricks: 40, planks: 80 } } },
     basket: { name: 'Корзина', node: 'bush', start: 1, costs: { 2: { wood: 30 }, 3: { planks: 80 } } },
+    // The rod comes with the pier.
+    rod: { name: 'Удочка', node: 'shoal', start: 0, costs: { 2: { planks: 60, wood: 40 }, 3: { bricks: 40, planks: 80 } } },
   };
   const TOOL_NEEDS = { 2: 'home', 3: 'forge' };
   const TOOL_YIELD = [0, 1, 2, 3];       // per hit, by tool level
   const TOOL_CD = [0.6, 0.6, 0.5, 0.4];  // seconds between hits, by tool level
   const MAX_TOOL = 3;
+
+  // Fishing at a shoal: cast, wait [min, max] seconds for a bite, strike within the rod's window, or the fish
+  // gets away and the line goes back in. A strike before the bite scares the fish: `early` more seconds.
+  // After `giveUp` escapes in a row the player stops (so the game is quiet while nobody is there).
+  const FISHING = { wait: [2, 6], window: [0, 0.9, 1.2, 1.5], early: 1.5, giveUp: 3 };
 
   // ch is the ruin footprint character in MAP. Effects are applied when a building is done.
   // Costs tuned by the balance bot: the festival in about 2¼ h, something new at least every 15 min.
@@ -99,6 +111,16 @@
       id: 'harvest', ch: 'U', name: 'Дом урожая', cost: { planks: 280, bricks: 220, juice: 30, honey: 60, apples: 60, vegetables: 80 },
       needs: ['press', 'house4', 'house5'], effect: 'harvest', after: 'festival',
     },
+    // After the harvest festival: the lake beyond the old forest. `after: 'harvest'` keeps these out of the hamlet.
+    glade: { id: 'glade', ch: 'o', name: 'Просека к озеру', cost: { wood: 300, stone: 200 }, needs: ['harvest'], effect: 'glade', after: 'harvest' },
+    pier: { id: 'pier', ch: 'j', name: 'Мостки', cost: { planks: 200, wood: 150 }, needs: ['glade'], effect: 'pier', after: 'harvest' },
+    smokehouse: { id: 'smokehouse', ch: 'X', name: 'Коптильня', cost: { bricks: 160, stone: 150, planks: 80 }, needs: ['pier'], effect: 'smokehouse', after: 'harvest' },
+    house6: { id: 'house6', ch: '6', name: 'Дом рыбака', cost: { planks: 240, bricks: 140, fish: 40 }, needs: ['pier'], effect: 'villager', role: 'fisher', after: 'harvest' },
+    boathouse: { id: 'boathouse', ch: 'L', name: 'Лодочный сарай', cost: { planks: 240, wood: 120 }, needs: ['pier'], bought: 'boat', effect: 'boathouse', after: 'harvest' },
+    pavilion: {
+      id: 'pavilion', ch: 'Q', name: 'Беседка на воде', cost: { planks: 300, bricks: 200, smoked: 40, juice: 30, honey: 40, coins: 100 },
+      needs: ['smokehouse', 'house6', 'boathouse'], effect: 'lanterns', after: 'harvest',
+    },
   };
   const BUILDING_IDS = Object.keys(BUILDINGS);
   const BARN_UPGRADE = { planks: 100, bricks: 40 };
@@ -121,6 +143,7 @@
     potter: { name: 'Гончар', res: 'clay', rate: 0.15 },
     beekeeper: { name: 'Пасечник', res: 'honey', rate: 0.1, rests: ['winter'] },
     gardener: { name: 'Садовник', res: 'apples', rate: 0.1, rests: ['winter'] }, // keeps apples in the cellar till spring
+    fisher: { name: 'Рыбак', res: 'fish', rate: 0.1 }, // all year: through a hole in the ice in winter
   };
   const MILL_BONUS = 1.5;
   // Orders from the villagers, posted on the board at the market rows: a few goods for coins.
@@ -129,7 +152,7 @@
   const ORDER_GOODS = {
     wood: { n: 30, worth: 1 }, stone: { n: 25, worth: 1 }, clay: { n: 20, worth: 1.2 }, berries: { n: 12, worth: 1.5 },
     planks: { n: 20, worth: 2.5 }, bricks: { n: 15, worth: 3 }, vegetables: { n: 8, worth: 4 }, honey: { n: 6, worth: 5 },
-    apples: { n: 6, worth: 4 },
+    apples: { n: 6, worth: 4 }, fish: { n: 10, worth: 3 }, smoked: { n: 6, worth: 6 },
   };
 
   // The fair: on the first day of every season, in daylight, at the market rows. Each thing is bought once.
@@ -140,6 +163,8 @@
     sweep: { name: 'Колодезный журавль', price: 18 },
     scarecrow: { name: 'Пугало', price: 10 },
     arch: { name: 'Арка с цветами', price: 14 },
+    // Sold only after the harvest festival: the boathouse needs it.
+    boat: { name: 'Лодка', price: 70, after: 'harvest' },
   };
   const BIG_BUCKET = 10;
 
@@ -153,6 +178,7 @@
     sawmill: { from: 'wood', to: 'planks', ratio: 2, rate: 0.3 },
     kiln: { from: 'clay', to: 'bricks', ratio: 2, rate: 0.25 },
     press: { from: 'grapes', to: 'juice', ratio: 3, rate: 0.1 },
+    smokehouse: { from: 'fish', to: 'smoked', ratio: 2, rate: 0.15 },
   };
   const OFFLINE_MAX = 8 * 3600;
 
@@ -175,6 +201,8 @@
     north: { tree: 18, bush: 8, rock: 2 },
     east: { rock: 14, clay: 12, tree: 4, bush: 3 },
     hamlet: { apple: 8, tree: 8, bush: 5, rock: 3 },
+    // Last, and from its own generator (LAKE_SALT): the old zones and the random state stay as they were.
+    lake: { tree: 10, rock: 5, bush: 5 },
   };
 
   // ── Map ──
@@ -183,6 +211,9 @@
   // ^  the hill east of the village (never walkable)   t  the trail over it (blocked until the road is built)
   // W H A S K 1 2 3 F M C G P R V D 4 5 U  ruin footprints (see BUILDINGS[].ch)
   // g  a garden plot (part of the garden, never walkable)
+  // &  the old forest south of the village (never walkable)   o  the clearing through it (blocked until the glade)
+  // j  the pier site (water until the pier is built)          f  a fishing spot (water with a shoal of fish)
+  // X 6 L Q  the lake's ruin footprints
   const MAP = [
     '................................................^^^.............',
     '.......:::::....................................^^^.............',
@@ -220,6 +251,20 @@
     '..............CCC...........:~~~:...............^^^.............',
     '............................:~~~:...............^^^.............',
     '............................:~~~:...............^^^.............',
+    '&&&&&&&&&&&&&&ooo&&&&&&&&&&&&~~~&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&',
+    '&&&&&&&&&&&&&&ooo&&&&&&&&&&&&~~~&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&',
+    '............................:~~~:...............................',
+    '............................:~~~:...............................',
+    '..................:::::::::::~~~:::::::::::::::.................',
+    '........XX........:~~~~~j~~~~~~~~~f~~~~~f~~~~~:.................',
+    '........XX........:~~~~fjf~~~~~~~~~~~~~~~~~~~~:.................',
+    '..................:~~~~~j~~~~~~~~~~~~~~~~~~~~~LLL...............',
+    '..................:~~~~QQQ~~~~~~~~~~~~~~~~~~~~LLL...............',
+    '....66............:f~~~QQQ~~~~~~~~~~~~~~~~~~~~:.................',
+    '....66............:~~~~QQQ~~~~~~~~~~~~~~~~~~~f:.................',
+    '..................:~~~~~~~~~~~~~~~~~~~~~~~~~~~:.................',
+    '.................:::::::::::::::::::::::::::::::................',
+    '................................................................',
   ];
   const W = MAP[0].length;
   const H = MAP.length;
@@ -233,9 +278,13 @@
   // The building whose ruin footprint covers a tile, or null.
   const ruinAt = (x, y) => RUIN_CH[tileAt(x, y)] || null;
   const idx = (x, y) => y * W + x;
-  // Base terrain walkability, ignoring nodes; the bridge site counts only when open.
-  const groundWalkable = (c, bridgeOpen, roadOpen) =>
-    c === '.' || c === ':' || c === '=' || c === '#' || (c === 'b' && bridgeOpen) || (c === 't' && roadOpen);
+  // Base terrain walkability, ignoring nodes. `open` tells which closed passages are open:
+  // { bridge, road, glade, pier } (true for each opened one), or ALL_OPEN / NONE_OPEN.
+  const ALL_OPEN = { bridge: true, road: true, glade: true, pier: true };
+  const NONE_OPEN = {};
+  const groundWalkable = (c, open) =>
+    c === '.' || c === ':' || c === '=' || c === '#'
+    || (c === 'b' && !!open.bridge) || (c === 't' && !!open.road) || (c === 'o' && !!open.glade) || (c === 'j' && !!open.pier);
 
   // Tiles of each ruin footprint, keyed by building id.
   const FOOTPRINTS = {};
@@ -249,6 +298,10 @@
   const PLOTS = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === 'g') PLOTS.push({ x, y });
   const plotAt = (x, y) => PLOTS.findIndex((p) => p.x === x && p.y === y);
+
+  // Fishing spots in reading order, each with a shoal node of its own.
+  const SPOTS = [];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP[y][x] === 'f') SPOTS.push({ x, y });
 
   function flood(start, pass) {
     const seen = new Uint8Array(W * H);
@@ -268,16 +321,17 @@
     return { seen, count };
   }
 
-  // Zones: land reachable from the start without the bridge is west; the hamlet lies past the hill (x ≥ HAMLET_X);
-  // the rest is north (above the river) or east.
+  // Zones: the lake lies past the old forest (y ≥ LAKE_Y); land reachable from the start without the bridge is west;
+  // the hamlet lies past the hill (x ≥ HAMLET_X); the rest is north (above the river) or east.
   const HAMLET_X = 48;
+  const LAKE_Y = 36;
   const ZONES = new Array(W * H).fill(null);
   {
-    const west = flood(START, (x, y) => groundWalkable(MAP[y][x], false)).seen;
+    const west = flood(START, (x, y) => groundWalkable(MAP[y][x], NONE_OPEN)).seen;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const c = MAP[y][x];
-      if (c === '~' || c === 'b' || c === '^' || c === 't') continue;
-      ZONES[idx(x, y)] = west[idx(x, y)] ? 'west' : x >= HAMLET_X ? 'hamlet' : y < 8 ? 'north' : 'east';
+      if ('~b^t&ojf'.includes(c)) continue;
+      ZONES[idx(x, y)] = y >= LAKE_Y ? 'lake' : west[idx(x, y)] ? 'west' : x >= HAMLET_X ? 'hamlet' : y < 8 ? 'north' : 'east';
     }
   }
   const zoneAt = (x, y) => (inMap(x, y) ? ZONES[idx(x, y)] : null);
@@ -292,11 +346,14 @@
 
   // Grass tiles where a node may ever stand: away from paths (grass only), the square,
   // ruins (1 tile buffer, so each stays reachable), the bridge approach (2 tiles) and the start.
+  // The lake's passages and ruins keep their buffers only in the lake rows, so the old sites stay the same.
+  const LAKE_CH = new Set(BUILDING_IDS.filter((id) => BUILDINGS[id].after === 'harvest').map((id) => BUILDINGS[id].ch));
   const NODE_SITES = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (MAP[y][x] !== '.') continue;
-    if (near(x, y, 2, (c) => c === 'b' || c === 't')) continue;
-    if (near(x, y, 1, (c) => c === '#' || c === 'g' || RUIN_CH[c])) continue;
+    const lakeRow = y >= LAKE_Y;
+    if (near(x, y, 2, (c) => c === 'b' || c === 't' || (lakeRow && (c === 'o' || c === 'j')))) continue;
+    if (near(x, y, 1, (c) => c === '#' || c === 'g' || (RUIN_CH[c] && (lakeRow || !LAKE_CH.has(c))))) continue;
     if (Math.abs(x - START.x) <= 1 && Math.abs(y - START.y) <= 1) continue;
     NODE_SITES.push({ x, y, zone: ZONES[idx(x, y)] });
   }
@@ -326,15 +383,18 @@
   // ── Nodes ──
   // Scatter nodes by seed. A node never touches another one (8-neighbourhood) and never cuts off
   // walkable ground (checked by flood fill with the bridge open), so every node and every tile stays reachable.
-  function scatterNodes(R) {
+  // The lake zone is shuffled by its own generator, so adding it changed neither the old layout nor the state of R.
+  const LAKE_SALT = 0x1a4e;
+  function scatterNodes(R, seed) {
     const blocked = new Uint8Array(W * H);
-    const pass = (x, y) => !blocked[idx(x, y)] && groundWalkable(MAP[y][x], true, true);
+    const pass = (x, y) => !blocked[idx(x, y)] && groundWalkable(MAP[y][x], ALL_OPEN);
     let reach = flood(START, pass).count;
     const nodes = [];
     for (const zone of Object.keys(ZONE_NODES)) {
+      const R0 = zone === 'lake' ? rng((seed ^ LAKE_SALT) >>> 0) : R;
       const sites = NODE_SITES.filter((t) => t.zone === zone);
       for (let i = sites.length - 1; i > 0; i--) {
-        const j = Math.floor(R() * (i + 1));
+        const j = Math.floor(R0() * (i + 1));
         [sites[i], sites[j]] = [sites[j], sites[i]];
       }
       let k = 0;
@@ -352,6 +412,8 @@
         }
       }
     }
+    // Shoals on their fixed spots, after everything scattered.
+    for (const { x, y } of SPOTS) nodes.push({ id: nodes.length, kind: 'shoal', x, y, hp: NODE_KINDS.shoal.hp, regrowAt: null });
     return nodes;
   }
 
@@ -386,7 +448,7 @@
     if (!Number.isFinite(seed)) seed = Math.floor(Math.random() * 4294967296);
     seed = seed >>> 0;
     const R = rng(seed);
-    const nodes = scatterNodes(R);
+    const nodes = scatterNodes(R, seed);
     // Fruit that is out of season at the start waits for its season.
     for (const n of nodes) {
       const rests = NODE_KINDS[n.kind].rests;
@@ -413,19 +475,25 @@
       bucket: 0,
       festival: false,
       harvestFestival: false,
+      lanternFestival: false,
       stats: { gathered: zeroRes(), playTime: 0, orders: 0 },
     };
   }
 
   const bridgeOpen = (s) => !!(s.built.bridge && s.built.bridge.done);
   const roadOpen = (s) => !!(s.built.road && s.built.road.done);
+  const done = (s, id) => !!(s.built[id] && s.built[id].done);
+  // The building that opens each closed passage tile.
+  const PASSAGE = { b: 'bridge', t: 'road', o: 'glade', j: 'pier' };
 
   // Walkable for the player: in the map, not water, not a ruin or building, not a standing node.
   // The bridge site is water until the bridge is restored.
   function isWalkable(s, x, y) {
     x = Math.floor(x); y = Math.floor(y);
     const c = tileAt(x, y);
-    if (c === null || !groundWalkable(c, !!s && bridgeOpen(s), !!s && roadOpen(s))) return false;
+    if (c === null) return false;
+    const gate = PASSAGE[c];
+    if (gate ? !(s && done(s, gate)) : !groundWalkable(c, NONE_OPEN)) return false;
     const n = s ? nodeAt(s, x, y) : null;
     return !(n && n.hp > 0);
   }
@@ -550,6 +618,7 @@
   function clearOrder(p) {
     p.target = null;
     p.path = null;
+    p.fish = null;
   }
 
   // Keyboard movement: a direction held by the player (0, 0 stops). Any non-zero direction cancels an order.
@@ -565,6 +634,7 @@
     p.dir = null;
     p.target = target;
     p.path = path;
+    p.fish = null;
   }
 
   // Walk to a tile along an A* path. Returns false (and keeps the current order) when it can't be reached.
@@ -604,8 +674,9 @@
       if (!s.tools[NODE_KINDS[n.kind].tool]) return 'tool';
       const path = pathNextTo(s, p, [n]);
       if (!path) return 'none';
-      setOrder(p, { type: 'node', id: n.id }, path);
-      return 'gather';
+      const fish = n.kind === 'shoal';
+      setOrder(p, { type: fish ? 'fish' : 'node', id: n.id }, path);
+      return fish ? 'fish' : 'gather';
     }
     const ruin = pi >= 0 ? 'garden' : ruinAt(x, y);
     if (ruin) {
@@ -660,7 +731,7 @@
     const p = s.player;
     const t = p.target;
     let path = null;
-    if (t && t.type === 'node') path = pathNextTo(s, p, [s.nodes[t.id]]);
+    if (t && (t.type === 'node' || t.type === 'fish')) path = pathNextTo(s, p, [s.nodes[t.id]]);
     else if (t && t.type === 'ruin') path = pathNextTo(s, p, FOOTPRINTS[t.id]);
     else if (t && t.type === 'plot') path = pathNextTo(s, p, [PLOTS[t.i]]);
     else if (t && t.type === 'well') path = pathNextTo(s, p, FOOTPRINTS.well);
@@ -692,6 +763,74 @@
       s.events.push({ type: 'deplete', kind: n.kind, id: n.id, x: n.x, y: n.y });
       clearOrder(p);
     }
+  }
+
+  // ── Fishing ──
+  // The line goes in: a bite comes after a random wait (from s.rng, so a seed always plays the same way).
+  function cast(s, n, misses, extra) {
+    const [lo, hi] = FISHING.wait;
+    s.player.fish = { id: n.id, phase: 'wait', at: s.t + lo + rand(s) * (hi - lo) + (extra || 0), misses };
+    s.events.push({ type: 'cast', id: n.id, x: n.x, y: n.y });
+  }
+
+  function fishTick(s) {
+    const p = s.player;
+    const n = s.nodes[p.target.id];
+    if (!n || n.hp <= 0) { clearOrder(p); return; }
+    if (Math.hypot(n.x + 0.5 - p.x, n.y + 0.5 - p.y) > NEAR_NODE) { repath(s); return; }
+    const level = s.tools.rod;
+    if (!level) { clearOrder(p); return; }
+    const f = p.fish;
+    if (!f) { cast(s, n, 0); return; }
+    if (s.t < f.at - EPS) return;
+    if (f.phase === 'wait') {
+      f.phase = 'bite';
+      f.at = s.t + FISHING.window[level];
+      s.events.push({ type: 'bite', id: n.id, x: n.x, y: n.y });
+      return;
+    }
+    // The window is over: the fish got away.
+    const misses = f.misses + 1;
+    s.events.push({ type: 'escape', id: n.id, x: n.x, y: n.y, misses });
+    if (misses >= FISHING.giveUp) {
+      s.events.push({ type: 'gone', id: n.id, x: n.x, y: n.y });
+      clearOrder(p);
+    } else cast(s, n, misses);
+  }
+
+  // The player strikes. Returns 'catch' (a fish on the bite) | 'early' (before the bite: the fish is scared,
+  // the wait grows) | 'none' (not fishing, or the line is not in yet).
+  function strike(s) {
+    const p = s.player, f = p.fish;
+    if (!f || !p.target || p.target.type !== 'fish') return 'none';
+    const n = s.nodes[f.id];
+    if (f.phase === 'wait') {
+      f.at += FISHING.early;
+      s.events.push({ type: 'early', id: n.id, x: n.x, y: n.y });
+      return 'early';
+    }
+    const kind = NODE_KINDS[n.kind];
+    const gain = TOOL_YIELD[s.tools.rod] || 1;
+    n.hp--;
+    s.res.fish += gain;
+    s.stats.gathered.fish += gain;
+    s.events.push({ type: 'catch', id: n.id, x: n.x, y: n.y, gain });
+    if (n.hp <= 0) {
+      const [lo, hi] = kind.regrow;
+      n.regrowAt = s.t + lo + rand(s) * (hi - lo);
+      noteRegrow(s, n.regrowAt);
+      s.events.push({ type: 'deplete', kind: n.kind, id: n.id, x: n.x, y: n.y });
+      clearOrder(p);
+    } else cast(s, n, 0);
+    return 'catch';
+  }
+
+  // Reel in (the «Смотать» button). Returns 'ok' | 'none' (not fishing).
+  function stopFishing(s) {
+    const p = s.player;
+    if (!p.target || p.target.type !== 'fish') return 'none';
+    clearOrder(p);
+    return 'ok';
   }
 
   // ── Regrowth ──
@@ -769,14 +908,21 @@
     if (!quiet) s.events.push({ type: 'season', season });
   }
   // Moves s.t forward by dt and runs the hooks for the days crossed; returns how many dawns passed.
+  // At the lake the fisher brings a second order at noon (only once the pier stands).
+  function onNoon(s, quiet) {
+    if (s.built.market.done && s.built.pier.done && s.orders.length < ORDERS.max) postOrder(s, quiet);
+  }
   function advanceClock(s, dt, quiet) {
-    const before = Math.floor(s.t / DAY);
+    const t0 = s.t;
+    const before = Math.floor(t0 / DAY);
     s.t += dt;
     const after = Math.floor(s.t / DAY);
     for (let d = before + 1; d <= after; d++) {
       if (d % SEASON_DAYS === 0) onSeason(s, SEASONS[Math.floor(d / SEASON_DAYS) % SEASONS.length], quiet);
       onDawn(s, d, quiet);
     }
+    // Noons crossed: day d's noon is at (d + 0.5) · DAY.
+    for (let d = Math.floor(t0 / DAY - 0.5) + 1; d <= Math.floor(s.t / DAY - 0.5); d++) onNoon(s, quiet);
     return after - before;
   }
 
@@ -792,6 +938,7 @@
     else if (p.path) followPath(s, dt);
     if (!p.path && p.target) {
       if (p.target.type === 'node') gatherTick(s);
+      else if (p.target.type === 'fish') fishTick(s);
       else if (p.target.type === 'ruin') {
         s.events.push({ type: 'ruin', id: p.target.id });
         p.target = null;
@@ -877,6 +1024,7 @@
     if (b.effect === 'market') while (s.orders.length < ORDERS.atMarket) postOrder(s, false);
     if (b.effect === 'festival') s.events.push({ type: 'festival' });
     if (b.effect === 'harvest') s.events.push({ type: 'harvest-festival' });
+    if (b.effect === 'lanterns') s.events.push({ type: 'lantern-festival' });
     return 'built';
   }
 
@@ -885,9 +1033,11 @@
     const b = BUILDINGS[id];
     if (b.effect === 'storage' && s.barnLevel < 1) setBarn(s, 1);
     else if (b.effect === 'bridge' && s.tools.shovel < 1) s.tools.shovel = 1;
+    else if (b.effect === 'pier' && s.tools.rod < 1) s.tools.rod = 1;
     else if (b.effect === 'villager' && !s.villagers.some((v) => v.house === id)) s.villagers.push({ role: b.role, house: id });
     else if (b.effect === 'festival') s.festival = true;
     else if (b.effect === 'harvest') s.harvestFestival = true;
+    else if (b.effect === 'lanterns') s.lanternFestival = true;
   }
 
   function setBarn(s, level) {
@@ -981,6 +1131,8 @@
     if (gardenOpen(s)) out.push('vegetables');
     if (s.built.apiary.done) out.push('honey');
     if (s.stats.gathered.apples > 0) out.push('apples');
+    if (s.built.pier.done) out.push('fish');
+    if (s.built.smokehouse.done) out.push('smoked');
     return out;
   }
 
@@ -1018,6 +1170,10 @@
   }
 
   // ── Fair ──
+  // What the fair sells by now: some things only once a festival has been held.
+  const fairSells = (s, id) => !!FAIR[id] && (FAIR[id].after !== 'harvest' || s.harvestFestival);
+  const fairItems = (s) => Object.keys(FAIR).filter((id) => fairSells(s, id));
+
   // Open on a season's first day while it is light, once the market rows stand.
   function fairOpen(s) {
     if (!s.built.market.done) return false;
@@ -1025,11 +1181,13 @@
     return c.seasonDay === 0 && (c.part === 'dawn' || c.part === 'day');
   }
 
-  // Buy one thing at the fair. Returns 'ok' | 'closed' | 'coins' (not enough) | 'owned' | 'unknown'.
+  // Buy one thing at the fair. Returns 'ok' | 'closed' | 'coins' (not enough) | 'owned' | 'locked' (not sold yet)
+  // | 'unknown'.
   function buy(s, id) {
     const item = FAIR[id];
     if (!item) return 'unknown';
     if (s.bought.includes(id)) return 'owned';
+    if (!fairSells(s, id)) return 'locked';
     if (!fairOpen(s)) return 'closed';
     if (s.res.coins < item.price) return 'coins';
     s.res.coins -= item.price;
@@ -1110,6 +1268,7 @@
   // The player doesn't move. Returns a summary for the "while you were away" window.
   function offline(s, seconds) {
     const total = Math.floor(Math.min(Math.max(Number(seconds) || 0, 0), OFFLINE_MAX));
+    stopFishing(s); // nobody holds the rod while the game is closed
     const before = { ...s.res };
     let days = 0;
     const mark = s.events.length;
@@ -1133,7 +1292,8 @@
   // points at something that can't be paid yet.
   const PRODUCT_OF = Object.fromEntries(Object.entries(WORKSHOPS).map(([id, w]) => [w.to, id]));
   function nextGoal(s) {
-    const stage = s.festival ? 'festival' : undefined; // before the festival only the village, after it the hamlet
+    // Before the festival only the village, after it the hamlet, after the harvest festival the lake.
+    const stage = s.harvestFestival ? 'harvest' : s.festival ? 'festival' : undefined;
     let best = null, bestLeft = Infinity;
     for (const id of BUILDING_IDS) {
       if (BUILDINGS[id].after !== stage || s.built[id].done || !needsMet(s, id)) continue;
@@ -1174,7 +1334,7 @@
   }
 
   // ── Save / load ──
-  const TRANSIENT_PLAYER = ['target', 'path', 'cd', 'dir'];
+  const TRANSIENT_PLAYER = ['target', 'path', 'cd', 'dir', 'fish'];
 
   // Plain JSON object without transient fields (events, the player's order and cooldown).
   function save(s) {
@@ -1202,7 +1362,7 @@
     try {
       if (typeof data === 'string') data = JSON.parse(data);
       if (!isObj(data) || !Number.isFinite(data.seed)) return recovered();
-      if (data.v === 2) data = { ...data, v: VERSION }; // same state; restore() re-lays the nodes for the new map
+      if (data.v === 2 || data.v === 3) data = { ...data, v: VERSION }; // same state; restore() lays out the nodes for the new map
       if (Number.isInteger(data.v) && data.v >= 1 && data.v < VERSION) return recovered('old');
       if (data.v !== VERSION) return recovered();
       return restore(data);
@@ -1332,10 +1492,10 @@
     VERSION, DAY, DAWN_END, DUSK_START, NIGHT_START, SEASON_DAYS, SEASONS, clock, RESOURCES, NODE_KINDS, TOOLS, TOOL_NEEDS, TOOL_YIELD, TOOL_CD, MAX_TOOL,
     BUILDINGS, BARN_UPGRADE, STORAGE, WORKSHOP_RESERVE, ZONE_NODES, VILLAGERS, MILL_BONUS, WORKSHOPS, PRODUCERS,
     OFFLINE_MAX, DECOR, RES_IDS, BUILDING_IDS, MAX_DT,
-    MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, FAIR, BIG_BUCKET, fairOpen, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
+    MAP, W, H, START, FOOTPRINTS, SPEED, HAMLET_X, LAKE_Y, SPOTS, FAIR, BIG_BUCKET, fairOpen, fairItems, buy, ORDERS, ORDER_GOODS, openGoods, fulfill, GARDEN, PLOTS, plotAt, tendPlot, fillBucket, bucketSize,
     rng, rand, tileAt, zoneAt, nodeAt, ruinAt, newGame, isWalkable, canAfford, findPath,
     step, moveDir, goTo, interact, upgradeTool, contribute, upgradeBarn, share, remaining, stage, rates, nextGoal, offline,
-    placeDecor, save, load,
+    placeDecor, save, load, FISHING, strike, stopFishing,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Village = api;

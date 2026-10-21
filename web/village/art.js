@@ -193,7 +193,9 @@
 
   // ───────────── Ground (cached in chunks) ─────────────
   // Terrain classes: g grass (ruin footprints too), s sand, w water (bridge site too), p path, q square.
-  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q', g: 'f', '^': 'h', t: 'p' };
+  // The lake: k the old forest's floor (its trees stand on it), the clearing o (a path), the pier site j and the
+  // fishing spots f (water); the pavilion Q stands on the water.
+  const CLASS = { '.': 'g', ':': 's', '~': 'w', b: 'w', '=': 'p', '#': 'q', g: 'f', '^': 'h', t: 'p', '&': 'k', o: 'p', j: 'w', f: 'w', Q: 'w' };
   const inSquare = (x, y) => x >= SQ.x0 && x <= SQ.x1 && y >= SQ.y0 && y <= SQ.y1;
   // Ruin footprints sit on grass, except the well, which stands in the middle of the cobbled square.
   const terr = (x, y) => {
@@ -328,6 +330,9 @@
     layer(g, x0, y0, x1, y1, water, WATER.shallow, 5, 12);
     layer(g, x0, y0, x1, y1, deep, WATER.deep, 4, 12);
     sunken(g, x0, y0, x1, y1, water, { inset: 5, radius: 12, shadow: [12, 0.34, '18, 52, 66'], lip: [5, 0.32], rim: 0.28 });
+    // The old forest's floor: deep shade under the crowns.
+    layer(g, x0, y0, x1, y1, is('k'), K.shade(GRASS.base, -0.3), 0, 10);
+    layer(g, x0, y0, x1, y1, is('k'), K.shade(GRASS.base, -0.42), 6, 10);
     layer(g, x0, y0, x1, y1, is('p'), PATH.edge, 0, 8);
     layer(g, x0, y0, x1, y1, is('p'), PATH.main, 2.5, 7);
     sunken(g, x0, y0, x1, y1, is('p'), { inset: 2.5, radius: 7, shadow: [5, 0.2, '74, 50, 24'], lip: [3, 0.22] });
@@ -569,7 +574,7 @@
       return { pine: false, pal: bare ? null : LOOK.leaves[0], bare, snow: LOOK.snow > 0, apples: n.hp > 0, many: true, blossom: LOOK.blossom > 0 };
     }
     const h = hash2(n.x, n.y, 300);
-    const pine = V.zoneAt(n.x, n.y) === 'north' ? h < 0.6 : h < 0.18;
+    const pine = n.forest ? h < 0.7 : V.zoneAt(n.x, n.y) === 'north' ? h < 0.6 : h < 0.18;
     const snow = LOOK.snow > 0;
     if (pine) return { pine, pal: ['#2f5a37', '#3d7044', '#5a8f58'], snow };
     const sets = LOOK.leaves;
@@ -744,6 +749,7 @@
   }
 
   function drawNode(n) {
+    if (n.kind === 'shoal') return; // drawn flat on the water by drawShoals()
     let cx = (n.x + 0.5) * T;
     const by = (n.y + 1) * T - 5;
     const sh = fx.shake.get(n.id);
@@ -852,6 +858,164 @@
       ctx.translate(b.X + b.Wp / 2, y + 4);
       ctx.rotate(-0.2);
       K.block(ctx, -b.Wp / 2, -3, b.Wp, 6, 3, WOOD.dark);
+      ctx.restore();
+    }
+  }
+
+  // ───────────── The lake ─────────────
+  // The old forest: a tree on every '&' tile, mostly pines, nudged off the grid so the strip reads as woods.
+  const FOREST = [];
+  V.MAP.forEach((row, y) => [...row].forEach((c, x) => {
+    if (c !== '&') return;
+    FOREST.push({ id: 9000 + FOREST.length, kind: 'tree', x, y, hp: 1, regrowAt: null, forest: true,
+      dx: (hash2(x, y, 730) - 0.5) * 10, dy: (hash2(x, y, 731) - 0.5) * 6 });
+  }));
+  function drawForestTree(t) {
+    drawTree(t, (t.x + 0.5) * T + t.dx, (t.y + 1) * T - 5 + t.dy, Math.sin(time * 0.9 + t.id) * 0.8);
+  }
+
+  // The clearing through the forest: brush and fallen trunks until the glade is cleared, then a path between
+  // two rows of trimmed logs. Flat, drawn under everything that stands.
+  function drawGlade() {
+    const b = BOX.glade, st = V.stage(S, 'glade');
+    if (b.Y > cam.y + ch || b.Y + b.Hp < cam.y) return;
+    if (st === 2) {
+      for (const x of [b.X - 2, b.X + b.Wp + 2]) {
+        for (let y = b.Y + 4; y < b.Y + b.Hp - 4; y += 14) K.cylinder(ctx, x, y, 3.2, 10, WOOD.mid, { capColor: WOOD.pale, ry: 1.6 });
+      }
+      return;
+    }
+    const k = st === 1 ? 1 - share('glade') : 1;
+    // Bushes in the gap.
+    for (let i = 0; i < 6; i++) {
+      if (i / 6 >= k) continue;
+      const x = b.X + 12 + (i % 3) * 30 + hash2(i, 2, 740) * 8, y = b.Y + 14 + Math.floor(i / 3) * 28;
+      castShadow(x, y + 6, 11, 14, 0.3);
+      blob(x, y - 2, 12, 9, 741 + i, K.shade(GRASS.base, -0.15));
+      blob(x - 3, y - 6, 7, 5, 751 + i, LOOK.snow ? '#eef3f7' : K.shade(GRASS.base, 0.12));
+    }
+    // Fallen trunks across the clearing.
+    for (let i = 0; i < 2; i++) {
+      if ((i + 0.5) / 2 > k + 0.25) continue;
+      ctx.save();
+      ctx.translate(b.X + b.Wp / 2, b.Y + 20 + i * 26);
+      ctx.rotate(i ? 0.25 : -0.18);
+      K.shadow(ctx, 3, 6, b.Wp / 2 + 6, 4, 0.32);
+      K.block(ctx, -b.Wp / 2 - 6, -4, b.Wp + 12, 8, 4, WOOD.dark, { top: 0.25, bottom: -0.2 });
+      circle(b.Wp / 2 + 5, 0, 3.4, WOOD.pale);
+      ctx.restore();
+    }
+  }
+
+  // The pier: piles in the water, then planks laid from the shore as payment arrives, with a post at each side.
+  function drawPier() {
+    const b = BOX.pier, st = V.stage(S, 'pier');
+    if (b.Y > cam.y + ch || b.Y + b.Hp < cam.y) return;
+    const x0 = b.X + 4, x1 = b.X + b.Wp - 4, y0 = b.Y - 6, y1 = b.Y + b.Hp + 4;
+    const pile = (px, py, h) => {
+      K.shadow(ctx, px + 3, py + 3, 4.5, 2.2, 0.4);
+      K.cylinder(ctx, px, py - h, 2.6, h, WOOD.dark);
+    };
+    for (let py = y0 + 14; py < y1; py += 24) for (const px of [x0 + 1, x1 - 1]) pile(px, py, 6);
+    if (st === 0) return;
+    const k = st === 2 ? 1 : clamp(share('pier'), 0.1, 0.95);
+    const end = y0 + (y1 - y0) * k;
+    const lift = 3;
+    K.shadow(ctx, (x0 + x1) / 2 + 7, (y0 + end) / 2 + 6, (x1 - x0) / 2 + 3, (end - y0) / 2 + 4, 0.34);
+    rect(x0, y0 - lift + 2, x1 - x0, end - y0 + lift, WOOD.dark, 1.5);
+    for (let y = y0, i = 0; y < end; y += 5.5, i++) {
+      K.block(ctx, x0, y - lift, x1 - x0, Math.min(5, end - y) - 0.6, 1, i % 2 ? WOOD.light : '#a8774a', { top: 0.18, bottom: -0.12 });
+    }
+    if (st === 2) for (const px of [x0 - 1, x1 + 1]) K.cylinder(ctx, px, y1 - lift - 12, 1.8, 12, WOOD.dark, { capColor: WOOD.pale });
+  }
+
+  // Shoals: rings and fish shadows on the water while the shoal is full; in winter, a hole in the ice.
+  // The bobber floats at the spot being fished and dips under on a bite. Flat, under everything that stands.
+  const rings = []; // { x, y, t, r } splashes spreading on the water
+  const ring = (x, y, r = 10) => rings.push({ x, y, t: time, r });
+  let rodTip = null; // where the player's rod ends this frame (set by drawPerson), for the line
+  function fishing() {
+    const p = S.player;
+    return p.fish && p.target && p.target.type === 'fish' ? p.fish : null;
+  }
+  function drawShoals(r) {
+    for (const n of S.nodes) {
+      if (n.kind !== 'shoal' || n.x < r.x0 - 1 || n.x > r.x1 + 1 || n.y < r.y0 - 1 || n.y > r.y1 + 1) continue;
+      const cx = (n.x + 0.5) * T, cy = (n.y + 0.5) * T;
+      if (LOOK.ice) {
+        ellipse(cx, cy + 1, 9, 5.5, 'rgba(255, 255, 255, 0.9)');
+        ellipse(cx, cy + 1.5, 7, 4, '#2e5f78');
+        ellipse(cx - 2, cy + 0.5, 3, 1.2, 'rgba(255, 255, 255, 0.35)');
+        continue;
+      }
+      if (n.hp <= 0) continue;
+      for (let k = 0; k < 2; k++) {
+        const ph = (time * 0.45 + k * 0.5 + hash2(n.x, n.y, 760)) % 1;
+        ctx.strokeStyle = `rgba(235, 250, 255, ${(0.45 * (1 - ph)).toFixed(3)})`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 3 + ph * 11, (3 + ph * 11) * 0.55, 0, 0, TAU);
+        ctx.stroke();
+      }
+      for (let k = 0; k < n.hp; k++) {
+        const a = time * (0.8 + k * 0.25) + k * 2.1 + n.id;
+        const fx0 = cx + Math.cos(a) * 8, fy0 = cy + Math.sin(a) * 4.5;
+        ctx.save();
+        ctx.translate(fx0, fy0);
+        ctx.rotate(a + Math.PI / 2);
+        ellipse(0, 0, 4, 1.6, 'rgba(20, 50, 70, 0.35)');
+        poly([-4, 0, -6.5, -1.6, -6.5, 1.6], 'rgba(20, 50, 70, 0.3)');
+        ctx.restore();
+      }
+    }
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const g = rings[i], a = (time - g.t) / 0.9;
+      if (a >= 1) { rings.splice(i, 1); continue; }
+      ctx.strokeStyle = `rgba(240, 252, 255, ${(0.7 * (1 - a)).toFixed(3)})`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(g.x, g.y, 2 + a * g.r, (2 + a * g.r) * 0.55, 0, 0, TAU);
+      ctx.stroke();
+    }
+    const f = fishing();
+    if (!f) return;
+    const n = S.nodes[f.id];
+    const bx = (n.x + 0.5) * T + 2, by = (n.y + 0.5) * T;
+    const bite = f.phase === 'bite';
+    const dip = bite ? 2.5 + Math.sin(time * 26) * 1.2 : Math.sin(time * 2.4) * 0.7;
+    ellipse(bx, by + 2.5, 4, 1.8, 'rgba(20, 50, 70, 0.3)');
+    if (!bite) circle(bx, by + dip - 1, 2.6, '#f4f4ee');
+    circle(bx, by + dip - 3, 2.4, '#d6403a');
+    circle(bx - 0.8, by + dip - 3.8, 0.8, 'rgba(255, 255, 255, 0.7)');
+  }
+  // The line from the rod's tip to the bobber, over the player.
+  function drawFishLine() {
+    const f = fishing();
+    if (!f || !rodTip) return;
+    const n = S.nodes[f.id];
+    const bx = (n.x + 0.5) * T + 2, by = (n.y + 0.5) * T - 3;
+    const sag = f.phase === 'bite' ? 2 : 8;
+    ctx.strokeStyle = 'rgba(250, 250, 240, 0.75)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(rodTip.x, rodTip.y);
+    ctx.quadraticCurveTo((rodTip.x + bx) / 2, Math.max(rodTip.y, by) + sag, bx, by);
+    ctx.stroke();
+  }
+  // A fish leaps from the spot towards the player on a catch.
+  const leaps = [];
+  function drawLeaps() {
+    for (let i = leaps.length - 1; i >= 0; i--) {
+      const l = leaps[i], a = (time - l.t) / 0.55;
+      if (a >= 1) { leaps.splice(i, 1); continue; }
+      const x = lerp(l.x0, l.x1, a), y = lerp(l.y0, l.y1, a) - Math.sin(a * Math.PI) * 22;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate((a - 0.5) * 2.4 * Math.sign(l.x1 - l.x0 || 1));
+      ellipse(0, 0, 5, 2.4, '#6f9fb8');
+      poly([-4.5, 0, -8, -2.6, -8, 2.6], '#558aa3');
+      ellipse(0.5, 0.9, 3.4, 0.9, 'rgba(230, 245, 250, 0.7)');
+      circle(3, -0.6, 0.7, '#1f2b33');
       ctx.restore();
     }
   }
@@ -972,6 +1136,13 @@
       ctx.stroke();
     } else if (tool === 'shovel') rect(-3.5, -21, 7.5, 8, '#b5b8be', [1, 1, 3.5, 3.5]);
   }
+  // The rod: a long thin switch with a reel; returns nothing, its tip is at (0, -ROD) in the hand's frame.
+  const ROD = 30;
+  function drawRod() {
+    line(0, 2, 0, -ROD, WOOD.mid, 1.6);
+    line(0, -ROD * 0.6, 0, -ROD, WOOD.light, 1);
+    circle(1.6, -2, 2, '#8d8f86');
+  }
 
   // A small villager seen from above at a tilt. (x, y) are the feet; o holds the look and the pose.
   function drawPerson(x, y, o) {
@@ -1044,6 +1215,19 @@
   }
 
   function toolAt(hand, o, flip) {
+    if (o.tool === 'rod') {
+      // Held out over the water, towards the way the player faces; the tip is kept for the line.
+      const ang = o.face === 'up' ? 0.15 : o.face === 'down' ? 2.6 : 0.95;
+      ctx.save();
+      ctx.translate(hand.x, hand.y);
+      ctx.scale(flip, 1);
+      ctx.rotate(ang);
+      drawRod();
+      ctx.restore();
+      if (o.role === 'player') rodTip = { x: hand.x + Math.sin(ang) * ROD * flip, y: hand.y - Math.cos(ang) * ROD };
+      circle(hand.x, hand.y, 2.2, o.skin);
+      return;
+    }
     let ang = -0.35;
     if (o.swing >= 0 && o.tool !== 'basket') {
       const p = o.swing / SWING;
@@ -1066,6 +1250,7 @@
     potter: { shirt: '#7f6aa8', pants: '#5a4a3a', skin: '#f3cfa6', hat: 'scarf', hatColor: '#d8506a', hair: '#8a5a32', apron: '#e9dcc2' },
     beekeeper: { shirt: '#f0e6c8', pants: '#6b5a3a', skin: '#e8b98f', hat: 'straw', hair: '#5a3a20', apron: '#e2c26a' },
     gardener: { shirt: '#5f9446', pants: '#4a3d30', skin: '#f1c9a0', hat: 'scarf', hatColor: '#e8892e', hair: '#7a4a2a', apron: '#c9b28a' },
+    fisher: { shirt: '#3d6a8a', pants: '#4a4238', skin: '#e8b98f', hat: 'cap', hatColor: '#2f4f5f', hair: '#6a4a2a', apron: '#7f8a5a' },
   };
 
 
@@ -1110,9 +1295,12 @@
     fx.parts.push({ x, y, vx: o.vx || 0, vy: o.vy || 0, g: o.g ?? 160, life: o.life || 0.6, max: o.life || 0.6, size: o.size || 2, color: o.color, z: 0 });
   }
 
-  const CHIPS = { tree: ['#c99a5e', '#8b5e36', '#7aae58'], rock: ['#bdb7a8', '#9d978a', '#fff3c4'], clay: ['#cf8452', '#b3643a'], bush: ['#c2335a', '#5f9446', '#7aae58'] };
+  const CHIPS = {
+    tree: ['#c99a5e', '#8b5e36', '#7aae58'], rock: ['#bdb7a8', '#9d978a', '#fff3c4'], clay: ['#cf8452', '#b3643a'], bush: ['#c2335a', '#5f9446', '#7aae58'],
+    apple: ['#d9473a', '#5f9446', '#7aae58'], shoal: ['#bfe6f6', '#e6f6ff', '#9fd4f0'],
+  };
   function chips(kind, x, y, n = 6) {
-    const cols = CHIPS[kind];
+    const cols = CHIPS[kind] || CHIPS.bush;
     for (let k = 0; k < n; k++) {
       part(x + (Math.random() - 0.5) * 8, y - 8, {
         vx: (Math.random() - 0.5) * 70, vy: -40 - Math.random() * 60, life: 0.5 + Math.random() * 0.3,
@@ -1171,6 +1359,7 @@
     for (const f of fx.falls) f.t += dt;
     fx.falls = fx.falls.filter((f) => f.t < 1);
     updateFireworks(dt);
+    updateLanterns(dt);
   }
 
   function drawFalls() {
@@ -1189,6 +1378,49 @@
   // Fireworks over the square after the festival: frequent at first, then now and then.
   let fwNext = 1, festBoost = 0;
   let hwNext = 0, harvestBoost = 0; // the harvest festival's own burst over the hamlet
+  // The lantern festival: paper lanterns rise from the pavilion (a burst after the festival, then now and then
+  // at dusk and at night) and small ones float on the lake for good.
+  let lanternBoost = 0, slNext = 0;
+  const skyLanterns = [];
+  const LAKE_WATER = [];
+  V.MAP.forEach((row, y) => [...row].forEach((c, x) => { if (y > V.LAKE_Y + 4 && c === '~') LAKE_WATER.push({ x, y }); }));
+  const FLOATERS = Array.from({ length: 16 }, (_, k) => LAKE_WATER[Math.floor(hash2(k, 3, 780) * LAKE_WATER.length)]);
+  function updateLanterns(dt) {
+    if (!S.lanternFestival) { skyLanterns.length = 0; return; }
+    lanternBoost = Math.max(0, lanternBoost - dt);
+    slNext -= dt;
+    const evening = SUN.lights > 0.2;
+    if (slNext <= 0 && (lanternBoost > 0 || evening)) {
+      slNext = lanternBoost > 0 ? 0.25 + Math.random() * 0.3 : 2.5 + Math.random() * 3.5;
+      const b = BOX.pavilion;
+      skyLanterns.push({ x: b.cx + (Math.random() - 0.5) * b.Wp * 0.8, y: b.base - 30, vx: 4 + Math.random() * 6, vy: -16 - Math.random() * 10, life: 9, max: 9, k: Math.floor(Math.random() * 4) });
+    }
+    for (const l of skyLanterns) { l.x += (l.vx + Math.sin(time * 0.7 + l.k) * 4) * dt; l.y += l.vy * dt; l.life -= dt; }
+    for (let i = skyLanterns.length - 1; i >= 0; i--) if (skyLanterns[i].life <= 0) skyLanterns.splice(i, 1);
+  }
+  const LANTERN_COLORS = ['#ff9f43', '#ff6b6b', '#ffd166', '#f78fb3'];
+  function drawFloaters() {
+    if (!S.lanternFestival) return;
+    FLOATERS.forEach((t, k) => {
+      if (!t) return;
+      const x = (t.x + 0.5) * T + Math.sin(time * 0.3 + k) * 10, y = (t.y + 0.5) * T + Math.cos(time * 0.25 + k * 1.3) * 5;
+      if (x < cam.x - 20 || x > cam.x + cw + 20 || y < cam.y - 20 || y > cam.y + ch + 20) return;
+      ellipse(x + 2, y + 3, 5, 2, 'rgba(20, 40, 50, 0.3)');
+      rect(x - 3.5, y - 6, 7, 7, LANTERN_COLORS[k % 4], 2);
+      rect(x - 2, y - 4.5, 4, 3.5, 'rgba(255, 245, 210, 0.75)', 1);
+      light(x, y - 3, 22, '#ffb35a', 0.85);
+    });
+  }
+  function drawSkyLanterns() {
+    for (const l of skyLanterns) {
+      const a = Math.min(1, l.life / 2, (l.max - l.life) * 2);
+      ctx.globalAlpha = a;
+      rect(l.x - 3, l.y - 5, 6, 8, LANTERN_COLORS[l.k], [3, 3, 1.5, 1.5]);
+      rect(l.x - 1.6, l.y - 3, 3.2, 3, 'rgba(255, 245, 210, 0.85)', 1);
+      ctx.globalAlpha = 1;
+      light(l.x, l.y - 1, 24, '#ffb35a', a);
+    }
+  }
   const FW_COLORS = ['#ff4d6d', '#ffd60a', '#4cc9f0', '#f72585', '#80ed99', '#ff9f1c'];
   function updateFireworks(dt) {
     if (S.harvestFestival && harvestBoost > 0) {
@@ -1340,6 +1572,9 @@
     } else if (e.type === 'harvest-festival') {
       harvestBoost = 30;
       hwNext = 0.3;
+    } else if (e.type === 'lantern-festival') {
+      lanternBoost = 30;
+      slNext = 0.2;
     } else if (e.type === 'decor') {
       sparkle((e.x + 0.5) * T, (e.y + 0.5) * T, 14);
     } else if (e.type === 'plot') {
@@ -1349,6 +1584,16 @@
       else if (e.result === 'sown') chips('clay', x, y, 5);
     } else if (e.type === 'ripe') {
       sparkle((e.x + 0.5) * T, (e.y + 0.4) * T, 8, ['#fff3c4', '#b7e08a', '#ffffff']);
+    } else if (e.type === 'cast' || e.type === 'escape' || e.type === 'early') {
+      ring((e.x + 0.5) * T + 2, (e.y + 0.5) * T, e.type === 'cast' ? 8 : 12);
+    } else if (e.type === 'bite') {
+      ring((e.x + 0.5) * T + 2, (e.y + 0.5) * T, 14);
+      chips('shoal', (e.x + 0.5) * T, (e.y + 0.8) * T, 4);
+    } else if (e.type === 'catch') {
+      const x = (e.x + 0.5) * T, y = (e.y + 0.5) * T;
+      leaps.push({ t: time, x0: x, y0: y, x1: playerX * T, y1: S.player.y * T - 12 });
+      ring(x, y, 16);
+      chips('shoal', x, y + 6, 12);
     } else if (e.type === 'bucket' && !e.full) {
       const b = BOX.well;
       for (let k = 0; k < 14; k++) part(b.cx + (Math.random() - 0.5) * 16, b.base - 26, { vx: (Math.random() - 0.5) * 50, vy: -40 - Math.random() * 40, life: 0.7, size: 1.5, color: '#bfe6f6' });
@@ -1500,14 +1745,19 @@
     drawWater(r);
     drawBridge();
     drawRoad();
+    drawGlade();
+    drawPier();
+    drawShoals(r);
+    drawFloaters();
     // Everything that stands is drawn back to front by its base line.
     const wide = VV.visibleRange(cam, cw, ch, V.W, V.H, T, 3);
     const inView = (x, y) => x >= wide.x0 && x <= wide.x1 && y >= wide.y0 && y <= wide.y1;
     const items = [];
     for (const nd of S.nodes) if (inView(nd.x, nd.y)) items.push([(nd.y + 1) * T - 5, drawNode, nd]);
+    for (const t of FOREST) if (inView(t.x, t.y)) items.push([(t.y + 1) * T - 5 + t.dy, drawForestTree, t]);
     for (const id of Object.keys(BOX)) {
       const b = BOX[id];
-      if (id === 'bridge' || id === 'road' || b.x0 + b.w < wide.x0 || b.x0 > wide.x1 || b.y0 + b.h < wide.y0 || b.y0 > wide.y1) continue;
+      if (VV.FLAT.has(id) || b.x0 + b.w < wide.x0 || b.x0 > wide.x1 || b.y0 + b.h < wide.y0 || b.y0 > wide.y1) continue;
       items.push([b.base, drawBuilding, id]);
     }
     for (const d of S.decor) if (inView(d.x, d.y)) items.push([(d.y + 1) * T - 4, drawDecor, d]);
@@ -1521,7 +1771,10 @@
     if (S.festival) for (const [x, y] of POLES) items.push([y, () => drawPole(x, y)]);
     items.sort((p, q) => p[0] - q[0]);
     emitters.length = 0;
+    rodTip = null;
     for (const [, fn, arg] of items) fn(arg);
+    drawFishLine();
+    drawLeaps();
     drawFalls();
     for (const p of fx.parts) {
       ctx.globalAlpha = clamp(p.life / p.max * 1.5, 0, 1);
@@ -1539,6 +1792,7 @@
     if (SUN.shade < 0.35) drawButterflies();
     drawFireflies();
     drawFireworks();
+    drawSkyLanterns();
     if (SUN.shade < 0.5) drawCloudShadows();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, cw, ch); }
