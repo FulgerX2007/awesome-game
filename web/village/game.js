@@ -277,8 +277,8 @@
     const el = document.createElement('div');
     el.className = `float ${cls}`.trim();
     el.textContent = text;
-    el.style.left = `${Math.round(wx - ART.cam.x)}px`;
-    el.style.top = `${Math.round(wy - ART.cam.y)}px`;
+    el.style.left = `${Math.round((wx - ART.cam.x) * ART.zoom)}px`;
+    el.style.top = `${Math.round((wy - ART.cam.y) * ART.zoom)}px`;
     $('floats').append(el);
     el.addEventListener('animationend', () => el.remove());
     setTimeout(() => el.remove(), 3000); // in case animations are off
@@ -666,7 +666,8 @@
     A.unlock();
     e.preventDefault();
     const r = canvas.getBoundingClientRect();
-    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    // Screen CSS px → world px: the camera magnifies the world by ART.zoom.
+    const sx = (e.clientX - r.left) / ART.zoom, sy = (e.clientY - r.top) / ART.zoom;
     // Placing a decoration wants the ground tile; otherwise a tall crown or roof picks its own object.
     const p = placing ? VV.screenToTile(sx, sy, ART.cam) : VV.tapAt(S, V, sx + ART.cam.x, sy + ART.cam.y);
     tapTile(p.x, p.y);
@@ -962,6 +963,8 @@
     setAudio(A.state.music, A.state.sounds);
     ART.resize();
     window.addEventListener('resize', ART.resize);
+    // The scene fills whatever the header and the resources leave, which changes as resources appear.
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => ART.resize()).observe($('scene-wrap'));
     bindUI();
     if (saved.savedAt) {
       const away = (Date.now() - saved.savedAt) / 1000;

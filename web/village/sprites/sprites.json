@@ -1,0 +1,942 @@
+{
+ "scale": 3,
+ "sprites": {
+  "bush-autumn-0": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-autumn-0.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#a8703a",
+   "shape": 0,
+   "w": 46
+  },
+  "bush-autumn-1": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-autumn-1.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#a8703a",
+   "shape": 1,
+   "w": 46
+  },
+  "bush-autumn-2": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-autumn-2.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#a8703a",
+   "shape": 2,
+   "w": 46
+  },
+  "bush-full-0": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-full-0.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#4b9a36",
+   "shape": 0,
+   "w": 46
+  },
+  "bush-full-1": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-full-1.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#4b9a36",
+   "shape": 1,
+   "w": 46
+  },
+  "bush-full-2": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-full-2.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#4b9a36",
+   "shape": 2,
+   "w": 46
+  },
+  "bush-picked-0": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-picked-0.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#6aa54e",
+   "shape": 0,
+   "w": 46
+  },
+  "bush-picked-1": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-picked-1.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#6aa54e",
+   "shape": 1,
+   "w": 46
+  },
+  "bush-picked-2": {
+   "ax": 23,
+   "ay": 32,
+   "file": "bush-picked-2.png",
+   "h": 34,
+   "kind": "bush",
+   "mid": "#6aa54e",
+   "shape": 2,
+   "w": 46
+  },
+  "crown-autumn-0-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-0-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#d88a3a",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-autumn-0-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-0-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#d88a3a",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-autumn-0-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-0-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#d88a3a",
+   "shape": 2,
+   "w": 70
+  },
+  "crown-autumn-1-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-1-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#c95e36",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-autumn-1-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-1-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#c95e36",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-autumn-1-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-1-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#c95e36",
+   "shape": 2,
+   "w": 70
+  },
+  "crown-autumn-2-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-2-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#d9a83a",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-autumn-2-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-2-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#d9a83a",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-autumn-2-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-autumn-2-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#d9a83a",
+   "shape": 2,
+   "w": 70
+  },
+  "crown-spring-0-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-0-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#4f9e36",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-spring-0-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-0-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#4f9e36",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-spring-0-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-0-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#4f9e36",
+   "shape": 2,
+   "w": 70
+  },
+  "crown-spring-1-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-1-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#5aa93b",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-spring-1-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-1-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#5aa93b",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-spring-1-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-1-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#5aa93b",
+   "shape": 2,
+   "w": 70
+  },
+  "crown-spring-2-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-2-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#47934a",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-spring-2-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-2-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#47934a",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-spring-2-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-spring-2-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#47934a",
+   "shape": 2,
+   "w": 70
+  },
+  "crown-summer-0-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-0-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#438c35",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-summer-0-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-0-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#438c35",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-summer-0-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-0-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#438c35",
+   "shape": 2,
+   "w": 70
+  },
+  "crown-summer-1-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-1-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#4d9437",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-summer-1-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-1-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#4d9437",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-summer-1-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-1-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#4d9437",
+   "shape": 2,
+   "w": 70
+  },
+  "crown-summer-2-0": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-2-0.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#3f8448",
+   "shape": 0,
+   "w": 70
+  },
+  "crown-summer-2-1": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-2-1.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#3f8448",
+   "shape": 1,
+   "w": 70
+  },
+  "crown-summer-2-2": {
+   "ax": 35,
+   "ay": 82,
+   "file": "crown-summer-2-2.png",
+   "h": 78,
+   "kind": "crown",
+   "mid": "#3f8448",
+   "shape": 2,
+   "w": 70
+  },
+  "grass": {
+   "file": "grass.png",
+   "h": 128,
+   "kind": "texture",
+   "w": 128
+  },
+  "mat-brick": {
+   "file": "mat-brick.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "brick",
+   "w": 80
+  },
+  "mat-metal": {
+   "file": "mat-metal.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "metal",
+   "w": 80
+  },
+  "mat-planks": {
+   "file": "mat-planks.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "planks",
+   "w": 80
+  },
+  "mat-plaster": {
+   "file": "mat-plaster.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "plaster",
+   "w": 80
+  },
+  "mat-stone": {
+   "file": "mat-stone.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "stone",
+   "w": 80
+  },
+  "mat-thatch": {
+   "file": "mat-thatch.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "thatch",
+   "w": 80
+  },
+  "mat-tile": {
+   "file": "mat-tile.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "tile",
+   "w": 80
+  },
+  "pine-0-0": {
+   "ax": 24,
+   "ay": 74,
+   "file": "pine-0-0.png",
+   "h": 72,
+   "kind": "pine",
+   "shape": 0,
+   "snow": 0,
+   "w": 48
+  },
+  "pine-0-1": {
+   "ax": 24,
+   "ay": 74,
+   "file": "pine-0-1.png",
+   "h": 72,
+   "kind": "pine",
+   "shape": 0,
+   "snow": 1,
+   "w": 48
+  },
+  "pine-1-0": {
+   "ax": 24,
+   "ay": 74,
+   "file": "pine-1-0.png",
+   "h": 72,
+   "kind": "pine",
+   "shape": 1,
+   "snow": 0,
+   "w": 48
+  },
+  "pine-1-1": {
+   "ax": 24,
+   "ay": 74,
+   "file": "pine-1-1.png",
+   "h": 72,
+   "kind": "pine",
+   "shape": 1,
+   "snow": 1,
+   "w": 48
+  },
+  "pine-2-0": {
+   "ax": 24,
+   "ay": 74,
+   "file": "pine-2-0.png",
+   "h": 72,
+   "kind": "pine",
+   "shape": 2,
+   "snow": 0,
+   "w": 48
+  },
+  "pine-2-1": {
+   "ax": 24,
+   "ay": 74,
+   "file": "pine-2-1.png",
+   "h": 72,
+   "kind": "pine",
+   "shape": 2,
+   "snow": 1,
+   "w": 48
+  },
+  "rock-0": {
+   "ax": 23,
+   "ay": 34,
+   "file": "rock-0.png",
+   "h": 36,
+   "kind": "rock",
+   "shape": 0,
+   "w": 46
+  },
+  "rock-1": {
+   "ax": 23,
+   "ay": 34,
+   "file": "rock-1.png",
+   "h": 36,
+   "kind": "rock",
+   "shape": 1,
+   "w": 46
+  },
+  "rock-2": {
+   "ax": 23,
+   "ay": 34,
+   "file": "rock-2.png",
+   "h": 36,
+   "kind": "rock",
+   "shape": 2,
+   "w": 46
+  },
+  "rock-3": {
+   "ax": 23,
+   "ay": 34,
+   "file": "rock-3.png",
+   "h": 36,
+   "kind": "rock",
+   "shape": 3,
+   "w": 46
+  },
+  "ruin-2x2-0-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-0-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "2x2",
+   "snow": 0,
+   "w": 90
+  },
+  "ruin-2x2-0-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-0-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "2x2",
+   "snow": 1,
+   "w": 90
+  },
+  "ruin-2x2-1-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-1-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "2x2",
+   "snow": 0,
+   "w": 90
+  },
+  "ruin-2x2-1-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-1-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "2x2",
+   "snow": 1,
+   "w": 90
+  },
+  "ruin-2x2-2-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-2-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 2,
+   "size": "2x2",
+   "snow": 0,
+   "w": 90
+  },
+  "ruin-2x2-2-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-2-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 2,
+   "size": "2x2",
+   "snow": 1,
+   "w": 90
+  },
+  "ruin-3x2-0-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-0-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "3x2",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x2-0-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-0-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "3x2",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-3x2-1-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-1-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "3x2",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x2-1-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-1-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "3x2",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-3x2-2-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-2-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 2,
+   "size": "3x2",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x2-2-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-2-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 2,
+   "size": "3x2",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-3x3-0-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x3-0-0.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "3x3",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x3-0-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x3-0-1.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "3x3",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-3x3-1-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x3-1-0.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "3x3",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x3-1-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x3-1-1.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "3x3",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-5x3-0-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-5x3-0-0.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "5x3",
+   "snow": 0,
+   "w": 186
+  },
+  "ruin-5x3-0-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-5x3-0-1.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "5x3",
+   "snow": 1,
+   "w": 186
+  },
+  "shrub-autumn-0": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-autumn-0.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#a8763a",
+   "shape": 0,
+   "w": 48
+  },
+  "shrub-autumn-1": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-autumn-1.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#a8763a",
+   "shape": 1,
+   "w": 48
+  },
+  "shrub-autumn-2": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-autumn-2.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#a8763a",
+   "shape": 2,
+   "w": 48
+  },
+  "shrub-spring-0-0": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-0-0.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#4f9e36",
+   "shape": 0,
+   "w": 48
+  },
+  "shrub-spring-0-1": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-0-1.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#4f9e36",
+   "shape": 1,
+   "w": 48
+  },
+  "shrub-spring-0-2": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-0-2.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#4f9e36",
+   "shape": 2,
+   "w": 48
+  },
+  "shrub-spring-1-0": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-1-0.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#5aa93b",
+   "shape": 0,
+   "w": 48
+  },
+  "shrub-spring-1-1": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-1-1.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#5aa93b",
+   "shape": 1,
+   "w": 48
+  },
+  "shrub-spring-1-2": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-1-2.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#5aa93b",
+   "shape": 2,
+   "w": 48
+  },
+  "shrub-spring-2-0": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-2-0.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#47934a",
+   "shape": 0,
+   "w": 48
+  },
+  "shrub-spring-2-1": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-2-1.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#47934a",
+   "shape": 1,
+   "w": 48
+  },
+  "shrub-spring-2-2": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-spring-2-2.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#47934a",
+   "shape": 2,
+   "w": 48
+  },
+  "shrub-summer-0-0": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-0-0.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#438c35",
+   "shape": 0,
+   "w": 48
+  },
+  "shrub-summer-0-1": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-0-1.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#438c35",
+   "shape": 1,
+   "w": 48
+  },
+  "shrub-summer-0-2": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-0-2.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#438c35",
+   "shape": 2,
+   "w": 48
+  },
+  "shrub-summer-1-0": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-1-0.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#4d9437",
+   "shape": 0,
+   "w": 48
+  },
+  "shrub-summer-1-1": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-1-1.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#4d9437",
+   "shape": 1,
+   "w": 48
+  },
+  "shrub-summer-1-2": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-1-2.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#4d9437",
+   "shape": 2,
+   "w": 48
+  },
+  "shrub-summer-2-0": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-2-0.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#3f8448",
+   "shape": 0,
+   "w": 48
+  },
+  "shrub-summer-2-1": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-2-1.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#3f8448",
+   "shape": 1,
+   "w": 48
+  },
+  "shrub-summer-2-2": {
+   "ax": 24,
+   "ay": 26,
+   "file": "shrub-summer-2-2.png",
+   "h": 29,
+   "kind": "shrub",
+   "mid": "#3f8448",
+   "shape": 2,
+   "w": 48
+  },
+  "trunk-0": {
+   "ax": 9,
+   "ay": 25,
+   "file": "trunk-0.png",
+   "h": 29,
+   "kind": "trunk",
+   "pine": 0,
+   "w": 18
+  },
+  "trunk-1": {
+   "ax": 9,
+   "ay": 13,
+   "file": "trunk-1.png",
+   "h": 17,
+   "kind": "trunk",
+   "pine": 1,
+   "w": 18
+  }
+ }
+}

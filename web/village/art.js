@@ -13,24 +13,36 @@
 
   let S = null;
   const canvas = document.getElementById('scene');
-  const ctx = canvas.getContext('2d');
-  let cw = 0, ch = 0, dpr = 1;
+  const screen = canvas.getContext('2d');
+  let ctx = screen;             // where the drawing helpers paint: the screen, or a sprite being baked
+  // sw×sh: the canvas in CSS px; cw×ch: the part of the world it shows (world px, sw / zoom).
+  // dpr: device px per CSS px; zoom: CSS px per world px; R: device px per world px in cached images
+  // (capped, so chunks and sprites stay small enough for phones).
+  let sw = 0, sh = 0, cw = 0, ch = 0, dpr = 1, zoom = 1, R = 1;
+  const MAX_RASTER = 2.5;
   let cam = { x: 0, y: 0 };
   let time = 0;               // animation clock, seconds (runs even when the world is idle)
   let SUN = VV.sunAt(0.4, 'spring'); // this frame's daylight (view.sunAt)
   let CLOCK = V.clock(0);
   const lit = [];             // lights met while drawing this frame: { x, y, r, color, a }
-  const light = (x, y, r, color, a = 1) => lit.push({ x, y, r, color, a });
-  let vignette = null;
+  // While a building is being baked into a sprite its lights and chimneys are recorded instead (see bake()),
+  // then replayed every frame, so baked windows still light up and baked chimneys still smoke.
+  let recording = null;
+  const light = (x, y, r, color, a = 1) => (recording ? recording.lights : lit).push({ x, y, r, color, a });
+  let finish = null;            // the vignette and the colour grade, baked into one small image (finishLayer)
+  // Adaptive resolution (view.adaptQuality): the canvas renders at dpr = the device ratio × quality.q, so a
+  // phone that can't keep up draws fewer pixels. Cached chunks and sprites keep their full sharpness (R).
+  let quality = VV.qualityStart(), lastFrame = 0, full = 1;
+  const MIN_RATIO = 0.85;       // never blurrier than this many device px per CSS px
 
 
   // ───────────── Palette ─────────────
   // The ground and plant colours follow the season (view.palette); usePalette switches them. Sprites and
   // ground chunks are painted synchronously, so a paint can switch to another season and back.
-  const FLOWERS = ['#fff6e0', '#f4d35e', '#f2a7c3', '#b9d4f2', '#f6b26b'];
-  const SAND0 = { edge: '#cdb27c', main: '#e3cd98', pebble: '#bba373' };
-  const WATER0 = { shallow: '#72c0cc', deep: '#4d9bb8' };
-  const PATH0 = { edge: '#a78457', main: '#c9a670', speck: '#b39060' };
+  const FLOWERS = ['#ffffff', '#ffd23f', '#ff8fb8', '#8fc2ff', '#ff9a4a', '#e04a5f'];
+  const SAND0 = { edge: '#c99a58', main: '#ecca88', pebble: '#b58f58' };
+  const WATER0 = { shallow: '#43bfe6', deep: '#1f8fd6' };
+  const PATH0 = { edge: '#94592b', main: '#cf8e4e', speck: '#a5693a' };
   let LOOK, GRASS, SAND, WATER, PATH, SEASON;
   function usePalette(season) {
     SEASON = season;
@@ -47,9 +59,9 @@
   }
   usePalette('spring');
   let FADE = { from: 'winter', to: 'spring', t: 1 }; // this frame's season change (view.seasonFade)
-  const SQUARE = { edge: '#8c7a5d', gap: '#a39276', stones: ['#cdbd9b', '#d8c9a8', '#c2b18e', '#d2c4a0'] };
+  const SQUARE = { edge: '#8d867a', gap: '#7d8f52', stones: ['#c2b7a2', '#cdc3ae', '#b4a994', '#bfb39c', '#a99f8c', '#c8bfae'] };
   const WOOD = { dark: '#6e4a2b', mid: '#8b5e36', light: '#b3834f', pale: '#d2a86c' };
-  const STONE = { dark: '#7d786d', mid: '#9d978a', light: '#bdb7a8' };
+  const STONE = { dark: '#716e67', mid: '#9c988f', light: '#c8c4ba' };
   const WINDOW = '#ffd98a';
 
   // ───────────── Geometry of the map objects ─────────────
@@ -75,15 +87,52 @@
   // Fit the backing store to the canvas's CSS size and the device pixel ratio.
   function resize() {
     const r = canvas.getBoundingClientRect();
-    cw = Math.max(1, Math.round(r.width));
-    ch = Math.max(1, Math.round(r.height));
-    const fit = VV.fitCanvas(cw, ch, window.devicePixelRatio || 1);
-    dpr = fit.ratio;
-    canvas.width = fit.w;
-    canvas.height = fit.h;
-    vignette = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.35, cw / 2, ch / 2, Math.hypot(cw, ch) * 0.62);
-    vignette.addColorStop(0, 'rgba(60, 35, 10, 0)');
-    vignette.addColorStop(1, 'rgba(60, 35, 10, 0.32)');
+    sw = Math.max(1, Math.round(r.width));
+    sh = Math.max(1, Math.round(r.height));
+    full = VV.fitCanvas(sw, sh, window.devicePixelRatio || 1).ratio;
+    dpr = Math.max(Math.min(full, MIN_RATIO), full * quality.q);
+    zoom = VV.zoomFor(sw, sh);
+    cw = sw / zoom;
+    ch = sh / zoom;
+    R = Math.min(full * zoom, MAX_RASTER);
+    canvas.width = Math.max(1, Math.round(sw * dpr));
+    canvas.height = Math.max(1, Math.round(sh * dpr));
+    finish = finishLayer(sw, sh);
+  }
+
+  // The last pass over the frame, painted once at a quarter size (it is all soft gradients) and stretched:
+  // a soft grade (warm light from the top left, cooler shade to the bottom right) and a light vignette.
+  function finishLayer(w, h) {
+    const k = 0.25;
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(w * k));
+    cv.height = Math.max(1, Math.ceil(h * k));
+    const g = cv.getContext('2d');
+    g.scale(cv.width / w, cv.height / h);
+    const grade = g.createLinearGradient(0, 0, w, h);
+    grade.addColorStop(0, 'rgba(255, 236, 180, 0.07)');
+    grade.addColorStop(0.5, 'rgba(255, 236, 180, 0)');
+    grade.addColorStop(1, 'rgba(20, 50, 70, 0.07)');
+    g.fillStyle = grade;
+    g.fillRect(0, 0, w, h);
+    const vig = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.hypot(w, h) * 0.62);
+    vig.addColorStop(0, 'rgba(40, 30, 10, 0)');
+    vig.addColorStop(1, 'rgba(40, 30, 10, 0.2)');
+    g.fillStyle = vig;
+    g.fillRect(0, 0, w, h);
+    return cv;
+  }
+
+  // Feed the time since the last frame to the quality controller; re-fit the canvas when it changes its mind.
+  function pace() {
+    const now = performance.now();
+    if (lastFrame) {
+      const next = VV.adaptQuality(quality, now - lastFrame);
+      const changed = next.q !== quality.q;
+      quality = next;
+      if (changed) resize();
+    }
+    lastFrame = now;
   }
 
   // ───────────── Drawing primitives ─────────────
@@ -159,14 +208,14 @@
   const sprites = new Map();
   let spriteRatio = 0;
   function sprite(key, w, h, ax, ay, paint) {
-    if (spriteRatio !== dpr) { sprites.clear(); spriteRatio = dpr; }
+    if (spriteRatio !== R) { sprites.clear(); spriteRatio = R; }
     let sp = sprites.get(key);
     if (sp) { sprites.delete(key); sprites.set(key, sp); return sp; }
     const cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.ceil(w * dpr));
-    cv.height = Math.max(1, Math.ceil(h * dpr));
+    cv.width = Math.max(1, Math.ceil(w * R));
+    cv.height = Math.max(1, Math.ceil(h * R));
     const g = cv.getContext('2d');
-    g.setTransform(dpr, 0, 0, dpr, ax * dpr, ay * dpr);
+    g.setTransform(R, 0, 0, R, ax * R, ay * R);
     paint(g);
     sp = { cv, w, h, ax, ay };
     sprites.set(key, sp);
@@ -174,9 +223,47 @@
     return sp;
   }
   const blit = (sp, x, y) => ctx.drawImage(sp.cv, x - sp.ax, y - sp.ay, sp.w, sp.h);
-  // A sprite as big as a node's silhouette (view.NODE_TALL), so the art and the tap area agree.
+
+  // ───────────── Painted sprites ─────────────
+  // web/village/sprites holds PNGs baked by tools/village-sprites/generate.py (or painted by hand to the
+  // same sizes): crowns, pines, bushes, shrubs, rocks, trunks and the meadow texture. sprites.json gives each
+  // its world size, its anchor (the foot) and the palette colour it was painted for. Until they have loaded,
+  // or if they can't be, the code-drawn art below stands in. Berries, blossom, apples and snow stay code.
+  let PNG = null;
+  (function loadPainted() {
+    if (typeof fetch !== 'function' || typeof Image !== 'function') return;
+    fetch('sprites/sprites.json')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((m) => Promise.all(Object.entries(m.sprites).map(([name, e]) => new Promise((ok, bad) => {
+        const img = new Image();
+        img.onload = () => ok([name, { ...e, img }]);
+        img.onerror = () => bad(new Error(e.file));
+        img.src = 'sprites/' + e.file;
+      }))))
+      .then((list) => {
+        const idx = {};
+        for (const [name, e] of list) {
+          idx[name] = e;
+          if (e.kind === 'crown' || e.kind === 'bush' || e.kind === 'shrub') idx[`${e.kind}|${e.mid}|${e.shape}`] = e;
+          else if (e.kind === 'pine') idx[`pine|${e.snow}|${e.shape}`] = e;
+          else if (e.kind === 'rock') idx[`rock|${e.shape}`] = e;
+          else if (e.kind === 'trunk') idx[`trunk|${e.pine}`] = e;
+          else if (e.kind === 'ruin') idx[`ruin|${e.size}|${e.shape}|${e.snow}`] = e;
+        }
+        PNG = idx;
+        sprites.clear();
+        chunks.clear();
+      })
+      .catch(() => { /* keep the code-drawn art */ });
+  })();
+  const png = (key) => (PNG && PNG[key]) || null;
+  // A painted sprite at the painter's origin (the foot), optionally scaled around it.
+  const put = (g, e, k = 1) => g.drawImage(e.img, -e.ax * k, -e.ay * k, e.w * k, e.h * k);
+  // How big a node's art may be. Crowns and bushes spill over their neighbours for a lush look; the tap area
+  // stays the smaller silhouette of view.NODE_TALL, so taps and gameplay don't change with the art.
+  const ART_TALL = { tree: { hw: 36, up: 84 }, apple: { hw: 36, up: 84 }, bush: { hw: 24, up: 33 }, rock: { hw: 24, up: 35 } };
   const nodeSprite = (kind, key, paint) => {
-    const t = VV.NODE_TALL[kind], pad = 3;
+    const t = ART_TALL[kind] || VV.NODE_TALL[kind], pad = 3;
     return sprite(key, t.hw * 2 + pad * 2, t.up + VV.NODE_FOOT + pad * 2, t.hw + pad, t.up + pad, paint);
   };
   // A node sprite that changes with the season: painted with that season's palette, and while a season
@@ -184,10 +271,11 @@
   function seasonal(kind, key, paint, x, y) {
     const one = (season) => nodeSprite(kind, `${key}|${season}`, (g) => withPalette(season, () => paint(g)));
     if (FADE.t < 1) {
+      const a0 = ctx.globalAlpha;
       blit(one(FADE.from), x, y);
-      ctx.globalAlpha = FADE.t;
+      ctx.globalAlpha = a0 * FADE.t;
       blit(one(FADE.to), x, y);
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = a0;
     } else blit(one(FADE.to), x, y);
   }
 
@@ -203,7 +291,8 @@
     return CLASS[V.MAP[y][x]] || (inSquare(x, y) ? 'q' : 'g');
   };
   const CHUNK = 16;
-  const chunks = new Map();
+  const chunks = new Map(); // least recently used first
+  const MAX_CHUNKS = 12;
   let chunkRatio = 0;
 
   // Chunks of seasons that are no longer on screen are dropped.
@@ -212,15 +301,16 @@
   }
 
   function chunk(cx, cy, season) {
-    if (chunkRatio !== dpr) { chunks.clear(); chunkRatio = dpr; }
+    if (chunkRatio !== R) { chunks.clear(); chunkRatio = R; }
     const key = season + '|' + cx + ',' + cy;
     let c = chunks.get(key);
-    if (c) return c;
+    if (c) { chunks.delete(key); chunks.set(key, c); return c; }
+    if (chunks.size >= MAX_CHUNKS) chunks.delete(chunks.keys().next().value);
     const size = CHUNK * T;
     c = document.createElement('canvas');
-    c.width = c.height = Math.round(size * dpr);
+    c.width = c.height = Math.round(size * R);
     const g = c.getContext('2d');
-    g.scale(dpr, dpr);
+    g.scale(R, R);
     g.translate(-cx * size, -cy * size);
     // One tile of overlap on every side, so blobs and rounded edges match across chunk borders.
     withPalette(season, () => paintGround(g, cx * CHUNK - 1, cy * CHUNK - 1, cx * CHUNK + CHUNK, cy * CHUNK + CHUNK));
@@ -306,36 +396,97 @@
     g.restore();
   }
 
-  function paintGround(g, x0, y0, x1, y1) {
-    g.fillStyle = GRASS.base;
-    g.fillRect(x0 * T, y0 * T, (x1 - x0 + 1) * T, (y1 - y0 + 1) * T);
-    // Soft light and dark patches give the meadow some life.
+  // Smooth value noise over world tile coordinates: the same field in every chunk, every frame and every visit.
+  const smooth = (t) => t * t * (3 - 2 * t);
+  function vnoise(x, y, salt) {
+    const xi = Math.floor(x), yi = Math.floor(y), u = smooth(x - xi), v = smooth(y - yi);
+    return lerp(lerp(hash2(xi, yi, salt), hash2(xi + 1, yi, salt), u), lerp(hash2(xi, yi + 1, salt), hash2(xi + 1, yi + 1, salt), u), v);
+  }
+  const fbm = (x, y, salt) => vnoise(x / 7, y / 7, salt) * 0.55 + vnoise(x / 3, y / 3, salt + 1) * 0.3 + vnoise(x, y, salt + 2) * 0.15;
+
+  // The meadow's colour: drifts of darker, lusher grass and lighter sunny patches, computed on a coarse grid
+  // (CELL cells a tile) and scaled up with smoothing, so there are no repeating circles or tile seams.
+  const CELL = 4;
+  const WARM = [226, 214, 112]; // a sunlit, slightly dry meadow
+  function grassField(g, x0, y0, x1, y1) {
+    const w = (x1 - x0 + 1) * CELL, h = (y1 - y0 + 1) * CELL;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const c = cv.getContext('2d');
+    const img = c.createImageData(w, h);
+    const D = K.parse(GRASS.dark), B = K.parse(GRASS.base), L = K.parse(GRASS.light);
+    const warm = 0.22 * (1 - LOOK.snow);
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const wx = x0 + (i + 0.5) / CELL, wy = y0 + (j + 0.5) / CELL;
+      const t = clamp((fbm(wx, wy, 11) - 0.5) * 3.4 + (vnoise(wx * 1.8, wy * 1.8, 17) - 0.5) * 0.6, -1, 1);
+      const A = t < 0 ? D : L, k = Math.abs(t);
+      const sun = clamp((fbm(wx, wy, 23) - 0.6) * 3.5, 0, 1) * warm;
+      const o = (j * w + i) * 4;
+      for (let ch = 0; ch < 3; ch++) img.data[o + ch] = lerp(lerp(B[ch], A[ch], k), WARM[ch], sun);
+      img.data[o + 3] = 255;
+    }
+    c.putImageData(img, 0, 0);
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(cv, x0 * T, y0 * T, (x1 - x0 + 1) * T, (y1 - y0 + 1) * T);
+  }
+
+  // Soft mottling inside a terrain set (worn earth on the paths): noise-placed light and dark smudges.
+  function mottle(g, x0, y0, x1, y1, inSet, dark, light, salt) {
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      if (!inSet(x, y)) continue;
       for (let k = 0; k < 3; k++) {
-        const h = hash2(x, y, 10 + k);
-        g.globalAlpha = 0.22 + hash2(x, y, 20 + k) * 0.25;
-        g.fillStyle = h < 0.5 ? GRASS.dark : GRASS.light;
-        g.beginPath();
-        g.arc(x * T + hash2(x, y, 30 + k) * T, y * T + hash2(x, y, 40 + k) * T, 8 + h * 14, 0, TAU);
-        g.fill();
+        const mx = x * T + hash2(x, y, salt + k) * T, my = y * T + hash2(x, y, salt + 10 + k) * T;
+        const r = 5 + hash2(x, y, salt + 20 + k) * 9;
+        const grd = g.createRadialGradient(mx, my, 0, mx, my, r);
+        const col = hash2(x, y, salt + 30 + k) < 0.5 ? dark : light;
+        grd.addColorStop(0, col);
+        grd.addColorStop(1, col.replace(/[\d.]+\)$/, '0)'));
+        g.fillStyle = grd;
+        g.fillRect(mx - r, my - r, r * 2, r * 2);
       }
     }
-    g.globalAlpha = 1;
+  }
+
+  function paintGround(g, x0, y0, x1, y1) {
+    grassField(g, x0, y0, x1, y1);
+    // The painted meadow texture (soft brush strokes and tufts) over the colour field, in world space so it
+    // runs on seamlessly from chunk to chunk.
+    const tex = png('grass');
+    if (tex) {
+      const pat = g.createPattern(tex.img, 'repeat');
+      pat.setTransform(new DOMMatrix().scale(tex.w / tex.img.width));
+      g.save();
+      g.globalCompositeOperation = 'soft-light';
+      g.globalAlpha = 0.75;
+      g.fillStyle = pat;
+      g.fillRect(x0 * T, y0 * T, (x1 - x0 + 1) * T, (y1 - y0 + 1) * T);
+      g.restore();
+    }
     const is = (c) => (x, y) => terr(x, y) === c;
     const sandy = (x, y) => terr(x, y) === 's' || terr(x, y) === 'w';
     const water = is('w');
     const deep = (x, y) => water(x, y) && water(x - 1, y) && water(x + 1, y) && water(x, y - 1) && water(x, y + 1);
     layer(g, x0, y0, x1, y1, sandy, SAND.edge, 0, 10);
     layer(g, x0, y0, x1, y1, sandy, SAND.main, 2, 9);
-    layer(g, x0, y0, x1, y1, water, WATER.shallow, 5, 12);
-    layer(g, x0, y0, x1, y1, deep, WATER.deep, 4, 12);
-    sunken(g, x0, y0, x1, y1, water, { inset: 5, radius: 12, shadow: [12, 0.34, '18, 52, 66'], lip: [5, 0.32], rim: 0.28 });
+    // Wet sand darkens just above the waterline, then a pale band of shallows runs along every bank.
+    layer(g, x0, y0, x1, y1, water, K.shade(SAND.edge, -0.08), 2.5, 12);
+    layer(g, x0, y0, x1, y1, water, LOOK.ice ? K.shade(WATER.shallow, 0.2) : '#86dcef', 4.5, 12);
+    layer(g, x0, y0, x1, y1, water, WATER.shallow, 8, 12);
+    layer(g, x0, y0, x1, y1, deep, WATER.deep, 3, 14);
+    if (!LOOK.ice) mottle(g, x0, y0, x1, y1, deep, 'rgba(12, 70, 140, 0.18)', 'rgba(150, 235, 255, 0.12)', 600);
+    sunken(g, x0, y0, x1, y1, water, { inset: 4.5, radius: 12, shadow: [10, 0.3, '10, 60, 90'], lip: [4, 0.3], rim: LOOK.ice ? 0.3 : 0.75 });
     // The old forest's floor: deep shade under the crowns.
     layer(g, x0, y0, x1, y1, is('k'), K.shade(GRASS.base, -0.3), 0, 10);
     layer(g, x0, y0, x1, y1, is('k'), K.shade(GRASS.base, -0.42), 6, 10);
     layer(g, x0, y0, x1, y1, is('p'), PATH.edge, 0, 8);
     layer(g, x0, y0, x1, y1, is('p'), PATH.main, 2.5, 7);
-    sunken(g, x0, y0, x1, y1, is('p'), { inset: 2.5, radius: 7, shadow: [5, 0.2, '74, 50, 24'], lip: [3, 0.22] });
+    g.save();
+    layerPath(g, x0, y0, x1, y1, is('p'), 2.5, 7);
+    g.clip();
+    mottle(g, x0, y0, x1, y1, is('p'), 'rgba(140, 85, 40, 0.22)', 'rgba(255, 222, 170, 0.22)', 620);
+    g.restore();
+    sunken(g, x0, y0, x1, y1, is('p'), { inset: 2.5, radius: 7, shadow: [6, 0.3, '90, 50, 20'], lip: [3, 0.25] });
     // The hill east of the village: a raised ridge, lit on its north-west slope and shaded to the south-east,
     // with rocks poking out of the turf.
     const hill = is('h');
@@ -346,9 +497,9 @@
       for (let k = 0; k < 2; k++) {
         const mx = x * T + 6 + hash2(x, y, 193 + k) * 20, my = y * T + 4 + hash2(x, y, 195 + k) * 22, r = 15 + hash2(x, y, 197 + k) * 8;
         const grd = g.createRadialGradient(mx - r * 0.4, my - r * 0.45, r * 0.1, mx, my, r);
-        grd.addColorStop(0, K.shade(GRASS.base, 0.22));
-        grd.addColorStop(0.55, K.shade(GRASS.base, 0.02));
-        grd.addColorStop(1, K.withAlpha(K.shade(GRASS.base, -0.25), 0));
+        grd.addColorStop(0, K.withAlpha(K.shade(GRASS.base, 0.14), 0.8));
+        grd.addColorStop(0.55, K.withAlpha(K.shade(GRASS.base, -0.04), 0.5));
+        grd.addColorStop(1, K.withAlpha(K.shade(GRASS.base, -0.2), 0));
         g.fillStyle = grd;
         g.beginPath(); g.ellipse(mx, my, r, r * 0.85, 0, 0, TAU); g.fill();
       }
@@ -378,37 +529,58 @@
         g.fillRect(x * T + 5, fy - 1.5, T - 10, 1.2);
       }
     }
-    layer(g, x0, y0, x1, y1, is('q'), SQUARE.edge, 0, 6);
-    layer(g, x0, y0, x1, y1, is('q'), SQUARE.gap, 2, 5);
+    layer(g, x0, y0, x1, y1, is('q'), LOOK.snow ? '#c9d2d8' : SQUARE.edge, 0, 6);
+    layer(g, x0, y0, x1, y1, is('q'), LOOK.snow ? '#e3e9ed' : K.shade(GRASS.dark, -0.12), 1.5, 5);
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const c = terr(x, y), px = x * T, py = y * T;
       if (c === 'g') grassDetail(g, x, y, px, py);
-      else if (c === 'p') {
-        for (let k = 0; k < 4; k++) {
-          g.fillStyle = k % 2 ? PATH.speck : 'rgba(255, 240, 210, 0.35)';
-          g.beginPath();
-          g.arc(px + 4 + hash2(x, y, 50 + k) * (T - 8), py + 4 + hash2(x, y, 60 + k) * (T - 8), 1 + hash2(x, y, 70 + k) * 1.4, 0, TAU);
-          g.fill();
-        }
-      } else if (c === 'q') cobbles(g, x, y, px, py);
+      else if (c === 'p') pathDetail(g, x, y, px, py); else if (c === 'q') cobbles(g, x, y, px, py);
       else if (c === 's') sandDetail(g, x, y, px, py, water);
       else if (c === 'w' && LOOK.ice) iceDetail(g, x, y, px, py);
-      else if (c === 'w' && deep(x, y) && hash2(x, y, 90) < 0.07) lilyPad(g, x, y, px, py);
+      else if (c === 'w' && deep(x, y) && hash2(x, y, 90) < 0.1) lilyPad(g, x, y, px, py);
     }
   }
 
-  function grassDetail(g, x, y, px, py) {
-    const tufts = Math.floor(hash2(x, y, 1) * 3);
-    g.lineWidth = 1.3;
+  // A clump of grass blades fanning out from (tx, ty): short curved strokes, lit ones on the left.
+  function clump(g, tx, ty, n, len, seed, dark, lit, lean = 0) {
+    g.fillStyle = 'rgba(28, 56, 10, 0.16)';
+    g.beginPath(); g.ellipse(tx + 1, ty + 0.5, 1.5 + n, 1.3, 0, 0, TAU); g.fill();
     g.lineCap = 'round';
-    for (let k = 0; k < tufts; k++) {
-      const tx = px + 5 + hash2(x, y, 2 + k) * (T - 10), ty = py + 8 + hash2(x, y, 5 + k) * (T - 10);
-      g.strokeStyle = hash2(x, y, 8 + k) < 0.7 ? GRASS.tuft : GRASS.tuftLight;
-      g.beginPath();
-      g.moveTo(tx - 3, ty - 4); g.lineTo(tx - 1, ty);
-      g.moveTo(tx, ty - 6); g.lineTo(tx, ty);
-      g.moveTo(tx + 3, ty - 4); g.lineTo(tx + 1, ty);
-      g.stroke();
+    g.lineWidth = 1.1;
+    for (let b = 0; b < n; b++) {
+      const a = lean + (n > 1 ? b / (n - 1) - 0.5 : 0) * 1.2 + (hash2(seed, b, 21) - 0.5) * 0.7;
+      const l = len * (0.55 + hash2(seed, b, 22) * 0.7);
+      const ex = tx + Math.sin(a) * l, ey = ty - Math.cos(a) * l;
+      g.strokeStyle = a < lean ? lit : dark;
+      g.beginPath(); g.moveTo(tx + (b - n / 2) * 0.6, ty); g.quadraticCurveTo(tx + Math.sin(a) * l * 0.25, ty - l * 0.6, ex, ey); g.stroke();
+    }
+  }
+
+  // Grass, from far to near: clumps of blades (more in the lush drifts), blades leaning over the edges of
+  // paths, sand and the square so those borders look ragged and natural, then leaves, snow and flowers.
+  const OVER = { p: 1, q: 1, s: 1 };
+  function grassDetail(g, x, y, px, py) {
+    const lush = 1 - fbm(x + 0.5, y + 0.5, 11);
+    const dark = K.withAlpha(K.mix(GRASS.dark, GRASS.tuft, 0.7), 0.8), mid = K.withAlpha(K.mix(GRASS.base, GRASS.tuft, 0.6), 0.85), lit = K.withAlpha(K.mix(GRASS.light, GRASS.tuftLight, 0.6), 0.85);
+    // With the painted texture the blades are only an accent; without it they carry the grass.
+    const n = png('grass') ? Math.floor(hash2(x, y, 1) * 1.6 + lush * 1.4) : 1 + Math.floor(hash2(x, y, 1) * 2 + lush * 3);
+    for (let k = 0; k < n; k++) {
+      const tx = px + 3 + hash2(x, y, 2 + k) * (T - 6), ty = py + 6 + hash2(x, y, 30 + k) * (T - 7);
+      const seed = x * 131 + y * 7 + k;
+      clump(g, tx, ty, 3 + Math.floor(hash2(seed, 1, 23) * 3), 4.5 + lush * 3.5, seed, hash2(seed, 2, 24) < 0.5 ? dark : mid, lit);
+    }
+    // Specks of light on single blades.
+    g.fillStyle = K.withAlpha(GRASS.tuftLight, 0.7);
+    for (let k = 0; k < 4; k++) g.fillRect(px + hash2(x, y, 60 + k) * T, py + hash2(x, y, 64 + k) * T, 1.2, 1.2);
+    // Ragged borders: blades from this tile lean over a neighbouring path, beach or square.
+    for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+      if (!OVER[terr(x + dx, y + dy)]) continue;
+      for (let k = 0; k < 4; k++) {
+        const u = (k + 0.2 + hash2(x, y, 70 + k + dx * 3 + dy * 5) * 0.6) / 4;
+        const ex = dx ? px + (dx > 0 ? T - 1 : 1) : px + u * T, ey = dy ? py + (dy > 0 ? T + 1 : 3) : py + u * T + 3;
+        const seed = x * 977 + y * 31 + k + dx * 5 + dy * 11;
+        clump(g, ex, ey, 3, 5 + hash2(seed, 3, 25) * 3, seed, mid, lit, dx * 0.6);
+      }
     }
     if (LOOK.fallen && hash2(x, y, 160) < LOOK.fallen) {
       // Fallen leaves in autumn.
@@ -424,71 +596,170 @@
       g.fillStyle = 'rgba(255, 255, 255, 0.9)';
       for (let k = 0; k < 3; k++) g.fillRect(px + hash2(x, y, 171 + k) * T, py + hash2(x, y, 175 + k) * T, 1.2, 1.2);
     }
-    if (hash2(x, y, 3) < LOOK.flowers) {
-      const col = FLOWERS[Math.floor(hash2(x, y, 4) * FLOWERS.length)];
-      const n = 3 + Math.floor(hash2(x, y, 6) * 3);
-      const fx = px + 6 + hash2(x, y, 7) * (T - 12), fy = py + 6 + hash2(x, y, 9) * (T - 12);
+    // Flowers grow in patches (a slow noise field), each patch mostly one colour.
+    const patch = vnoise(x / 3.2, y / 3.2, 61);
+    if (LOOK.flowers > 0 && patch > 1 - LOOK.flowers * 1.05 && hash2(x, y, 3) < 0.6) {
+      const main = FLOWERS[Math.floor(vnoise(x / 5, y / 5, 62) * 7919) % FLOWERS.length];
+      const n = 1 + Math.floor(hash2(x, y, 6) * 3.5);
       for (let k = 0; k < n; k++) {
-        const ax = fx + (hash2(x, y, 11 + k) - 0.5) * 12, ay = fy + (hash2(x, y, 15 + k) - 0.5) * 10;
-        g.fillStyle = col;
-        for (let p = 0; p < 5; p++) {
-          g.beginPath();
-          g.arc(ax + Math.cos(p * 1.256) * 1.6, ay + Math.sin(p * 1.256) * 1.6, 1.3, 0, TAU);
-          g.fill();
-        }
-        g.fillStyle = '#f0b43c';
-        g.beginPath();
-        g.arc(ax, ay, 0.9, 0, TAU);
-        g.fill();
+        const ax = px + 4 + hash2(x, y, 11 + k) * (T - 8), ay = py + 4 + hash2(x, y, 15 + k) * (T - 8);
+        const col = hash2(x, y, 19 + k) < 0.75 ? main : FLOWERS[Math.floor(hash2(x, y, 25 + k) * FLOWERS.length)];
+        flower(g, ax, ay, 1.5 + hash2(x, y, 31 + k) * 0.7, col);
       }
     }
   }
 
+  // A small flower seen from above: leaves, a soft shadow, five lit petals and a golden heart.
+  function flower(g, x, y, r, col) {
+    g.fillStyle = K.shade(GRASS.tuft, -0.1);
+    g.beginPath(); g.ellipse(x - r * 1.6, y + r * 0.9, r * 1.2, r * 0.5, -0.5, 0, TAU); g.ellipse(x + r * 1.5, y + r * 1.1, r * 1.1, r * 0.45, 0.5, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(20, 50, 10, 0.25)';
+    g.beginPath(); g.arc(x + 0.8, y + 1.1, r * 1.9, 0, TAU); g.fill();
+    g.fillStyle = K.shade(col, -0.12);
+    g.beginPath();
+    for (let p = 0; p < 5; p++) g.arc(x + Math.cos(p * 1.2566 - 1.57) * r, y + Math.sin(p * 1.2566 - 1.57) * r, r * 0.85, 0, TAU);
+    g.fill();
+    g.fillStyle = col;
+    g.beginPath();
+    for (let p = 0; p < 5; p++) g.arc(x - 0.3 + Math.cos(p * 1.2566 - 1.57) * r * 0.9, y - 0.3 + Math.sin(p * 1.2566 - 1.57) * r * 0.9, r * 0.6, 0, TAU);
+    g.fill();
+    g.fillStyle = '#f0a81e';
+    g.beginPath(); g.arc(x, y, r * 0.55, 0, TAU); g.fill();
+  }
+
+  // Pebbles and small stones pressed into the dirt of the paths, each with its own shadow.
+  function pathDetail(g, x, y, px, py) {
+    for (let k = 0; k < 5; k++) {
+      const sx = px + 4 + hash2(x, y, 50 + k) * (T - 8), sy = py + 4 + hash2(x, y, 60 + k) * (T - 8);
+      const r = 0.8 + hash2(x, y, 70 + k) ** 2 * 2.6;
+      if (r > 1.6) {
+        g.fillStyle = 'rgba(90, 52, 20, 0.35)';
+        g.beginPath(); g.ellipse(sx + 0.8, sy + 0.9, r, r * 0.75, 0, 0, TAU); g.fill();
+        g.fillStyle = hash2(x, y, 80 + k) < 0.5 ? '#c9b9a2' : '#b5a48c';
+        g.beginPath(); g.ellipse(sx, sy, r, r * 0.75, 0, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255, 250, 235, 0.55)';
+        g.beginPath(); g.ellipse(sx - r * 0.3, sy - r * 0.3, r * 0.45, r * 0.3, -0.4, 0, TAU); g.fill();
+      } else {
+        g.fillStyle = k % 2 ? PATH.speck : 'rgba(255, 236, 200, 0.45)';
+        g.beginPath(); g.arc(sx, sy, r, 0, TAU); g.fill();
+      }
+    }
+  }
+
+  // Flagstones of the square: mostly four to a tile, often a long pair or one big slab, set with grass and
+  // moss growing in the joints. Each slab is an irregular quad with rounded corners, lit at the top left,
+  // with a little thickness showing on its lower right.
+  function slab(g, pts, r) {
+    g.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      if (i === 0) g.moveTo(mx, my);
+      const c = pts[(i + 1) % pts.length], d = pts[(i + 2) % pts.length];
+      g.arcTo(c[0], c[1], (c[0] + d[0]) / 2, (c[1] + d[1]) / 2, r);
+    }
+    g.closePath();
+  }
   function cobbles(g, x, y, px, py) {
-    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
-      const k = j * 2 + i;
-      const sx = px + i * 16 + 1.5 + (hash2(x, y, 100 + k) - 0.5) * 1.5, sy = py + j * 16 + 1.5 + (hash2(x, y, 110 + k) - 0.5) * 1.5;
-      // Each cobble is a low dome: a shadow to the lower right, the stone, then its lit top.
-      g.fillStyle = 'rgba(60, 48, 30, 0.35)';
-      g.beginPath();
-      g.roundRect(sx + 1.2, sy + 1.6, 13, 13, 4);
-      g.fill();
-      g.fillStyle = SQUARE.stones[Math.floor(hash2(x, y, 120 + k) * SQUARE.stones.length)];
-      g.beginPath();
-      g.roundRect(sx, sy, 13, 13, 4);
-      g.fill();
-      g.fillStyle = 'rgba(255, 250, 235, 0.35)';
-      g.beginPath();
-      g.roundRect(sx + 2, sy + 1.5, 7, 3, 1.5);
-      g.fill();
+    const h = hash2(x, y, 99);
+    const cells = h < 0.2 ? [[0, 0, 2, 2]] : h < 0.38 ? [[0, 0, 2, 1], [0, 1, 1, 1], [1, 1, 1, 1]]
+      : h < 0.54 ? [[0, 0, 1, 2], [1, 0, 1, 1], [1, 1, 1, 1]] : h < 0.66 ? [[0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 2, 1]]
+        : [[0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]];
+    const snow = LOOK.snow;
+    cells.forEach(([i, j, w, hh], k) => {
+      const x0 = px + i * 16 + 1.6, y0 = py + j * 16 + 1.6, x1 = px + (i + w) * 16 - 1.6, y1 = py + (j + hh) * 16 - 1.6;
+      const jit = (q) => (hash2(x * 4 + i, y * 4 + j, 160 + q + k * 8) - 0.5) * 2.4;
+      const pts = [[x0 + jit(0), y0 + jit(1)], [x1 + jit(2), y0 + jit(3)], [x1 + jit(4), y1 + jit(5)], [x0 + jit(6), y1 + jit(7)]];
+      const rr = 2.5 + hash2(x, y, 115 + k) * 2;
+      g.fillStyle = 'rgba(36, 40, 18, 0.5)';
+      slab(g, pts.map(([a, b]) => [a + 1, b + 1.7]), rr); g.fill();
+      const col = snow ? '#f1f5f8' : SQUARE.stones[Math.floor(hash2(x, y, 120 + k) * SQUARE.stones.length)];
+      const grd = g.createLinearGradient(x0, y0, x1, y1);
+      grd.addColorStop(0, K.shade(col, 0.2));
+      grd.addColorStop(0.5, col);
+      grd.addColorStop(1, K.shade(col, -0.12));
+      g.fillStyle = grd;
+      slab(g, pts, rr); g.fill();
+      g.save();
+      g.clip();
+      // Lit top edge and a few soft darker spots of weathering.
+      g.strokeStyle = 'rgba(255, 252, 240, 0.45)';
+      g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(pts[0][0] + rr, pts[0][1] + 0.6); g.lineTo(pts[1][0] - rr, pts[1][1] + 0.6); g.stroke();
+      for (let q = 0; q < 3; q++) {
+        g.fillStyle = 'rgba(110, 96, 72, 0.14)';
+        g.beginPath(); g.ellipse(lerp(x0, x1, hash2(x, y, 140 + k * 3 + q)), lerp(y0, y1, hash2(x, y, 150 + k * 3 + q)), 3, 1.8, 0, 0, TAU); g.fill();
+      }
+      g.restore();
+      if (snow) return;
+      if (w + hh > 2 && hash2(x, y, 125 + k) < 0.3) { // a hairline crack across a big slab
+        g.strokeStyle = 'rgba(80, 70, 52, 0.45)';
+        g.lineWidth = 0.8;
+        const cx0 = lerp(x0, x1, 0.3 + hash2(x, y, 126 + k) * 0.4);
+        g.beginPath(); g.moveTo(cx0, y0 + 1); g.lineTo(cx0 - 3, lerp(y0, y1, 0.45)); g.lineTo(cx0 + 2, y1 - 1); g.stroke();
+      }
+      if (hash2(x, y, 127 + k) < 0.12) { // a patch of lichen
+        g.fillStyle = 'rgba(140, 160, 80, 0.3)';
+        g.beginPath(); g.ellipse(lerp(x0, x1, 0.7), lerp(y0, y1, 0.65), 2.6, 1.8, 0.3, 0, TAU); g.fill();
+      }
+    });
+    if (snow) return;
+    // Moss and a blade or two in the joints.
+    g.fillStyle = K.withAlpha(K.shade(GRASS.base, 0.05), 0.9);
+    for (let k = 0; k < 3; k++) {
+      if (hash2(x, y, 130 + k) > 0.6) continue;
+      const jx = px + (k === 1 ? 16 : hash2(x, y, 132 + k) * T), jy = py + (k === 1 ? hash2(x, y, 133 + k) * T : k ? 16 : 0.5);
+      g.beginPath(); g.ellipse(jx, jy, k === 1 ? 1.3 : 3, k === 1 ? 3 : 1.3, 0, 0, TAU); g.fill();
+    }
+    if (hash2(x, y, 135) < 0.25) {
+      const seed = x * 53 + y * 17;
+      clump(g, px + 16, py + 16 + 2, 3, 3.5 + hash2(seed, 1, 26) * 2, seed, GRASS.tuft, GRASS.tuftLight);
     }
   }
 
   function sandDetail(g, x, y, px, py, water) {
-    for (let k = 0; k < 3; k++) {
-      g.fillStyle = SAND.pebble;
+    for (let k = 0; k < 4; k++) {
+      g.fillStyle = k % 2 ? SAND.pebble : K.withAlpha(K.shade(SAND.main, 0.3), 0.8);
       g.beginPath();
       g.ellipse(px + 4 + hash2(x, y, 130 + k) * (T - 8), py + 4 + hash2(x, y, 135 + k) * (T - 8), 1.6, 1.1, 0, 0, TAU);
       g.fill();
     }
-    // Reeds and cattails along the water.
     const near = water(x - 1, y) || water(x + 1, y) || water(x, y - 1) || water(x, y + 1);
-    if (near && hash2(x, y, 140) < 0.3) {
+    // Rounded grey stones on the banks, half sunk in the sand, each with a soft shadow.
+    if (hash2(x, y, 145) < (near ? 0.42 : 0.12)) {
+      const n = 1 + Math.floor(hash2(x, y, 146) * 2.4);
+      for (let k = 0; k < n; k++) {
+        const sx = px + 6 + hash2(x, y, 147 + k) * (T - 12), sy = py + 6 + hash2(x, y, 150 + k) * (T - 12);
+        const r = 2.4 + hash2(x, y, 153 + k) * 3.6;
+        g.fillStyle = 'rgba(80, 60, 30, 0.3)';
+        g.beginPath(); g.ellipse(sx + 1.4, sy + 1.6, r * 1.05, r * 0.7, 0, 0, TAU); g.fill();
+        const grd = g.createRadialGradient(sx - r * 0.4, sy - r * 0.5, r * 0.1, sx, sy, r * 1.1);
+        grd.addColorStop(0, LOOK.snow ? '#ffffff' : '#d8d6d0');
+        grd.addColorStop(0.6, LOOK.snow ? '#e8eef2' : '#a9a69e');
+        grd.addColorStop(1, LOOK.snow ? '#c9d3da' : '#7d7a72');
+        blob(sx, sy, r, r * 0.78, x * 37 + y * 11 + k, grd, 7, 0.14, g);
+      }
+    }
+    // Reeds and cattails along the water.
+    if (near && hash2(x, y, 140) < 0.42 && !LOOK.snow) {
       const rx = px + 6 + hash2(x, y, 141) * (T - 12), ry = py + T - 6;
+      g.fillStyle = 'rgba(40, 60, 20, 0.22)';
+      g.beginPath(); g.ellipse(rx + 2, ry + 1, 7, 2.2, 0, 0, TAU); g.fill();
       g.lineCap = 'round';
-      for (let k = 0; k < 4; k++) {
-        const dx = (k - 1.5) * 2.4, hgt = 11 + hash2(x, y, 142 + k) * 8;
-        g.strokeStyle = k % 2 ? '#4f7a33' : '#6b9440';
-        g.lineWidth = 1.4;
+      const n = 5 + Math.floor(hash2(x, y, 149) * 3);
+      for (let k = 0; k < n; k++) {
+        const dx = (k - (n - 1) / 2) * 2.1, hgt = 12 + hash2(x, y, 142 + k) * 10;
+        g.strokeStyle = ['#3f7a2a', '#5f9a36', '#7fb546'][k % 3];
+        g.lineWidth = 1.5;
         g.beginPath();
-        g.moveTo(rx + dx, ry);
-        g.quadraticCurveTo(rx + dx * 1.5, ry - hgt / 2, rx + dx * 2, ry - hgt);
+        g.moveTo(rx + dx * 0.6, ry);
+        g.quadraticCurveTo(rx + dx * 1.2, ry - hgt / 2, rx + dx * 1.9, ry - hgt);
         g.stroke();
-        if (k % 2 === 0) {
-          g.fillStyle = '#7a4b2a';
-          g.beginPath();
-          g.roundRect(rx + dx * 2 - 1.6, ry - hgt - 1, 3.2, 6, 1.6);
-          g.fill();
+        if (k % 3 === 1) {
+          g.fillStyle = '#6e4224';
+          g.beginPath(); g.roundRect(rx + dx * 1.9 - 1.7, ry - hgt - 1, 3.4, 6.5, 1.7); g.fill();
+          g.fillStyle = 'rgba(255, 220, 170, 0.35)';
+          g.fillRect(rx + dx * 1.9 - 1, ry - hgt, 0.9, 4.5);
         }
       }
     }
@@ -520,12 +791,14 @@
     g.beginPath();
     g.ellipse(lx + 1.5, ly + 2, 6, 5.4, 0, 0, TAU);
     g.fill();
-    g.fillStyle = '#5d9a4a';
-    g.beginPath();
-    g.moveTo(lx, ly);
-    g.arc(lx, ly, 6, a + 0.4, a + TAU - 0.1);
-    g.closePath();
-    g.fill();
+    for (const [r, col, dx] of [[6, '#3f8a34', 0], [5, '#62ad45', -0.6]]) {
+      g.fillStyle = col;
+      g.beginPath();
+      g.moveTo(lx + dx, ly + dx);
+      g.arc(lx + dx, ly + dx, r, a + 0.4, a + TAU - 0.1);
+      g.closePath();
+      g.fill();
+    }
     if (hash2(x, y, 94) < 0.5) {
       g.fillStyle = '#f7c6d6';
       g.beginPath();
@@ -534,32 +807,46 @@
     }
   }
 
-  // Gentle ripples and glints on the visible water, drifting with the current.
+  // The water's surface over the baked ground: soft bands of light drifting with the current, short ripple
+  // strokes, and glints that flash now and then. Cheap: a few strokes per visible water tile.
   function drawWater(r) {
     if (LOOK.ice) return; // frozen
     ctx.lineCap = 'round';
     for (let y = r.y0; y <= r.y1; y++) for (let x = r.x0; x <= r.x1; x++) {
       if (terr(x, y) !== 'w') continue;
       const vertical = terr(x, y - 1) === 'w' && terr(x, y + 1) === 'w' && !(terr(x - 1, y) === 'w' && terr(x + 1, y) === 'w');
-      for (let k = 0; k < 2; k++) {
+      // A broad, faint band of light (one per tile, sliding along the flow).
+      const hb = hash2(x, y, 230), pb = (hb * T + time * 6) % T;
+      ctx.fillStyle = `rgba(190, 245, 255, ${(Math.sin((pb / T) * Math.PI) * 0.1).toFixed(3)})`;
+      ctx.beginPath();
+      if (vertical) ctx.ellipse(x * T + 8 + hb * 16, y * T + pb, 6, 3, 0, 0, TAU);
+      else ctx.ellipse(x * T + T - pb, y * T + 8 + hb * 16, 3, 6, 0, 0, TAU);
+      ctx.fill();
+      for (let k = 0; k < 3; k++) {
         const h = hash2(x, y, 200 + k);
-        const p = (h * T + time * (5 + h * 5)) % T;
-        const across = 7 + hash2(x, y, 210 + k) * (T - 14);
-        ctx.strokeStyle = `rgba(235, 250, 255, ${(Math.sin((p / T) * Math.PI) * 0.4).toFixed(3)})`;
-        ctx.lineWidth = 1.4;
+        const p = (h * T + time * (5 + h * 6)) % T;
+        const across = 6 + hash2(x, y, 210 + k) * (T - 12);
+        ctx.strokeStyle = `rgba(240, 252, 255, ${(Math.sin((p / T) * Math.PI) * (k === 2 ? 0.3 : 0.55)).toFixed(3)})`;
+        ctx.lineWidth = k === 2 ? 1 : 1.5;
+        const l = k === 2 ? 2.5 : 4.5;
         ctx.beginPath();
         if (vertical) {
-          ctx.moveTo(x * T + across, y * T + p - 3);
-          ctx.quadraticCurveTo(x * T + across + 2, y * T + p, x * T + across, y * T + p + 3);
+          ctx.moveTo(x * T + across, y * T + p - l);
+          ctx.quadraticCurveTo(x * T + across + 2, y * T + p, x * T + across, y * T + p + l);
         } else {
           const px = x * T + T - p;
-          ctx.moveTo(px - 4, y * T + across);
-          ctx.quadraticCurveTo(px, y * T + across - 2, px + 4, y * T + across);
+          ctx.moveTo(px - l, y * T + across);
+          ctx.quadraticCurveTo(px, y * T + across - 2, px + l, y * T + across);
         }
         ctx.stroke();
       }
       const tw = Math.sin(time * 1.7 + hash2(x, y, 220) * 40);
-      if (tw > 0.93) circle(x * T + hash2(x, y, 221) * T, y * T + hash2(x, y, 222) * T, (tw - 0.93) * 25, 'rgba(255, 255, 255, 0.7)');
+      if (tw > 0.9) {
+        const gx = x * T + hash2(x, y, 221) * T, gy = y * T + hash2(x, y, 222) * T, z = (tw - 0.9) * 40;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.beginPath(); ctx.moveTo(gx - z, gy); ctx.lineTo(gx, gy - z * 0.3); ctx.lineTo(gx + z, gy); ctx.lineTo(gx, gy + z * 0.3); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(gx, gy - z * 0.6); ctx.lineTo(gx + z * 0.25, gy); ctx.lineTo(gx, gy + z * 0.6); ctx.lineTo(gx - z * 0.25, gy); ctx.closePath(); ctx.fill();
+      }
     }
   }
 
@@ -586,20 +873,54 @@
     return { pine, pal, bare, snow, apples: !bare && fruit, blossom: hash2(n.x, n.y, 304) < LOOK.blossom };
   }
 
-  // Leafy crowns are clusters of lit balls; pines are stacked cones with a lit left face. Painted at the
-  // node's foot (0, 0); the trunk and the crown are separate sprites so the crown can sway.
-  const CROWN = [[0, -23, 14, 0], [-8, -27, 10, 1], [8, -26, 10, 1], [0, -35, 11, 1], [-5, -36, 6.5, 2], [-10, -28, 4.5, 2]];
+  // Leafy crowns: a dark outline, then dark, mid and lit balls of foliage from the bottom up, each ball
+  // carrying small leaf clumps (lit on its upper left, shaded on its lower right). Pines are stacked tiers
+  // with ragged lower edges, lit on the left. Painted at the node's foot (0, 0); the trunk and the crown are
+  // separate sprites so the crown can sway.
+  const CROWN = [
+    [-12, -27, 12, 0], [12, -27, 12, 0], [0, -23, 13, 0], [-18, -37, 10, 0], [18, -37, 10, 0],
+    [-8, -38, 13, 1], [9, -40, 12.5, 1], [0, -31, 13, 1], [-15, -31, 9, 1], [15, -32, 9, 1],
+    [-6, -49, 10, 2], [6, -51, 9, 2], [-13, -44, 7, 2], [2, -42, 9, 2],
+  ];
+  const PINE = [[18, -6, -28], [15.5, -18, -40], [12.5, -30, -52], [8.5, -42, -64]];
   function paintCrown(g, n, L) {
+    const shape = Math.floor(hash2(n.x, n.y, 309) * 3);
+    const painted = L.pine ? png(`pine|${L.snow ? 1 : 0}|${shape}`) : L.bare ? null : png(`crown|${L.pal[1]}|${shape}`);
+    if (painted) {
+      put(g, painted);
+      if (!L.pine) crownExtras(g, n, L);
+      return;
+    }
     if (L.pine) {
-      [[14, -6, -24], [12, -17, -35], [9, -28, -46]].forEach(([w, b, top], i) => {
-        g.fillStyle = 'rgba(20, 40, 20, 0.28)'; // the tier above shades the one below
-        g.beginPath(); g.ellipse(1, b + 1, w * 0.85, 2.6, 0, 0, TAU); g.fill();
-        g.fillStyle = K.shade(L.pal[0], -0.12);
-        g.beginPath(); g.moveTo(-w, b); g.lineTo(w, b); g.lineTo(0, top); g.closePath(); g.fill();
-        g.fillStyle = i ? L.pal[1] : L.pal[0];
-        g.beginPath(); g.moveTo(-w, b); g.lineTo(1, b + 0.5); g.lineTo(0, top); g.closePath(); g.fill();
-        g.strokeStyle = L.pal[2]; g.lineWidth = 1.4; g.lineCap = 'round';
-        g.beginPath(); g.moveTo(-w + 2.5, b - 1); g.lineTo(-0.5, top + 2.5); g.stroke();
+      const outline = K.shade(L.pal[0], -0.5);
+      const tier = (w, b, top, grow) => {
+        g.beginPath();
+        g.moveTo(-0.5, top - grow);
+        for (let i = 0; i <= 8; i++) {
+          const u = i / 8, x = lerp(-w - grow, w + grow, u);
+          g.lineTo(x, b + grow + (i % 2 ? -3.2 : 0.6) + Math.sin(u * Math.PI) * 2);
+        }
+        g.closePath();
+      };
+      PINE.forEach(([w, b, top], i) => {
+        const s = 0.92 + hash2(n.x, n.y, 305) * 0.18;
+        w *= s; b *= s; top *= s;
+        g.fillStyle = 'rgba(10, 30, 15, 0.35)'; // the tier above shades the one below
+        g.beginPath(); g.ellipse(2, b + 2, w * 0.85, 3, 0, 0, TAU); g.fill();
+        g.fillStyle = outline; tier(w, b, top, 1.2); g.fill();
+        g.fillStyle = K.shade(L.pal[0], -0.15); tier(w, b, top, 0); g.fill();
+        g.save(); tier(w, b, top, 0); g.clip();
+        const lit = g.createLinearGradient(-w, 0, w * 0.4, 0);
+        lit.addColorStop(0, i ? L.pal[2] : L.pal[1]);
+        lit.addColorStop(1, K.withAlpha(L.pal[1], 0));
+        g.fillStyle = lit;
+        g.beginPath(); g.moveTo(-w - 2, b + 2); g.lineTo(0.5, b + 2); g.lineTo(0, top); g.closePath(); g.fill();
+        g.strokeStyle = K.withAlpha(K.shade(L.pal[2], 0.25), 0.8); g.lineWidth = 1.1; g.lineCap = 'round';
+        for (let k = 0; k < 4; k++) { // needle strokes
+          const u = 0.2 + k * 0.17;
+          g.beginPath(); g.moveTo(-w * (1 - u) * 0.9, b - (b - top) * u * 0.6); g.lineTo(-w * (1 - u) * 0.9 + 3, b - (b - top) * u * 0.6 - 2.5); g.stroke();
+        }
+        g.restore();
         if (L.snow) { // snow lies on the upper slopes of each tier
           g.fillStyle = '#f4f8fb';
           g.beginPath(); g.moveTo(-w * 0.55, b - (b - top) * 0.45); g.lineTo(0, top); g.lineTo(w * 0.45, b - (b - top) * 0.5); g.lineTo(0, b - (b - top) * 0.62); g.closePath(); g.fill();
@@ -609,36 +930,76 @@
     }
     if (L.bare) { // winter: bare branches with a little snow on them
       g.strokeStyle = K.shade(WOOD.mid, -0.15); g.lineCap = 'round';
-      for (const [x0, y0, x1, y1, w] of [[0, -18, 0, -40, 2.6], [0, -24, -10, -36, 1.8], [0, -27, 10, -38, 1.8], [-5, -31, -12, -42, 1.2], [5, -33, 9, -45, 1.2], [0, -34, -3, -46, 1.2]]) {
+      for (const [x0, y0, x1, y1, w] of [[0, -18, 0, -48, 3], [0, -26, -14, -42, 2], [0, -30, 14, -46, 2], [-7, -36, -16, -52, 1.3], [7, -40, 12, -56, 1.3], [0, -42, -4, -58, 1.3]]) {
         g.lineWidth = w;
         g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
-        if (L.snow) { g.fillStyle = '#f4f8fb'; g.beginPath(); g.ellipse((x0 + x1) / 2 - 0.5, (y0 + y1) / 2 - 1.2, 2.4, 1, 0, 0, TAU); g.fill(); }
+        if (L.snow) { g.fillStyle = '#f4f8fb'; g.beginPath(); g.ellipse((x0 + x1) / 2 - 0.5, (y0 + y1) / 2 - 1.2, 2.6, 1.1, 0, 0, TAU); g.fill(); }
       }
       return;
     }
-    g.fillStyle = 'rgba(20, 36, 14, 0.3)';
-    g.beginPath(); g.ellipse(1, -14, 12, 5, 0, 0, TAU); g.fill();
-    for (const [dx, dy, r, c] of CROWN) K.sphere(g, dx, dy, r, L.pal[c], { gloss: false, shine: 0.3 });
-    if (L.blossom) for (let k = 0; k < 9; k++) {
-      g.fillStyle = k % 3 ? '#fbe3ec' : '#f2a7c3';
-      g.beginPath(); g.arc(-12 + hash2(n.x, n.y, 330 + k) * 24, -42 + hash2(n.x, n.y, 340 + k) * 24, 1.7, 0, TAU); g.fill();
+    const sz = 0.84 + hash2(n.x, n.y, 306) * 0.22, flip = hash2(n.x, n.y, 307) < 0.5 ? -1 : 1;
+    const balls = CROWN.map(([dx, dy, r, c], i) => [dx * sz * flip + (hash2(n.x, i, 308) - 0.5) * 3, dy * sz - 4 * (1 - sz), r * sz, c]);
+    // Shade of the crown on the trunk and an outline that gives the silhouette a crisp edge.
+    g.fillStyle = 'rgba(16, 36, 10, 0.35)';
+    g.beginPath(); g.ellipse(1, -15, 15 * sz, 5.5, 0, 0, TAU); g.fill();
+    g.fillStyle = K.shade(L.pal[0], -0.5);
+    g.beginPath();
+    for (const [dx, dy, r] of balls) { g.moveTo(dx + r + 1.3, dy); g.arc(dx, dy, r + 1.3, 0, TAU); }
+    g.fill();
+    for (const [dx, dy, r, c] of balls) {
+      K.sphere(g, dx, dy, r, L.pal[c], { gloss: false, shine: 0.22 });
+      // Leaf clumps: lit scallops on the side towards the light, darker ones on the far side.
+      for (let k = 0; k < 5; k++) {
+        const h = hash2(n.x + k, n.y, (dx | 0) + 50);
+        const a = -2.6 + k * 0.5 + (h - 0.5) * 0.5, d = r * (0.5 + h * 0.25);
+        K.sphere(g, dx + Math.cos(a) * d, dy + Math.sin(a) * d, r * (0.2 + h * 0.12), K.shade(L.pal[Math.min(2, c + 1)], c === 2 ? 0.12 : 0), { gloss: false, shine: 0.3 });
+      }
+      if (c < 2) for (let k = 0; k < 3; k++) {
+        const a = 0.35 + k * 0.5;
+        g.fillStyle = K.withAlpha(K.shade(L.pal[0], -0.35), 0.45);
+        g.beginPath(); g.arc(dx + Math.cos(a) * r * 0.7, dy + Math.sin(a) * r * 0.7, r * 0.26, 0, TAU); g.fill();
+      }
+    }
+    crownExtras(g, n, L);
+  }
+  // Blossom and apples over a leafy crown (code-drawn or painted).
+  function crownExtras(g, n, L) {
+    if (L.blossom) for (let k = 0; k < 14; k++) {
+      const bx = -18 + hash2(n.x, n.y, 330 + k) * 36, by = -58 + hash2(n.x, n.y, 340 + k) * 34;
+      g.fillStyle = k % 3 ? '#fde8f0' : '#f5a3c4';
+      g.beginPath(); g.arc(bx, by, 2, 0, TAU); g.fill();
+      g.fillStyle = '#f7d36b';
+      g.beginPath(); g.arc(bx, by, 0.6, 0, TAU); g.fill();
     }
     if (L.apples) for (let k = 0; k < (L.many ? 3 + n.hp * 3 : 4); k++) {
-      K.sphere(g, -9 + hash2(n.x, n.y, 310 + k) * 18, -36 + hash2(n.x, n.y, 320 + k) * 17, 2.1, '#d2453a', { shine: 0.5 });
+      K.sphere(g, -14 + hash2(n.x, n.y, 310 + k) * 28, -50 + hash2(n.x, n.y, 320 + k) * 26, 2.7, '#d9302c', { shine: 0.55 });
     }
   }
   function paintTrunk(g, pine) {
-    const h = pine ? 9 : 19, rx = pine ? 2.6 : 3.2;
-    g.fillStyle = K.shade(WOOD.mid, -0.3);
-    g.beginPath(); g.ellipse(0, 0, rx + 2, 1.8, 0, 0, TAU); g.fill();
-    K.cylinder(g, 0, -h, rx, h, WOOD.mid, { cap: false, ry: 1.3 });
+    const painted = png(`trunk|${pine ? 1 : 0}`);
+    if (painted) { put(g, painted); return; }
+    const h = pine ? 10 : 22, rx = pine ? 3 : 4;
+    // Root flare: two small roots and a dark collar of earth.
+    g.fillStyle = 'rgba(30, 20, 8, 0.4)';
+    g.beginPath(); g.ellipse(0.5, 0.5, rx + 4, 2.4, 0, 0, TAU); g.fill();
+    g.fillStyle = K.shade(WOOD.mid, -0.2);
+    g.beginPath(); g.ellipse(-rx - 1, -0.5, 2.6, 1.4, 0.4, 0, TAU); g.ellipse(rx + 1, -0.3, 2.4, 1.3, -0.4, 0, TAU); g.fill();
+    K.cylinder(g, 0, -h, rx, h, WOOD.mid, { cap: false, ry: 1.5 });
+    g.strokeStyle = 'rgba(50, 30, 15, 0.35)'; g.lineWidth = 0.8; // bark
+    for (const dx of [-1.6, 1.2]) { g.beginPath(); g.moveTo(dx, -2); g.lineTo(dx + 0.4, -h + 3); g.stroke(); }
   }
 
+  // The player, this frame (CSS px, feet): a crown in front of the player fades so they are never lost.
+  let PL = { x: -1e9, y: -1e9 };
   function drawTree(n, cx, by, sway) {
     const pine = treeLook(n).pine;
-    castShadow(cx, by, 13, pine ? 36 : 34);
+    K.shadow(ctx, cx + 2, by, 15, 5, 0.38 * SUN.shadow);
+    castShadow(cx, by, pine ? 15 : 19, pine ? 50 : 46, 0.34);
     blit(nodeSprite('tree', 'trunk|' + (pine ? 1 : 0), (g) => paintTrunk(g, pine)), cx, by);
+    const behind = PL.y < by - 2 && PL.y > by - 70 && Math.abs(PL.x - cx) < 26;
+    if (behind) ctx.globalAlpha = 0.55;
     seasonal('tree', `crown|${n.x},${n.y}|${n.kind === 'apple' ? n.hp : ''}`, (g) => paintCrown(g, n, treeLook(n)), cx + sway, by);
+    ctx.globalAlpha = 1;
   }
 
   function drawStump(n, cx, by) {
@@ -662,27 +1023,44 @@
     ellipse(x + 2 * k, y - 5 * k, 2.4 * k, 1.3 * k, '#7fae55');
   }
 
-  // A boulder: a dark base in its own shade, a lit body and a pale top facet, smaller as it is mined.
+  // A boulder: a dark outline and base in its own shade, a rounded lit body, a pale top facet and a smaller
+  // stone leaning on it; smaller as it is mined.
   function paintRock(g, n, k) {
+    const painted = png(`rock|${Math.floor(hash2(n.x, n.y, 331) * 4)}`);
+    if (painted) {
+      put(g, painted, k);
+      if (LOOK.snow) blob(-2 * k * 1.2, -18 * k * 1.2, 9 * k * 1.2, 3.8 * k * 1.2, n.id * 7 + 4, '#f4f8fb', 7, 0.2, g);
+      return;
+    }
     const seed = n.id * 7 + 1;
-    const body = g.createRadialGradient(-5 * k, -16 * k, 1, 0, -9 * k, 15 * k);
-    body.addColorStop(0, STONE.light);
-    body.addColorStop(0.55, STONE.mid);
+    k *= 1.2;
+    const body = g.createRadialGradient(-6 * k, -17 * k, 1, 0, -9 * k, 16 * k);
+    body.addColorStop(0, '#e4e1d8');
+    body.addColorStop(0.45, STONE.light);
+    body.addColorStop(0.8, STONE.mid);
     body.addColorStop(1, STONE.dark);
-    blob(1, -8 * k, 14 * k, 10 * k, seed, K.shade(STONE.dark, -0.15), 7, 0.18, g);
-    blob(-1, -11 * k, 12 * k, 9.5 * k, seed + 1, body, 7, 0.18, g);
-    blob(-3 * k, -16 * k, 6.5 * k, 4 * k, seed + 2, 'rgba(232, 228, 214, 0.55)', 7, 0.18, g);
-    g.strokeStyle = 'rgba(70, 66, 58, 0.55)'; g.lineWidth = 1; g.lineCap = 'round';
-    g.beginPath(); g.moveTo(2 * k, -14 * k); g.lineTo(5 * k, -7 * k); g.stroke();
-    if (LOOK.snow) blob(-2 * k, -17 * k, 8 * k, 3.6 * k, seed + 3, '#f4f8fb', 7, 0.2, g);
-    else if (hash2(n.x, n.y, 330) < 0.4) {
-      g.fillStyle = 'rgba(110, 150, 70, 0.85)';
-      g.beginPath(); g.ellipse(4 * k, -18 * k, 4 * k, 2 * k, 0, 0, TAU); g.fill();
+    blob(1, -7.5 * k, 15 * k + 1.2, 10.5 * k + 1.2, seed, K.shade(STONE.dark, -0.45), 7, 0.16, g);
+    blob(1, -7.5 * k, 15 * k, 10.5 * k, seed, K.shade(STONE.dark, -0.1), 7, 0.16, g);
+    blob(-1, -10.5 * k, 13 * k, 10 * k, seed + 1, body, 7, 0.16, g);
+    blob(-3.5 * k, -15.5 * k, 6.5 * k, 3.8 * k, seed + 2, 'rgba(250, 248, 240, 0.5)', 7, 0.2, g);
+    // A smaller stone leaning on the boulder's right foot.
+    const s2 = g.createRadialGradient(9 * k, -6 * k, 0.5, 11 * k, -3.5 * k, 6 * k);
+    s2.addColorStop(0, STONE.light); s2.addColorStop(1, STONE.dark);
+    blob(11 * k, -3.5 * k, 5.5 * k, 4 * k, seed + 5, s2, 6, 0.15, g);
+    g.strokeStyle = 'rgba(60, 58, 52, 0.55)'; g.lineWidth = 1; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(2 * k, -15 * k); g.lineTo(4.5 * k, -10 * k); g.lineTo(3.5 * k, -5 * k); g.stroke();
+    if (LOOK.snow) blob(-2 * k, -16 * k, 9 * k, 3.8 * k, seed + 3, '#f4f8fb', 7, 0.2, g);
+    else if (hash2(n.x, n.y, 330) < 0.55) { // moss on the shaded top
+      g.fillStyle = 'rgba(96, 150, 60, 0.85)';
+      blob(5 * k, -17 * k, 4.5 * k, 2.2 * k, seed + 4, g.fillStyle, 6, 0.3, g);
+      g.fillStyle = 'rgba(160, 205, 100, 0.7)';
+      g.beginPath(); g.ellipse(4 * k, -17.6 * k, 2 * k, 0.9 * k, 0, 0, TAU); g.fill();
     }
   }
   function drawRock(n, cx, by) {
     const k = 0.62 + 0.38 * (n.hp / V.NODE_KINDS.rock.hp);
-    castShadow(cx, by - 1, 14 * k, 22 * k, 0.34);
+    K.shadow(ctx, cx + 2, by - 1, 17 * k, 5 * k, 0.4 * SUN.shadow);
+    castShadow(cx, by - 1, 16 * k, 26 * k, 0.34);
     seasonal('rock', `rock|${n.x},${n.y}|${n.hp}`, (g) => paintRock(g, n, k), cx, by);
   }
 
@@ -722,8 +1100,9 @@
     sprout(n, cx + 9, by - 2);
   }
 
-  // A berry bush: a clump of lit leafy balls with glossy berries, paler and bare once picked.
-  const BUSH = [[-7, -7, 7, 0], [7, -7, 7, 0], [0, -12, 8, 0], [-3, -6, 7, 1], [4, -5, 7, 1], [-3, -14, 3.5, 2], [5, -11, 2.8, 2]];
+  // A berry bush: an outlined clump of lit leafy balls with leaf scallops and glossy berries, paler and bare
+  // once picked.
+  const BUSH = [[-9, -8, 8.5, 0], [9, -8, 8.5, 0], [0, -6, 9.5, 0], [-5, -15, 8.5, 1], [6, -15, 8, 1], [-11, -14, 5.5, 1], [0, -20, 6.5, 2], [-6, -21, 4, 2]];
   const BUSH_LEAVES = { autumn: ['#8c5a2e', '#a8703a', '#c99350'] };
   function paintBush(g, n) {
     const full = n.hp > 0;
@@ -731,19 +1110,37 @@
       g.strokeStyle = K.shade(WOOD.mid, -0.1); g.lineWidth = 1.3; g.lineCap = 'round';
       for (let k = 0; k < 7; k++) {
         const a = -Math.PI * (0.15 + 0.7 * (k / 6));
-        g.beginPath(); g.moveTo(0, -2); g.lineTo(Math.cos(a) * 12, -2 + Math.sin(a) * 14); g.stroke();
+        g.beginPath(); g.moveTo(0, -2); g.lineTo(Math.cos(a) * 14, -2 + Math.sin(a) * 16); g.stroke();
       }
-      for (const [dx, dy, r] of [[-5, -12, 6], [5, -11, 5.5], [0, -15, 5]]) K.sphere(g, dx, dy, r, '#eef3f7', { gloss: false, shine: 0.2 });
+      for (const [dx, dy, r] of [[-6, -13, 7], [6, -12, 6.5], [0, -17, 6]]) K.sphere(g, dx, dy, r, '#eef3f7', { gloss: false, shine: 0.2 });
     } else {
-      const leaves = BUSH_LEAVES[SEASON] || (full ? ['#4b7c38', '#5f9446', '#86b860'] : ['#5f8f45', '#77a456', '#9cc674']);
-      for (const [dx, dy, r, c] of BUSH) K.sphere(g, dx, dy, r, leaves[c], { gloss: false, shine: 0.3 });
+      const leaves = BUSH_LEAVES[SEASON] || (full ? ['#2f7a2c', '#4b9a36', '#7cc64c'] : ['#4f8a3c', '#6aa54e', '#94c86c']);
+      const painted = png(`bush|${leaves[1]}|${Math.floor(hash2(n.x, n.y, 332) * 3)}`);
+      if (painted) put(g, painted);
+      else {
+      g.fillStyle = K.shade(leaves[0], -0.5);
+      g.beginPath();
+      for (const [dx, dy, r] of BUSH) { g.moveTo(dx + r + 1.2, dy); g.arc(dx, dy, r + 1.2, 0, TAU); }
+      g.fill();
+      for (const [dx, dy, r, c] of BUSH) {
+        K.sphere(g, dx, dy, r, leaves[c], { gloss: false, shine: 0.25 });
+        for (let k = 0; k < 4; k++) {
+          const a = -2.5 + k * 0.5;
+          K.sphere(g, dx + Math.cos(a) * r * 0.6, dy + Math.sin(a) * r * 0.6, r * 0.3, leaves[Math.min(2, c + 1)], { gloss: false, shine: 0.3 });
+        }
+      }
+      }
     }
     for (let k = 0; k < n.hp * 3; k++) {
-      K.sphere(g, -9 + hash2(n.x, n.y, 350 + k) * 18, -15 + hash2(n.x, n.y, 370 + k) * 11, 2.2, '#c2335a', { shine: 0.6 });
+      const bx = -12 + hash2(n.x, n.y, 350 + k) * 24, by = -22 + hash2(n.x, n.y, 370 + k) * 15;
+      g.fillStyle = 'rgba(40, 10, 10, 0.35)';
+      g.beginPath(); g.arc(bx + 0.7, by + 0.9, 2.8, 0, TAU); g.fill();
+      K.sphere(g, bx, by, 2.7, '#e0263f', { shine: 0.6 });
     }
   }
   function drawBush(n, cx, by, sway) {
-    castShadow(cx, by - 1, 13, 18, 0.3);
+    K.shadow(ctx, cx + 2, by - 1, 16, 4.5, 0.36 * SUN.shadow);
+    castShadow(cx, by - 1, 15, 22, 0.3);
     seasonal('bush', `bush|${n.x},${n.y}|${n.hp}`, (g) => paintBush(g, n), cx + sway * 0.3, by);
     if (n.hp <= 0) sprout(n, cx + 9, by - 1);
   }
@@ -781,11 +1178,134 @@
     if (scale !== 1) ctx.restore();
   }
 
+  // ───────────── Flora: low plants that are only decoration ─────────────
+  // Shrubs, ferns, tall grass, mushrooms and little stones fill the meadow the way the resources alone can't.
+  // They stand only on open grass away from paths, the square, water, beds, the map edge and the resources,
+  // are low enough to walk through, and are not in the rules: taps and movement don't see them.
+  let FLORA = [];
+  // (paintFlora also knows 'fern'; at this scale ferns read as fans, so the meadow doesn't use them.)
+  const FLORA_KINDS = ['shrub', 'tall', 'shrub', 'tall', 'mush', 'stones', 'tall', 'shrub', 'shrub', 'tall'];
+  const CLOSED = new Set(['=', '#', '~', 'b', 't', 'o', 'j', 'f', 'Q', 'g', '^']);
+  function plantFlora() {
+    FLORA = [];
+    const near = new Set();
+    for (const n of S.nodes) for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) near.add((n.x + dx) + ',' + (n.y + dy));
+    const open = (x, y) => { const c = (V.MAP[y] || '')[x]; return c !== undefined && !CLOSED.has(c); };
+    for (let y = 1; y < V.H - 1; y++) for (let x = 1; x < V.W - 1; x++) {
+      if (V.MAP[y][x] !== '.' || near.has(x + ',' + y) || V.plotAt(x, y) >= 0) continue;
+      let ok = true;
+      for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) if (!open(x + dx, y + dy)) { ok = false; break; }
+      if (!ok) continue;
+      const grove = vnoise(x / 4.5, y / 4.5, 91);
+      if (hash2(x, y, 92) >= (grove > 0.6 ? 0.8 : grove > 0.48 ? 0.32 : 0.1)) continue;
+      FLORA.push({
+        x, y, kind: FLORA_KINDS[Math.floor(hash2(x, y, 93) * FLORA_KINDS.length)], v: Math.floor(hash2(x, y, 94) * 3),
+        dx: (hash2(x, y, 95) - 0.5) * 14, dy: (hash2(x, y, 96) - 0.5) * 10,
+      });
+    }
+  }
+  // A sprite that follows the season, cross-faded while the season changes (like seasonal() for nodes).
+  function seasonalSprite(key, w, h, ax, ay, paint, x, y) {
+    const one = (season) => sprite(`${key}|${season}`, w, h, ax, ay, (g) => withPalette(season, () => paint(g)));
+    if (FADE.t < 1) {
+      blit(one(FADE.from), x, y);
+      ctx.globalAlpha = FADE.t;
+      blit(one(FADE.to), x, y);
+      ctx.globalAlpha = 1;
+    } else blit(one(FADE.to), x, y);
+  }
+  const FLORA_LEAVES = { autumn: ['#7d5a2a', '#a8763a', '#d3a14e'] };
+  function paintFlora(g, kind, v) {
+    const lv = LOOK.leaves ? LOOK.leaves[v % LOOK.leaves.length] : null;
+    const leaves = FLORA_LEAVES[SEASON] || lv;
+    if (kind === 'shrub') {
+      const k0 = 1.2 + v * 0.12;
+      const balls = [[-7, -5, 6], [6, -5, 6.5], [0, -4, 7], [-3, -10, 6], [4, -10, 5.5]].map(([x, y, r]) => [x * k0, y * k0, r * k0]);
+      if (LOOK.snow) { for (const [x, y, r] of balls) K.sphere(g, x, y, r, '#eef3f7', { gloss: false, shine: 0.2 }); return; }
+      const painted = png(`shrub|${leaves[1]}|${v}`);
+      if (painted) put(g, painted);
+      else {
+      g.fillStyle = K.shade(leaves[0], -0.5);
+      g.beginPath();
+      for (const [x, y, r] of balls) { g.moveTo(x + r + 1, y); g.arc(x, y, r + 1, 0, TAU); }
+      g.fill();
+      balls.forEach(([x, y, r], i) => {
+        K.sphere(g, x, y, r, leaves[i < 3 ? 0 : 1], { gloss: false, shine: 0.25 });
+        for (let k = 0; k < 3; k++) { const a = -2.4 + k * 0.6; K.sphere(g, x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55, r * 0.32, leaves[i < 3 ? 1 : 2], { gloss: false, shine: 0.3 }); }
+      });
+      }
+      if (v === 2 && LOOK.flowers > 0.1) for (let k = 0; k < 5; k++) { // a flowering shrub
+        g.fillStyle = k % 2 ? '#fff4f8' : '#ffd23f';
+        g.beginPath(); g.arc(-8 + hash2(k, v, 97) * 16, -13 + hash2(k, v, 98) * 9, 1.4, 0, TAU); g.fill();
+      }
+    } else if (kind === 'fern') {
+      if (LOOK.snow) return;
+      const col = leaves ? leaves[1] : '#5a8a3a', lit = leaves ? leaves[2] : '#8ab85a';
+      g.lineCap = 'round';
+      for (let k = 0; k < 7; k++) {
+        const a = -Math.PI / 2 + (k - 3) * 0.45 + (hash2(k, v, 99) - 0.5) * 0.2, l = 15 + hash2(k, v, 100) * 6;
+        const ex = Math.cos(a) * l, ey = Math.sin(a) * l * 0.75 - 1;
+        g.strokeStyle = K.shade(col, -0.2); g.lineWidth = 1;
+        g.beginPath(); g.moveTo(0, -1); g.quadraticCurveTo(ex * 0.5, ey * 0.7 - 3, ex, ey); g.stroke();
+        for (let q = 1; q <= 5; q++) { // leaflets along the frond
+          const u = q / 6, px = ex * u, py = ey * u - Math.sin(u * Math.PI) * 2.5, r = 3.4 * (1 - u * 0.55);
+          g.fillStyle = K.shade(q % 2 ? lit : col, -0.05);
+          g.beginPath(); g.ellipse(px, py, r, r * 0.45, a + 1.2, 0, TAU); g.ellipse(px, py, r, r * 0.45, a - 1.2, 0, TAU); g.fill();
+        }
+      }
+    } else if (kind === 'tall') {
+      const dry = !leaves || SEASON === 'autumn';
+      const cols = LOOK.snow ? ['#b9a77a', '#d6c79a'] : dry ? ['#b59a52', '#d8bf72'] : [K.shade(GRASS.tuft, -0.1), GRASS.tuftLight];
+      g.lineCap = 'round';
+      const n = 9 + v * 2;
+      for (let k = 0; k < n; k++) {
+        const a = (k / (n - 1) - 0.5) * 1.1 + (hash2(k, v, 101) - 0.5) * 0.3, l = 11 + hash2(k, v, 102) * 8;
+        const ex = Math.sin(a) * l, ey = -Math.cos(a) * l;
+        g.strokeStyle = cols[k % 2]; g.lineWidth = 1.3;
+        g.beginPath(); g.moveTo((k - n / 2) * 0.7, 0); g.quadraticCurveTo(ex * 0.3, ey * 0.6, ex, ey); g.stroke();
+        if (k % 4 === 1) { // a seed head
+          g.fillStyle = LOOK.snow ? '#ffffff' : '#e8d9a0';
+          g.beginPath(); g.ellipse(ex, ey - 1.5, 1.2, 2.6, a, 0, TAU); g.fill();
+        }
+      }
+    } else if (kind === 'mush') {
+      if (LOOK.snow) return;
+      for (let k = 0; k < 3; k++) {
+        const x = -6 + k * 5.5 + (hash2(k, v, 103) - 0.5) * 2, h = 4 + hash2(k, v, 104) * 3, r = 2.6 + hash2(k, v, 105) * 1.6;
+        g.fillStyle = '#efe6d2'; g.fillRect(x - 0.9, -h, 1.8, h);
+        const cap = v === 1 ? '#a8673a' : '#d93a2f';
+        K.sphere(g, x, -h, r, cap, { gloss: true, shine: 0.4 });
+        g.fillStyle = K.shade(cap, -0.35);
+        g.fillRect(x - r, -h, r * 2, 1);
+        if (v !== 1) { g.fillStyle = '#fff'; for (const [dx, dy] of [[-1, -1.2], [1, -0.4], [0, -2]]) { g.beginPath(); g.arc(x + dx * r * 0.5, -h + dy * r * 0.4, 0.5, 0, TAU); g.fill(); } }
+      }
+    } else {
+      for (let k = 0; k < 3; k++) {
+        const x = -7 + k * 6 + (hash2(k, v, 106) - 0.5) * 3, r = 2.2 + hash2(k, v, 107) * 2.4, y = -r * 0.6;
+        const grd = g.createRadialGradient(x - r * 0.4, y - r * 0.4, 0.3, x, y, r * 1.1);
+        grd.addColorStop(0, '#dad7cf'); grd.addColorStop(0.6, '#a5a198'); grd.addColorStop(1, '#757169');
+        blob(x, y, r, r * 0.75, k * 7 + v, grd, 6, 0.15, g);
+        if (LOOK.snow) blob(x - 0.3, y - r * 0.4, r * 0.8, r * 0.35, k * 7 + v + 1, '#f4f8fb', 6, 0.2, g);
+        else if (k === 1) { g.fillStyle = 'rgba(100, 150, 60, 0.8)'; g.beginPath(); g.ellipse(x + 0.5, y - r * 0.5, r * 0.5, r * 0.25, 0, 0, TAU); g.fill(); }
+      }
+    }
+  }
+  const FLORA_SIZE = { shrub: [23, 27], fern: [24, 22], tall: [16, 24], mush: [14, 12], stones: [14, 10] };
+  function drawFlora(f) {
+    const cx = (f.x + 0.5) * T + f.dx, by = (f.y + 1) * T - 6 + f.dy;
+    const [hw, up] = FLORA_SIZE[f.kind];
+    if (f.kind === 'shrub' || f.kind === 'tall') K.shadow(ctx, cx + 3, by, hw * 0.9, 3.4, 0.32 * SUN.shadow);
+    else K.shadow(ctx, cx + 1.5, by, hw * 0.7, 2.4, 0.25 * SUN.shadow);
+    const sway = f.kind === 'tall' || f.kind === 'fern' ? Math.sin(time * 1.3 + f.x * 0.7 + f.y) * 0.6 : 0;
+    seasonalSprite(`flora|${f.kind}|${f.v}`, hw * 2 + 4, up + 6, hw + 2, up + 2, (g) => paintFlora(g, f.kind, f.v), cx + sway, by);
+  }
+
   // ───────────── Buildings ─────────────
   // Drawn by houses.js with this file's canvas helpers.
   const HS = window.VillageHouses.create({
     ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark,
     state: () => S, time: () => time, sun: () => SUN, light, snow: () => LOOK.snow * FADE.t,
+    tex: (name) => png('mat-' + name),
   });
 
   // Bridge over the river: flat, drawn under the walkers. Posts first, planks as payment arrives.
@@ -1021,6 +1541,8 @@
   }
 
   // ───────────── Decorations ─────────────
+  // A decoration the player placed on a tile hides the flora there.
+  const decorAt = (x, y) => S.decor.length > 0 && S.decor.some((d) => d.x === x && d.y === y);
   function drawDecor(d) {
     const cx = (d.x + 0.5) * T, by = (d.y + 1) * T - 4;
     if (d.kind === 'bed') {
@@ -1150,6 +1672,7 @@
     const sw = o.moving ? Math.sin(o.phase) : 0;
     const side = o.face === 'left' || o.face === 'right';
     const flip = o.face === 'left' ? -1 : 1;
+    K.shadow(ctx, x + 0.5, y, 7, 2.6, 0.4 * SUN.shadow);
     castShadow(x, y, 6.5, 13, 0.3);
     // Legs and boots.
     if (side) {
@@ -1332,7 +1855,7 @@
     c.fillRect(0, 0, z, z);
   });
   const emitters = [];
-  function emit(x, y, rate) { emitters.push({ x, y, rate }); }
+  function emit(x, y, rate) { (recording ? recording.emits : emitters).push({ x, y, rate }); }
 
   function updateEffects(dt) {
     for (const p of fx.parts) {
@@ -1604,6 +2127,7 @@
   // A new state (boot, reset, cloud load, another tab's save): effects tied to the old one start over.
   function setState(s) {
     S = s;
+    plantFlora();
     fx.shake.clear(); fx.pop.clear(); fx.falls.length = 0;
     for (const h of hens) h.placed = false;
   }
@@ -1722,10 +2246,13 @@
     if (fade.from !== FADE.from || fade.to !== FADE.to || (fade.t < 1) !== (FADE.t < 1)) pruneChunks(fade.t < 1 ? [fade.from, fade.to] : [fade.to]);
     FADE = fade;
     usePalette(CLOCK.season);
+    pace();
     lit.length = 0;
+    bakeBudget = BAKE_BUDGET;
+    PL = { x: px * T, y: py * T + 9 };
     const target = VV.clampCamera(px * T, py * T, cw, ch, V.W * T, V.H * T);
-    cam = { x: VV.snap(target.x, dpr), y: VV.snap(target.y, dpr) };
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cam = { x: VV.snap(target.x, dpr * zoom), y: VV.snap(target.y, dpr * zoom) };
+    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
     ctx.fillStyle = GRASS.dark;
     ctx.fillRect(0, 0, cw, ch);
     ctx.translate(-cam.x, -cam.y);
@@ -1761,6 +2288,7 @@
       items.push([b.base, drawBuilding, id]);
     }
     for (const d of S.decor) if (inView(d.x, d.y)) items.push([(d.y + 1) * T - 4, drawDecor, d]);
+    for (const f of FLORA) if (inView(f.x, f.y) && !decorAt(f.x, f.y)) items.push([(f.y + 1) * T - 6 + f.dy, drawFlora, f]);
     V.PLOTS.forEach((p, i) => { if (inView(p.x, p.y)) items.push([(p.y + 1) * T - 6, drawPlot, i]); });
     if (S.built.garden.done && inView(V.PLOTS[0].x, V.PLOTS[0].y)) {
       items.push([BEDS.y0, drawFence, BEDS.y0]);
@@ -1795,18 +2323,107 @@
     drawSkyLanterns();
     if (SUN.shade < 0.5) drawCloudShadows();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (vignette) { ctx.fillStyle = vignette; ctx.fillRect(0, 0, cw, ch); }
+    if (finish) ctx.drawImage(finish, 0, 0, sw, sh);
+  }
+
+  // Paint with every helper (here and in houses.js) aimed at another canvas, e.g. a sprite being baked.
+  function paintWith(g, fn) {
+    const keep = ctx;
+    ctx = g; HS.setCtx(g);
+    try { fn(); } finally { ctx = keep; HS.setCtx(keep); }
+  }
+
+  // A painted ruin (tools/village-sprites) for this footprint's size, if there is one: a variant picked by
+  // place, the snowy one in winter (cross-faded while the season changes). False if none has loaded.
+  function paintedRuin(b, snowy) {
+    const size = `${b.w}x${b.h}`;
+    const v = Math.floor(hash2(b.x0, b.y0, 820) * 3);
+    return png(`ruin|${size}|${v}|${snowy}`) || png(`ruin|${size}|0|${snowy}`);
+  }
+  function drawPaintedRuin(b) {
+    const one = (season) => paintedRuin(b, VV.palette(season).snow > 0.5 ? 1 : 0);
+    const to = one(FADE.to);
+    if (!to) return false;
+    const put = (e) => ctx.drawImage(e.img, b.X - e.ax, b.Y - e.ay, e.w, e.h);
+    const from = FADE.t < 1 ? one(FADE.from) : null;
+    if (from && from !== to) {
+      put(from);
+      ctx.globalAlpha = FADE.t;
+      put(to);
+      ctx.globalAlpha = 1;
+    } else put(to);
+    return true;
+  }
+
+  // ───────────── Baked buildings ─────────────
+  // What stands still in a building (walls, roofs, windows, ruins, scaffolding) is painted once into an image
+  // and blitted; only the moving parts (houses.js 'live': bees, flags, the boat, lanterns, the saw, fire, sails,
+  // the bell) are drawn every frame on top. The image is repainted when something it shows changes: the
+  // season, snow on the roofs, the strength of shadows (dusk), the festivals, the barn's lean-to, the order
+  // notes on the market board, the paid share of scaffolding, the painted materials arriving. One image per
+  // building (the latest look), and at most BAKE_BUDGET repaints a frame: the rest keep their old image for
+  // a frame or two, so dusk doesn't repaint the whole village at once. The well, nearly all water and
+  // motion, is drawn live.
+  const BAKE_PAD = { l: 48, t: 120, r: 48, b: 34 }; // room for roofs, towers, chimneys and cast shadows
+  const BAKE_BUDGET = 3;
+  const baked = new Map(); // id → { look, cv, w, h, ratio, rec: { lights, emits } }
+  let bakeBudget = BAKE_BUDGET;
+  function buildingLook(id, st, part) {
+    return [st, part, SEASON, Math.round(LOOK.snow * FADE.t * 4), Math.round(SUN.shadow * 4), S.barnLevel | 0,
+      S.festival ? 1 : 0, S.harvestFestival ? 1 : 0, S.lanternFestival ? 1 : 0,
+      id === 'market' && S.orders ? S.orders.length : 0, PNG ? 1 : 0].join('|');
+  }
+  function bake(id, st, part, b) {
+    const look = buildingLook(id, st, part);
+    let e = baked.get(id);
+    if (e && e.ratio === R && (e.look === look || (bakeBudget <= 0 && e.st === st))) return e;
+    bakeBudget--;
+    const w = b.Wp + BAKE_PAD.l + BAKE_PAD.r, h = b.Hp + BAKE_PAD.t + BAKE_PAD.b;
+    const cv = e && e.ratio === R && e.cv.width === Math.ceil(w * R) ? e.cv : document.createElement('canvas');
+    cv.width = Math.max(1, Math.ceil(w * R));
+    cv.height = Math.max(1, Math.ceil(h * R));
+    const g = cv.getContext('2d');
+    g.setTransform(R, 0, 0, R, (BAKE_PAD.l - b.X) * R, (BAKE_PAD.t - b.Y) * R);
+    const rec = { lights: [], emits: [] };
+    recording = rec;
+    try { paintWith(g, () => HS.draw(id, st, b, part, 'body')); } finally { recording = null; }
+    e = { look, cv, w, h, ratio: R, st, rec };
+    baked.set(id, e);
+    return e;
   }
 
   function drawBuilding(id) {
-    HS.draw(id, V.stage(S, id), BOX[id], share(id));
+    const st = V.stage(S, id), b = BOX[id];
+    if (id === 'well') { HS.draw(id, st, b, share(id)); return; }
+    if (!(st === 0 && id !== 'pavilion' && drawPaintedRuin(b))) {
+      const part = st === 1 ? Math.round(clamp(share(id), 0, 1) * 24) / 24 : 0;
+      const e = bake(id, st, part, b);
+      ctx.drawImage(e.cv, b.X - BAKE_PAD.l, b.Y - BAKE_PAD.t, e.w, e.h);
+      for (const l of e.rec.lights) lit.push(l);
+      for (const m of e.rec.emits) emitters.push(m);
+    }
+    if (st === 2) HS.draw(id, st, b, 1, 'live');
   }
 
-  const drawPeople = (p) => drawPerson(p.x * T, p.y * T + 9, { ...LOOKS[p.role], ...p });
+  // People are drawn a little larger than their feet's footprint so they read well next to the big crowns;
+  // the scale is around the feet, so where they stand (and collide) doesn't change.
+  const PERSON_SCALE = 1.15;
+  function drawPeople(p) {
+    const x = p.x * T, y = p.y * T + 9;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(PERSON_SCALE, PERSON_SCALE);
+    ctx.translate(-x, -y);
+    drawPerson(x, y, { ...LOOKS[p.role], ...p });
+    ctx.restore();
+    if (p.role === 'player' && rodTip) rodTip = { x: x + (rodTip.x - x) * PERSON_SCALE, y: y + (rodTip.y - y) * PERSON_SCALE };
+  }
 
   window.VillageArt = {
     BOX, SWING, resize, setState, update, onEvent, chips, draw,
     get cam() { return cam; },
+    get zoom() { return zoom; },
+    get quality() { return quality.q; },
     get time() { return time; },
   };
 })();

@@ -444,6 +444,18 @@ test('palette gives every season its own ground and crowns', () => {
   assert.equal(VV.palette('nope'), VV.palette('spring'));
 });
 
+test('spring and summer meadows are a vivid green, ordered dark < base < light', () => {
+  const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const lum = (c) => rgb(c).reduce((a, v, i) => a + v * [0.3, 0.59, 0.11][i], 0);
+  for (const x of ['spring', 'summer']) {
+    const g = VV.palette(x).grass;
+    const [r, gg, b] = rgb(g.base);
+    assert.ok(gg > r * 1.4 && gg > b * 2, `${x} grass is clearly green, not olive`);
+    assert.ok(lum(g.dark) < lum(g.base) && lum(g.base) < lum(g.light), `${x} shades are ordered`);
+    for (const set of VV.palette(x).leaves) assert.ok(lum(set[0]) < lum(set[1]) && lum(set[1]) < lum(set[2]), `${x} crowns: dark, mid, lit`);
+  }
+});
+
 test('seasonFade blends over the first day of a season, never at the very start', () => {
   const at = (t) => VV.seasonFade(V.clock(t));
   assert.deepEqual(at(0), { from: 'winter', to: 'spring', t: 1 }, 'the first spring needs no fade');
@@ -565,4 +577,43 @@ test('soundFor covers fishing and the lantern festival', () => {
   assert.equal(VV.soundFor({ type: 'lantern-festival' }), 'lanterns');
   assert.equal(VV.soundFor({ type: 'built', effect: 'lanterns' }), null, 'the pavilion leaves it to the festival tune');
   assert.equal(VV.soundFor({ type: 'early' }), null);
+});
+
+test('zoomFor: up to ZOOM_MAX on big screens, at least ZOOM_TILES tiles across, never below 1', () => {
+  const T = VV.TILE;
+  assert.equal(VV.zoomFor(1600, 900), VV.ZOOM_MAX);
+  assert.equal(VV.zoomFor(300, 500), 1, 'a small phone keeps the unmagnified view');
+  for (const [w, h] of [[390, 650], [600, 400], [800, 600], [1280, 800], [2560, 1400]]) {
+    const z = VV.zoomFor(w, h);
+    assert.ok(z >= 1 && z <= VV.ZOOM_MAX, `${w}×${h}: ${z}`);
+    if (z > 1) assert.ok(Math.min(w, h * 1.6) / z / T >= VV.ZOOM_TILES - 1e-9, `${w}×${h}: enough tiles fit`);
+  }
+  assert.equal(VV.zoomFor(NaN, undefined), 1);
+});
+
+test('adaptQuality: slow frames lower the render scale step by step to the floor, fast ones raise it back', () => {
+  const Q = VV.QUALITY;
+  let st = VV.qualityStart();
+  assert.equal(st.q, 1);
+  const run = (ms, total) => { for (let t = 0; t < total; t += ms) st = VV.adaptQuality(st, ms); };
+  run(16.7, 10000);
+  assert.equal(st.q, 1, 'a smooth 60 fps keeps full sharpness');
+  run(40, 2000);
+  assert.ok(st.q < 1 && st.q >= Q.MIN, `25 fps for 2 s lowers it (${st.q})`);
+  run(40, 60000);
+  assert.equal(st.q, Q.MIN, 'never below the floor');
+  run(10, Q.FAST_HOLD + 1000);
+  assert.ok(st.q > Q.MIN, 'fast frames raise it again');
+  run(10, 60000);
+  assert.equal(st.q, 1, 'back to full, never above');
+});
+
+test('adaptQuality ignores pauses and junk, and does not flip on one slow frame', () => {
+  let st = VV.qualityStart();
+  st = VV.adaptQuality(st, 5000);   // a hidden tab coming back
+  st = VV.adaptQuality(st, NaN);
+  st = VV.adaptQuality(st, -3);
+  assert.deepEqual(st, VV.qualityStart());
+  for (let k = 0; k < 100; k++) st = VV.adaptQuality(st, k === 50 ? 200 : 16.7);
+  assert.equal(st.q, 1);
 });

@@ -45,6 +45,41 @@
     };
   }
 
+  // How much the camera magnifies the world (screen CSS px per world px) for a view of viewW×viewH CSS px:
+  // up to ZOOM_MAX on big screens, never so much that fewer than ZOOM_TILES tiles fit across the short
+  // way, and never below 1 (the old, unmagnified view).
+  const ZOOM_MAX = 1.5;
+  const ZOOM_TILES = 11;
+  function zoomFor(viewW, viewH) {
+    const w = Math.max(0, Number(viewW) || 0), h = Math.max(0, Number(viewH) || 0);
+    return clamp(Math.min(w, h * 1.6) / (ZOOM_TILES * TILE), 1, ZOOM_MAX);
+  }
+
+  // Adaptive resolution: how sharply the canvas is rendered (a scale on the device pixel ratio, QUALITY_MIN..1),
+  // steered by the time between frames. When the smoothed frame time stays over SLOW_MS for SLOW_HOLD ms the
+  // scale drops a step; when it stays under FAST_MS for FAST_HOLD ms it rises a step. After a change the
+  // average restarts in the middle, so one change has time to show before the next. Gaps over GAP_MS (a hidden
+  // tab, a long pause) are ignored. Pure: takes a state ({ q, ema, slowFor, fastFor }) and returns the next one.
+  const QUALITY = { MIN: 0.6, STEP: 0.1, SLOW_MS: 24, FAST_MS: 18, SLOW_HOLD: 1500, FAST_HOLD: 4000, GAP_MS: 250 };
+  const qualityStart = () => ({ q: 1, ema: (QUALITY.SLOW_MS + QUALITY.FAST_MS) / 2, slowFor: 0, fastFor: 0 });
+  function adaptQuality(st, frameMs) {
+    if (!(frameMs > 0) || frameMs > QUALITY.GAP_MS) return st;
+    const ema = st.ema * 0.9 + frameMs * 0.1;
+    const mid = (QUALITY.SLOW_MS + QUALITY.FAST_MS) / 2;
+    const round = (v) => Math.round(v * 100) / 100;
+    if (ema > QUALITY.SLOW_MS) {
+      const slowFor = st.slowFor + frameMs;
+      if (slowFor >= QUALITY.SLOW_HOLD && st.q > QUALITY.MIN) return { q: round(Math.max(QUALITY.MIN, st.q - QUALITY.STEP)), ema: mid, slowFor: 0, fastFor: 0 };
+      return { q: st.q, ema, slowFor, fastFor: 0 };
+    }
+    if (ema < QUALITY.FAST_MS) {
+      const fastFor = st.fastFor + frameMs;
+      if (fastFor >= QUALITY.FAST_HOLD && st.q < 1) return { q: round(Math.min(1, st.q + QUALITY.STEP)), ema: mid, slowFor: 0, fastFor: 0 };
+      return { q: st.q, ema, slowFor: 0, fastFor };
+    }
+    return { q: st.q, ema, slowFor: 0, fastFor: 0 };
+  }
+
   // Snap a camera offset to whole device pixels, so tiles and chunk images don't shimmer.
   const snap = (v, ratio) => Math.round(v * ratio) / ratio;
 
@@ -178,12 +213,12 @@
   //   blossom: the share of leafy trees in bloom; fallen: leaves lying on the grass; snow: 0..1 snow cover
   const SEASON_LOOKS = {
     spring: {
-      grass: { base: '#8cbf5a', dark: '#77ab48', light: '#a9d475', tuft: '#5c9a3b', tuftLight: '#b5dc80' },
-      flowers: 0.28, leaves: [['#4f8a3a', '#68a64a', '#92cc66'], ['#578f36', '#73ad45', '#9ad06a']], blossom: 0.35, fallen: 0, snow: 0,
+      grass: { base: '#72b444', dark: '#5a9a33', light: '#94cc58', tuft: '#3f7f27', tuftLight: '#aadd6c' },
+      flowers: 0.28, leaves: [['#2f7a2c', '#4f9e36', '#86cf4f'], ['#3a8530', '#5aa93b', '#97d85a'], ['#2c6e34', '#47934a', '#7cc764']], blossom: 0.3, fallen: 0, snow: 0,
     },
     summer: {
-      grass: { base: '#82ad55', dark: '#6f9c47', light: '#9cc46b', tuft: '#5c8a3b', tuftLight: '#a9cf73' },
-      flowers: 0.16, leaves: [['#3f6e33', '#548a3f', '#78ad55'], ['#466f2e', '#5e8f3a', '#86b356'], ['#3a6a3f', '#4f8650', '#72a868']], blossom: 0, fallen: 0, snow: 0,
+      grass: { base: '#68a83e', dark: '#528e30', light: '#88c052', tuft: '#3a7425', tuftLight: '#9fd064' },
+      flowers: 0.18, leaves: [['#2a6a2a', '#438c35', '#72bb4c'], ['#33702a', '#4d9437', '#80c454'], ['#285f33', '#3f8448', '#68b162']], blossom: 0, fallen: 0, snow: 0,
     },
     autumn: {
       grass: { base: '#a3a65a', dark: '#8f9049', light: '#bfba6c', tuft: '#7e7c3c', tuftLight: '#cbbf73' },
@@ -335,7 +370,7 @@
   }
 
   const api = {
-    TILE, STEP, MAX_DPR, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
+    TILE, STEP, MAX_DPR, ZOOM_MAX, ZOOM_TILES, zoomFor, QUALITY, qualityStart, adaptQuality, clamp, lerp, clampCamera, screenToTile, visibleRange, fitCanvas, snap, hash2, facing,
     fmt, fmtRate, splitDuration, income, tapAction, FLAT, frontTiles, pickFront, footprintDist, soundFor,
     sunAt, SEASON_LOOKS, palette, seasonFade, farmHint, EDGE, edgeMask, NODE_FOOT, NODE_TALL, HOUSE_RISE, tallBox, houseBox, tapAt,
   };
