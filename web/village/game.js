@@ -231,7 +231,7 @@
       $(`r-${r}-rate`).textContent = rate ? t('{v}/мин', { v: rate }) : '';
       const full = inc.full.includes(r);
       box.classList.toggle('full', full);
-      box.title = full ? t('Амбар полон: жители и мастерские ждут') : '';
+      box.title = full ? t('Амбар полон: жители и мастерские ждут') : resName(r);
     }
     const done = V.BUILDING_IDS.filter((id) => S.built[id].done).length;
     $('built-label').textContent = t('Восстановлено {n}/{total}', { n: done, total: V.BUILDING_IDS.length });
@@ -897,11 +897,20 @@
     setInterval(saveIfVisible, 10000);
   }
 
+  // On a phone the resource pills show only icon and number: a tap tells what it is.
+  $('res').addEventListener('click', (e) => {
+    const box = e.target.closest('.res-item');
+    if (!box) return;
+    const r = box.dataset.res, rate = $(`r-${r}-rate`).textContent;
+    toast([`${resName(r)}: ${VV.fmt(S.res[r])}`, rate, box.classList.contains('full') ? box.title : ''].filter(Boolean).join(' · '));
+  });
+
   function boot() {
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.content = t(meta.content);
     // Added after I18n.translateDOM has run, so the button's own labels stay as they are.
-    const addToggle = () => document.querySelector('.brand').append(GameNav.home('lang-btn'), I18n.toggle('lang-btn'));
+    // They sit with the other buttons, so on a phone they don't take a row of their own.
+    const addToggle = () => document.querySelector('.top-actions').prepend(GameNav.home('lang-btn'), I18n.toggle('lang-btn'));
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addToggle); else addToggle();
     const saved = loadSaved();
     setWorld(saved.s || V.newGame());

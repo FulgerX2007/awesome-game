@@ -78,7 +78,10 @@ test('index.html uses only relative paths and needs no network', () => {
     assert.ok(!r.startsWith('../') || ['../i18n.js', '../nav.js', '../fx.js'].includes(r), `only shared hub scripts above the folder: ${r}`);
   }
   const css = fs.readFileSync(path.join(WEB, 'village', 'style.css'), 'utf8');
-  assert.doesNotMatch(html + css, /@import|url\(|https?:/, 'no CSS imports, url() or links out of the page');
+  // The resource icons are inline SVGs (data URIs): they stay in the file, so they are the only url() allowed.
+  const icons = css.match(/url\("data:image\/svg\+xml,[^"]*"\)/g) || [];
+  assert.ok(icons.length >= 12, 'every resource has an inline icon');
+  assert.doesNotMatch(html + css.replace(/url\("data:image\/svg\+xml,[^"]*"\)/g, ''), /@import|url\(|https?:/, 'no CSS imports, url() or links out of the page');
 });
 
 test('view.js and audio.js load in Node without errors', () => {

@@ -80,19 +80,20 @@ h1 {
 .res-item b { font-size: 17px; font-weight: 800; }
 .res-item small { font-size: 11px; color: var(--leaf-deep); white-space: nowrap; }
 .res-item.full b { color: var(--danger); }
-.ico { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 3px; }
-.ico.wood { background: #8a5a2b; }
-.ico.stone { background: #9a9a92; }
-.ico.clay { background: var(--clay); }
-.ico.berries { background: var(--berry); border-radius: 50%; }
-.ico.planks { background: #d7a560; }
-.ico.bricks { background: #a8432e; }
-.ico.coins { background: radial-gradient(circle at 35% 35%, #fff2b8, #e2b44a 55%, #a8802e); border-radius: 50%; }
-.ico.grapes { background: #7a3f8f; border-radius: 50%; }
-.ico.juice { background: #b0306a; border-radius: 2px 2px 5px 5px; }
-.ico.honey { background: #e9b44c; border-radius: 50%; }
-.ico.apples { background: #d2453a; border-radius: 50%; }
-.ico.vegetables { background: #e2853a; border-radius: 50% 50% 50% 10%; }
+/* Resource icons: small inline SVGs, so they look the same everywhere and work offline. */
+.ico { display: inline-block; flex: none; width: 16px; height: 16px; vertical-align: -3px; background: center / contain no-repeat; }
+.ico.wood { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='4' y='4.5' width='11' height='8' rx='2.5' fill='%238a5a2b' stroke='%235a3818' stroke-width='.9'/><path d='M8 6.5h5M7 10.5h6' stroke='%236b431f' stroke-width='.8' stroke-linejoin='round' stroke-linecap='round'/><ellipse cx='4.5' cy='8.5' rx='3' ry='4' fill='%23e0b073' stroke='%235a3818' stroke-width='.9'/><ellipse cx='4.5' cy='8.5' rx='1.6' ry='2.2' fill='none' stroke='%23b07a3c' stroke-width='.7'/><circle cx='4.5' cy='8.5' r='.6' fill='%238a5a2b'/></svg>"); }
+.ico.stone { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M1.5 12.5 3.5 6 8 3l5 2 1.8 7.2L10.5 14H4z' fill='%239a9a92' stroke='%2355554f' stroke-width='.9' stroke-linejoin='round' stroke-linecap='round'/><path d='M3.5 6 8 3l5 2-4 2.2z' fill='%23c4c4bc'/><path d='M9 7.2 10.5 14' stroke='%236f6f68' stroke-width='.7'/></svg>"); }
+.ico.clay { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M6 2.5h4M6.5 2.5v2C3.5 6 3 9 3.8 11.5 4.5 13.6 6 14.5 8 14.5s3.5-.9 4.2-3c.8-2.5.3-5.5-2.7-7v-2' fill='%23c8693f' stroke='%237a3a1f' stroke-width='.9' stroke-linejoin='round' stroke-linecap='round'/><path d='M11.3 6.3c1.8 0 2.4 2.6.6 3.4' fill='none' stroke='%237a3a1f' stroke-width='.9' stroke-linejoin='round' stroke-linecap='round'/><path d='M4.6 9.5h6.8' stroke='%23e4a07a' stroke-width='.8' stroke-linejoin='round' stroke-linecap='round'/></svg>"); }
+.ico.berries { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M8 4c1-2 3-2.5 5-2-1 2-3 2.6-5 2z' fill='%235a9a3a'/><circle cx='5.5' cy='8' r='3' fill='%23c23a5e' stroke='%237a1f3a' stroke-width='.8'/><circle cx='10.5' cy='8.5' r='3' fill='%23d2456a' stroke='%237a1f3a' stroke-width='.8'/><circle cx='8' cy='12' r='3' fill='%23b8325a' stroke='%237a1f3a' stroke-width='.8'/><circle cx='4.6' cy='7' r='.8' fill='%23fff' opacity='.7'/><circle cx='9.6' cy='7.5' r='.8' fill='%23fff' opacity='.7'/><circle cx='7.1' cy='11' r='.8' fill='%23fff' opacity='.7'/></svg>"); }
+.ico.planks { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1.5' y='3.5' width='13' height='4' rx='.8' fill='%23e0b070' stroke='%238a5a2b' stroke-width='.9'/><rect x='1.5' y='8.5' width='13' height='4' rx='.8' fill='%23d39c58' stroke='%238a5a2b' stroke-width='.9'/><path d='M4 5.5h5M7 10.5h5' stroke='%23a8743a' stroke-width='.7' stroke-linejoin='round' stroke-linecap='round'/><circle cx='12' cy='5.5' r='.6' fill='%238a5a2b'/><circle cx='3.5' cy='10.5' r='.6' fill='%238a5a2b'/></svg>"); }
+.ico.bricks { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1.5' y='2.5' width='13' height='11' rx='1' fill='%23e8dcc6'/><g fill='%23b04a30' stroke='%236e2a18' stroke-width='.6'><rect x='2' y='3' width='5.6' height='3'/><rect x='8.4' y='3' width='5.6' height='3'/><rect x='2' y='6.6' width='2.6' height='3'/><rect x='5.4' y='6.6' width='5.2' height='3'/><rect x='11.4' y='6.6' width='2.6' height='3'/><rect x='2' y='10.2' width='5.6' height='3'/><rect x='8.4' y='10.2' width='5.6' height='3'/></g></svg>"); }
+.ico.vegetables { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M10.5 5.5c1-1.8 1.2-3.2.8-4.5M11 5.8c1.6-.9 2.8-1 3.8-.5M10.6 5.6c.6-1.3 1.9-2.3 3.2-2.4' fill='none' stroke='%234f8f2f' stroke-width='1.2' stroke-linejoin='round' stroke-linecap='round'/><path d='M11.3 5.2c-.9-.9-2.7-1-3.8.2L2 13.3c-.5.6.1 1.2.7.8l7.9-5.5c1.2-1 1.5-2.6.7-3.4z' fill='%23e8822e' stroke='%239a4c14' stroke-width='.8' stroke-linejoin='round' stroke-linecap='round'/><path d='M6 8.5l1.2.6M4.3 11l1 .5M8 6.6l.9.6' stroke='%239a4c14' stroke-width='.7' stroke-linejoin='round' stroke-linecap='round'/></svg>"); }
+.ico.honey { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><g stroke='%238a5a12' stroke-width='.8' stroke-linejoin='round' stroke-linecap='round'><path d='M5 2.2 7.6 3.7v3L5 8.2 2.4 6.7v-3z' fill='%23f0b93a'/><path d='M10.6 2.2l2.6 1.5v3l-2.6 1.5L8 6.7v-3z' fill='%23e3a52a'/><path d='M7.8 7l2.6 1.5v3L7.8 13 5.2 11.5v-3z' fill='%23f5c84d'/></g><path d='M7.8 13v1.6' stroke='%23e3a52a' stroke-width='1.4' stroke-linecap='round'/></svg>"); }
+.ico.apples { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M8 4.8C6.5 3.6 2.5 3.5 2.5 8c0 3.5 2.6 6.5 4.2 6.5.6 0 .9-.3 1.3-.3s.7.3 1.3.3c1.6 0 4.2-3 4.2-6.5 0-4.5-4-4.4-5.5-3.2z' fill='%23d2453a' stroke='%237e1f18' stroke-width='.9' stroke-linejoin='round' stroke-linecap='round'/><path d='M8 4.8c0-1.3.3-2.3 1-3' stroke='%235a3818' stroke-width='1' fill='none' stroke-linejoin='round' stroke-linecap='round'/><path d='M9 2.8c1.3-1 3-1 3.6-.4-.8 1-2.4 1.3-3.6.4z' fill='%235a9a3a'/><ellipse cx='5' cy='7.3' rx='1' ry='1.6' fill='%23fff' opacity='.45'/></svg>"); }
+.ico.coins { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6.5' fill='%23e9b94a' stroke='%238a6418' stroke-width='.9'/><circle cx='8' cy='8' r='4.6' fill='none' stroke='%23b88a28' stroke-width='.8'/><path d='M8 5.3l.8 1.7 1.8.2-1.3 1.2.4 1.8L8 9.3l-1.7.9.4-1.8-1.3-1.2 1.8-.2z' fill='%23b88a28'/><path d='M4.2 6a4.3 4.3 0 0 1 2.4-2.4' stroke='%23fff4c8' stroke-width='.9' fill='none' stroke-linecap='round'/></svg>"); }
+.ico.grapes { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M8 3.5c0-1 .5-2 1.5-2.5' stroke='%235a3818' stroke-width='1' fill='none' stroke-linecap='round'/><path d='M9 2.6c1.5-.6 3.2-.2 3.8.6-1.4.8-2.8.6-3.8-.6z' fill='%235a9a3a'/><g fill='%237a3f8f' stroke='%2343204f' stroke-width='.7'><circle cx='5' cy='5.5' r='2'/><circle cx='9' cy='5.5' r='2'/><circle cx='7' cy='8.6' r='2'/><circle cx='11' cy='8.4' r='2' fill='%238a4c9f'/><circle cx='5' cy='9' r='2' fill='%238a4c9f'/><circle cx='9' cy='11.5' r='2'/><circle cx='6.5' cy='12.6' r='1.8' fill='%238a4c9f'/></g></svg>"); }
+.ico.juice { background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M9.6 7 10.8 1.6 12.6 1' stroke='%233f8fb0' stroke-width='1.2' fill='none' stroke-linejoin='round' stroke-linecap='round'/><path d='M3.5 4.5h9l-1.2 9.2c-.1.5-.5.8-1 .8H5.7c-.5 0-.9-.3-1-.8z' fill='%23f4ecdf' stroke='%236e5a44' stroke-width='.9' stroke-linejoin='round' stroke-linecap='round'/><path d='M4.2 7.5h7.6l-.8 6c0 .3-.3.5-.6.5H5.6c-.3 0-.6-.2-.6-.5z' fill='%23c2306e'/><path d='M5.5 8.5v3.5' stroke='%23fff' stroke-width='.8' opacity='.5' stroke-linecap='round'/></svg>"); }
 
 /* ── Scene ── */
 .stage { position: relative; }
@@ -172,9 +173,20 @@ h1 {
 }
 @media (max-width: 380px) {
   .app { padding-inline: calc(8px + var(--safe-l)) calc(8px + var(--safe-r)); }
-  .res-item { padding: 3px 6px; }
-  .res-item b { font-size: 15px; }
   .chip { padding: 3px 9px; }
+}
+
+/* Short screens (phones, landscape): resources shrink to pills, icon and number only.
+   The name stays for screen readers and shows up on tap. */
+@media (max-width: 640px), (max-height: 520px) {
+  .top { margin-bottom: 6px; gap: 6px 10px; }
+  h1 { font-size: 22px; }
+  .res { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .res-item { display: flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px; border-radius: 999px; border-bottom-width: 2px; cursor: pointer; }
+  .res-item .ico { width: 18px; height: 18px; }
+  .res-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .res-item b { font-size: 14px; }
+  .res-item small { display: none; }
 }
 
 /* ── Panel lists ── */
