@@ -35,17 +35,64 @@
       }
     }
 
+    // ── Painted materials ──
+    // env.tex(name) gives a seamless grey texture baked by tools/village-sprites (tile, thatch, metal, plaster,
+    // planks, brick, stone) or null until the sprites have loaded. It is laid over a face that is already
+    // filled and lit, with 'overlay': the face keeps its colour and light and gains the material's relief.
+    // The pattern is anchored to the world, so neighbouring faces line up.
+    const patterns = new WeakMap(); // canvas context → { material name → CanvasPattern }
+    function material(mat, trace, alpha = 0.85) {
+      const t = env.tex && env.tex(mat);
+      if (!t) return false;
+      let byCtx = patterns.get(ctx);
+      if (!byCtx) patterns.set(ctx, (byCtx = {}));
+      let pat = byCtx[mat];
+      if (!pat || pat.img !== t.img) {
+        pat = { img: t.img, p: ctx.createPattern(t.img, 'repeat') };
+        pat.p.setTransform(new DOMMatrix().scale(t.w / t.img.width));
+        byCtx[mat] = pat;
+      }
+      ctx.save();
+      trace();
+      ctx.clip();
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.globalAlpha *= alpha;
+      ctx.fillStyle = pat.p;
+      ctx.fill();
+      ctx.restore();
+      return true;
+    }
+    // The material a wall of this colour is most likely made of: whitewash, brick, stone or boards.
+    function matFor(color) {
+      const [r, g, b] = K.parse(color);
+      const lum = 0.3 * r + 0.59 * g + 0.11 * b, sat = Math.max(r, g, b) - Math.min(r, g, b);
+      if (lum > 200) return 'plaster';
+      if (r > 150 && r - b > 60 && g < 130) return 'brick';
+      if (sat < 30) return 'stone';
+      return 'planks';
+    }
+    const ROOF_MAT = { tile: 'tile', thatch: 'thatch', metal: 'metal' };
+
     // A wall face with a soft vertical light gradient (bright under the eave light, darker at the plinth).
-    function wall(x, y, w, h, color) {
+    function wall(x, y, w, h, color, mat = matFor(color)) {
       const g = ctx.createLinearGradient(0, y, 0, y + h);
       g.addColorStop(0, K.shade(color, 0.06));
       g.addColorStop(1, K.shade(color, -0.12));
       rect(x, y, w, h, g);
+      return material(mat, () => { ctx.beginPath(); ctx.rect(x, y, w, h); });
     }
 
     // The right side wall: a parallelogram receding up and to the right, in shade.
-    function sideWall(right, top, base, color) {
-      poly([right, top, right + SIDE, top - SIDE * 0.5, right + SIDE, base - SIDE * 0.5, right, base], K.shade(color, -0.3));
+    function sideWall(right, top, base, color, mat = matFor(color)) {
+      const pts = [right, top, right + SIDE, top - SIDE * 0.5, right + SIDE, base - SIDE * 0.5, right, base];
+      poly(pts, K.shade(color, -0.3));
+      material(mat, () => tracePoly(pts), 0.7);
+    }
+    function tracePoly(pts) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0], pts[1]);
+      for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+      ctx.closePath();
     }
 
     function windowBox(x, y, w, h, trim) {
@@ -80,20 +127,25 @@
     // A gabled roof seen from above at a tilt: a lit strip of the back slope above the ridge, the front slope
     // in soft shade down to the eave, and the gable end on the right side in deeper shade.
     function roof(left, right, top, eave, col, dark, style = 'tile') {
-      const back = 7;
-      poly([left + 4, top, right - 4, top, right - 6, top - back, left + 6, top - back], K.shade(col, 0.22));
-      poly([right - 4, top, right + SIDE - 2, top - back * 0.5, right + SIDE, eave - SIDE * 0.5, right, eave], K.shade(col, -0.38));
+      const back = 7, mat = ROOF_MAT[style] || 'tile';
+      const backPts = [left + 4, top, right - 4, top, right - 6, top - back, left + 6, top - back];
+      const gable = [right - 4, top, right + SIDE - 2, top - back * 0.5, right + SIDE, eave - SIDE * 0.5, right, eave];
+      poly(backPts, K.shade(col, 0.22));
+      material(mat, () => tracePoly(backPts), 0.7);
+      poly(gable, K.shade(col, -0.38));
+      material(mat, () => tracePoly(gable), 0.6);
       const front = [left, eave, right, eave, right - 4, top, left + 4, top];
       const g = ctx.createLinearGradient(0, top, 0, eave);
       g.addColorStop(0, K.shade(col, 0.06));
       g.addColorStop(1, K.shade(col, -0.16));
       poly(front, g);
+      const painted = material(mat, () => tracePoly(front), 0.95);
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(left, eave); ctx.lineTo(right, eave); ctx.lineTo(right - 4, top); ctx.lineTo(left + 4, top);
       ctx.closePath();
       ctx.clip();
-      if (style === 'thatch') {
+      if (painted) { /* the painted material carries the tiles, straw or seams */ } else if (style === 'thatch') {
         ctx.lineWidth = 1;
         for (let yy = top + 3, row = 0; yy < eave; yy += 4, row++) {
           for (let xx = left + (row % 2) * 2; xx < right; xx += 4) line(xx, yy - 3, xx + 0.6, yy + 1, row % 3 ? dark : 'rgba(255, 236, 170, 0.5)', 1);
@@ -138,9 +190,10 @@
       const left = b.X + 5, right = b.X + b.Wp - 5 - SIDE, base = b.Y + b.Hp - 4;
       const wallH = o.wallH || 24, wallTop = base - wallH, top = b.Y - (o.roofUp || 10);
       castBlock(left, right, base, base - top + 8);
-      sideWall(right, wallTop, base, o.wall);
-      wall(left, wallTop, right - left, wallH, o.wall);
-      if (o.planks) for (let xx = left + 4; xx < right; xx += 5) line(xx, wallTop, xx, base, 'rgba(60, 25, 15, 0.25)', 1);
+      const mat = o.planks ? 'planks' : o.mat || matFor(o.wall);
+      sideWall(right, wallTop, base, o.wall, mat);
+      const painted = wall(left, wallTop, right - left, wallH, o.wall, mat);
+      if (o.planks && !painted) for (let xx = left + 4; xx < right; xx += 5) line(xx, wallTop, xx, base, 'rgba(60, 25, 15, 0.25)', 1);
       K.block(ctx, left, base - 5, right - left, 5, 1, o.plinth || STONE.mid, { top: 0.25 });
       const mid = (left + right) / 2;
       const dx = o.doorAt !== undefined ? o.doorAt : mid - 5;

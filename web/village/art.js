@@ -213,6 +213,7 @@
           else if (e.kind === 'pine') idx[`pine|${e.snow}|${e.shape}`] = e;
           else if (e.kind === 'rock') idx[`rock|${e.shape}`] = e;
           else if (e.kind === 'trunk') idx[`trunk|${e.pine}`] = e;
+          else if (e.kind === 'ruin') idx[`ruin|${e.size}|${e.shape}|${e.snow}`] = e;
         }
         PNG = idx;
         sprites.clear();
@@ -1269,6 +1270,7 @@
   const HS = window.VillageHouses.create({
     ctx, K, WOOD, STONE, GRASS, WINDOW, rect, line, circle, ellipse, poly, blob, emit, spark,
     state: () => S, time: () => time, sun: () => SUN, light, snow: () => LOOK.snow * FADE.t,
+    tex: (name) => png('mat-' + name),
   });
 
   // Bridge over the river: flat, drawn under the walkers. Posts first, planks as payment arrives.
@@ -2295,10 +2297,33 @@
     try { fn(); } finally { ctx = keep; HS.setCtx(keep); }
   }
 
+  // A painted ruin (tools/village-sprites) for this footprint's size, if there is one: a variant picked by
+  // place, the snowy one in winter (cross-faded while the season changes). False if none has loaded.
+  function paintedRuin(b, snowy) {
+    const size = `${b.w}x${b.h}`;
+    const v = Math.floor(hash2(b.x0, b.y0, 820) * 3);
+    return png(`ruin|${size}|${v}|${snowy}`) || png(`ruin|${size}|0|${snowy}`);
+  }
+  function drawPaintedRuin(b) {
+    const one = (season) => paintedRuin(b, VV.palette(season).snow > 0.5 ? 1 : 0);
+    const to = one(FADE.to);
+    if (!to) return false;
+    const put = (e) => ctx.drawImage(e.img, b.X - e.ax, b.Y - e.ay, e.w, e.h);
+    const from = FADE.t < 1 ? one(FADE.from) : null;
+    if (from && from !== to) {
+      put(from);
+      ctx.globalAlpha = FADE.t;
+      put(to);
+      ctx.globalAlpha = 1;
+    } else put(to);
+    return true;
+  }
+
   // Ruins don't move, so each is baked once into a sprite (per season and shadow strength) instead of
   // repainting its many stone blocks every frame.
   function drawBuilding(id) {
     const st = V.stage(S, id), b = BOX[id];
+    if (st === 0 && id !== 'well' && id !== 'pavilion' && drawPaintedRuin(b)) return;
     if (st === 0 && id !== 'well' && id !== 'pavilion') {
       const ox = b.X - 24, oy = b.Y - 32;
       const sp = sprite(`ruin|${id}|${SEASON}|${Math.round(SUN.shadow * 4)}`, b.Wp + 56, b.Hp + 52, 0, 0, (g) => {

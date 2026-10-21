@@ -27,7 +27,7 @@ test('every manifest entry has its PNG at world size × scale, with the anchor i
     assert.ok(fs.existsSync(file), `${name}: ${e.file} exists`);
     const { w, h } = pngSize(file);
     assert.ok(Math.abs(w - e.w * M.scale) <= 1 && Math.abs(h - e.h * M.scale) <= 1, `${name}: ${w}×${h} for ${e.w}×${e.h}`);
-    if (e.kind !== 'texture') assert.ok(e.ax >= 0 && e.ax <= e.w && e.ay >= 0, `${name}: anchor`);
+    if (e.kind !== 'texture' && e.kind !== 'material') assert.ok(e.ax >= 0 && e.ax <= e.w && e.ay >= 0, `${name}: anchor`);
   }
   // No stray files.
   const files = new Set(Object.values(M.sprites).map((e) => e.file));
@@ -55,4 +55,20 @@ test('bushes, pines, rocks, trunks and the meadow texture are all there', () => 
   for (let shape = 0; shape < 4; shape++) assert.ok(has((e) => e.kind === 'rock' && e.shape === shape));
   for (const pine of [0, 1]) assert.ok(has((e) => e.kind === 'trunk' && e.pine === pine));
   assert.ok(M.sprites.grass && M.sprites.grass.kind === 'texture');
+});
+
+test('a painted ruin (plain and snowy) for every footprint size that has stone ruins, and every material', () => {
+  const V = require('../../web/village/core.js');
+  const has = (f) => Object.values(M.sprites).some(f);
+  // The well and the pavilion have ruins of their own; flat works (bridge, road, clearing, pier) have none.
+  const own = new Set(['well', 'pavilion', ...VV.FLAT]);
+  for (const [id, fp] of Object.entries(V.FOOTPRINTS)) {
+    if (own.has(id) || !fp.length) continue;
+    const xs = fp.map((p) => p.x), ys = fp.map((p) => p.y);
+    const size = `${Math.max(...xs) - Math.min(...xs) + 1}x${Math.max(...ys) - Math.min(...ys) + 1}`;
+    for (const snow of [0, 1]) assert.ok(has((e) => e.kind === 'ruin' && e.size === size && e.shape === 0 && e.snow === snow), `${id}: ruin ${size} snow ${snow}`);
+  }
+  for (const mat of ['tile', 'thatch', 'metal', 'plaster', 'planks', 'brick', 'stone']) {
+    assert.ok(has((e) => e.kind === 'material' && e.mat === mat), `material ${mat}`);
+  }
 });

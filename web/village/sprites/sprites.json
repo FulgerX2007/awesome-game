@@ -367,6 +367,55 @@
    "kind": "texture",
    "w": 128
   },
+  "mat-brick": {
+   "file": "mat-brick.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "brick",
+   "w": 80
+  },
+  "mat-metal": {
+   "file": "mat-metal.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "metal",
+   "w": 80
+  },
+  "mat-planks": {
+   "file": "mat-planks.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "planks",
+   "w": 80
+  },
+  "mat-plaster": {
+   "file": "mat-plaster.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "plaster",
+   "w": 80
+  },
+  "mat-stone": {
+   "file": "mat-stone.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "stone",
+   "w": 80
+  },
+  "mat-thatch": {
+   "file": "mat-thatch.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "thatch",
+   "w": 80
+  },
+  "mat-tile": {
+   "file": "mat-tile.png",
+   "h": 80,
+   "kind": "material",
+   "mat": "tile",
+   "w": 80
+  },
   "pine-0-0": {
    "ax": 24,
    "ay": 74,
@@ -462,6 +511,204 @@
    "kind": "rock",
    "shape": 3,
    "w": 46
+  },
+  "ruin-2x2-0-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-0-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "2x2",
+   "snow": 0,
+   "w": 90
+  },
+  "ruin-2x2-0-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-0-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "2x2",
+   "snow": 1,
+   "w": 90
+  },
+  "ruin-2x2-1-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-1-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "2x2",
+   "snow": 0,
+   "w": 90
+  },
+  "ruin-2x2-1-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-1-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "2x2",
+   "snow": 1,
+   "w": 90
+  },
+  "ruin-2x2-2-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-2-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 2,
+   "size": "2x2",
+   "snow": 0,
+   "w": 90
+  },
+  "ruin-2x2-2-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-2x2-2-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 2,
+   "size": "2x2",
+   "snow": 1,
+   "w": 90
+  },
+  "ruin-3x2-0-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-0-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "3x2",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x2-0-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-0-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "3x2",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-3x2-1-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-1-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "3x2",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x2-1-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-1-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "3x2",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-3x2-2-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-2-0.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 2,
+   "size": "3x2",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x2-2-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x2-2-1.png",
+   "h": 88,
+   "kind": "ruin",
+   "shape": 2,
+   "size": "3x2",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-3x3-0-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x3-0-0.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "3x3",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x3-0-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x3-0-1.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "3x3",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-3x3-1-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x3-1-0.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "3x3",
+   "snow": 0,
+   "w": 122
+  },
+  "ruin-3x3-1-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-3x3-1-1.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 1,
+   "size": "3x3",
+   "snow": 1,
+   "w": 122
+  },
+  "ruin-5x3-0-0": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-5x3-0-0.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "5x3",
+   "snow": 0,
+   "w": 186
+  },
+  "ruin-5x3-0-1": {
+   "ax": 10,
+   "ay": 16,
+   "file": "ruin-5x3-0-1.png",
+   "h": 120,
+   "kind": "ruin",
+   "shape": 0,
+   "size": "5x3",
+   "snow": 1,
+   "w": 186
   },
   "shrub-autumn-0": {
    "ax": 24,
