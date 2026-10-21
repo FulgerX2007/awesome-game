@@ -10,7 +10,7 @@ const { DAY } = V;
 function village(seed = 1) {
   const s = V.newGame(seed);
   for (const id of V.BUILDING_IDS) {
-    if (id === 'chapel' || id === 'house3' || id === 'market') continue;
+    if (id === 'chapel' || id === 'house3' || id === 'market' || V.BUILDINGS[id].after === 'harvest') continue; // no lake: orders at dawn only
     s.built[id].done = true;
     for (const r of Object.keys(s.built[id].paid)) s.built[id].paid[r] = V.BUILDINGS[id].cost[r];
   }

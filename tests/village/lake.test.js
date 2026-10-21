@@ -243,3 +243,29 @@ test('fish come into the orders after the pier, smoked fish after the smokehouse
   s.orders = [{ id: s.orderSeq, who: 'fisher', need: { fish: 10, smoked: 4 }, reward: { coins: 10 }, day: 0 }];
   assert.deepEqual(V.load(V.save(s)).orders[0].need, { fish: 10, smoked: 4 });
 });
+
+test('at the lake a second order comes at noon; before the pier only at dawn', () => {
+  const count = (s, days) => {
+    let posted = 0;
+    for (let d = 0; d < days; d++) {
+      s.orders = [];
+      s.events.length = 0;
+      V.step(s, V.DAY);
+      posted += s.events.filter((e) => e.type === 'order-new').length;
+    }
+    return posted;
+  };
+  const before = harvested();
+  before.t = V.DAY * 20 + V.DAY * 0.1;
+  assert.equal(count(before, 4), 4, 'one a day');
+  const after = harvested();
+  build(after, 'glade'); build(after, 'pier');
+  after.t = V.DAY * 20 + V.DAY * 0.1;
+  assert.equal(count(after, 4), 8, 'two a day');
+  // Away from the game too, and never more than the board holds.
+  const away = harvested();
+  build(away, 'glade'); build(away, 'pier');
+  away.orders = [];
+  V.offline(away, V.DAY * 3);
+  assert.equal(away.orders.length, V.ORDERS.max);
+});

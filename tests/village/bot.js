@@ -7,21 +7,25 @@ const V = require('../../web/village/core.js');
 const CHUNK = 0.5;      // seconds of game time per bot decision while walking or gathering
 const WAIT = 5;         // seconds to wait when there is nothing useful to do
 const LIMIT = 6 * 3600; // a run that takes longer than this is a deadlock
-const RAW = new Set(['wood', 'stone', 'clay', 'berries', 'apples', 'vegetables']);
+const RAW = new Set(['wood', 'stone', 'clay', 'berries', 'apples', 'vegetables', 'fish']);
+const REACTION = 0.3;   // seconds from a bite to the bot's strike, like a player watching the float
 // Resources that can only be had in some seasons: the bot stocks up on them while it can.
 const SEASONAL = ['apples', 'vegetables'];
 // product → raw material its workshop eats
 const FEED = Object.fromEntries(Object.values(V.WORKSHOPS).map((w) => [w.to, w.from]));
 const KIND_OF = Object.fromEntries(Object.entries(V.NODE_KINDS).map(([k, n]) => [n.res, k]));
-const TOOL_ORDER = ['axe', 'pick', 'shovel', 'basket'];
+const TOOL_ORDER = ['axe', 'pick', 'shovel', 'basket', 'rod'];
 
 function reachable(s, n) {
+  if (n.kind === 'shoal') return s.built.pier.done; // the rod comes with the pier
   const z = V.zoneAt(n.x, n.y);
   if (z === 'hamlet') return s.built.road.done;
+  if (z === 'lake') return s.built.glade.done;
   return z === 'west' || s.built.bridge.done;
 }
 
-// Play one game: to the festival, or with { until: 'harvest' } on over the hill to the harvest festival.
+// Play one game: to the festival; with { until: 'harvest' } on over the hill to the harvest festival;
+// with { until: 'lanterns' } on past the forest to the lantern festival.
 // Returns a log of milestones (game time of each building, tool or barn level, order and purchase).
 function play(seed, opts = {}) {
   const s = V.newGame(seed);
@@ -104,6 +108,19 @@ function play(seed, opts = {}) {
     return need - s.res[r];
   };
 
+  // Fish at a shoal the bot already walks to: strike REACTION seconds after each bite, until the shoal is
+  // empty or the fish are gone. Small steps, so the strike lands inside the window.
+  const fish = () => {
+    let biteAt = null;
+    while (s.player.target && s.t < limit) {
+      V.step(s, V.MAX_DT);
+      for (const e of s.events) if (e.type === 'bite') biteAt = s.t;
+      drain();
+      if (biteAt !== null && s.t - biteAt >= REACTION - 1e-9) { V.strike(s); biteAt = null; drain(); }
+    }
+    return true;
+  };
+
   // Gather the nearest standing node of a resource. False when there is none in reach.
   const gather = (res) => {
     if (res === 'vegetables') return tend();
@@ -114,10 +131,12 @@ function play(seed, opts = {}) {
       .map((n) => ({ n, d: Math.hypot(n.x + 0.5 - p.x, n.y + 0.5 - p.y) }))
       .sort((a, b) => a.d - b.d);
     for (const { n } of cands.slice(0, 4)) {
-      if (V.interact(s, n.x, n.y) === 'gather') {
+      const r = V.interact(s, n.x, n.y);
+      if (r === 'gather') {
         finishOrder();
         return true;
       }
+      if (r === 'fish') return fish();
     }
     return false;
   };
@@ -125,12 +144,14 @@ function play(seed, opts = {}) {
   // Orders the bot can fill without touching what the next building still needs.
   const spare = () => {
     const goal = V.nextGoal(s);
-    const keep = goal && goal.type === 'build' ? V.remaining(s, goal.id) : {};
+    let keep = goal && goal.type === 'build' ? V.remaining(s, goal.id) : {};
+    // Short of coins for it (the pavilion): orders come first, the goods grow back.
+    if (keep.coins && s.res.coins < keep.coins) keep = {};
     return s.orders.filter((o) => Object.entries(o.need).every(([r, n]) => s.res[r] - n >= (keep[r] || 0)));
   };
   // What the bot buys at the fair, most useful first, when it has the coins.
-  const WISH = ['bucket', 'cuttings'];
-  const wanted = () => WISH.filter((id) => !s.bought.includes(id) && s.res.coins >= V.FAIR[id].price && V.fairOpen(s));
+  const WISH = ['bucket', 'cuttings', 'boat'];
+  const wanted = () => WISH.filter((id) => V.fairItems(s).includes(id) && !s.bought.includes(id) && s.res.coins >= V.FAIR[id].price && V.fairOpen(s));
   const fillOrders = () => {
     if (!s.built.market.done || (!spare().length && !wanted().length)) return false;
     const f = V.FOOTPRINTS.market[0];
@@ -142,8 +163,18 @@ function play(seed, opts = {}) {
     return true;
   };
 
-  const done = () => (opts.until === 'harvest' ? s.harvestFestival : s.festival);
-  let festivalAt = null;
+  const done = () => (opts.until === 'lanterns' ? s.lanternFestival : opts.until === 'harvest' ? s.harvestFestival : s.festival);
+  let festivalAt = null, harvestAt = null, harvestCoins = null;
+  const marks = () => {
+    if (s.festival && festivalAt === null) festivalAt = s.t;
+    if (s.harvestFestival && harvestAt === null) { harvestAt = s.t; harvestCoins = s.res.coins; }
+  };
+  // Coins come from orders: gather whatever raw good an order still lacks, or wait for new orders.
+  const earn = () => {
+    const lack = s.orders.flatMap((o) => Object.entries(o.need).filter(([r, n]) => RAW.has(r) && s.res[r] < n).map(([r]) => r));
+    if (lack.length && gather(lack[0])) return;
+    V.step(s, WAIT); drain();
+  };
   // An order short of a few raw goods: the bot gathers them, like a player who keeps the board busy.
   const orderLack = () => {
     for (const o of s.orders) {
@@ -154,7 +185,7 @@ function play(seed, opts = {}) {
   };
 
   while (!done() && s.t < limit) {
-    if (s.festival && festivalAt === null) festivalAt = s.t;
+    marks();
     upgrade();
     if (fillOrders()) continue;
     const lackR = s.built.market.done ? orderLack() : null;
@@ -164,10 +195,10 @@ function play(seed, opts = {}) {
     const goal = V.nextGoal(s);
     // Waiting for the fair (the vine cuttings): orders and the garden meanwhile, then wait.
     if (goal && goal.type === 'fair') {
-      // Coins come from orders: gather whatever raw good an order still lacks.
-      const lack = s.orders.flatMap((o) => Object.entries(o.need).filter(([r, n]) => RAW.has(r) && s.res[r] < n).map(([r]) => r));
-      if (lack.length && gather(lack[0])) continue;
-      V.step(s, WAIT); drain(); continue;
+      // Short of coins for it: earn them; with the coins, wait for the fair day.
+      if (s.res.coins < V.FAIR[goal.item].price) earn();
+      else { V.step(s, WAIT); drain(); }
+      continue;
     }
     // No goal, or a missing tool the bot can't get (the shovel before the bridge): that is a deadlock.
     if (!goal || goal.type !== 'build') break;
@@ -191,18 +222,24 @@ function play(seed, opts = {}) {
     if (!want) {
       // Only products are missing: feed the workshop that lags most.
       for (const [r, n] of Object.entries(left)) {
-        if (RAW.has(r) || s.res[r] >= Math.min(n, s.storage)) continue;
+        if (RAW.has(r) || !FEED[r] || s.res[r] >= Math.min(n, s.storage)) continue; // coins, honey, juice: no workshop to feed
         const gap = (n - s.res[r]) / n;
         if (gap > wantGap) { want = FEED[r]; wantGap = gap; }
       }
     }
     if (ready && visit(id)) continue;
     if (want && gather(want)) continue;
+    // A building that costs coins (the pavilion): pay what is there, then earn the rest.
+    if (left.coins && s.res.coins < left.coins) {
+      if (s.res.coins > 0 && visit(id)) continue;
+      earn();
+      continue;
+    }
     V.step(s, WAIT);
     drain();
   }
-  if (s.festival && festivalAt === null) festivalAt = s.t;
-  return { s, log, festival: s.festival, harvest: s.harvestFestival, festivalAt, t: s.t };
+  marks();
+  return { s, log, festival: s.festival, harvest: s.harvestFestival, lanterns: s.lanternFestival, festivalAt, harvestAt, harvestCoins, t: s.t };
 }
 
 module.exports = { play };

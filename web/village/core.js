@@ -115,10 +115,10 @@
     glade: { id: 'glade', ch: 'o', name: 'Просека к озеру', cost: { wood: 300, stone: 200 }, needs: ['harvest'], effect: 'glade', after: 'harvest' },
     pier: { id: 'pier', ch: 'j', name: 'Мостки', cost: { planks: 200, wood: 150 }, needs: ['glade'], effect: 'pier', after: 'harvest' },
     smokehouse: { id: 'smokehouse', ch: 'X', name: 'Коптильня', cost: { bricks: 160, stone: 150, planks: 80 }, needs: ['pier'], effect: 'smokehouse', after: 'harvest' },
-    house6: { id: 'house6', ch: '6', name: 'Дом рыбака', cost: { planks: 260, bricks: 180, fish: 40 }, needs: ['pier'], effect: 'villager', role: 'fisher', after: 'harvest' },
+    house6: { id: 'house6', ch: '6', name: 'Дом рыбака', cost: { planks: 240, bricks: 140, fish: 40 }, needs: ['pier'], effect: 'villager', role: 'fisher', after: 'harvest' },
     boathouse: { id: 'boathouse', ch: 'L', name: 'Лодочный сарай', cost: { planks: 240, wood: 120 }, needs: ['pier'], bought: 'boat', effect: 'boathouse', after: 'harvest' },
     pavilion: {
-      id: 'pavilion', ch: 'Q', name: 'Беседка на воде', cost: { planks: 300, bricks: 200, smoked: 40, juice: 30, honey: 40, coins: 120 },
+      id: 'pavilion', ch: 'Q', name: 'Беседка на воде', cost: { planks: 300, bricks: 200, smoked: 40, juice: 30, honey: 40, coins: 100 },
       needs: ['smokehouse', 'house6', 'boathouse'], effect: 'lanterns', after: 'harvest',
     },
   };
@@ -164,7 +164,7 @@
     scarecrow: { name: 'Пугало', price: 10 },
     arch: { name: 'Арка с цветами', price: 14 },
     // Sold only after the harvest festival: the boathouse needs it.
-    boat: { name: 'Лодка', price: 90, after: 'harvest' },
+    boat: { name: 'Лодка', price: 70, after: 'harvest' },
   };
   const BIG_BUCKET = 10;
 
@@ -908,14 +908,21 @@
     if (!quiet) s.events.push({ type: 'season', season });
   }
   // Moves s.t forward by dt and runs the hooks for the days crossed; returns how many dawns passed.
+  // At the lake the fisher brings a second order at noon (only once the pier stands).
+  function onNoon(s, quiet) {
+    if (s.built.market.done && s.built.pier.done && s.orders.length < ORDERS.max) postOrder(s, quiet);
+  }
   function advanceClock(s, dt, quiet) {
-    const before = Math.floor(s.t / DAY);
+    const t0 = s.t;
+    const before = Math.floor(t0 / DAY);
     s.t += dt;
     const after = Math.floor(s.t / DAY);
     for (let d = before + 1; d <= after; d++) {
       if (d % SEASON_DAYS === 0) onSeason(s, SEASONS[Math.floor(d / SEASON_DAYS) % SEASONS.length], quiet);
       onDawn(s, d, quiet);
     }
+    // Noons crossed: day d's noon is at (d + 0.5) · DAY.
+    for (let d = Math.floor(t0 / DAY - 0.5) + 1; d <= Math.floor(s.t / DAY - 0.5); d++) onNoon(s, quiet);
     return after - before;
   }
 
