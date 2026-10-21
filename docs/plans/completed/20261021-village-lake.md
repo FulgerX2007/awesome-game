@@ -420,31 +420,31 @@
 **Files:**
 - Modify: `tests/village/smoke.cjs`
 
-- [ ] сейв v3 с Праздником урожая грузится, подсказка ведёт на просеку
-- [ ] на телефонном экране: тап по месту клёва → полоска ловли → дождаться поклёвки → «Подсечь» → рыбы стало больше
-- [ ] сейв с беседкой: фонари, модалка финала не повторяется при загрузке, нет ошибок в консоли
-- [ ] run tests - must pass before task 13
+- [x] сейв v3 с Праздником урожая грузится, подсказка ведёт на просеку
+- [x] на телефонном экране: тап по месту клёва → полоска ловли → дождаться поклёвки → «Подсечь» → рыбы стало больше
+- [x] сейв с беседкой: фонари, модалка финала не повторяется при загрузке, нет ошибок в консоли
+- [x] run tests - must pass before task 13
 
 ### Task 13: Verify acceptance criteria
-- [ ] всё из Overview сделано:
+- [x] всё из Overview сделано:
   - глава после урожая;
   - рыбалка-мини-игра;
   - монеты нужны;
   - сейвы v3 продолжаются, старые узлы на месте
-- [ ] проверить края:
+- [x] проверить края:
   - ловля во время перехода ночи и зимы;
   - офлайн во время ловли;
   - полный амбар рыбы;
   - ловля без удочки;
   - отход от игры во время ловли (`gone`)
-- [ ] run full test suite: `node --test 'tests/**/*.test.js'` и `go test ./...`
-- [ ] run e2e: `node tests/village/smoke.cjs`
-- [ ] `BALANCE=1 node --test tests/village/balance.test.js` — 20 сидов
+- [x] run full test suite: `node --test 'tests/**/*.test.js'` и `go test ./...`
+- [x] run e2e: `node tests/village/smoke.cjs`
+- [x] `BALANCE=1 node --test tests/village/balance.test.js` — 20 сидов
 
 ### Task 14: [Final] Update documentation
-- [ ] `README.md` и описание «Родника» в `web/index.html` (RO тоже): третья глава, рыбалка
-- [ ] CLAUDE.md — если появились новые правила
-- [ ] move this plan to `docs/plans/completed/`
+- [x] `README.md` и описание «Родника» в `web/index.html` (RO тоже): третья глава, рыбалка
+- [x] CLAUDE.md — если появились новые правила
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*

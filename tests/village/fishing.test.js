@@ -219,3 +219,21 @@ test('no rod, no fishing; strike without a line does nothing', () => {
   V.interact(s, n.x, n.y);
   assert.equal(V.strike(s), 'none');
 });
+
+test('fishing goes on in winter (through the ice) and across the night into a new day', () => {
+  const s = lake(1);
+  const n = shoreShoal(s);
+  const [dx, dy] = [[0, -1], [-1, 0], [1, 0], [0, 1]].find(([ax, ay]) => V.tileAt(n.x + ax, n.y + ay) === ':');
+  s.player.x = n.x + dx + 0.5; s.player.y = n.y + dy + 0.5; // already on the shore
+  s.t = V.DAY * (V.SEASON_DAYS * 4 - 1) - 1; // a second before the last dawn of winter
+  assert.equal(V.clock(s.t).season, 'winter');
+  startFishing(s, n);
+  const day = V.clock(s.t).day;
+  let caught = 0;
+  for (let k = 0; k < 3 && s.player.fish; k++) {
+    assert.ok(until(s, 'bite'), 'bites come in winter too');
+    if (V.strike(s) === 'catch') caught++;
+  }
+  assert.ok(caught >= 1);
+  assert.ok(V.clock(s.t).day > day, 'the dawn passed while fishing');
+});
