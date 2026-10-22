@@ -43,14 +43,14 @@
   // glow: bioluminescent (seen in the dark); lure: anglerfish bait; ambush: waits, then lunges.
   // legend: a creature from sea tales, not a real species (the fact tells what sailors may have seen).
   const SPECIES = [
-    { id: 'diatom', cls: 'plankton', zones: [0, 1], name: 'Диатомея',
+    { id: 'diatom', cls: 'plankton', zones: [0], name: 'Диатомея',
       fact: 'Одноклеточная водоросль в стеклянном панцире. Диатомеи дают около пятой части всего кислорода Земли.' },
-    { id: 'noctiluca', cls: 'plankton', zones: [1, 2], glow: true, name: 'Ночесветка',
+    { id: 'noctiluca', cls: 'plankton', zones: [0], glow: true, name: 'Ночесветка',
       fact: 'Из-за неё ночью светятся волны: клетка вспыхивает голубым, когда её тревожат.' },
-    { id: 'snow', cls: 'plankton', zones: [3, 4], name: 'Морской снег',
+    { id: 'snow', cls: 'plankton', zones: [1, 2, 3, 4], name: 'Морской снег',
       fact: 'Хлопья органики, которые медленно падают сверху. Для бездны это главная еда, путь на дно занимает недели.' },
-    { id: 'paramecium', cls: 'cell', zones: [0], name: 'Инфузория-туфелька',
-      fact: 'Плавает тысячами ресничек и разворачивается, наткнувшись на препятствие.' },
+    { id: 'ciliate', cls: 'cell', zones: [0], name: 'Морская инфузория',
+      fact: 'Плавает тысячами ресничек. Некоторые морские инфузории глотают водоросли и оставляют себе их хлоропласты: те продолжают работать и кормят хозяина светом.' },
     { id: 'radiolarian', cls: 'cell', zones: [1, 2], name: 'Радиолярия',
       fact: 'Строит кружевной скелет из кремнезёма. Из таких скелетов сложены целые горные породы.' },
     { id: 'foram', cls: 'cell', zones: [3], name: 'Фораминифера',
@@ -65,6 +65,8 @@
       fact: 'Защищаясь, выплёвывает облако светящейся слизи прямо в морду хищнику.' },
     { id: 'amphipod', cls: 'krill', zones: [3, 4], name: 'Бокоплав',
       fact: 'Падальщик бездны. Бокоплавы находят упавшую на дно рыбу за считанные часы.' },
+    { id: 'yeti', cls: 'krill', zones: [2], name: 'Краб-йети',
+      fact: 'Весь в «шерсти» и почти слепой. Живёт у горячих источников на дне, машет клешнями над их водой и выращивает на волосках бактерий, которых потом ест.' },
     { id: 'anchovy', cls: 'minnow', zones: [0], name: 'Анчоус',
       fact: 'Плавает огромными косяками: так хищнику труднее выбрать одну рыбку.' },
     { id: 'lanternfish', cls: 'minnow', zones: [1, 2], glow: true, name: 'Рыба-фонарь',
@@ -73,6 +75,10 @@
       fact: 'Светится брюхом ровно так же, как свет сверху, поэтому снизу её не видно.' },
     { id: 'snailfish', cls: 'minnow', zones: [3, 4], name: 'Морской слизень',
       fact: 'Рыба-рекордсмен: её снимали на глубине 8 336 метров.' },
+    { id: 'barreleye', cls: 'minnow', zones: [1], name: 'Бочкоглаз',
+      fact: 'Голова прозрачная, как кабина вертолёта. Зелёные глаза-трубки внутри неё поворачиваются вверх и вперёд, а две тёмные точки над ртом — это ноздри.' },
+    { id: 'seapig', cls: 'minnow', zones: [3], name: 'Скотоплана',
+      fact: 'Её прозвали морской свиньёй, но это голотурия, родственница морских звёзд. Ходит по дну на ножках-трубочках и ест ил, а целые стада собираются там, куда упало что-нибудь съедобное.' },
     { id: 'mackerel', cls: 'fish', zones: [0], name: 'Скумбрия',
       fact: 'Не может остановиться: чтобы дышать, ей нужно всё время плыть.' },
     { id: 'moonjelly', cls: 'fish', zones: [0, 1], jelly: true, name: 'Медуза-аурелия',
@@ -83,28 +89,50 @@
       fact: 'Зубы такие длинные, что не помещаются в пасти и торчат наружу.' },
     { id: 'angler', cls: 'fish', zones: [2, 3], glow: true, lure: true, ambush: true, name: 'Удильщик',
       fact: 'Висит в темноте неподвижно и приманивает добычу светящейся «удочкой» на лбу. Не плыви на одинокий огонёк.' },
-    { id: 'tripod', cls: 'fish', zones: [3, 4], flee: true, hunter: false, name: 'Рыба-тренога',
+    { id: 'tripod', cls: 'fish', zones: [2, 3], flee: true, hunter: false, name: 'Рыба-тренога',
       fact: 'Стоит на дне на трёх длинных лучах плавников, как на ходулях, и ждёт, что принесёт течение.' },
+    { id: 'fangtooth', cls: 'fish', zones: [2, 3], name: 'Саблезуб',
+      fact: 'У него самые большие зубы относительно тела среди всех рыб. Чтобы закрыть пасть, длинные нижние клыки уходят в особые карманы по бокам мозга.' },
+    { id: 'atolla', cls: 'fish', zones: [2, 3], jelly: true, glow: true, name: 'Медуза-атолла',
+      fact: 'Когда её хватают, по куполу бегут синие огни. Это «охранная сигнализация»: свет зовёт хищника покрупнее, чтобы тот спугнул обидчика.' },
+    { id: 'abysso', cls: 'fish', zones: [3, 4], name: 'Абиссобротула',
+      fact: 'Её подняли тралом с глубины 8 370 метров в жёлобе Пуэрто-Рико: глубже рыбу не ловили ни разу.' },
     { id: 'squid', cls: 'squid', zones: [0, 1], name: 'Кальмар',
       fact: 'Плавает реактивно: набирает воду в мантию и с силой выталкивает её.' },
-    { id: 'vampire', cls: 'squid', zones: [2, 3], glow: true, hunter: false, name: 'Адский вампир',
+    { id: 'vampire', cls: 'squid', zones: [1, 2], glow: true, hunter: false, name: 'Адский вампир',
       fact: 'Несмотря на имя, ест морской снег. При опасности выворачивается плащом наизнанку.' },
     { id: 'gulper', cls: 'squid', zones: [2, 3], glow: true, name: 'Большерот',
-      fact: 'Пасть больше всего остального тела: глотает добычу крупнее себя.' },
-    { id: 'dumbo', cls: 'squid', zones: [4], hunter: false, name: 'Осьминог-дамбо',
+      fact: 'Пасть больше всего остального тела и раскрывается, как сачок, но ловит он ею в основном мелких рачков. Кончик хвоста светится.' },
+    { id: 'dumbo', cls: 'squid', zones: [3, 4], hunter: false, name: 'Осьминог-дамбо',
       fact: 'Машет плавниками, похожими на уши слонёнка. Живёт глубже всех осьминогов.' },
+    { id: 'leatherback', cls: 'squid', zones: [0, 1], hunter: false, name: 'Кожистая черепаха',
+      fact: 'Самая большая черепаха на свете: до 2 метров и 900 кг. Вместо твёрдого панциря у неё кожа с семью гребнями. Ныряет глубже километра и ест медуз.' },
     { id: 'shark', cls: 'shark', zones: [0, 1], name: 'Синяя акула',
       fact: 'Проплывает тысячи километров вслед за косяками рыб.' },
-    { id: 'goblin', cls: 'shark', zones: [2, 3], name: 'Акула-домовой',
+    { id: 'goblin', cls: 'shark', zones: [1, 2], name: 'Акула-домовой',
       fact: 'Выстреливает челюсти вперёд, чтобы схватить добычу. Розовая, потому что сквозь кожу видны сосуды.' },
-    { id: 'giantsquid', cls: 'shark', zones: [2, 3], name: 'Гигантский кальмар',
+    { id: 'giantsquid', cls: 'shark', zones: [1, 2], name: 'Гигантский кальмар',
       fact: 'Глаза размером с футбольный мяч, одни из самых больших в животном мире. Живым его впервые сфотографировали только в 2004 году.' },
+    { id: 'porpoise', cls: 'shark', zones: [0], name: 'Обыкновенная морская свинья',
+      fact: 'Одно из самых маленьких китообразных, до 1,8 метра, живёт и в Чёрном море. В отличие от дельфинов, зубы у неё лопаточками, а не конусами, и она почти никогда не выпрыгивает из воды.' },
+    { id: 'orca', cls: 'shark', zones: [0], name: 'Косатка',
+      fact: 'Самый крупный дельфин. Семьи косаток охотятся сообща, и у каждой популяции свой «диалект» звуков и свои охотничьи приёмы.' },
+    { id: 'sunfish', cls: 'shark', zones: [0, 1], hunter: false, flee: true, name: 'Рыба-луна',
+      fact: 'Самая тяжёлая костная рыба: больше 2 тонн. После охоты в холодной глубине поднимается к поверхности и греется на солнце, лёжа на боку.' },
+    { id: 'manta', cls: 'shark', zones: [0, 1], hunter: false, flee: true, name: 'Манта',
+      fact: 'Скат с размахом «крыльев» до 7 метров. У манты один из самых крупных мозгов среди рыб, и, похоже, она узнаёт себя в зеркале.' },
+    { id: 'frilled', cls: 'shark', zones: [1, 2], name: 'Плащеносная акула',
+      fact: 'Живое ископаемое: почти не изменилась за 80 миллионов лет. Жабры с оборками, сотни зубов-трезубцев, а беременность длится больше трёх лет.' },
+    { id: 'colossal', cls: 'shark', zones: [2], name: 'Колоссальный кальмар',
+      fact: 'Самое тяжёлое беспозвоночное, до 500 кг. На щупальцах у него, кроме присосок, вращающиеся крючья, а глаза — самые большие в животном мире.' },
     { id: 'humpback', cls: 'whale', zones: [0, 1], name: 'Горбатый кит',
       fact: 'Самцы поют песни длиной до получаса, и вся популяция со временем меняет мелодию вместе.' },
-    { id: 'sperm', cls: 'whale', zones: [1, 2, 3], name: 'Кашалот',
+    { id: 'sperm', cls: 'whale', zones: [0, 1, 2], name: 'Кашалот',
       fact: 'Ныряет на 2 км за гигантскими кальмарами и задерживает дыхание на час.' },
-    { id: 'siphonophore', cls: 'whale', zones: [3, 4], glow: true, hunter: false, name: 'Сифонофора',
+    { id: 'siphonophore', cls: 'whale', zones: [1, 2], glow: true, hunter: false, name: 'Сифонофора',
       fact: 'Колония из тысяч крошечных существ, вытянутая на 40 метров. Одно из самых длинных животных в мире.' },
+    { id: 'bluewhale', cls: 'whale', zones: [0, 1], name: 'Синий кит',
+      fact: 'Самое большое животное за всю историю Земли: до 30 метров и 150 тонн. А ест почти один криль — тонны рачков в день.' },
     { id: 'serpent', cls: 'kraken', zones: [0, 1, 2], legend: true, name: 'Морской змей',
       fact: 'О нём рассказывали моряки всех морей. Часто за змея принимали сельдяного короля — настоящую рыбу длиной до 8 метров с красным гребнем.' },
     { id: 'kraken', cls: 'kraken', zones: [2, 3, 4], legend: true, glow: true, name: 'Кракен',
@@ -115,9 +143,12 @@
       fact: 'Морское чудовище из Библии: «нет на земле подобного ему». В его честь назван ископаемый кашалот Livyatan, который охотился на китов 9 миллионов лет назад.' },
   ];
   const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
+  // Species whose painted atlas card (web/deep/art/<id>.webp) is not drawn yet; the atlas shows their model.
+  const ART_PENDING = new Set([]);
+  const hasArt = (id) => !ART_PENDING.has(id);
   // The player's own body at each stage.
   const STAGES = [
-    { kind: 'cell', species: 'paramecium', name: 'Клетка', from: 0 },
+    { kind: 'cell', species: 'ciliate', name: 'Клетка', from: 0 },
     { kind: 'krill', species: 'krill', name: 'Рачок', from: 6 },
     { kind: 'minnow', species: 'anchovy', name: 'Малёк', from: 14 },
     { kind: 'fish', species: 'mackerel', name: 'Рыба', from: 30 },
@@ -189,11 +220,12 @@
   // How far the player sees in the dark, in world units.
   const lightRadius = (p) => p.r * 5 + viewSize(p.r) * 0.12;
 
-  // Real-world length for the HUD: 10 µm cell up to a ~34 m whale, then a power law through
-  // knots: the whale grows to 45 m, the kraken to 140 m, the leviathan to 400 m.
-  const LEN_KNOTS = [[330, 1e-5 * 110 ** 3.2], [700, 45], [1500, 140], [MAX_R, 400]];
+  // Real-world length for the HUD, a power law between knots at the stage borders, so each stage
+  // spans its body's real sizes: a 10 µm cell, krill up to 2 cm, an anchovy up to 8 cm, a mackerel
+  // up to 40 cm, a squid up to 1.5 m, a shark up to 6 m, a whale up to 30 m (a blue whale),
+  // then the legends: the kraken to 140 m, the leviathan to 400 m.
+  const LEN_KNOTS = [[START_R, 1e-5], [6, 2e-4], [14, 0.02], [30, 0.08], [70, 0.4], [150, 1.5], [330, 6], [700, 30], [1500, 140], [MAX_R, 400]];
   function lengthMeters(r) {
-    if (r <= LEN_KNOTS[0][0]) return 1e-5 * (r / 3) ** 3.2;
     let i = 0;
     while (i < LEN_KNOTS.length - 2 && r > LEN_KNOTS[i + 1][0]) i++;
     const [r0, m0] = LEN_KNOTS[i], [r1, m1] = LEN_KNOTS[i + 1];
@@ -437,7 +469,7 @@
   const api = {
     KINDS, STAGES, ZONES, SPECIES, SPECIES_BY_ID, START_R, MAX_R, EAT_RATIO, DASH_COOLDOWN, MAX_DEPTH, FLOOR_M,
     rng, createWorld, step, stageOf, progress, viewSize, baseSpeed, lengthMeters, lengthText, traits, isHunter,
-    zoneAt, metersAt, darkAt, depthScale, lightRadius, speciesFor,
+    zoneAt, metersAt, darkAt, depthScale, lightRadius, speciesFor, hasArt,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DeepCore = api;

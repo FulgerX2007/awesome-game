@@ -91,6 +91,8 @@
   // ───────────── Atlas: every species met, kept across runs ─────────────
   const ATLAS_KEY = 'deep.atlas';
   const atlas = (() => { try { return JSON.parse(store.get(ATLAS_KEY)) || {}; } catch { return {}; } })();
+  // The first cell used to be the freshwater paramecium; its record now belongs to the marine ciliate.
+  if (atlas.paramecium) { atlas.ciliate ??= atlas.paramecium; delete atlas.paramecium; store.set(ATLAS_KEY, JSON.stringify(atlas)); }
   let atlasDirty = false;
   function note(sp, field) {
     const rec = atlas[sp] || (atlas[sp] = { seen: 0, eaten: 0 });
@@ -406,9 +408,19 @@
     toast(`${tr('Новый вид: {name}', { name: spName(id) })}<small>${tr('Запись в атласе: {n} из {total}', { n: known(), total: C.SPECIES.length })}</small>`, 3.5);
   }
 
-  // Thumbnails reuse the game's models; unknown species are dark silhouettes.
+  // A species you have met shows its painted card (web/deep/art); an unknown one is a dark silhouette
+  // of the game's own model. If a card fails to load, the model stands in for it.
   function thumb(sp, seen) {
-    const cv = document.createElement('canvas'), w = 200, h = 120, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (!seen || !C.hasArt(sp.id)) return model(sp, seen);
+    const img = new Image();
+    img.alt = spName(sp.id);
+    img.decoding = 'async';
+    img.addEventListener('error', () => img.replaceWith(model(sp, true)), { once: true });
+    img.src = `art/${sp.id}.webp`;
+    return img;
+  }
+  function model(sp, seen) {
+    const cv = document.createElement('canvas'), w = 200, h = 100, dpr = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = w * dpr; cv.height = h * dpr; cv.style.width = `${w}px`; cv.style.height = `${h}px`;
     const c = cv.getContext('2d');
     c.scale(dpr, dpr);

@@ -112,8 +112,9 @@ I18n.add({
     'Морской снег': 'Zăpada marină',
     'Хлопья органики, которые медленно падают сверху. Для бездны это главная еда, путь на дно занимает недели.':
       'Fulgi de materie organică ce cad încet de sus. Pentru abis e hrana principală, iar drumul până la fund durează săptămâni.',
-    'Инфузория-туфелька': 'Parameci',
-    'Плавает тысячами ресничек и разворачивается, наткнувшись на препятствие.': 'Înoată cu mii de cili și se întoarce când se lovește de un obstacol.',
+    'Морская инфузория': 'Ciliat marin',
+    'Плавает тысячами ресничек. Некоторые морские инфузории глотают водоросли и оставляют себе их хлоропласты: те продолжают работать и кормят хозяина светом.':
+      'Înoată cu mii de cili. Unii ciliați marini înghit alge și le păstrează cloroplastele: acestea continuă să lucreze și își hrănesc gazda cu lumină.',
     'Радиолярия': 'Radiolar',
     'Строит кружевной скелет из кремнезёма. Из таких скелетов сложены целые горные породы.': 'Își construiește un schelet dantelat din silice. Din astfel de schelete sunt făcute roci întregi.',
     'Фораминифера': 'Foraminifer',
@@ -155,7 +156,8 @@ I18n.add({
     'Адский вампир': 'Calmar-vampir',
     'Несмотря на имя, ест морской снег. При опасности выворачивается плащом наизнанку.': 'În ciuda numelui, mănâncă zăpadă marină. Când e în pericol, își întoarce mantia pe dos.',
     'Большерот': 'Țipar-pelican',
-    'Пасть больше всего остального тела: глотает добычу крупнее себя.': 'Gura e mai mare decât tot restul corpului: înghite pradă mai mare decât el.',
+    'Пасть больше всего остального тела и раскрывается, как сачок, но ловит он ею в основном мелких рачков. Кончик хвоста светится.':
+      'Gura e mai mare decât tot restul corpului și se deschide ca un minciog, dar prinde cu ea mai ales crustacee mărunte. Vârful cozii îi strălucește.',
     'Осьминог-дамбо': 'Caracatița-dumbo',
     'Машет плавниками, похожими на уши слонёнка. Живёт глубже всех осьминогов.': 'Dă din înotătoare ca din urechile unui pui de elefant. Trăiește mai adânc decât orice altă caracatiță.',
     'Синяя акула': 'Rechinul albastru',
@@ -171,6 +173,50 @@ I18n.add({
     'Ныряет на 2 км за гигантскими кальмарами и задерживает дыхание на час.': 'Se scufundă la 2 km după calmari giganți și își ține respirația o oră.',
     'Сифонофора': 'Sifonofor',
     'Колония из тысяч крошечных существ, вытянутая на 40 метров. Одно из самых длинных животных в мире.': 'O colonie din mii de vietăți mici, lungă de 40 de metri. Unul dintre cele mai lungi animale din lume.',
+
+    // Species added later
+    'Краб-йети': 'Crabul-yeti',
+    'Весь в «шерсти» и почти слепой. Живёт у горячих источников на дне, машет клешнями над их водой и выращивает на волосках бактерий, которых потом ест.':
+      'Plin de „blană” și aproape orb. Trăiește lângă izvoarele fierbinți de pe fund, își flutură cleștii deasupra apei lor și crește pe peri bacterii pe care apoi le mănâncă.',
+    'Бочкоглаз': 'Ochi-de-butoi',
+    'Голова прозрачная, как кабина вертолёта. Зелёные глаза-трубки внутри неё поворачиваются вверх и вперёд, а две тёмные точки над ртом — это ноздри.':
+      'Are capul transparent ca o cabină de elicopter. Ochii verzi ca niște tuburi se rotesc în el în sus și înainte, iar cele două puncte întunecate de deasupra gurii sunt nările.',
+    'Скотоплана': 'Scotoplanes',
+    'Обыкновенная морская свинья': 'Marsuinul',
+    'Одно из самых маленьких китообразных, до 1,8 метра, живёт и в Чёрном море. В отличие от дельфинов, зубы у неё лопаточками, а не конусами, и она почти никогда не выпрыгивает из воды.':
+      'Una dintre cele mai mici cetacee, de până la 1,8 metri, trăiește și în Marea Neagră. Spre deosebire de delfini, are dinții ca niște lopățele, nu conici, și aproape niciodată nu sare din apă.',
+    'Её прозвали морской свиньёй, но это голотурия, родственница морских звёзд. Ходит по дну на ножках-трубочках и ест ил, а целые стада собираются там, куда упало что-нибудь съедобное.':
+      'I se spune porc-de-mare, dar e o holoturie, rudă cu stelele de mare. Merge pe fund pe picioare-tubulețe și mănâncă mâl, iar turme întregi se adună acolo unde a căzut ceva comestibil.',
+    'Саблезуб': 'Peștele-colț',
+    'У него самые большие зубы относительно тела среди всех рыб. Чтобы закрыть пасть, длинные нижние клыки уходят в особые карманы по бокам мозга.':
+      'Are cei mai mari dinți față de corp dintre toți peștii. Ca să-și închidă gura, colții lungi de jos intră în buzunare speciale de o parte și de alta a creierului.',
+    'Медуза-атолла': 'Meduza-atolla',
+    'Когда её хватают, по куполу бегут синие огни. Это «охранная сигнализация»: свет зовёт хищника покрупнее, чтобы тот спугнул обидчика.':
+      'Când e prinsă, pe clopot aleargă lumini albastre. E o „alarmă”: lumina cheamă un prădător mai mare, ca să-l sperie pe agresor.',
+    'Абиссобротула': 'Abyssobrotula',
+    'Её подняли тралом с глубины 8 370 метров в жёлобе Пуэрто-Рико: глубже рыбу не ловили ни разу.':
+      'A fost scoasă cu traulul de la 8 370 de metri, în Groapa Puerto Rico: niciun pește n-a fost prins vreodată mai adânc.',
+    'Кожистая черепаха': 'Țestoasa-lăută',
+    'Самая большая черепаха на свете: до 2 метров и 900 кг. Вместо твёрдого панциря у неё кожа с семью гребнями. Ныряет глубже километра и ест медуз.':
+      'Cea mai mare broască-țestoasă din lume: până la 2 metri și 900 kg. În loc de carapace tare are piele cu șapte creste. Se scufundă mai adânc de un kilometru și mănâncă meduze.',
+    'Косатка': 'Orca',
+    'Самый крупный дельфин. Семьи косаток охотятся сообща, и у каждой популяции свой «диалект» звуков и свои охотничьи приёмы.':
+      'Cel mai mare delfin. Familiile de orci vânează împreună, iar fiecare populație are propriul „dialect” de sunete și propriile tactici de vânătoare.',
+    'Рыба-луна': 'Peștele-lună',
+    'Самая тяжёлая костная рыба: больше 2 тонн. После охоты в холодной глубине поднимается к поверхности и греется на солнце, лёжа на боку.':
+      'Cel mai greu pește osos: peste 2 tone. După vânătoarea în adâncul rece urcă la suprafață și se încălzește la soare, culcat pe o parte.',
+    'Манта': 'Manta',
+    'Скат с размахом «крыльев» до 7 метров. У манты один из самых крупных мозгов среди рыб, и, похоже, она узнаёт себя в зеркале.':
+      'O raie uriașă cu o anvergură a „aripilor” de până la 7 metri. Manta are unul dintre cele mai mari creiere dintre pești și, se pare, se recunoaște în oglindă.',
+    'Плащеносная акула': 'Rechinul cu volane',
+    'Живое ископаемое: почти не изменилась за 80 миллионов лет. Жабры с оборками, сотни зубов-трезубцев, а беременность длится больше трёх лет.':
+      'O fosilă vie: aproape neschimbat de 80 de milioane de ani. Branhii cu volane, sute de dinți ca niște tridente, iar sarcina durează peste trei ani.',
+    'Колоссальный кальмар': 'Calmarul colosal',
+    'Самое тяжёлое беспозвоночное, до 500 кг. На щупальцах у него, кроме присосок, вращающиеся крючья, а глаза — самые большие в животном мире.':
+      'Cea mai grea nevertebrată, până la 500 kg. Pe tentacule are, pe lângă ventuze, cârlige care se rotesc, iar ochii lui sunt cei mai mari din lumea animală.',
+    'Синий кит': 'Balena albastră',
+    'Самое большое животное за всю историю Земли: до 30 метров и 150 тонн. А ест почти один криль — тонны рачков в день.':
+      'Cel mai mare animal din toată istoria Pământului: până la 30 de metri și 150 de tone. Și totuși mănâncă aproape numai krill, tone de crustacee pe zi.',
 
     // Legends
     'Морской змей': 'Șarpele de mare',
