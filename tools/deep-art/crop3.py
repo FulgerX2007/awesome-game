@@ -1,6 +1,7 @@
-"""Cut the third creature sheet (sheet-3.webp) into atlas cards for Глубина: web/deep/art/<species>.webp.
+"""Cut the sheets on a painted checkerboard (sheet-3.webp, sheet-4-seapig.webp) into atlas cards for Глубина:
+web/deep/art/<species>.webp.
 
-sheet-3 paints each animal on a checkerboard that only looks transparent: the squares are in the pixels.
+These sheets paint each animal on a checkerboard that only looks transparent: the squares are in the pixels.
 The checkerboard is light and grey, so the background is every light, colourless pixel joined to the edge of
 the sheet; below the jelly's bell it is every such pixel, since its see-through tentacles show squares that are
 not joined to the edge.
@@ -14,16 +15,18 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-# id: (region of the big view, extra rectangle of it beside the small views, row from which every checker
-# pixel is background, not only the joined ones)
-CARDS = {
+# sheet: {id: (region of the big view, extra rectangle of it beside the small views, row from which every
+# checker pixel is background, not only the joined ones)}
+SHEETS = {'sheet-3.webp': {
     'leatherback': ((8, 0, 505, 335), None, None),
     'manta': ((510, 10, 1010, 322), None, None),
     'colossal': ((1008, 0, 1530, 340), (1435, 330, 1530, 492), None),
     'atolla': ((10, 495, 505, 782), None, 645),
     'yeti': ((1015, 515, 1525, 795), None, None),
     'porpoise': ((515, 490, 1005, 748), None, None),
-}
+}, 'sheet-4-seapig.webp': {
+    'seapig': ((0, 0, 1672, 940), None, None),
+}}
 OUT = 'web/deep/art'
 W, H = 520, 260
 MARGIN = 14
@@ -66,13 +69,17 @@ def water():
 
 
 def main():
-    here = os.path.dirname(__file__)
-    sheet = Image.open(os.path.join(here, 'sheet-3.webp')).convert('RGB')
+    os.makedirs(OUT, exist_ok=True)
+    for name, cards in SHEETS.items():
+        cut(Image.open(os.path.join(os.path.dirname(__file__), name)).convert('RGB'), cards)
+    print(f'{sum(len(c) for c in SHEETS.values())} cards in {OUT}')
+
+
+def cut(sheet, cards):
     a = np.asarray(sheet).astype(int)
     light = checker(a)
     bg_joined = joined_to_edge(light)
-    os.makedirs(OUT, exist_ok=True)
-    for sid, (rect, extra, every) in CARDS.items():
+    for sid, (rect, extra, every) in cards.items():
         keep = np.zeros(light.shape, bool)
         for (l, t, r, b) in [rect] + ([extra] if extra else []):
             keep[t:b, l:r] = True
@@ -93,7 +100,6 @@ def main():
         card = water()
         card.paste(art, ((W - size[0]) // 2, (H - size[1]) // 2), alpha)
         card.save(os.path.join(OUT, sid + '.webp'), 'WEBP', quality=88, method=6)
-    print(f'{len(CARDS)} cards in {OUT}')
 
 
 if __name__ == '__main__':
