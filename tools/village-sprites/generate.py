@@ -739,7 +739,15 @@ def ruin(wt, ht, seed, snow):
     return pt.image()
 
 
+# Sprites imported from a hand-painted sheet (import_sheet.py marks them "hand") are kept as they are: the
+# generator neither repaints their PNGs nor drops their manifest entries.
+HAND = {}
+
+
 def save(img, name, entries, **meta):
+    if name in HAND:
+        entries[name] = HAND[name]
+        return
     path = os.path.join(OUT, name + '.png')
     # 256-colour PNGs (with alpha) are a quarter of the size and look the same for these soft shapes.
     if img.mode == 'RGBA':
@@ -754,6 +762,9 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     looks = palettes()
     entries = {}
+    man = os.path.join(OUT, 'sprites.json')
+    if os.path.exists(man):
+        HAND.update({n: e for n, e in json.load(open(man))['sprites'].items() if e.get('hand')})
     seed = 1000
     for season in ['spring', 'summer', 'autumn']:
         for si, pal in enumerate(looks[season]['leaves']):
@@ -803,6 +814,7 @@ def main():
                 save(ruin(wt, ht, seed, snow), f'ruin-{wt}x{ht}-{var}-{snow}', entries, kind='ruin', size=f'{wt}x{ht}',
                      shape=var, snow=snow, w=wt * 32 + pl + pr, h=ht * 32 + ptop + pb, ax=pl, ay=ptop)
     with open(os.path.join(OUT, 'sprites.json'), 'w') as f:
+        entries.update({n: e for n, e in HAND.items() if n not in entries})  # hand-made extras (stumps, more rocks)
         json.dump({'scale': SCALE, 'sprites': entries}, f, indent=1, sort_keys=True)
         f.write('\n')
     total = sum(os.path.getsize(os.path.join(OUT, e['file'])) for e in entries.values())
