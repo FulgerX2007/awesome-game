@@ -127,5 +127,5 @@ test('every species has an atlas card and a Romanian name and fact', () => {
 
 test('the new gentle giants do not hunt, the new predators do', () => {
   for (const id of ['sunfish', 'manta', 'leatherback', 'bluewhale', 'atolla']) assert.equal(C.isHunter({ sp: id }), false, id);
-  for (const id of ['orca', 'frilled', 'colossal', 'fangtooth']) assert.equal(C.isHunter({ sp: id }), true, id);
+  for (const id of ['orca', 'porpoise', 'frilled', 'colossal', 'fangtooth']) assert.equal(C.isHunter({ sp: id }), true, id);
 });

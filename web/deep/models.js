@@ -321,6 +321,17 @@
         for (let k = 0; k < 7; k++) { const a = pts.at(0.03), b = pts.at(0.45); ctx.beginPath(); ctx.moveTo(a.x, a.y + a.t * (0.35 + k * 0.09)); ctx.lineTo(b.x, b.y + b.t * (0.45 + k * 0.08)); ctx.stroke(); }
       },
     },
+    // A small grey porpoise: a blunt head with no beak, a low triangular fin, a dark line from mouth to flipper.
+    porpoise: {
+      L: 2.1, H: 0.52, k: 0.42, top: '#353e49', mid: '#5d6976', belly: '#dfe4e8', finColor: '#323a44', tail: 'whale', tailSize: 0.9, swim: 0.28, nose: 0.9,
+      fins: [{ u: 0.42, len: 0.13, h: 1.0, sweep: 0.2 }, { u: 0.24, len: 0.15, h: 0.45, front: true, angle: 0.25 }],
+      eye: { u: 0.1, r: 0.045, up: 0.1, iris: '#1a1f24' },
+      extra(ctx, pts, s) {
+        const a = pts.at(0.02), b = pts.at(0.24);
+        ctx.strokeStyle = 'rgba(40,48,58,0.55)'; ctx.lineWidth = Math.max(0.6, s * 0.04);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y + a.t * 0.2); ctx.quadraticCurveTo((a.x + b.x) / 2, a.y + a.t * 0.6, b.x, b.y + b.t * 0.3); ctx.stroke();
+      },
+    },
     // Black and white: a tall dorsal fin, a white eye patch, a grey saddle and a white belly.
     orca: {
       L: 2.8, H: 0.55, k: 0.4, top: '#0f1114', mid: '#15181c', belly: '#1c2025', finColor: '#101215', tail: 'whale', tailSize: 1.0, swim: 0.25, nose: 0.75,
@@ -1232,7 +1243,7 @@
   };
   // What sticks out past the snout, and how tall the fins reach, in units of s and of H.
   const FRONT = { goblin: 0.85, angler: 0.3, tripod: 1.3, fangtooth: 0.15 };
-  const HALF = { tripod: 3.6, leviathan: 1.8, orca: 2.8, sunfish: 2.0, frilled: 2.2, barreleye: 1.6 };
+  const HALF = { tripod: 3.6, leviathan: 1.8, orca: 2.8, sunfish: 2.0, frilled: 2.2, barreleye: 1.6, porpoise: 2.0 };
   for (const [id, c] of Object.entries(FISH)) {
     const back = c.L * 0.5 + c.H * (c.tailSize ?? 1) * (c.tail === 'shark' ? 1.3 : 1);
     BOX[id] = [back, c.L * 0.5 + (FRONT[id] ?? 0.1), c.H * (HALF[id] ?? 1.4)];

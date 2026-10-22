@@ -6,6 +6,7 @@ the sheet; below the jelly's bell it is every such pixel, since its see-through 
 not joined to the edge.
 The mask is shrunk a little and softened, so no light fringe is left, and the animal is laid on the dark
 water gradient of the other cards, fitted into a 2:1 card. Only the big view of each animal is used.
+The porpoise is the harbour porpoise; the deep-sea «sea pig» (Scotoplanes) still waits for its own art.
 Run from the repo root: python3 tools/deep-art/crop3.py
 """
 import os
@@ -21,6 +22,7 @@ CARDS = {
     'colossal': ((1008, 0, 1530, 340), (1435, 330, 1530, 492), None),
     'atolla': ((10, 495, 505, 782), None, 645),
     'yeti': ((1015, 515, 1525, 795), None, None),
+    'porpoise': ((515, 490, 1005, 748), None, None),
 }
 OUT = 'web/deep/art'
 W, H = 520, 260

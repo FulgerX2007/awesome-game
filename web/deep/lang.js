@@ -181,9 +181,12 @@ I18n.add({
     'Бочкоглаз': 'Ochi-de-butoi',
     'Голова прозрачная, как кабина вертолёта. Зелёные глаза-трубки внутри неё поворачиваются вверх и вперёд, а две тёмные точки над ртом — это ноздри.':
       'Are capul transparent ca o cabină de elicopter. Ochii verzi ca niște tuburi se rotesc în el în sus și înainte, iar cele două puncte întunecate de deasupra gurii sunt nările.',
-    'Морская свинья': 'Porcul-de-mare',
-    'Это голотурия, родственница морских звёзд. Ходит по дну на ножках-трубочках и ест ил, а целые стада собираются там, куда упало что-нибудь съедобное.':
-      'E o holoturie, rudă cu stelele de mare. Merge pe fund pe picioare-tubulețe și mănâncă mâl, iar turme întregi se adună acolo unde a căzut ceva comestibil.',
+    'Скотоплана': 'Scotoplanes',
+    'Обыкновенная морская свинья': 'Marsuinul',
+    'Одно из самых маленьких китообразных, до 1,8 метра, живёт и в Чёрном море. В отличие от дельфинов, зубы у неё лопаточками, а не конусами, и она почти никогда не выпрыгивает из воды.':
+      'Una dintre cele mai mici cetacee, de până la 1,8 metri, trăiește și în Marea Neagră. Spre deosebire de delfini, are dinții ca niște lopățele, nu conici, și aproape niciodată nu sare din apă.',
+    'Её прозвали морской свиньёй, но это голотурия, родственница морских звёзд. Ходит по дну на ножках-трубочках и ест ил, а целые стада собираются там, куда упало что-нибудь съедобное.':
+      'I se spune porc-de-mare, dar e o holoturie, rudă cu stelele de mare. Merge pe fund pe picioare-tubulețe și mănâncă mâl, iar turme întregi se adună acolo unde a căzut ceva comestibil.',
     'Саблезуб': 'Peștele-colț',
     'У него самые большие зубы относительно тела среди всех рыб. Чтобы закрыть пасть, длинные нижние клыки уходят в особые карманы по бокам мозга.':
       'Are cei mai mari dinți față de corp dintre toți peștii. Ca să-și închidă gura, colții lungi de jos intră în buzunare speciale de o parte și de alta a creierului.',
