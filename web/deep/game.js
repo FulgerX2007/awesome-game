@@ -411,7 +411,7 @@
   // A species you have met shows its painted card (web/deep/art); an unknown one is a dark silhouette
   // of the game's own model. If a card fails to load, the model stands in for it.
   function thumb(sp, seen) {
-    if (!seen) return model(sp, false);
+    if (!seen || !C.hasArt(sp.id)) return model(sp, seen);
     const img = new Image();
     img.alt = spName(sp.id);
     img.decoding = 'async';

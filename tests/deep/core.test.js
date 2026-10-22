@@ -117,8 +117,15 @@ test('every species has an atlas card and a Romanian name and fact', () => {
   require('../../web/deep/lang.js');
   const hasRo = (key) => { I18n._use('ro'); I18n.missing.clear(); I18n.t(key); const ok = I18n.missing.size === 0; I18n._use('ru'); return ok; };
   for (const sp of C.SPECIES) {
-    assert.ok(fs.existsSync(path.join(__dirname, '../../web/deep/art', `${sp.id}.webp`)), `${sp.id}: art/${sp.id}.webp`);
+    const art = fs.existsSync(path.join(__dirname, '../../web/deep/art', `${sp.id}.webp`));
+    // a card that arrives must be switched on in ART_PENDING (core.js), and every listed card must exist
+    assert.equal(art, C.hasArt(sp.id), art ? `${sp.id} has its card now: take it off ART_PENDING` : `${sp.id}: art/${sp.id}.webp`);
     assert.ok(hasRo(sp.name), `${sp.id}: RO name`);
     assert.ok(hasRo(sp.fact), `${sp.id}: RO fact`);
   }
+});
+
+test('the new gentle giants do not hunt, the new predators do', () => {
+  for (const id of ['sunfish', 'manta', 'leatherback', 'bluewhale', 'atolla']) assert.equal(C.isHunter({ sp: id }), false, id);
+  for (const id of ['orca', 'frilled', 'colossal', 'fangtooth']) assert.equal(C.isHunter({ sp: id }), true, id);
 });

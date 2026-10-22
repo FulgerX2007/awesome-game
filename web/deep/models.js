@@ -309,6 +309,131 @@
         ctx.beginPath(); for (let k = 0; k < 4; k++) { const x = p.x - s * 0.1 + k * s * 0.08 + jut * 0.5; ctx.moveTo(x, p.y + s * 0.12); ctx.lineTo(x + s * 0.02, p.y + s * 0.05); } ctx.stroke();
       },
     },
+    // A long blue-grey back with pale mottling, a tiny dorsal fin far back, throat grooves.
+    bluewhale: {
+      L: 3.7, H: 0.42, k: 0.4, top: '#46657e', mid: '#6687a0', belly: '#a5b8c7', finColor: '#46647c', tail: 'whale', tailSize: 1.0, swim: 0.22, nose: 0.8,
+      fins: [{ u: 0.76, len: 0.04, h: 0.25, sweep: 0.6 }, { u: 0.26, len: 0.16, h: 0.3, front: true, color: '#5b7a92', angle: 0.15 }],
+      eye: { u: 0.15, r: 0.035, up: -0.1, iris: '#1b2630' },
+      extra(ctx, pts, s) {
+        ctx.fillStyle = 'rgba(200,220,232,0.22)';
+        for (let k = 0; k < 22; k++) { const p = pts.at(0.1 + ((k * 0.37) % 1) * 0.75); ctx.beginPath(); ctx.ellipse(p.x, p.y + p.t * (((k * 0.53) % 1) - 0.6), s * 0.06, s * 0.035, 0, 0, TAU); ctx.fill(); }
+        ctx.strokeStyle = 'rgba(40,60,80,0.3)'; ctx.lineWidth = Math.max(0.5, s * 0.018);
+        for (let k = 0; k < 7; k++) { const a = pts.at(0.03), b = pts.at(0.45); ctx.beginPath(); ctx.moveTo(a.x, a.y + a.t * (0.35 + k * 0.09)); ctx.lineTo(b.x, b.y + b.t * (0.45 + k * 0.08)); ctx.stroke(); }
+      },
+    },
+    // Black and white: a tall dorsal fin, a white eye patch, a grey saddle and a white belly.
+    orca: {
+      L: 2.8, H: 0.55, k: 0.4, top: '#0f1114', mid: '#15181c', belly: '#1c2025', finColor: '#101215', tail: 'whale', tailSize: 1.0, swim: 0.25, nose: 0.75,
+      fins: [{ u: 0.38, len: 0.1, h: 1.7, sweep: 0.25 }, { u: 0.22, len: 0.17, h: 0.55, front: true, angle: 0.2 }],
+      eye: { u: 0.12, r: 0.035, up: 0.05, iris: '#222' },
+      extra(ctx, pts, s) {
+        ctx.fillStyle = '#f2f1ec';
+        // white chin and throat along the lower jaw
+        const at = (u, k) => { const p = pts.at(u); return [p.x, p.y + p.t * k]; };
+        ctx.beginPath(); ctx.moveTo(...at(0.0, 0.15));
+        for (const [u, k] of [[0.1, 0.25], [0.2, 0.35], [0.32, 0.45], [0.45, 0.6], [0.55, 0.55], [0.62, 0.15], [0.7, 0.05], [0.74, 0.5], [0.66, 0.85], [0.5, 1.1], [0.2, 1.1], [0.02, 0.6]]) ctx.lineTo(...at(u, k));
+        ctx.closePath(); ctx.fill();
+        // the eye patch
+        const e = pts.at(0.17);
+        ctx.beginPath(); ctx.ellipse(e.x, e.y - e.t * 0.3, s * 0.17, s * 0.06, -0.12, 0, TAU); ctx.fill();
+        // grey saddle behind the dorsal fin
+        const d = pts.at(0.5);
+        ctx.fillStyle = 'rgba(150,155,165,0.55)';
+        ctx.beginPath(); ctx.ellipse(d.x, d.y - d.t * 0.85, s * 0.28, s * 0.09, 0, 0, TAU); ctx.fill();
+      },
+    },
+    // An eel-like shark: frilled gill slits, a mouth at the tip of the snout full of three-pointed teeth.
+    frilled: {
+      L: 3.6, H: 0.27, k: 0.3, top: '#5a4a40', mid: '#6d5c50', belly: '#8a796b', finColor: 'rgba(85,70,60,0.9)', tail: 'shark', tailSize: 0.9, swim: 0.55, nose: 0.9,
+      fins: [{ u: 0.72, len: 0.08, h: 0.7, sweep: 0.4 }, { u: 0.66, len: 0.12, h: 0.6, side: 'bottom' }, { u: 0.2, len: 0.12, h: 0.6, front: true }],
+      eye: { u: 0.05, r: 0.07, up: 0.25, iris: '#9fb39a' },
+      head(ctx, pts, s) {
+        // six frilly gill slits
+        ctx.strokeStyle = 'rgba(150,60,60,0.75)'; ctx.lineWidth = Math.max(0.6, s * 0.03);
+        for (let k = 0; k < 6; k++) {
+          const p = pts.at(0.09 + k * 0.025);
+          ctx.beginPath(); ctx.moveTo(p.x, p.y - p.t * 0.8);
+          for (let j = 1; j <= 6; j++) ctx.lineTo(p.x + (j % 2 ? -1 : 1) * s * 0.025, p.y - p.t * 0.8 + (p.t * 1.6 * j) / 6);
+          ctx.stroke();
+        }
+        const p = pts.at(0);
+        ctx.fillStyle = '#1a1210';
+        ctx.beginPath(); ctx.moveTo(p.x + s * 0.02, p.y - s * 0.02); ctx.lineTo(p.x - s * 0.18, p.y + s * 0.06); ctx.lineTo(p.x, p.y + s * 0.1); ctx.fill();
+        if (s > 6) {
+          ctx.strokeStyle = '#f2ece0'; ctx.lineWidth = Math.max(0.4, s * 0.012);
+          ctx.beginPath(); for (let k = 0; k < 4; k++) { const x = p.x - k * s * 0.04; ctx.moveTo(x, p.y + s * 0.02); ctx.lineTo(x - s * 0.01, p.y + s * 0.07); } ctx.stroke();
+        }
+      },
+    },
+    // A short dark brute with a huge head and the biggest teeth for its size.
+    fangtooth: {
+      L: 1.7, H: 0.72, round: 0.3, top: '#241817', mid: '#352523', belly: '#46322e', finColor: 'rgba(50,36,32,0.9)', tail: 'fork', tailSize: 0.7, ped: 0.18, nose: 1.3, swim: 0.2,
+      fins: [{ u: 0.42, len: 0.2, h: 0.3, soft: true }, { u: 0.6, len: 0.12, h: 0.25, side: 'bottom', soft: true }, { u: 0.32, len: 0.1, h: 0.35, front: true }],
+      eye: { u: 0.2, r: 0.07, up: 0.5, iris: '#a7a28e' }, edge: 'rgba(0,0,0,0.5)',
+      extra(ctx, pts, s) {
+        // rough skin
+        ctx.strokeStyle = 'rgba(90,60,55,0.35)'; ctx.lineWidth = Math.max(0.5, s * 0.02);
+        for (let k = 0; k < 10; k++) { const p = pts.at(0.2 + k * 0.06); ctx.beginPath(); ctx.arc(p.x, p.y, p.t * 0.8, -1, 1); ctx.stroke(); }
+      },
+      head(ctx, pts, s) {
+        const p = pts.at(0.02);
+        ctx.fillStyle = '#0c0606';
+        ctx.beginPath(); ctx.moveTo(p.x + s * 0.06, p.y - s * 0.12); ctx.quadraticCurveTo(p.x - s * 0.45, p.y + s * 0.02, p.x + s * 0.04, p.y + s * 0.32); ctx.closePath(); ctx.fill();
+        if (s < 3) return;
+        fang(ctx, p.x + s * 0.02, p.y + s * 0.3, p.x - s * 0.02, p.y - s * 0.28, s * 0.045, 1);
+        fang(ctx, p.x - s * 0.12, p.y + s * 0.22, p.x - s * 0.15, p.y - s * 0.12, s * 0.035, 1);
+        fang(ctx, p.x, p.y - s * 0.1, p.x + s * 0.05, p.y + s * 0.2, s * 0.035, -1);
+        fang(ctx, p.x - s * 0.15, p.y - s * 0.06, p.x - s * 0.12, p.y + s * 0.14, s * 0.03, -1);
+      },
+    },
+    // Barreleye: a clear dome over the head with two green tube eyes looking up.
+    barreleye: {
+      L: 2.1, H: 0.4, k: 0.5, top: '#4b5862', mid: '#6d7b85', belly: '#a3afb6', finColor: 'rgba(110,125,135,0.8)', tail: 'fork', tailSize: 0.7,
+      fins: [{ u: 0.5, len: 0.1, h: 0.4 }, { u: 0.62, len: 0.1, h: 0.35, side: 'bottom' }, { u: 0.25, len: 0.2, h: 0.6, front: true, color: 'rgba(150,165,175,0.85)' }],
+      head(ctx, pts, s) {
+        const p = pts.at(0.13), n = pts.at(0.02);
+        // nostrils that look like eyes, and the small mouth
+        ctx.fillStyle = '#10161b';
+        for (const dx of [0, s * 0.07]) { ctx.beginPath(); ctx.arc(n.x - s * 0.05 - dx, n.y - n.t * 0.25, Math.max(0.5, s * 0.03), 0, TAU); ctx.fill(); }
+        ctx.beginPath(); ctx.arc(n.x + s * 0.02, n.y + n.t * 0.15, Math.max(0.4, s * 0.02), 0, TAU); ctx.fill();
+        // green barrel eyes inside the dome, pointing up
+        ctx.fillStyle = '#2f9e4a';
+        ctx.beginPath(); ctx.ellipse(p.x, p.y - p.t * 0.75, s * 0.07, s * 0.13, -0.15, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#9cf5a6'; ctx.beginPath(); ctx.ellipse(p.x + s * 0.02, p.y - p.t * 0.75 - s * 0.1, s * 0.055, s * 0.03, -0.15, 0, TAU); ctx.fill();
+        // the clear dome
+        ctx.fillStyle = 'rgba(200,240,255,0.18)'; ctx.strokeStyle = 'rgba(220,245,255,0.55)'; ctx.lineWidth = Math.max(0.5, s * 0.02);
+        ctx.beginPath(); ctx.ellipse(p.x + s * 0.02, p.y - p.t * 0.4, s * 0.3, s * 0.32, 0, Math.PI, TAU); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.beginPath(); ctx.arc(p.x + s * 0.05, p.y - p.t * 0.4, s * 0.22, Math.PI * 1.25, Math.PI * 1.5); ctx.stroke();
+      },
+    },
+    // The deepest fish ever caught: pale, soft, with long low fins and tiny eyes.
+    abysso: {
+      L: 2.9, H: 0.36, k: 0.35, top: 'rgba(222,196,186,0.95)', mid: 'rgba(232,210,200,0.92)', belly: 'rgba(242,226,218,0.9)',
+      finColor: 'rgba(225,200,190,0.55)', tail: 'round', tailSize: 0.45, ped: 0.05, nose: 1.0, swim: 0.45,
+      fins: [{ u: 0.28, len: 0.66, h: 0.28, soft: true, sweep: 0.05 }, { u: 0.4, len: 0.55, h: 0.25, soft: true, side: 'bottom', sweep: 0.05 }, { u: 0.17, len: 0.12, h: 0.4, front: true }],
+      eye: { u: 0.06, r: 0.04, up: 0.3, iris: '#6a5a55' }, edge: 'rgba(150,110,100,0.35)',
+    },
+    // A tall silver disc that ends in a scalloped rim instead of a tail, with tall fins at the back.
+    sunfish: {
+      L: 2.0, H: 1.0, round: 0.45, ped: 0.62, top: '#7d8b97', mid: '#aab7c1', belly: '#dfe6ea', finColor: '#8996a2', tail: 'none', swim: 0.08, nose: 1.0,
+      fins: [{ u: 0.66, len: 0.2, h: 1.0, sweep: 0.5 }, { u: 0.66, len: 0.2, h: 0.95, side: 'bottom', sweep: 0.5 }, { u: 0.3, len: 0.08, h: 0.3, front: true }],
+      eye: { u: 0.17, r: 0.07, up: 0.2, iris: '#c9cfd4' },
+      extra(ctx, pts, s) {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        for (let k = 0; k < 14; k++) { const p = pts.at(0.15 + ((k * 0.41) % 1) * 0.7); ctx.beginPath(); ctx.arc(p.x, p.y + p.t * (((k * 0.29) % 1) * 1.4 - 0.7), s * 0.06, 0, TAU); ctx.fill(); }
+      },
+      head(ctx, pts, s, ph) {
+        // the clavus: a frilled rim where the tail should be
+        const e = pts.at(1);
+        ctx.fillStyle = '#8996a2';
+        ctx.beginPath(); ctx.moveTo(e.x + s * 0.05, e.y - e.t);
+        for (let k = 0; k <= 8; k++) { const y = e.y - e.t + (2 * e.t * k) / 8; ctx.lineTo(e.x - s * (0.12 + 0.05 * Math.sin(ph * 2 + k)) - (k % 2) * s * 0.05, y); }
+        ctx.lineTo(e.x + s * 0.05, e.y + e.t); ctx.closePath(); ctx.fill();
+        const n = pts.at(0);
+        ctx.fillStyle = '#4d5660'; ctx.beginPath(); ctx.ellipse(n.x - s * 0.02, n.y + s * 0.02, s * 0.05, s * 0.04, 0, 0, TAU); ctx.fill();
+      },
+    },
     humpback: {
       L: 3.1, H: 0.6, k: 0.42, top: '#25313d', mid: '#33424f', belly: '#cfd8de', finColor: '#2a3643', tail: 'whale', tailSize: 1.1, swim: 0.25, nose: 0.7,
       fins: [{ u: 0.62, len: 0.06, h: 0.3, sweep: 0.8 }, { u: 0.28, len: 0.42, h: 0.5, front: true, color: '#dfe6ea', angle: 0.1 }],
@@ -603,7 +728,7 @@
       }
     },
     squid(ctx, s, ph, mode, opt = {}) {
-      const L = s * 2.4, H = s * 0.7;
+      const L = s * 2.4, H = s * 0.7 * (opt.wide || 1);
       const mantle = opt.mantle || ['#e9785d', '#c8513b'], arm = opt.arm || '#d0573c';
       if (mode === 'lights') {
         if (opt.glowEye) glowDot(ctx, L * 0.22, -H * 0.15, Math.max(5, s * 0.6), opt.glowEye, 0.85);
@@ -625,7 +750,14 @@
           ctx.beginPath(); ctx.moveTo(L * 0.25, side * H * 0.1);
           ctx.bezierCurveTo(L * 0.8, side * H * 0.8 + Math.sin(ph * 2) * H, L * 1.2, side * H * 0.2, L * 1.7, side * H * 0.5 + Math.sin(ph * 2 + side) * H * 0.6);
           ctx.stroke();
-          ctx.fillStyle = arm; ctx.beginPath(); ctx.ellipse(L * 1.7, side * H * 0.5 + Math.sin(ph * 2 + side) * H * 0.6, s * 0.18, s * 0.08, 0, 0, TAU); ctx.fill();
+          const cy = side * H * 0.5 + Math.sin(ph * 2 + side) * H * 0.6;
+          ctx.fillStyle = arm; ctx.beginPath(); ctx.ellipse(L * 1.7, cy, s * 0.18, s * 0.08, 0, 0, TAU); ctx.fill();
+          // swivelling hooks on the club
+          if (opt.hooks && s > 5) {
+            ctx.strokeStyle = '#f3ead8'; ctx.lineWidth = Math.max(0.5, s * 0.02);
+            for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.arc(L * 1.7 + k * s * 0.07, cy - s * 0.02, s * 0.035, Math.PI, Math.PI * 1.9); ctx.stroke(); }
+            ctx.strokeStyle = arm; ctx.lineWidth = Math.max(0.7, s * 0.05);
+          }
         }
       }
       // fins at the rear, rippling
@@ -880,6 +1012,161 @@
       eye(ctx, h.x, h.y - s * 0.08, Math.max(0.7, s * 0.09), '#d9c37a');
     },
     // Legend: a turtle the size of an island, with a grove growing on its shell.
+    // A leathery shell with seven ridges, white speckles and long front flippers; it stays level.
+    leatherback(ctx, s, ph, mode) {
+      if (mode === 'lights') return;
+      const fl = Math.sin(ph * 1.4) * 0.45;
+      // a flipper hinged at (x, y), reaching backwards; a larger a turns the tip down
+      const flipper = (x, y, len, w, a, color) => {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(-a); ctx.fillStyle = color;
+        ctx.beginPath(); ctx.moveTo(0, -w * 0.6); ctx.quadraticCurveTo(-len * 0.5, -w * 1.2, -len, w * 0.2);
+        ctx.quadraticCurveTo(-len * 0.45, w * 0.9, 0, w * 0.6); ctx.closePath(); ctx.fill(); ctx.restore();
+      };
+      flipper(s * 0.6, s * 0.05, s * 1.6, s * 0.2, 0.35 - fl * 0.6, '#1c2024');
+      flipper(-s * 1.0, s * 0.12, s * 0.5, s * 0.14, 0.25 - fl * 0.3, '#1c2024');
+      // head and neck
+      ctx.fillStyle = '#353b42';
+      ctx.beginPath(); ctx.moveTo(s * 0.7, -s * 0.15); ctx.quadraticCurveTo(s * 1.15, -s * 0.32, s * 1.42, -s * 0.12);
+      ctx.quadraticCurveTo(s * 1.55, s * 0.05, s * 1.3, s * 0.18); ctx.quadraticCurveTo(s * 1.0, s * 0.25, s * 0.7, s * 0.2); ctx.fill();
+      ctx.fillStyle = 'rgba(230,180,190,0.5)'; ctx.beginPath(); ctx.ellipse(s * 1.15, -s * 0.22, s * 0.08, s * 0.04, 0, 0, TAU); ctx.fill();
+      eye(ctx, s * 1.3, -s * 0.07, Math.max(0.7, s * 0.05), '#2b2b2b');
+      // the shell: a teardrop that narrows to a point at the back
+      const shell = () => {
+        ctx.beginPath(); ctx.moveTo(-s * 1.6, s * 0.05);
+        ctx.bezierCurveTo(-s * 1.0, -s * 0.55, s * 0.5, -s * 0.75, s * 0.95, -s * 0.05);
+        ctx.quadraticCurveTo(s * 0.4, s * 0.32, -s * 1.6, s * 0.05);
+      };
+      const g = ctx.createLinearGradient(0, -s * 0.7, 0, s * 0.3);
+      g.addColorStop(0, '#3a4148'); g.addColorStop(1, '#1d2125');
+      shell(); ctx.fillStyle = g; ctx.fill();
+      ctx.save(); shell(); ctx.clip();
+      ctx.strokeStyle = 'rgba(120,130,140,0.45)'; ctx.lineWidth = Math.max(0.6, s * 0.035);
+      for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-s * 1.55, s * 0.03); ctx.bezierCurveTo(-s * 1.0, -s * (0.5 - k * 0.12), s * 0.4, -s * (0.68 - k * 0.16), s * 0.92, -s * (0.05 + k * 0.02)); ctx.stroke(); }
+      if (s > 5) {
+        ctx.fillStyle = 'rgba(235,240,245,0.5)';
+        for (let k = 0; k < 26; k++) { ctx.beginPath(); ctx.arc(-s * 1.3 + ((k * 0.61) % 1) * s * 2.1, -s * 0.5 + ((k * 0.37) % 1) * s * 0.6, Math.max(0.4, s * 0.02), 0, TAU); ctx.fill(); }
+      }
+      ctx.restore();
+      shell(); ctx.strokeStyle = 'rgba(10,12,14,0.5)'; ctx.lineWidth = Math.max(0.6, s * 0.03); ctx.stroke();
+      flipper(s * 0.65, s * 0.15, s * 1.7, s * 0.22, 0.5 + fl * 0.6, '#2c3238');
+      flipper(-s * 0.95, s * 0.2, s * 0.55, s * 0.15, 0.3 + fl * 0.3, '#2c3238');
+    },
+    // A manta seen from a little above: two wings that beat together, horn-like head fins, a thin tail.
+    manta(ctx, s, ph, mode) {
+      if (mode === 'lights') return;
+      const fl = Math.sin(ph * 1.3) * s * 0.35;
+      ctx.strokeStyle = '#1b242d'; ctx.lineWidth = Math.max(0.6, s * 0.04); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-s * 0.6, 0); ctx.quadraticCurveTo(-s * 1.2, Math.sin(ph * 2) * s * 0.1, -s * 1.85, Math.sin(ph * 2 - 1) * s * 0.15); ctx.stroke();
+      const wing = (side, color, rim) => {
+        const tipY = side * s * 1.25 - fl;
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.moveTo(s * 0.55, side * s * 0.12);
+        ctx.quadraticCurveTo(s * 0.1, side * s * 0.6 - fl * 0.5, -s * 0.15, tipY);
+        ctx.quadraticCurveTo(-s * 0.35, side * s * 0.55 - fl * 0.4, -s * 0.7, side * s * 0.08); ctx.closePath(); ctx.fill();
+        if (rim) {
+          ctx.strokeStyle = rim; ctx.lineWidth = Math.max(0.6, s * 0.05);
+          ctx.beginPath(); ctx.moveTo(s * 0.5, side * s * 0.16); ctx.quadraticCurveTo(s * 0.1, side * s * 0.62 - fl * 0.5, -s * 0.13, tipY); ctx.stroke();
+        }
+      };
+      wing(-1, '#151d26');
+      // body
+      const g = ctx.createLinearGradient(0, -s * 0.3, 0, s * 0.3);
+      g.addColorStop(0, '#2a3644'); g.addColorStop(1, '#3a4756');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(-s * 0.05, 0, s * 0.75, s * 0.26, 0, 0, TAU); ctx.fill();
+      wing(1, '#263240', 'rgba(235,240,245,0.75)');
+      // the head fins, rolled like horns
+      ctx.fillStyle = '#1e2832';
+      for (const side of [-1, 1]) {
+        ctx.beginPath(); ctx.moveTo(s * 0.6, side * s * 0.08);
+        ctx.quadraticCurveTo(s * 1.0, side * s * 0.12, s * 1.05, side * s * 0.3); ctx.quadraticCurveTo(s * 0.85, side * s * 0.22, s * 0.62, side * s * 0.2); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(240,244,248,0.55)'; ctx.beginPath(); ctx.ellipse(s * 0.1, s * 0.12, s * 0.35, s * 0.07, 0, 0, TAU); ctx.fill();
+      eye(ctx, s * 0.62, -s * 0.06, Math.max(0.6, s * 0.045), '#4a4a4a');
+    },
+    // A deep-red crown jelly with one long trailing tentacle; grabbed, it flashes a ring of blue lights.
+    atolla(ctx, s, ph, mode) {
+      const pulse = 1 + Math.sin(ph * 2) * 0.08;
+      const rim = (k, n) => { const a = -Math.PI / 2 + (Math.PI * k) / (n - 1); return { x: Math.cos(a) * s * 0.55 * pulse, y: Math.sin(a) * s * 0.95 / pulse }; };
+      if (mode === 'lights') {
+        for (let k = 0; k < 12; k++) { const p = rim(k, 12); glowDot(ctx, p.x, p.y, Math.max(3, s * 0.3), '80,150,255', 0.25 + 0.55 * Math.max(0, Math.sin(ph * 2.5 - k * 0.7))); }
+        return;
+      }
+      ctx.strokeStyle = 'rgba(160,40,60,0.45)'; ctx.lineWidth = Math.max(0.4, s * 0.025);
+      ctx.beginPath();
+      for (let k = 0; k < 18; k++) { const y0 = s * (k / 17 - 0.5) * 1.7 / pulse; ctx.moveTo(-s * 0.05, y0); ctx.quadraticCurveTo(-s * 0.35, y0 + Math.sin(ph * 2 + k) * s * 0.08, -s * 0.6, y0 + Math.sin(ph * 2 + k + 1) * s * 0.1); }
+      ctx.stroke();
+      // the one long tentacle, used for hunting
+      ctx.strokeStyle = 'rgba(200,70,90,0.6)'; ctx.lineWidth = Math.max(0.5, s * 0.04);
+      ctx.beginPath(); ctx.moveTo(0, s * 0.2); ctx.bezierCurveTo(-s * 0.8, s * 0.5 + Math.sin(ph) * s * 0.2, -s * 1.4, s * 0.1, -s * 2.1, s * 0.35 + Math.sin(ph * 1.3) * s * 0.25); ctx.stroke();
+      const g = ctx.createRadialGradient(s * 0.25, 0, 0, 0, 0, s);
+      g.addColorStop(0, 'rgba(190,40,60,0.95)'); g.addColorStop(0.7, 'rgba(120,15,35,0.92)'); g.addColorStop(1, 'rgba(70,8,22,0.85)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.55 * pulse, s * 0.95 / pulse, 0, -Math.PI / 2, Math.PI / 2); ctx.closePath(); ctx.fill();
+      // the coronal groove that gives the crown its look
+      ctx.strokeStyle = 'rgba(40,0,10,0.6)'; ctx.lineWidth = Math.max(0.5, s * 0.04);
+      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.3 * pulse, s * 0.78 / pulse, 0, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(40,0,10,0.4)';
+      ctx.beginPath(); for (let k = 1; k < 8; k++) { const p = rim(k, 9); ctx.moveTo(p.x * 0.55, p.y * 0.82); ctx.lineTo(p.x, p.y); } ctx.stroke();
+      ctx.fillStyle = 'rgba(120,180,255,0.7)';
+      for (let k = 0; k < 12; k++) { const p = rim(k, 12); ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.5, s * 0.04), 0, TAU); ctx.fill(); }
+    },
+    // A plump pink sea cucumber walking on tube feet, with soft feelers on its back.
+    seapig(ctx, s, ph, mode) {
+      if (mode === 'lights') return;
+      ctx.strokeStyle = 'rgba(230,150,170,0.85)'; ctx.lineCap = 'round'; ctx.lineWidth = Math.max(0.6, s * 0.1);
+      for (let k = 0; k < 6; k++) {
+        const x = -s * 0.75 + k * s * 0.3, step = Math.sin(ph * 3 + k * 1.2) * s * 0.08;
+        ctx.beginPath(); ctx.moveTo(x, s * 0.3); ctx.lineTo(x + step, s * 0.62); ctx.stroke();
+      }
+      // feelers on top, swaying
+      ctx.lineWidth = Math.max(0.6, s * 0.09);
+      for (const [x, h] of [[s * 0.2, 0.65], [s * 0.45, 0.75], [s * 0.6, 0.55]]) {
+        ctx.beginPath(); ctx.moveTo(x, -s * 0.3); ctx.quadraticCurveTo(x + Math.sin(ph * 2 + x) * s * 0.15, -s * (0.3 + h * 0.6), x + s * 0.1 + Math.sin(ph * 2 + x + 1) * s * 0.12, -s * (0.3 + h)); ctx.stroke();
+      }
+      const g = ctx.createRadialGradient(-s * 0.1, -s * 0.15, s * 0.05, 0, 0, s);
+      g.addColorStop(0, 'rgba(255,215,222,0.95)'); g.addColorStop(1, 'rgba(225,135,160,0.85)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, s * 0.95, s * 0.38, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(170,80,105,0.4)'; ctx.lineWidth = Math.max(0.5, s * 0.03); ctx.stroke();
+      // mouth tentacles at the front
+      ctx.strokeStyle = 'rgba(210,120,145,0.9)'; ctx.lineWidth = Math.max(0.5, s * 0.05);
+      ctx.beginPath(); for (let k = 0; k < 4; k++) { ctx.moveTo(s * 0.85, s * 0.15); ctx.lineTo(s * 1.05 + Math.sin(ph * 3 + k) * s * 0.05, s * (0.15 + k * 0.08)); } ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.ellipse(-s * 0.2, -s * 0.18, s * 0.4, s * 0.07, 0, 0, TAU); ctx.fill();
+    },
+    // A pale, eyeless crab with long hairy claws that it waves over the vent water.
+    yeti(ctx, s, ph, mode) {
+      if (mode === 'lights') return;
+      ctx.lineCap = 'round';
+      // walking legs
+      ctx.strokeStyle = '#d8cfbd'; ctx.lineWidth = Math.max(0.6, s * 0.07);
+      for (let k = 0; k < 4; k++) {
+        const x = -s * 0.45 + k * s * 0.25, lift = Math.sin(ph * 3 + k * 1.4) * s * 0.06;
+        ctx.beginPath(); ctx.moveTo(x, s * 0.15); ctx.lineTo(x - s * 0.15, s * 0.45 - lift); ctx.lineTo(x - s * 0.3, s * 0.8); ctx.stroke();
+      }
+      // tucked tail and the carapace
+      ctx.fillStyle = '#d9d1c1'; ctx.beginPath(); ctx.ellipse(-s * 0.7, s * 0.12, s * 0.25, s * 0.14, 0.4, 0, TAU); ctx.fill();
+      const g = ctx.createLinearGradient(0, -s * 0.45, 0, s * 0.3);
+      g.addColorStop(0, '#f4efe4'); g.addColorStop(1, '#cfc6b3');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, s * 0.62, s * 0.38, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,105,85,0.35)'; ctx.lineWidth = Math.max(0.5, s * 0.03); ctx.stroke();
+      // the two hairy claws, waving slowly
+      for (const [side, k] of [[-1, 0], [1, 1]]) {
+        const wave = Math.sin(ph * 1.2 + k) * 0.18;
+        ctx.save(); ctx.translate(s * 0.45, side * s * 0.05); ctx.rotate(-0.25 + wave + side * 0.12);
+        const arm = s * 1.1;
+        ctx.strokeStyle = '#e6dfcf'; ctx.lineWidth = Math.max(0.8, s * 0.13);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(arm, 0); ctx.stroke();
+        if (s > 4) {
+          ctx.strokeStyle = 'rgba(245,238,222,0.85)'; ctx.lineWidth = Math.max(0.4, s * 0.015);
+          ctx.beginPath();
+          for (let j = 0; j < 22; j++) { const x = (j / 22) * arm, h = s * (0.12 + ((j * 7) % 5) * 0.025); ctx.moveTo(x, s * 0.04); ctx.lineTo(x - s * 0.03 + Math.sin(ph * 2 + j) * s * 0.02, s * 0.04 + h); }
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#efe8d8';
+        ctx.beginPath(); ctx.moveTo(arm - s * 0.05, -s * 0.08); ctx.quadraticCurveTo(arm + s * 0.3, -s * 0.12, arm + s * 0.38, -s * 0.02); ctx.lineTo(arm, 0); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(arm - s * 0.05, s * 0.06); ctx.quadraticCurveTo(arm + s * 0.25, s * 0.1, arm + s * 0.32, s * 0.03); ctx.lineTo(arm, 0); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    },
     aspidochelone(ctx, s, ph, mode) {
       if (mode === 'lights') return;
       const fl = Math.sin(ph * 1.5) * 0.35;
@@ -930,6 +1217,7 @@
   const SQUIDS = {
     squid: {},
     giantsquid: { mantle: ['#c4553f', '#8f3326'], arm: '#a8402f', tentacles: true, eye: 0.2, thick: 1.2 },
+    colossal: { mantle: ['#d9705c', '#9c3a2c'], arm: '#b44a38', tentacles: true, eye: 0.3, thick: 1.7, wide: 1.25, hooks: true },
   };
 
   // Overall extent in units of s, used to fit thumbnails: [back, front, half-height].
@@ -939,10 +1227,15 @@
     moonjelly: [1.6, 0.9, 1.1], combjelly: [1.1, 1.1, 0.9], squid: [1.4, 2.1, 0.8], giantsquid: [1.4, 4.2, 1.1], vampire: [1.1, 1.6, 1],
     dumbo: [1, 1.3, 1.1], gulper: [2.7, 2.5, 1.4], siphonophore: [2.5, 2.6, 1.4],
     kraken: [1.8, 4.7, 1.7], serpent: [3.2, 1.7, 1.4], aspidochelone: [1.6, 1.9, 1.5],
+    colossal: [1.4, 4.2, 1.2], leatherback: [2.0, 1.6, 1.4], manta: [1.9, 1.15, 1.65], atolla: [2.2, 0.7, 1.1],
+    seapig: [1.0, 1.15, 1.2], yeti: [1.0, 1.95, 1.0],
   };
+  // What sticks out past the snout, and how tall the fins reach, in units of s and of H.
+  const FRONT = { goblin: 0.85, angler: 0.3, tripod: 1.3, fangtooth: 0.15 };
+  const HALF = { tripod: 3.6, leviathan: 1.8, orca: 2.8, sunfish: 2.0, frilled: 2.2, barreleye: 1.6 };
   for (const [id, c] of Object.entries(FISH)) {
     const back = c.L * 0.5 + c.H * (c.tailSize ?? 1) * (c.tail === 'shark' ? 1.3 : 1);
-    BOX[id] = [back, c.L * 0.5 + (id === 'goblin' ? 0.85 : id === 'angler' ? 0.3 : id === 'tripod' ? 1.3 : 0.1), c.H * (id === 'tripod' ? 3.6 : id === 'leviathan' ? 1.8 : 1.4)];
+    BOX[id] = [back, c.L * 0.5 + (FRONT[id] ?? 0.1), c.H * (HALF[id] ?? 1.4)];
   }
 
   function draw(ctx, id, s, ph, mode = 'body') {
@@ -954,7 +1247,7 @@
   }
 
   // Creatures that stay level when they swim up or down (an island does not stand on end).
-  const UPRIGHT = new Set(['aspidochelone']);
+  const UPRIGHT = new Set(['aspidochelone', 'leatherback', 'manta', 'seapig', 'yeti']);
 
   root.DeepModels = { draw, box: (id) => BOX[id] || [1.5, 1.5, 1], upright: (id) => UPRIGHT.has(id) };
 })(typeof window !== 'undefined' ? window : globalThis);

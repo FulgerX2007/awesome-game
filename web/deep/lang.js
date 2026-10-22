@@ -174,6 +174,47 @@ I18n.add({
     'Сифонофора': 'Sifonofor',
     'Колония из тысяч крошечных существ, вытянутая на 40 метров. Одно из самых длинных животных в мире.': 'O colonie din mii de vietăți mici, lungă de 40 de metri. Unul dintre cele mai lungi animale din lume.',
 
+    // Species added later
+    'Краб-йети': 'Crabul-yeti',
+    'Весь в «шерсти» и почти слепой. Живёт у горячих источников на дне, машет клешнями над их водой и выращивает на волосках бактерий, которых потом ест.':
+      'Plin de „blană” și aproape orb. Trăiește lângă izvoarele fierbinți de pe fund, își flutură cleștii deasupra apei lor și crește pe peri bacterii pe care apoi le mănâncă.',
+    'Бочкоглаз': 'Ochi-de-butoi',
+    'Голова прозрачная, как кабина вертолёта. Зелёные глаза-трубки внутри неё поворачиваются вверх и вперёд, а две тёмные точки над ртом — это ноздри.':
+      'Are capul transparent ca o cabină de elicopter. Ochii verzi ca niște tuburi se rotesc în el în sus și înainte, iar cele două puncte întunecate de deasupra gurii sunt nările.',
+    'Морская свинья': 'Porcul-de-mare',
+    'Это голотурия, родственница морских звёзд. Ходит по дну на ножках-трубочках и ест ил, а целые стада собираются там, куда упало что-нибудь съедобное.':
+      'E o holoturie, rudă cu stelele de mare. Merge pe fund pe picioare-tubulețe și mănâncă mâl, iar turme întregi se adună acolo unde a căzut ceva comestibil.',
+    'Саблезуб': 'Peștele-colț',
+    'У него самые большие зубы относительно тела среди всех рыб. Чтобы закрыть пасть, длинные нижние клыки уходят в особые карманы по бокам мозга.':
+      'Are cei mai mari dinți față de corp dintre toți peștii. Ca să-și închidă gura, colții lungi de jos intră în buzunare speciale de o parte și de alta a creierului.',
+    'Медуза-атолла': 'Meduza-atolla',
+    'Когда её хватают, по куполу бегут синие огни. Это «охранная сигнализация»: свет зовёт хищника покрупнее, чтобы тот спугнул обидчика.':
+      'Când e prinsă, pe clopot aleargă lumini albastre. E o „alarmă”: lumina cheamă un prădător mai mare, ca să-l sperie pe agresor.',
+    'Абиссобротула': 'Abyssobrotula',
+    'Её подняли тралом с глубины 8 370 метров в жёлобе Пуэрто-Рико: глубже рыбу не ловили ни разу.':
+      'A fost scoasă cu traulul de la 8 370 de metri, în Groapa Puerto Rico: niciun pește n-a fost prins vreodată mai adânc.',
+    'Кожистая черепаха': 'Țestoasa-lăută',
+    'Самая большая черепаха на свете: до 2 метров и 900 кг. Вместо твёрдого панциря у неё кожа с семью гребнями. Ныряет глубже километра и ест медуз.':
+      'Cea mai mare broască-țestoasă din lume: până la 2 metri și 900 kg. În loc de carapace tare are piele cu șapte creste. Se scufundă mai adânc de un kilometru și mănâncă meduze.',
+    'Косатка': 'Orca',
+    'Самый крупный дельфин. Семьи косаток охотятся сообща, и у каждой популяции свой «диалект» звуков и свои охотничьи приёмы.':
+      'Cel mai mare delfin. Familiile de orci vânează împreună, iar fiecare populație are propriul „dialect” de sunete și propriile tactici de vânătoare.',
+    'Рыба-луна': 'Peștele-lună',
+    'Самая тяжёлая костная рыба: больше 2 тонн. После охоты в холодной глубине поднимается к поверхности и греется на солнце, лёжа на боку.':
+      'Cel mai greu pește osos: peste 2 tone. După vânătoarea în adâncul rece urcă la suprafață și se încălzește la soare, culcat pe o parte.',
+    'Манта': 'Manta',
+    'Скат с размахом «крыльев» до 7 метров. У манты один из самых крупных мозгов среди рыб, и, похоже, она узнаёт себя в зеркале.':
+      'O raie uriașă cu o anvergură a „aripilor” de până la 7 metri. Manta are unul dintre cele mai mari creiere dintre pești și, se pare, se recunoaște în oglindă.',
+    'Плащеносная акула': 'Rechinul cu volane',
+    'Живое ископаемое: почти не изменилась за 80 миллионов лет. Жабры с оборками, сотни зубов-трезубцев, а беременность длится больше трёх лет.':
+      'O fosilă vie: aproape neschimbat de 80 de milioane de ani. Branhii cu volane, sute de dinți ca niște tridente, iar sarcina durează peste trei ani.',
+    'Колоссальный кальмар': 'Calmarul colosal',
+    'Самое тяжёлое беспозвоночное, до 500 кг. На щупальцах у него, кроме присосок, вращающиеся крючья, а глаза — самые большие в животном мире.':
+      'Cea mai grea nevertebrată, până la 500 kg. Pe tentacule are, pe lângă ventuze, cârlige care se rotesc, iar ochii lui sunt cei mai mari din lumea animală.',
+    'Синий кит': 'Balena albastră',
+    'Самое большое животное за всю историю Земли: до 30 метров и 150 тонн. А ест почти один криль — тонны рачков в день.':
+      'Cel mai mare animal din toată istoria Pământului: până la 30 de metri și 150 de tone. Și totuși mănâncă aproape numai krill, tone de crustacee pe zi.',
+
     // Legends
     'Морской змей': 'Șarpele de mare',
     'О нём рассказывали моряки всех морей. Часто за змея принимали сельдяного короля — настоящую рыбу длиной до 8 метров с красным гребнем.':
