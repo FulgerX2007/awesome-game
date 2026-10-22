@@ -219,7 +219,7 @@
     paint(g);
     sp = { cv, w, h, ax, ay };
     sprites.set(key, sp);
-    if (sprites.size > 400) sprites.delete(sprites.keys().next().value);
+    if (sprites.size > 300) sprites.delete(sprites.keys().next().value);
     return sp;
   }
   const blit = (sp, x, y) => ctx.drawImage(sp.cv, x - sp.ax, y - sp.ay, sp.w, sp.h);
@@ -249,6 +249,8 @@
           else if (e.kind === 'rock') idx[`rock|${e.shape}`] = e;
           else if (e.kind === 'trunk') idx[`trunk|${e.pine}`] = e;
           else if (e.kind === 'ruin') idx[`ruin|${e.size}|${e.shape}|${e.snow}`] = e;
+          else if (e.kind === 'stump') idx[`stump|${e.shape}`] = e;
+          idx[`count|${e.kind}`] = (idx[`count|${e.kind}`] || 0) + 1;
         }
         PNG = idx;
         sprites.clear();
@@ -261,7 +263,7 @@
   const put = (g, e, k = 1) => g.drawImage(e.img, -e.ax * k, -e.ay * k, e.w * k, e.h * k);
   // How big a node's art may be. Crowns and bushes spill over their neighbours for a lush look; the tap area
   // stays the smaller silhouette of view.NODE_TALL, so taps and gameplay don't change with the art.
-  const ART_TALL = { tree: { hw: 36, up: 84 }, apple: { hw: 36, up: 84 }, bush: { hw: 24, up: 33 }, rock: { hw: 24, up: 35 } };
+  const ART_TALL = { tree: { hw: 52, up: 100 }, apple: { hw: 52, up: 100 }, bush: { hw: 28, up: 48 }, rock: { hw: 30, up: 46 } };
   const nodeSprite = (kind, key, paint) => {
     const t = ART_TALL[kind] || VV.NODE_TALL[kind], pad = 3;
     return sprite(key, t.hw * 2 + pad * 2, t.up + VV.NODE_FOOT + pad * 2, t.hw + pad, t.up + pad, paint);
@@ -991,12 +993,22 @@
 
   // The player, this frame (CSS px, feet): a crown in front of the player fades so they are never lost.
   let PL = { x: -1e9, y: -1e9 };
+  // A hand-painted tree (sprites with "full") comes with its own trunk: no separate trunk, and it stands still
+  // (swaying the whole picture would slide its foot over the grass).
+  function paintedTree(n) {
+    const L = treeLook(n);
+    if (L.bare) return null;
+    const shape = Math.floor(hash2(n.x, n.y, 309) * 3);
+    return L.pine ? png(`pine|${L.snow ? 1 : 0}|${shape}`) : png(`crown|${L.pal[1]}|${shape}`);
+  }
   function drawTree(n, cx, by, sway) {
     const pine = treeLook(n).pine;
+    const full = !!(paintedTree(n) || {}).full;
     K.shadow(ctx, cx + 2, by, 15, 5, 0.38 * SUN.shadow);
     castShadow(cx, by, pine ? 15 : 19, pine ? 50 : 46, 0.34);
-    blit(nodeSprite('tree', 'trunk|' + (pine ? 1 : 0), (g) => paintTrunk(g, pine)), cx, by);
-    const behind = PL.y < by - 2 && PL.y > by - 70 && Math.abs(PL.x - cx) < 26;
+    if (full) sway = 0;
+    else blit(nodeSprite('tree', 'trunk|' + (pine ? 1 : 0), (g) => paintTrunk(g, pine)), cx, by);
+    const behind = PL.y < by - 2 && PL.y > by - 86 && Math.abs(PL.x - cx) < 34;
     if (behind) ctx.globalAlpha = 0.55;
     seasonal('tree', `crown|${n.x},${n.y}|${n.kind === 'apple' ? n.hp : ''}`, (g) => paintCrown(g, n, treeLook(n)), cx + sway, by);
     ctx.globalAlpha = 1;
@@ -1004,6 +1016,12 @@
 
   function drawStump(n, cx, by) {
     castShadow(cx, by, 8, 12, 0.26);
+    const painted = png(`stump|${Math.floor(hash2(n.x, n.y, 333) * ((PNG && PNG['count|stump']) || 1))}`);
+    if (painted) {
+      ctx.drawImage(painted.img, cx - painted.ax, by - painted.ay, painted.w, painted.h);
+      sprout(n, cx + 7, by - 1);
+      return;
+    }
     K.cylinder(ctx, cx, by - 7, 6, 6, WOOD.mid, { capColor: LOOK.snow ? '#eef3f7' : WOOD.pale, ry: 3 });
     ctx.strokeStyle = 'rgba(110, 74, 43, 0.6)';
     ctx.lineWidth = 0.8;
@@ -1026,7 +1044,7 @@
   // A boulder: a dark outline and base in its own shade, a rounded lit body, a pale top facet and a smaller
   // stone leaning on it; smaller as it is mined.
   function paintRock(g, n, k) {
-    const painted = png(`rock|${Math.floor(hash2(n.x, n.y, 331) * 4)}`);
+    const painted = png(`rock|${Math.floor(hash2(n.x, n.y, 331) * ((PNG && PNG['count|rock']) || 4))}`);
     if (painted) {
       put(g, painted, k);
       if (LOOK.snow) blob(-2 * k * 1.2, -18 * k * 1.2, 9 * k * 1.2, 3.8 * k * 1.2, n.id * 7 + 4, '#f4f8fb', 7, 0.2, g);
@@ -1234,7 +1252,7 @@
         for (let k = 0; k < 3; k++) { const a = -2.4 + k * 0.6; K.sphere(g, x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55, r * 0.32, leaves[i < 3 ? 1 : 2], { gloss: false, shine: 0.3 }); }
       });
       }
-      if (v === 2 && LOOK.flowers > 0.1) for (let k = 0; k < 5; k++) { // a flowering shrub
+      if (!painted && v === 2 && LOOK.flowers > 0.1) for (let k = 0; k < 5; k++) { // a flowering shrub
         g.fillStyle = k % 2 ? '#fff4f8' : '#ffd23f';
         g.beginPath(); g.arc(-8 + hash2(k, v, 97) * 16, -13 + hash2(k, v, 98) * 9, 1.4, 0, TAU); g.fill();
       }
@@ -1290,7 +1308,7 @@
       }
     }
   }
-  const FLORA_SIZE = { shrub: [23, 27], fern: [24, 22], tall: [16, 24], mush: [14, 12], stones: [14, 10] };
+  const FLORA_SIZE = { shrub: [28, 48], fern: [24, 22], tall: [16, 24], mush: [14, 12], stones: [14, 10] };
   function drawFlora(f) {
     const cx = (f.x + 0.5) * T + f.dx, by = (f.y + 1) * T - 6 + f.dy;
     const [hw, up] = FLORA_SIZE[f.kind];
