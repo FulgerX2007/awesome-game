@@ -142,7 +142,7 @@
   ];
   const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
   // Species whose painted atlas card (web/deep/art/<id>.webp) is not drawn yet; the atlas shows their model.
-  const ART_PENDING = new Set(['yeti', 'seapig', 'atolla', 'leatherback', 'manta', 'colossal']);
+  const ART_PENDING = new Set(['seapig']);
   const hasArt = (id) => !ART_PENDING.has(id);
   // The player's own body at each stage.
   const STAGES = [
