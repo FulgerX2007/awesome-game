@@ -112,8 +112,9 @@ I18n.add({
     'Морской снег': 'Zăpada marină',
     'Хлопья органики, которые медленно падают сверху. Для бездны это главная еда, путь на дно занимает недели.':
       'Fulgi de materie organică ce cad încet de sus. Pentru abis e hrana principală, iar drumul până la fund durează săptămâni.',
-    'Инфузория-туфелька': 'Parameci',
-    'Плавает тысячами ресничек и разворачивается, наткнувшись на препятствие.': 'Înoată cu mii de cili și se întoarce când se lovește de un obstacol.',
+    'Морская инфузория': 'Ciliat marin',
+    'Плавает тысячами ресничек. Некоторые морские инфузории глотают водоросли и оставляют себе их хлоропласты: те продолжают работать и кормят хозяина светом.':
+      'Înoată cu mii de cili. Unii ciliați marini înghit alge și le păstrează cloroplastele: acestea continuă să lucreze și își hrănesc gazda cu lumină.',
     'Радиолярия': 'Radiolar',
     'Строит кружевной скелет из кремнезёма. Из таких скелетов сложены целые горные породы.': 'Își construiește un schelet dantelat din silice. Din astfel de schelete sunt făcute roci întregi.',
     'Фораминифера': 'Foraminifer',
@@ -155,7 +156,8 @@ I18n.add({
     'Адский вампир': 'Calmar-vampir',
     'Несмотря на имя, ест морской снег. При опасности выворачивается плащом наизнанку.': 'În ciuda numelui, mănâncă zăpadă marină. Când e în pericol, își întoarce mantia pe dos.',
     'Большерот': 'Țipar-pelican',
-    'Пасть больше всего остального тела: глотает добычу крупнее себя.': 'Gura e mai mare decât tot restul corpului: înghite pradă mai mare decât el.',
+    'Пасть больше всего остального тела и раскрывается, как сачок, но ловит он ею в основном мелких рачков. Кончик хвоста светится.':
+      'Gura e mai mare decât tot restul corpului și se deschide ca un minciog, dar prinde cu ea mai ales crustacee mărunte. Vârful cozii îi strălucește.',
     'Осьминог-дамбо': 'Caracatița-dumbo',
     'Машет плавниками, похожими на уши слонёнка. Живёт глубже всех осьминогов.': 'Dă din înotătoare ca din urechile unui pui de elefant. Trăiește mai adânc decât orice altă caracatiță.',
     'Синяя акула': 'Rechinul albastru',

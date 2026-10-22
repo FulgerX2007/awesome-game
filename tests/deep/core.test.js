@@ -17,10 +17,10 @@ test('stages grow in order and end with two legends after the whale', () => {
   }
 });
 
-test('length runs from 10 µm through a 45 m whale to a 400 m leviathan, never shrinking', () => {
+test('length runs from 10 µm through a 30 m whale to a 400 m leviathan, never shrinking', () => {
   const near = (a, b) => Math.abs(a - b) / b < 0.01;
   assert.ok(near(C.lengthMeters(C.START_R), 1e-5));
-  assert.ok(near(C.lengthMeters(700), 45));
+  assert.ok(near(C.lengthMeters(700), 30));
   assert.ok(near(C.lengthMeters(1500), 140));
   assert.ok(near(C.lengthMeters(C.MAX_R), 400));
   let last = 0;
@@ -29,6 +29,17 @@ test('length runs from 10 µm through a 45 m whale to a 400 m leviathan, never s
     assert.ok(m > last, `r=${r}`);
     last = m;
   }
+});
+
+test('each stage body is shown at its real size range', () => {
+  // [stage, smallest, largest] in metres, at the start and the end of the stage
+  const real = { Рачок: [1e-4, 0.06], Малёк: [0.01, 0.2], Рыба: [0.05, 0.6], Кальмар: [0.2, 2], Акула: [1, 7], Кит: [5, 33] };
+  C.STAGES.forEach((st, i) => {
+    if (!real[st.name]) return;
+    const end = i + 1 < C.STAGES.length ? C.STAGES[i + 1].from : C.MAX_R;
+    const [lo, hi] = real[st.name];
+    assert.ok(C.lengthMeters(st.from) >= lo && C.lengthMeters(end) <= hi, `${st.name}: ${C.lengthText(st.from)}–${C.lengthText(end)}`);
+  });
 });
 
 test('every size class and every zone has someone to spawn', () => {
@@ -96,4 +107,18 @@ test('a bot grows from a whale into a full-size leviathan', () => {
   const last = C.STAGES.length - 1;
   assert.ok(reached[last] !== undefined, `reached ${JSON.stringify(reached)}`);
   assert.ok(p.r >= C.MAX_R - 1, `r=${p.r}`);
+});
+
+test('every species has an atlas card and a Romanian name and fact', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const I18n = require('../../web/i18n.js');
+  globalThis.I18n = I18n;
+  require('../../web/deep/lang.js');
+  const hasRo = (key) => { I18n._use('ro'); I18n.missing.clear(); I18n.t(key); const ok = I18n.missing.size === 0; I18n._use('ru'); return ok; };
+  for (const sp of C.SPECIES) {
+    assert.ok(fs.existsSync(path.join(__dirname, '../../web/deep/art', `${sp.id}.webp`)), `${sp.id}: art/${sp.id}.webp`);
+    assert.ok(hasRo(sp.name), `${sp.id}: RO name`);
+    assert.ok(hasRo(sp.fact), `${sp.id}: RO fact`);
+  }
 });

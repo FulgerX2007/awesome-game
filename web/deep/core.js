@@ -43,14 +43,14 @@
   // glow: bioluminescent (seen in the dark); lure: anglerfish bait; ambush: waits, then lunges.
   // legend: a creature from sea tales, not a real species (the fact tells what sailors may have seen).
   const SPECIES = [
-    { id: 'diatom', cls: 'plankton', zones: [0, 1], name: 'Диатомея',
+    { id: 'diatom', cls: 'plankton', zones: [0], name: 'Диатомея',
       fact: 'Одноклеточная водоросль в стеклянном панцире. Диатомеи дают около пятой части всего кислорода Земли.' },
-    { id: 'noctiluca', cls: 'plankton', zones: [1, 2], glow: true, name: 'Ночесветка',
+    { id: 'noctiluca', cls: 'plankton', zones: [0], glow: true, name: 'Ночесветка',
       fact: 'Из-за неё ночью светятся волны: клетка вспыхивает голубым, когда её тревожат.' },
-    { id: 'snow', cls: 'plankton', zones: [3, 4], name: 'Морской снег',
+    { id: 'snow', cls: 'plankton', zones: [1, 2, 3, 4], name: 'Морской снег',
       fact: 'Хлопья органики, которые медленно падают сверху. Для бездны это главная еда, путь на дно занимает недели.' },
-    { id: 'paramecium', cls: 'cell', zones: [0], name: 'Инфузория-туфелька',
-      fact: 'Плавает тысячами ресничек и разворачивается, наткнувшись на препятствие.' },
+    { id: 'ciliate', cls: 'cell', zones: [0], name: 'Морская инфузория',
+      fact: 'Плавает тысячами ресничек. Некоторые морские инфузории глотают водоросли и оставляют себе их хлоропласты: те продолжают работать и кормят хозяина светом.' },
     { id: 'radiolarian', cls: 'cell', zones: [1, 2], name: 'Радиолярия',
       fact: 'Строит кружевной скелет из кремнезёма. Из таких скелетов сложены целые горные породы.' },
     { id: 'foram', cls: 'cell', zones: [3], name: 'Фораминифера',
@@ -83,27 +83,27 @@
       fact: 'Зубы такие длинные, что не помещаются в пасти и торчат наружу.' },
     { id: 'angler', cls: 'fish', zones: [2, 3], glow: true, lure: true, ambush: true, name: 'Удильщик',
       fact: 'Висит в темноте неподвижно и приманивает добычу светящейся «удочкой» на лбу. Не плыви на одинокий огонёк.' },
-    { id: 'tripod', cls: 'fish', zones: [3, 4], flee: true, hunter: false, name: 'Рыба-тренога',
+    { id: 'tripod', cls: 'fish', zones: [2, 3], flee: true, hunter: false, name: 'Рыба-тренога',
       fact: 'Стоит на дне на трёх длинных лучах плавников, как на ходулях, и ждёт, что принесёт течение.' },
     { id: 'squid', cls: 'squid', zones: [0, 1], name: 'Кальмар',
       fact: 'Плавает реактивно: набирает воду в мантию и с силой выталкивает её.' },
-    { id: 'vampire', cls: 'squid', zones: [2, 3], glow: true, hunter: false, name: 'Адский вампир',
+    { id: 'vampire', cls: 'squid', zones: [1, 2], glow: true, hunter: false, name: 'Адский вампир',
       fact: 'Несмотря на имя, ест морской снег. При опасности выворачивается плащом наизнанку.' },
     { id: 'gulper', cls: 'squid', zones: [2, 3], glow: true, name: 'Большерот',
-      fact: 'Пасть больше всего остального тела: глотает добычу крупнее себя.' },
-    { id: 'dumbo', cls: 'squid', zones: [4], hunter: false, name: 'Осьминог-дамбо',
+      fact: 'Пасть больше всего остального тела и раскрывается, как сачок, но ловит он ею в основном мелких рачков. Кончик хвоста светится.' },
+    { id: 'dumbo', cls: 'squid', zones: [3, 4], hunter: false, name: 'Осьминог-дамбо',
       fact: 'Машет плавниками, похожими на уши слонёнка. Живёт глубже всех осьминогов.' },
     { id: 'shark', cls: 'shark', zones: [0, 1], name: 'Синяя акула',
       fact: 'Проплывает тысячи километров вслед за косяками рыб.' },
-    { id: 'goblin', cls: 'shark', zones: [2, 3], name: 'Акула-домовой',
+    { id: 'goblin', cls: 'shark', zones: [1, 2], name: 'Акула-домовой',
       fact: 'Выстреливает челюсти вперёд, чтобы схватить добычу. Розовая, потому что сквозь кожу видны сосуды.' },
-    { id: 'giantsquid', cls: 'shark', zones: [2, 3], name: 'Гигантский кальмар',
+    { id: 'giantsquid', cls: 'shark', zones: [1, 2], name: 'Гигантский кальмар',
       fact: 'Глаза размером с футбольный мяч, одни из самых больших в животном мире. Живым его впервые сфотографировали только в 2004 году.' },
     { id: 'humpback', cls: 'whale', zones: [0, 1], name: 'Горбатый кит',
       fact: 'Самцы поют песни длиной до получаса, и вся популяция со временем меняет мелодию вместе.' },
-    { id: 'sperm', cls: 'whale', zones: [1, 2, 3], name: 'Кашалот',
+    { id: 'sperm', cls: 'whale', zones: [0, 1, 2], name: 'Кашалот',
       fact: 'Ныряет на 2 км за гигантскими кальмарами и задерживает дыхание на час.' },
-    { id: 'siphonophore', cls: 'whale', zones: [3, 4], glow: true, hunter: false, name: 'Сифонофора',
+    { id: 'siphonophore', cls: 'whale', zones: [1, 2], glow: true, hunter: false, name: 'Сифонофора',
       fact: 'Колония из тысяч крошечных существ, вытянутая на 40 метров. Одно из самых длинных животных в мире.' },
     { id: 'serpent', cls: 'kraken', zones: [0, 1, 2], legend: true, name: 'Морской змей',
       fact: 'О нём рассказывали моряки всех морей. Часто за змея принимали сельдяного короля — настоящую рыбу длиной до 8 метров с красным гребнем.' },
@@ -117,7 +117,7 @@
   const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
   // The player's own body at each stage.
   const STAGES = [
-    { kind: 'cell', species: 'paramecium', name: 'Клетка', from: 0 },
+    { kind: 'cell', species: 'ciliate', name: 'Клетка', from: 0 },
     { kind: 'krill', species: 'krill', name: 'Рачок', from: 6 },
     { kind: 'minnow', species: 'anchovy', name: 'Малёк', from: 14 },
     { kind: 'fish', species: 'mackerel', name: 'Рыба', from: 30 },
@@ -189,11 +189,12 @@
   // How far the player sees in the dark, in world units.
   const lightRadius = (p) => p.r * 5 + viewSize(p.r) * 0.12;
 
-  // Real-world length for the HUD: 10 µm cell up to a ~34 m whale, then a power law through
-  // knots: the whale grows to 45 m, the kraken to 140 m, the leviathan to 400 m.
-  const LEN_KNOTS = [[330, 1e-5 * 110 ** 3.2], [700, 45], [1500, 140], [MAX_R, 400]];
+  // Real-world length for the HUD, a power law between knots at the stage borders, so each stage
+  // spans its body's real sizes: a 10 µm cell, krill up to 2 cm, an anchovy up to 8 cm, a mackerel
+  // up to 40 cm, a squid up to 1.5 m, a shark up to 6 m, a whale up to 30 m (a blue whale),
+  // then the legends: the kraken to 140 m, the leviathan to 400 m.
+  const LEN_KNOTS = [[START_R, 1e-5], [6, 2e-4], [14, 0.02], [30, 0.08], [70, 0.4], [150, 1.5], [330, 6], [700, 30], [1500, 140], [MAX_R, 400]];
   function lengthMeters(r) {
-    if (r <= LEN_KNOTS[0][0]) return 1e-5 * (r / 3) ** 3.2;
     let i = 0;
     while (i < LEN_KNOTS.length - 2 && r > LEN_KNOTS[i + 1][0]) i++;
     const [r0, m0] = LEN_KNOTS[i], [r1, m1] = LEN_KNOTS[i + 1];

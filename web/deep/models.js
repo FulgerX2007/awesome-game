@@ -17,6 +17,15 @@
     ctx.fillStyle = '#060b0e'; ctx.beginPath(); ctx.arc(x + r * 0.12, y, r * 0.68, 0, TAU); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(x + r * 0.35, y - r * 0.35, r * 0.28, 0, TAU); ctx.fill();
   }
+  // A curved fang from (x0, y0) to its tip (x1, y1); bend picks the side it curves to.
+  function fang(ctx, x0, y0, x1, y1, w, bend) {
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, nx = -(y1 - y0), ny = x1 - x0, k = 0.18 * bend;
+    ctx.fillStyle = '#eef2f6';
+    ctx.beginPath(); ctx.moveTo(x0 - w, y0);
+    ctx.quadraticCurveTo(mx + nx * k - w * 0.5, my + ny * k, x1, y1);
+    ctx.quadraticCurveTo(mx + nx * k + w * 0.5, my + ny * k, x0 + w, y0);
+    ctx.closePath(); ctx.fill();
+  }
   // A smooth closed shape through points.
   function smooth(ctx, pts) {
     ctx.beginPath();
@@ -223,13 +232,17 @@
       fins: [{ u: 0.18, len: 0.06, h: 1.3 }, { u: 0.7, len: 0.1, h: 0.5, side: 'bottom' }],
       eye: { u: 0.07, r: 0.13, up: 0.3, iris: '#6fb6ff' },
       head(ctx, pts, s) {
-        const p = pts.at(0.02);
-        ctx.strokeStyle = 'rgba(235,240,245,0.9)'; ctx.lineWidth = Math.max(0.6, s * 0.035);
-        ctx.beginPath();
-        ctx.moveTo(p.x - s * 0.05, p.y - s * 0.05); ctx.lineTo(p.x + s * 0.12, p.y + s * 0.35);
-        ctx.moveTo(p.x - s * 0.15, p.y + s * 0.1); ctx.lineTo(p.x - s * 0.02, p.y - s * 0.4);
-        ctx.moveTo(p.x - s * 0.25, p.y + s * 0.05); ctx.lineTo(p.x - s * 0.18, p.y + s * 0.3);
-        ctx.stroke();
+        // the gaping mouth: the lower jaw drops below the snout back to under the eye
+        const p = pts.at(0), q = pts.at(0.11);
+        ctx.fillStyle = '#05080c';
+        ctx.beginPath(); ctx.moveTo(p.x + s * 0.06, p.y + s * 0.02);
+        ctx.lineTo(q.x, q.y + q.t * 0.15); ctx.lineTo(p.x + s * 0.02, p.y + s * 0.3); ctx.closePath(); ctx.fill();
+        // fangs too long for the mouth: the lower ones rise past the snout, the upper ones hang below the jaw
+        if (s < 3) return;
+        fang(ctx, p.x + s * 0.03, p.y + s * 0.28, p.x - s * 0.03, p.y - s * 0.38, s * 0.035, 1);
+        fang(ctx, p.x - s * 0.08, p.y + s * 0.24, p.x - s * 0.12, p.y - s * 0.22, s * 0.028, 1);
+        fang(ctx, p.x - s * 0.01, p.y + s * 0.02, p.x + s * 0.09, p.y + s * 0.42, s * 0.032, -1);
+        fang(ctx, p.x - s * 0.13, p.y + s * 0.05, p.x - s * 0.08, p.y + s * 0.34, s * 0.025, -1);
       },
     }, bellyRow(12, 0.12, 0.85, '100,190,255', 0.045, 0.8)),
     angler: {
@@ -310,16 +323,29 @@
       },
     },
     sperm: {
-      L: 3.2, H: 0.55, k: 0.25, blunt: 0.95, top: '#3d434b', mid: '#4b525b', belly: '#6c737c', finColor: '#3a4048', tail: 'whale', tailSize: 1.05, swim: 0.25, nose: 1.4, topK: 1, botK: 0.85,
+      L: 3.2, H: 0.55, k: 0.25, blunt: 0.95, top: '#353d48', mid: '#4a5563', belly: '#6d7884', finColor: '#3a4048', tail: 'whale', tailSize: 1.05, swim: 0.25, nose: 1.4, topK: 1, botK: 0.85,
       fins: [{ u: 0.65, len: 0.12, h: 0.25, soft: true }, { u: 0.36, len: 0.12, h: 0.3, front: true }],
       eye: { u: 0.36, r: 0.04, up: -0.2, iris: '#222' },
       extra(ctx, pts, s) {
         // wrinkled skin and the narrow lower jaw
         ctx.strokeStyle = 'rgba(20,24,28,0.25)'; ctx.lineWidth = Math.max(0.6, s * 0.02);
         for (let k = 0; k < 12; k++) { const a = pts.at(0.4 + k * 0.04); ctx.beginPath(); ctx.moveTo(a.x, a.y - a.t * 0.8); ctx.lineTo(a.x - s * 0.04, a.y + a.t * 0.5); ctx.stroke(); }
-        const a = pts.at(0.02), b = pts.at(0.36);
-        ctx.strokeStyle = 'rgba(220,225,230,0.6)'; ctx.lineWidth = Math.max(0.8, s * 0.04);
-        ctx.beginPath(); ctx.moveTo(a.x - s * 0.1, a.y + a.t * 0.7); ctx.lineTo(b.x, b.y + b.t * 0.55); ctx.stroke();
+        // the crease where the box-shaped head meets the body
+        const c = pts.at(0.34);
+        ctx.strokeStyle = 'rgba(15,20,26,0.35)'; ctx.lineWidth = Math.max(0.8, s * 0.05);
+        ctx.beginPath(); ctx.moveTo(c.x, c.y - c.t); ctx.quadraticCurveTo(c.x + s * 0.12, c.y, c.x, c.y + c.t * 0.4); ctx.stroke();
+        // the narrow lower jaw, pale, with a row of conical teeth
+        const a = pts.at(0.05), b = pts.at(0.34);
+        const jaw = (k) => ({ x: a.x - s * 0.1 + (b.x - a.x + s * 0.1) * k, y: a.y + a.t * 0.7 + (b.y + b.t * 0.55 - a.y - a.t * 0.7) * k });
+        ctx.strokeStyle = 'rgba(220,225,230,0.7)'; ctx.lineWidth = Math.max(0.8, s * 0.05);
+        ctx.beginPath(); ctx.moveTo(jaw(0).x, jaw(0).y); ctx.lineTo(jaw(1).x, jaw(1).y); ctx.stroke();
+        if (s > 4) {
+          ctx.fillStyle = '#f1ede4';
+          for (let k = 0; k < 9; k++) {
+            const j = jaw(0.06 + k * 0.1), w = s * 0.025;
+            ctx.beginPath(); ctx.moveTo(j.x - w, j.y); ctx.lineTo(j.x, j.y - s * 0.07); ctx.lineTo(j.x + w, j.y); ctx.fill();
+          }
+        }
       },
     },
     // Legend: an armoured sea dragon with a glowing lateral line and ember eyes.
@@ -405,7 +431,7 @@
       for (let k = 0; k < 7; k++) { const a = k * 2.4; ctx.beginPath(); ctx.arc(Math.cos(a) * s * 0.55, Math.sin(a) * s * 0.45, s * (0.35 + (k % 3) * 0.1), 0, TAU); ctx.fill(); }
       ctx.fillStyle = 'rgba(160,140,110,0.6)'; ctx.beginPath(); ctx.arc(s * 0.1, 0, s * 0.25, 0, TAU); ctx.fill();
     },
-    paramecium(ctx, s, ph, mode) {
+    ciliate(ctx, s, ph, mode) {
       if (mode === 'lights') return;
       const L = s * 1.6, Hh = s * 0.75;
       const shape = () => {
@@ -666,23 +692,141 @@
       const L = s * 3.6;
       const tailAt = (u) => ({ x: L * (0.3 - u), y: Math.sin(ph * 3 - u * 6) * s * 0.25 * u });
       if (mode === 'lights') { const p = tailAt(1.05); glowDot(ctx, p.x, p.y, Math.max(6, s * 0.7), '255,110,160', 0.8); return; }
-      // whip body
-      ctx.strokeStyle = '#1c1820'; ctx.lineCap = 'round';
-      for (let i = 0; i < 12; i++) {
-        const a = tailAt(i / 12), b = tailAt((i + 1) / 12);
-        ctx.lineWidth = Math.max(0.6, s * 0.3 * (1 - i / 12) + s * 0.03);
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      // whip body: a pale rim under a dark core, so it reads against black water
+      ctx.lineCap = 'round';
+      for (const [col, rim] of [['rgba(200,160,225,0.45)', s * 0.07], ['#3b2a47', 0]]) {
+        ctx.strokeStyle = col;
+        for (let i = 0; i < 12; i++) {
+          const a = tailAt(i / 12), b = tailAt((i + 1) / 12);
+          ctx.lineWidth = Math.max(0.6, s * 0.3 * (1 - i / 12) + s * 0.03) + rim;
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
       }
-      // the enormous mouth pouch
+      const tip = tailAt(1.05);
+      ctx.fillStyle = '#ff86b6'; ctx.beginPath(); ctx.arc(tip.x, tip.y, Math.max(0.8, s * 0.09), 0, TAU); ctx.fill();
+      // the enormous mouth: two thin jaws hinged far back, a pouch sagging under the lower one
       const open = 0.6 + 0.4 * Math.sin(ph * 0.8);
-      ctx.fillStyle = '#2a222c';
-      ctx.beginPath(); ctx.moveTo(L * 0.25, -s * 0.1);
-      ctx.quadraticCurveTo(L * 0.5, -s * (0.9 * open + 0.2), L * 0.62, -s * 0.15 * open);
-      ctx.lineTo(L * 0.6, s * 0.1);
-      ctx.quadraticCurveTo(L * 0.45, s * (1.1 * open + 0.3), L * 0.22, s * 0.15); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#0c090d';
-      ctx.beginPath(); ctx.moveTo(L * 0.6, -s * 0.12 * open); ctx.quadraticCurveTo(L * 0.4, 0, L * 0.6, s * 0.08); ctx.fill();
-      eye(ctx, L * 0.55, -s * 0.25 * open - s * 0.05, Math.max(0.6, s * 0.06), '#888');
+      const hx = L * 0.2, fx = L * 0.66, up = -s * (0.55 * open + 0.15), lo = s * (0.75 * open + 0.2);
+      ctx.fillStyle = 'rgba(88,62,104,0.95)';
+      ctx.beginPath(); ctx.moveTo(hx, s * 0.12); ctx.quadraticCurveTo(L * 0.38, lo + s * 0.6 * open, fx, lo); ctx.lineTo(hx, s * 0.12); ctx.fill();
+      ctx.strokeStyle = 'rgba(215,180,235,0.55)'; ctx.lineWidth = Math.max(0.6, s * 0.035);
+      ctx.beginPath(); ctx.moveTo(hx, s * 0.12); ctx.quadraticCurveTo(L * 0.38, lo + s * 0.6 * open, fx, lo); ctx.stroke();
+      ctx.fillStyle = '#0d0612';
+      ctx.beginPath(); ctx.moveTo(hx, 0); ctx.lineTo(fx, up); ctx.lineTo(fx, lo); ctx.closePath(); ctx.fill();
+      ctx.lineWidth = Math.max(0.8, s * 0.09);
+      ctx.strokeStyle = '#5d4570'; ctx.beginPath(); ctx.moveTo(hx - s * 0.1, -s * 0.08); ctx.lineTo(fx, up); ctx.stroke();
+      ctx.strokeStyle = '#6f5482'; ctx.beginPath(); ctx.moveTo(hx - s * 0.1, s * 0.1); ctx.lineTo(fx, lo); ctx.stroke();
+      if (s > 6) {
+        ctx.fillStyle = 'rgba(240,235,245,0.85)';
+        for (let k = 1; k < 8; k++) {
+          const u = k / 8, w = s * 0.02;
+          const ux = hx + (fx - hx) * u, uy = up * u, ly = s * 0.1 + (lo - s * 0.1) * u;
+          ctx.beginPath(); ctx.moveTo(ux - w, uy + s * 0.03); ctx.lineTo(ux, uy + s * 0.09); ctx.lineTo(ux + w, uy + s * 0.03); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(ux - w, ly - s * 0.03); ctx.lineTo(ux, ly - s * 0.09); ctx.lineTo(ux + w, ly - s * 0.03); ctx.fill();
+        }
+      }
+      // tiny eyes sit right at the snout
+      eye(ctx, fx - s * 0.12, up + s * 0.05, Math.max(0.6, s * 0.06), '#9a8fa6');
+    },
+    // Legend: a giant cephalopod. A warty bulbous mantle, eight thick arms that curl at the tips,
+    // two long clubbed tentacles, suckers and a burning slit eye.
+    kraken(ctx, s, ph, mode) {
+      const L = s * 2.6, H = s * 0.95, N = 16;
+      const eyeX = L * 0.1, eyeY = -H * 0.25;
+      const spots = [[-0.45, -0.35], [-0.3, -0.55], [-0.15, -0.45], [-0.4, 0.3], [-0.2, 0.45], [0, -0.6]];
+      if (mode === 'lights') {
+        glowDot(ctx, eyeX, eyeY, Math.max(6, s * 0.75), '255,170,60', 0.9);
+        spots.forEach(([u, v], i) => glowDot(ctx, L * u, H * v, Math.max(3, s * 0.22), '190,140,255', 0.35 + 0.25 * Math.sin(ph * 1.5 + i)));
+        return;
+      }
+      // the centre line of an arm: out of the head, waving, curling at the tip
+      const line = (k, n, len, fan, curl) => {
+        const pts = [], seg = len / N;
+        let x = L * 0.16, y = H * (k / (n - 1) - 0.5) * 0.6, a = fan * (k / (n - 1) - 0.5);
+        for (let i = 0; i <= N; i++) {
+          const u = i / N;
+          pts.push({ x, y, u });
+          a += Math.cos(ph * 2 + k * 1.7 - u * 3) * 0.07 + curl * Math.max(0, u - 0.55) * 0.9;
+          x += Math.cos(a) * seg; y += Math.sin(a) * seg;
+        }
+        return pts;
+      };
+      // fill a tapering band along a line; returns the inner edge for suckers
+      const band = (pts, w0, w1, color) => {
+        const lf = [], rt = [], inner = [];
+        pts.forEach((p, i) => {
+          const q = pts[Math.min(i + 1, pts.length - 1)], o = pts[Math.max(i - 1, 0)];
+          const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy) || 1, w = w0 + (w1 - w0) * p.u;
+          lf.push([p.x - (dy / d) * w, p.y + (dx / d) * w]); rt.push([p.x + (dy / d) * w, p.y - (dx / d) * w]);
+          inner.push({ x: p.x - (dy / d) * w * 0.45, y: p.y + (dx / d) * w * 0.45, r: w * 0.32 });
+        });
+        ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(lf[0][0], lf[0][1]);
+        for (const [x, y] of lf) ctx.lineTo(x, y);
+        for (const [x, y] of rt.reverse()) ctx.lineTo(x, y);
+        ctx.closePath(); ctx.fill();
+        return inner;
+      };
+      const suckers = (inner, from) => {
+        if (s < 6) return;
+        ctx.fillStyle = 'rgba(225,195,235,0.75)';
+        for (let i = from; i < inner.length - 1; i += 2) { const c = inner[i]; ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(0.5, c.r), 0, TAU); ctx.fill(); }
+      };
+      const arms = 8;
+      const curlOf = (k) => (k < arms / 2 ? 1.5 : -1.5); // tips curl back towards the middle
+      // back arms, darker
+      for (let k = 1; k < arms; k += 2) band(line(k, arms, L * 1.1, 0.9, curlOf(k)), s * 0.2, s * 0.03, '#36224a');
+      // the two long tentacles with clubs
+      for (const k of [0, 1]) {
+        const pts = line(k, 2, L * 1.6, 0.5, k ? -0.5 : 0.5);
+        band(pts, s * 0.07, s * 0.035, '#4a3060');
+        const end = pts[pts.length - 1], prev = pts[pts.length - 3];
+        ctx.save(); ctx.translate(end.x, end.y); ctx.rotate(Math.atan2(end.y - prev.y, end.x - prev.x));
+        ctx.fillStyle = '#5b3c74'; ctx.beginPath(); ctx.ellipse(0, 0, s * 0.26, s * 0.1, 0, 0, TAU); ctx.fill();
+        if (s > 6) { ctx.fillStyle = 'rgba(225,195,235,0.75)'; for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.arc(i * s * 0.09, s * 0.03, s * 0.03, 0, TAU); ctx.fill(); } }
+        ctx.restore();
+      }
+      // front arms
+      for (let k = 0; k < arms; k += 2) suckers(band(line(k, arms, L * 1.15, 0.9, curlOf(k)), s * 0.22, s * 0.03, '#5a3a78'), 3);
+      // fins at the rear
+      const fl = Math.sin(ph * 3) * H * 0.1;
+      ctx.fillStyle = '#3b2652';
+      ctx.beginPath(); ctx.moveTo(-L * 0.66, 0); ctx.quadraticCurveTo(-L * 0.55, -H * 0.95 - fl, -L * 0.38, -H * 0.35);
+      ctx.lineTo(-L * 0.38, H * 0.35); ctx.quadraticCurveTo(-L * 0.55, H * 0.95 + fl, -L * 0.66, 0); ctx.fill();
+      // the bulbous mantle
+      const mantle = () => {
+        ctx.beginPath(); ctx.moveTo(-L * 0.62, 0);
+        ctx.bezierCurveTo(-L * 0.55, -H * 1.05, L * 0.08, -H * 1.0, L * 0.26, -H * 0.38);
+        ctx.lineTo(L * 0.26, H * 0.38);
+        ctx.bezierCurveTo(L * 0.08, H * 0.95, -L * 0.55, H * 0.9, -L * 0.62, 0);
+      };
+      const g = ctx.createRadialGradient(-L * 0.2, -H * 0.45, s * 0.1, -L * 0.15, 0, L * 0.7);
+      g.addColorStop(0, '#9a72bc'); g.addColorStop(0.55, '#5c3b7c'); g.addColorStop(1, '#24142f');
+      mantle(); ctx.fillStyle = g; ctx.fill();
+      ctx.save(); mantle(); ctx.clip();
+      // ridges, warts and old scars from sperm whale fights
+      ctx.strokeStyle = 'rgba(25,10,35,0.35)'; ctx.lineWidth = Math.max(0.5, s * 0.03);
+      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(-L * 0.6, k * H * 0.12); ctx.quadraticCurveTo(-L * 0.2, k * H * 0.35, L * 0.24, k * H * 0.14); ctx.stroke(); }
+      if (s > 5) {
+        for (let k = 0; k < 18; k++) {
+          const x = -L * 0.55 + ((k * 0.61) % 1) * L * 0.75, y = H * (((k * 0.37) % 1) - 0.5) * 1.3;
+          ctx.fillStyle = 'rgba(190,150,215,0.35)'; ctx.beginPath(); ctx.arc(x, y, s * 0.045, 0, TAU); ctx.fill();
+          ctx.fillStyle = 'rgba(20,8,30,0.3)'; ctx.beginPath(); ctx.arc(x + s * 0.015, y + s * 0.015, s * 0.03, 0, TAU); ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(235,215,240,0.35)'; ctx.lineWidth = Math.max(0.5, s * 0.025);
+        for (const [x, y, r] of [[-0.35, 0.2, 0.12], [-0.1, 0.35, 0.09], [-0.45, -0.2, 0.08]]) { ctx.beginPath(); ctx.arc(L * x, H * y, s * r, 0.3, 2.6); ctx.stroke(); }
+      }
+      spots.forEach(([u, v]) => { ctx.fillStyle = 'rgba(215,185,255,0.8)'; ctx.beginPath(); ctx.arc(L * u, H * v, Math.max(0.5, s * 0.05), 0, TAU); ctx.fill(); });
+      ctx.restore();
+      mantle(); ctx.strokeStyle = 'rgba(15,5,25,0.5)'; ctx.lineWidth = Math.max(0.6, s * 0.035); ctx.stroke();
+      // the eye: an amber iris with a horizontal slit, under a heavy lid
+      const er = Math.max(0.8, s * 0.2);
+      ctx.fillStyle = '#1a0d22'; ctx.beginPath(); ctx.arc(eyeX, eyeY, er * 1.25, 0, TAU); ctx.fill();
+      const ig = ctx.createRadialGradient(eyeX, eyeY, 0, eyeX, eyeY, er);
+      ig.addColorStop(0, '#ffe08a'); ig.addColorStop(0.6, '#ffa531'); ig.addColorStop(1, '#a5420e');
+      ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(eyeX, eyeY, er, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#0a0408'; ctx.beginPath(); ctx.ellipse(eyeX, eyeY, er * 0.75, er * 0.18, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#2a173a'; ctx.lineWidth = Math.max(0.6, er * 0.35);
+      ctx.beginPath(); ctx.arc(eyeX, eyeY + er * 0.3, er * 1.25, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
     },
     siphonophore(ctx, s, ph, mode) {
       const n = 14, L = s * 5;
@@ -786,16 +930,15 @@
   const SQUIDS = {
     squid: {},
     giantsquid: { mantle: ['#c4553f', '#8f3326'], arm: '#a8402f', tentacles: true, eye: 0.2, thick: 1.2 },
-    kraken: { mantle: ['#5a3f72', '#2c1b3c'], arm: '#45305a', tentacles: true, eye: 0.24, thick: 1.6, glowEye: '255,170,60' },
   };
 
   // Overall extent in units of s, used to fit thumbnails: [back, front, half-height].
   const BOX = {
-    diatom: [1, 1, 1], noctiluca: [1.8, 1, 1], snow: [1, 1, 1], paramecium: [1.8, 1.8, 1], radiolarian: [1.6, 1.6, 1.6],
+    diatom: [1, 1, 1], noctiluca: [1.8, 1, 1], snow: [1, 1, 1], ciliate: [1.8, 1.8, 1], radiolarian: [1.6, 1.6, 1.6],
     foram: [2, 2, 2], xeno: [1.3, 1.3, 1.1], copepod: [1.8, 1.3, 2.3], krill: [1.8, 2.8, 1], shrimp: [1.8, 3.7, 1], amphipod: [1, 2.1, 1.2],
     moonjelly: [1.6, 0.9, 1.1], combjelly: [1.1, 1.1, 0.9], squid: [1.4, 2.1, 0.8], giantsquid: [1.4, 4.2, 1.1], vampire: [1.1, 1.6, 1],
-    dumbo: [1, 1.3, 1.1], gulper: [2.7, 2.3, 1.1], siphonophore: [2.5, 2.6, 1.4],
-    kraken: [1.4, 4.2, 1.2], serpent: [3.2, 1.7, 1.4], aspidochelone: [1.6, 1.9, 1.5],
+    dumbo: [1, 1.3, 1.1], gulper: [2.7, 2.5, 1.4], siphonophore: [2.5, 2.6, 1.4],
+    kraken: [1.8, 4.7, 1.7], serpent: [3.2, 1.7, 1.4], aspidochelone: [1.6, 1.9, 1.5],
   };
   for (const [id, c] of Object.entries(FISH)) {
     const back = c.L * 0.5 + c.H * (c.tailSize ?? 1) * (c.tail === 'shark' ? 1.3 : 1);
