@@ -1,0 +1,984 @@
+{
+ "diatom": {
+  "s": 96,
+  "box": [
+   1,
+   1,
+   1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 196,
+   "h": 236,
+   "ox": 98,
+   "oy": 118
+  },
+  "glow": null
+ },
+ "noctiluca": {
+  "s": 96,
+  "box": [
+   1.8,
+   1,
+   1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 275,
+   "h": 236,
+   "ox": 177,
+   "oy": 118
+  },
+  "glow": {
+   "w": 602,
+   "h": 642,
+   "ox": 301,
+   "oy": 321
+  }
+ },
+ "snow": {
+  "s": 96,
+  "box": [
+   1,
+   1,
+   1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 198,
+   "h": 216,
+   "ox": 98,
+   "oy": 118
+  },
+  "glow": null
+ },
+ "ciliate": {
+  "s": 96,
+  "box": [
+   1.8,
+   1.8,
+   1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 360,
+   "h": 234,
+   "ox": 180,
+   "oy": 117
+  },
+  "glow": null
+ },
+ "radiolarian": {
+  "s": 96,
+  "box": [
+   1.6,
+   1.6,
+   1.6
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 312,
+   "h": 352,
+   "ox": 156,
+   "oy": 176
+  },
+  "glow": null
+ },
+ "foram": {
+  "s": 96,
+  "box": [
+   2,
+   2,
+   2
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 388,
+   "h": 419,
+   "ox": 194,
+   "oy": 209
+  },
+  "glow": null
+ },
+ "xeno": {
+  "s": 96,
+  "box": [
+   1.3,
+   1.3,
+   1.1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 198,
+   "h": 218,
+   "ox": 99,
+   "oy": 104
+  },
+  "glow": null
+ },
+ "copepod": {
+  "s": 96,
+  "box": [
+   1.8,
+   1.3,
+   2.3
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 275,
+   "h": 470,
+   "ox": 172,
+   "oy": 235
+  },
+  "glow": null
+ },
+ "krill": {
+  "s": 96,
+  "box": [
+   1.8,
+   2.8,
+   1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 438,
+   "h": 198,
+   "ox": 168,
+   "oy": 86
+  },
+  "glow": null
+ },
+ "shrimp": {
+  "s": 96,
+  "box": [
+   1.8,
+   3.7,
+   1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 527,
+   "h": 198,
+   "ox": 168,
+   "oy": 86
+  },
+  "glow": {
+   "w": 248,
+   "h": 157,
+   "ox": 124,
+   "oy": 45
+  }
+ },
+ "amphipod": {
+  "s": 96,
+  "box": [
+   1,
+   2.1,
+   1.2
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 312,
+   "h": 244,
+   "ox": 105,
+   "oy": 93
+  },
+  "glow": null
+ },
+ "yeti": {
+  "s": 96,
+  "box": [
+   1,
+   1.95,
+   1
+  ],
+  "upright": true,
+  "fish": null,
+  "body": {
+   "w": 280,
+   "h": 185,
+   "ox": 92,
+   "oy": 82
+  },
+  "glow": null
+ },
+ "anchovy": {
+  "s": 96,
+  "box": [
+   1.712,
+   1.35,
+   0.588
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.5,
+   "H": 0.42,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 288,
+   "h": 137,
+   "ox": 164,
+   "oy": 73
+  },
+  "glow": null
+ },
+ "lanternfish": {
+  "s": 96,
+  "box": [
+   1.7,
+   1.3,
+   0.7
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.4,
+   "H": 0.5,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 282,
+   "h": 148,
+   "ox": 163,
+   "oy": 81
+  },
+  "glow": {
+   "w": 221,
+   "h": 132,
+   "ox": 105,
+   "oy": 45
+  }
+ },
+ "hatchetfish": {
+  "s": 96,
+  "box": [
+   1.255,
+   0.95,
+   1.26
+  ],
+  "upright": false,
+  "fish": {
+   "L": 1.7,
+   "H": 0.9,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 207,
+   "h": 234,
+   "ox": 121,
+   "oy": 115
+  },
+  "glow": {
+   "w": 161,
+   "h": 122,
+   "ox": 66,
+   "oy": -17
+  }
+ },
+ "snailfish": {
+  "s": 96,
+  "box": [
+   1.625,
+   1.4500000000000002,
+   0.77
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.7,
+   "H": 0.55,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 291,
+   "h": 144,
+   "ox": 157,
+   "oy": 75
+  },
+  "glow": null
+ },
+ "barreleye": {
+  "s": 96,
+  "box": [
+   1.33,
+   1.1500000000000001,
+   0.6400000000000001
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.1,
+   "H": 0.4,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 238,
+   "h": 124,
+   "ox": 129,
+   "oy": 68
+  },
+  "glow": null
+ },
+ "seapig": {
+  "s": 96,
+  "box": [
+   1,
+   1.15,
+   1.2
+  ],
+  "upright": true,
+  "fish": null,
+  "body": {
+   "w": 205,
+   "h": 214,
+   "ox": 95,
+   "oy": 127
+  },
+  "glow": null
+ },
+ "mackerel": {
+  "s": 96,
+  "box": [
+   1.875,
+   1.4000000000000001,
+   0.7
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.6,
+   "H": 0.5,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 306,
+   "h": 166,
+   "ox": 179,
+   "oy": 92
+  },
+  "glow": null
+ },
+ "moonjelly": {
+  "s": 96,
+  "box": [
+   1.6,
+   0.9,
+   1.1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 237,
+   "h": 240,
+   "ox": 161,
+   "oy": 120
+  },
+  "glow": null
+ },
+ "combjelly": {
+  "s": 96,
+  "box": [
+   1.1,
+   1.1,
+   0.9
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 218,
+   "h": 210,
+   "ox": 109,
+   "oy": 105
+  },
+  "glow": {
+   "w": 164,
+   "h": 166,
+   "ox": 82,
+   "oy": 83
+  }
+ },
+ "viperfish": {
+  "s": 96,
+  "box": [
+   1.774,
+   1.55,
+   0.504
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.9,
+   "H": 0.36,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 322,
+   "h": 157,
+   "ox": 171,
+   "oy": 95
+  },
+  "glow": {
+   "w": 257,
+   "h": 114,
+   "ox": 124,
+   "oy": 41
+  }
+ },
+ "angler": {
+  "s": 96,
+  "box": [
+   1.5,
+   1.2,
+   1.1199999999999999
+  ],
+  "upright": false,
+  "fish": {
+   "L": 1.8,
+   "H": 0.8,
+   "swim": 0.1
+  },
+  "body": {
+   "w": 310,
+   "h": 237,
+   "ox": 142,
+   "oy": 132
+  },
+  "glow": {
+   "w": 174,
+   "h": 214,
+   "ox": -70,
+   "oy": 191
+  }
+ },
+ "tripod": {
+  "s": 96,
+  "box": [
+   1.616,
+   2.6500000000000004,
+   1.368
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.7,
+   "H": 0.38,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 409,
+   "h": 249,
+   "ox": 182,
+   "oy": 86
+  },
+  "glow": null
+ },
+ "fangtooth": {
+  "s": 96,
+  "box": [
+   1.354,
+   1,
+   1.008
+  ],
+  "upright": false,
+  "fish": {
+   "L": 1.7,
+   "H": 0.72,
+   "swim": 0.2
+  },
+  "body": {
+   "w": 219,
+   "h": 190,
+   "ox": 130,
+   "oy": 99
+  },
+  "glow": null
+ },
+ "atolla": {
+  "s": 96,
+  "box": [
+   2.2,
+   0.7,
+   1.1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 264,
+   "h": 234,
+   "ox": 205,
+   "oy": 117
+  },
+  "glow": {
+   "w": 111,
+   "h": 280,
+   "ox": 29,
+   "oy": 140
+  }
+ },
+ "abysso": {
+  "s": 96,
+  "box": [
+   1.6119999999999999,
+   1.55,
+   0.504
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.9,
+   "H": 0.36,
+   "swim": 0.45
+  },
+  "body": {
+   "w": 299,
+   "h": 111,
+   "ox": 156,
+   "oy": 57
+  },
+  "glow": null
+ },
+ "squid": {
+  "s": 96,
+  "box": [
+   1.4,
+   2.1,
+   0.8
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 340,
+   "h": 142,
+   "ox": 131,
+   "oy": 57
+  },
+  "glow": null
+ },
+ "vampire": {
+  "s": 96,
+  "box": [
+   1.1,
+   1.6,
+   1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 254,
+   "h": 184,
+   "ox": 97,
+   "oy": 93
+  },
+  "glow": {
+   "w": 105,
+   "h": 267,
+   "ox": -86,
+   "oy": 133
+  }
+ },
+ "gulper": {
+  "s": 96,
+  "box": [
+   2.7,
+   2.5,
+   1.4
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 505,
+   "h": 169,
+   "ox": 270,
+   "oy": 73
+  },
+  "glow": {
+   "w": 136,
+   "h": 176,
+   "ox": 327,
+   "oy": 88
+  }
+ },
+ "dumbo": {
+  "s": 96,
+  "box": [
+   1,
+   1.3,
+   1.1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 214,
+   "h": 268,
+   "ox": 94,
+   "oy": 134
+  },
+  "glow": null
+ },
+ "leatherback": {
+  "s": 96,
+  "box": [
+   2,
+   1.6,
+   1.4
+  ],
+  "upright": true,
+  "fish": null,
+  "body": {
+   "w": 300,
+   "h": 190,
+   "ox": 157,
+   "oy": 71
+  },
+  "glow": null
+ },
+ "shark": {
+  "s": 96,
+  "box": [
+   2.1325000000000003,
+   1.55,
+   0.588
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.9,
+   "H": 0.42,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 350,
+   "h": 186,
+   "ox": 207,
+   "oy": 101
+  },
+  "glow": null
+ },
+ "goblin": {
+  "s": 96,
+  "box": [
+   2.072,
+   2.35,
+   0.5599999999999999
+  ],
+  "upright": false,
+  "fish": {
+   "L": 3,
+   "H": 0.4,
+   "swim": 0.35
+  },
+  "body": {
+   "w": 429,
+   "h": 145,
+   "ox": 201,
+   "oy": 70
+  },
+  "glow": null
+ },
+ "giantsquid": {
+  "s": 96,
+  "box": [
+   1.4,
+   4.2,
+   1.1
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 542,
+   "h": 196,
+   "ox": 131,
+   "oy": 98
+  },
+  "glow": null
+ },
+ "porpoise": {
+  "s": 96,
+  "box": [
+   1.518,
+   1.1500000000000001,
+   1.04
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.1,
+   "H": 0.52,
+   "swim": 0.28
+  },
+  "body": {
+   "w": 250,
+   "h": 165,
+   "ox": 147,
+   "oy": 100
+  },
+  "glow": null
+ },
+ "orca": {
+  "s": 96,
+  "box": [
+   1.95,
+   1.5,
+   1.54
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2.8,
+   "H": 0.55,
+   "swim": 0.25
+  },
+  "body": {
+   "w": 326,
+   "h": 211,
+   "ox": 189,
+   "oy": 144
+  },
+  "glow": null
+ },
+ "sunfish": {
+  "s": 96,
+  "box": [
+   2,
+   1.1,
+   2
+  ],
+  "upright": false,
+  "fish": {
+   "L": 2,
+   "H": 1,
+   "swim": 0.08
+  },
+  "body": {
+   "w": 220,
+   "h": 367,
+   "ox": 119,
+   "oy": 186
+  },
+  "glow": null
+ },
+ "manta": {
+  "s": 96,
+  "box": [
+   1.9,
+   1.15,
+   1.65
+  ],
+  "upright": true,
+  "fish": null,
+  "body": {
+   "w": 285,
+   "h": 287,
+   "ox": 182,
+   "oy": 142
+  },
+  "glow": null
+ },
+ "frilled": {
+  "s": 96,
+  "box": [
+   2.1159,
+   1.9000000000000001,
+   0.5940000000000001
+  ],
+  "upright": false,
+  "fish": {
+   "L": 3.6,
+   "H": 0.27,
+   "swim": 0.55
+  },
+  "body": {
+   "w": 382,
+   "h": 100,
+   "ox": 205,
+   "oy": 49
+  },
+  "glow": null
+ },
+ "colossal": {
+  "s": 96,
+  "box": [
+   1.4,
+   4.2,
+   1.2
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 543,
+   "h": 228,
+   "ox": 131,
+   "oy": 114
+  },
+  "glow": null
+ },
+ "humpback": {
+  "s": 96,
+  "box": [
+   2.21,
+   1.6500000000000001,
+   0.84
+  ],
+  "upright": false,
+  "fish": {
+   "L": 3.1,
+   "H": 0.6,
+   "swim": 0.25
+  },
+  "body": {
+   "w": 364,
+   "h": 163,
+   "ox": 213,
+   "oy": 77
+  },
+  "glow": null
+ },
+ "sperm": {
+  "s": 96,
+  "box": [
+   2.1775,
+   1.7000000000000002,
+   0.77
+  ],
+  "upright": false,
+  "fish": {
+   "L": 3.2,
+   "H": 0.55,
+   "swim": 0.25
+  },
+  "body": {
+   "w": 366,
+   "h": 159,
+   "ox": 210,
+   "oy": 84
+  },
+  "glow": null
+ },
+ "siphonophore": {
+  "s": 96,
+  "box": [
+   2.5,
+   2.6,
+   1.4
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 529,
+   "h": 290,
+   "ox": 243,
+   "oy": 80
+  },
+  "glow": {
+   "w": 512,
+   "h": 174,
+   "ox": 234,
+   "oy": 90
+  }
+ },
+ "bluewhale": {
+  "s": 96,
+  "box": [
+   2.27,
+   1.9500000000000002,
+   0.588
+  ],
+  "upright": false,
+  "fish": {
+   "L": 3.7,
+   "H": 0.42,
+   "swim": 0.22
+  },
+  "body": {
+   "w": 400,
+   "h": 118,
+   "ox": 220,
+   "oy": 61
+  },
+  "glow": null
+ },
+ "serpent": {
+  "s": 96,
+  "box": [
+   3.2,
+   1.7,
+   1.4
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 449,
+   "h": 245,
+   "ox": 304,
+   "oy": 162
+  },
+  "glow": null
+ },
+ "kraken": {
+  "s": 96,
+  "box": [
+   1.8,
+   4.7,
+   1.7
+  ],
+  "upright": false,
+  "fish": null,
+  "body": {
+   "w": 622,
+   "h": 384,
+   "ox": 167,
+   "oy": 147
+  },
+  "glow": {
+   "w": 233,
+   "h": 198,
+   "ox": 135,
+   "oy": 116
+  }
+ },
+ "aspidochelone": {
+  "s": 96,
+  "box": [
+   1.6,
+   1.9,
+   1.5
+  ],
+  "upright": true,
+  "fish": null,
+  "body": {
+   "w": 326,
+   "h": 279,
+   "ox": 158,
+   "oy": 164
+  },
+  "glow": null
+ },
+ "leviathan": {
+  "s": 96,
+  "box": [
+   2.35,
+   1.8,
+   0.9
+  ],
+  "upright": false,
+  "fish": {
+   "L": 3.4,
+   "H": 0.5,
+   "swim": 0.3
+  },
+  "body": {
+   "w": 391,
+   "h": 198,
+   "ox": 225,
+   "oy": 101
+  },
+  "glow": {
+   "w": 319,
+   "h": 122,
+   "ox": 147,
+   "oy": 67
+  }
+ }
+}

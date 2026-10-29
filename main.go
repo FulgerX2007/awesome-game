@@ -2,6 +2,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"embed"
@@ -13,6 +15,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -142,7 +145,7 @@ func newMux(boards map[string]*leaderboard.Board, store *saves.Store) *http.Serv
 		panic(err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle("GET /", noCache(static, http.FileServer(http.FS(static))))
+	mux.Handle("GET /", noCache(static, precompressed(static, http.FileServer(http.FS(static)))))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok"))
 	})
@@ -244,6 +247,68 @@ func noCache(files fs.FS, next http.Handler) http.Handler {
 		w.Header().Set("Cache-Control", "no-cache")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// precompressed serves name from name.gz when only the gzipped file is embedded. The Godot engine
+// (web/deep-godot/index.wasm, ~40 MB) is stored that way: a quarter of the size in the repository,
+// the binary and on the wire. Browsers get the gzip bytes as they are; a client that does not accept
+// gzip gets them unpacked on the fly.
+func precompressed(files fs.FS, next http.Handler) http.Handler {
+	type gzFile struct {
+		data []byte
+		etag string
+	}
+	gz := map[string]gzFile{}
+	fs.WalkDir(files, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".gz") {
+			return err
+		}
+		if _, err := fs.Stat(files, strings.TrimSuffix(path, ".gz")); err == nil {
+			return nil // the plain file is there too: serve it as it is
+		}
+		data, err := fs.ReadFile(files, path)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(data)
+		gz[strings.TrimSuffix(path, ".gz")] = gzFile{data, `"` + hex.EncodeToString(sum[:8]) + `-gz"`}
+		return nil
+	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f, ok := gz[strings.TrimPrefix(r.URL.Path, "/")]
+		if !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+		h := w.Header()
+		h.Add("Vary", "Accept-Encoding")
+		if ct := mime.TypeByExtension(filepath.Ext(r.URL.Path)); ct != "" {
+			h.Set("Content-Type", ct)
+		}
+		if !acceptsGzip(r) {
+			h.Del("ETag")
+			zr, err := gzip.NewReader(bytes.NewReader(f.data))
+			if err != nil {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			io.Copy(w, zr)
+			return
+		}
+		h.Set("ETag", f.etag)
+		h.Set("Content-Encoding", "gzip")
+		http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(f.data))
+	})
+}
+
+func acceptsGzip(r *http.Request) bool {
+	for _, part := range strings.Split(r.Header.Get("Accept-Encoding"), ",") {
+		enc, q, _ := strings.Cut(strings.TrimSpace(part), ";")
+		if strings.EqualFold(strings.TrimSpace(enc), "gzip") && strings.ReplaceAll(strings.TrimSpace(q), " ", "") != "q=0" {
+			return true
+		}
+	}
+	return false
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

@@ -18,11 +18,14 @@ func TestServer(t *testing.T) {
 	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
 	defer srv.Close()
 
-	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js", "/stars/", "/stars/core.js", "/deep/", "/deep/core.js", "/deep/models.js", "/deep/art/kraken.webp", "/math/", "/math/core.js", "/i18n.js", "/nav.js", "/fx.js", "/math/lang.js", "/ants/", "/ants/core.js", "/ants/sim.js", "/neon/", "/neon/core.js", "/neon/lang.js", "/wonders/", "/wonders/core.js", "/wonders/game.js", "/wonders/lang.js", "/bastion/", "/bastion/core.js", "/bastion/game.js", "/bastion/lang.js", "/village/", "/village/core.js", "/village/view.js", "/village/game.js", "/village/lang.js", "/village/audio.js", "/village/art.js", "/village/houses.js", "/village/sprites/sprites.json", "/village/sprites/grass.png", "/pins/", "/pins/core.js", "/pins/levels.js", "/pins/view.js", "/pins/game.js", "/pins/lang.js", "/pins/audio.js", "/rush/", "/rush/core.js", "/rush/view.js", "/rush/game.js", "/rush/lang.js", "/rush/audio.js", "/parking/", "/parking/core.js", "/parking/levels.js", "/parking/view.js", "/parking/game.js", "/parking/lang.js", "/parking/audio.js", "/sort/", "/sort/core.js", "/sort/levels.js", "/sort/view.js", "/sort/game.js", "/sort/lang.js", "/sort/audio.js", "/castle/", "/castle/core.js", "/castle/view.js", "/castle/game.js", "/castle/lang.js", "/castle/audio.js", "/winter/", "/winter/core.js", "/winter/view.js", "/winter/game.js", "/winter/lang.js", "/winter/audio.js"} {
+	for _, path := range []string{"/", "/echo/", "/rust/", "/rust/core.js", "/oasis/", "/oasis/core.js", "/valley/", "/valley/core.js", "/stars/", "/stars/core.js", "/deep/", "/deep/core.js", "/deep/models.js", "/deep/art/kraken.webp", "/math/", "/math/core.js", "/i18n.js", "/nav.js", "/fx.js", "/math/lang.js", "/ants/", "/ants/core.js", "/ants/sim.js", "/neon/", "/neon/core.js", "/neon/lang.js", "/wonders/", "/wonders/core.js", "/wonders/game.js", "/wonders/lang.js", "/bastion/", "/bastion/core.js", "/bastion/game.js", "/bastion/lang.js", "/village/", "/village/core.js", "/village/view.js", "/village/game.js", "/village/lang.js", "/village/audio.js", "/village/art.js", "/village/houses.js", "/village/sprites/sprites.json", "/village/sprites/grass.png", "/pins/", "/pins/core.js", "/pins/levels.js", "/pins/view.js", "/pins/game.js", "/pins/lang.js", "/pins/audio.js", "/rush/", "/rush/core.js", "/rush/view.js", "/rush/game.js", "/rush/lang.js", "/rush/audio.js", "/parking/", "/parking/core.js", "/parking/levels.js", "/parking/view.js", "/parking/game.js", "/parking/lang.js", "/parking/audio.js", "/sort/", "/sort/core.js", "/sort/levels.js", "/sort/view.js", "/sort/game.js", "/sort/lang.js", "/sort/audio.js", "/castle/", "/castle/core.js", "/castle/view.js", "/castle/game.js", "/castle/lang.js", "/castle/audio.js", "/winter/", "/winter/core.js", "/winter/view.js", "/winter/game.js", "/winter/lang.js", "/winter/audio.js", "/deep-godot/", "/deep-godot/index.js", "/deep-godot/index.pck"} {
 		res, err := http.Get(srv.URL + path)
 		if err != nil || res.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s: %v %v", path, res.StatusCode, err)
 		}
+		// read big files to the end: srv.Close waits for every response to be delivered
+		io.Copy(io.Discard, res.Body)
+		res.Body.Close()
 	}
 
 	res, _ := http.Post(srv.URL+"/api/boards/echo/scores", "application/json", strings.NewReader(`{"name":"Ив","score":1200,"level":3}`))
@@ -65,6 +68,51 @@ func TestStaticRevalidates(t *testing.T) {
 		if res.StatusCode != http.StatusNotModified {
 			t.Fatalf("%s: revalidation got %d, want 304", path, res.StatusCode)
 		}
+	}
+}
+
+// The Godot engine is embedded only as index.wasm.gz and served under its own name.
+func TestPrecompressedWasm(t *testing.T) {
+	srv := httptest.NewServer(newMux(memBoards(t), saves.New("")))
+	defer srv.Close()
+	// a transport that leaves the encoding alone, like a browser's network log shows it
+	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
+
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/deep-godot/index.wasm", nil)
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gz, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != http.StatusOK || res.Header.Get("Content-Encoding") != "gzip" || res.Header.Get("Content-Type") != "application/wasm" {
+		t.Fatalf("gzip: status=%d encoding=%q type=%q", res.StatusCode, res.Header.Get("Content-Encoding"), res.Header.Get("Content-Type"))
+	}
+	if !strings.Contains(res.Header.Get("Vary"), "Accept-Encoding") || res.Header.Get("Cache-Control") != "no-cache" {
+		t.Fatalf("headers: %v", res.Header)
+	}
+	tag := res.Header.Get("ETag")
+	req.Header.Set("If-None-Match", tag)
+	res, err = client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if tag == "" || res.StatusCode != http.StatusNotModified {
+		t.Fatalf("revalidation: ETag=%q status=%d", tag, res.StatusCode)
+	}
+
+	req, _ = http.NewRequest(http.MethodGet, srv.URL+"/deep-godot/index.wasm", nil)
+	req.Header.Set("Accept-Encoding", "identity")
+	res, err = client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.Header.Get("Content-Encoding") != "" || len(plain) <= len(gz) || string(plain[:4]) != "\x00asm" {
+		t.Fatalf("plain: encoding=%q %d bytes (gzip %d)", res.Header.Get("Content-Encoding"), len(plain), len(gz))
 	}
 }
 

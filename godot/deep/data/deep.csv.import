@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c8o11gegubadq"
+
+[deps]
+
+files=["res://data/deep.ru.translation", "res://data/deep.ro.translation"]
+
+source_file="res://data/deep.csv"
+dest_files=["res://data/deep.ru.translation", "res://data/deep.ro.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

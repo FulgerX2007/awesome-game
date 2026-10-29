@@ -469,7 +469,7 @@
   const api = {
     KINDS, STAGES, ZONES, SPECIES, SPECIES_BY_ID, START_R, MAX_R, EAT_RATIO, DASH_COOLDOWN, MAX_DEPTH, FLOOR_M,
     rng, createWorld, step, stageOf, progress, viewSize, baseSpeed, lengthMeters, lengthText, traits, isHunter,
-    zoneAt, metersAt, darkAt, depthScale, lightRadius, speciesFor, hasArt,
+    zoneAt, metersAt, darkAt, depthScale, lightRadius, speciesFor, hasArt, LEN_KNOTS,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DeepCore = api;
