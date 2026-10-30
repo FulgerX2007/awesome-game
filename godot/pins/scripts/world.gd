@@ -3,7 +3,8 @@ extends Node2D
 ## Тяни штифт on Godot: one level as a real 2D physics world. The level data is the grid of web/pins
 ## (36×54 cells, see tools/pins-godot/data.cjs); here every cell of water, lava, gold and gas becomes a
 ## small rigid ball, rock and pins become static boxes, and the rules of web/pins/core.js are kept:
-##   lava + water → stone (the lava ball freezes in place, the water ball is gone),
+##   lava + water → stone (the lava ball freezes in place, the water ball is gone); the new stone stays red-hot
+##   for a while and boils away all the water that falls on it,
 ##   lava burns gold and gas, lava sets off a powder keg, gas rises and bubbles up through water,
 ##   an enemy dies when lava or gas touches it, the hero is lost when it does,
 ##   an enemy that can reach the hero through open space gets him,
@@ -30,6 +31,8 @@ const SETTLE_CAP := 10.0       # s after a pull when a still jittering world cou
 const PULL_TIME := 0.22        # s a pin takes to slide out
 const MAGNET := 1500.0         # px/s² the hero draws the gold in his room with
 const REACH := R_BALL * 1.4    # px from the hero's box where gold is his
+const HOT_TIME := 2.5          # s a stone fresh from lava boils away water that touches it...
+const HOT_KEEP := 1.0          # ...and each ball it boils keeps it hot at least this much longer
 
 # Collision layers (bits)
 const L_SOLID := 1
@@ -343,13 +346,14 @@ func _remove(b: RigidBody2D) -> void:
 
 ## Lava touched by water sets into stone: a heavy, rough ball. It stays where it is while something
 ## holds it and falls when that goes, so a crust over a shaft drops with the pin under it.
+## It is red-hot at first (see _boil): the water that keeps pouring onto it turns to steam.
 func _to_stone(b: RigidBody2D) -> void:
 	b.set_meta("type", "stone")
+	b.set_meta("hot_until", time + HOT_TIME)
 	balls.erase(b)
 	stones.append(b)
 	b.set_deferred("collision_layer", L_SOLID)
 	b.set_deferred("collision_mask", L_SOLID | L_WATER | L_LAVA | L_GOLD | L_GAS)
-	b.set_deferred("contact_monitor", false)
 	b.set_deferred("mass", 3.0)
 	b.set_deferred("linear_damp", 0.5)
 	b.set_deferred("physics_material_override", _material(0.8, 0.0))
@@ -589,6 +593,7 @@ func _physics_process(delta: float) -> void:
 		if b.position.y > H * CELL + 40 or b.position.y < -40:
 			_remove(b)
 	_check_entities()
+	_boil()
 	_draw_gold()
 	# Rest means almost nothing moves: a ball or two always shiver on a flat puddle, they don't count.
 	var moving := 0
@@ -603,6 +608,26 @@ func _physics_process(delta: float) -> void:
 	quiet = 0.0 if fast else quiet + delta
 	if settled() and not was:
 		settle_log.append(snappedf(since_pull, 0.1) if since_pull < SETTLE_CAP else "cap:%s" % _slowest())
+
+
+## Water that touches a red-hot stone boils away; while water keeps coming the stone stays hot, so a
+## stream falling on lava steams off completely instead of piling up on the new crust.
+func _boil() -> void:
+	for s in stones:
+		var until: float = s.get_meta("hot_until", 0.0)
+		if until <= time or s.get_meta("gone", false):
+			continue
+		for o in s.get_colliding_bodies():
+			if o is RigidBody2D and o.get_meta("type", "") == "water" and not o.get_meta("gone", false):
+				_remove(o)
+				reacted.emit("steam", o.position)
+				until = maxf(until, time + HOT_KEEP)
+		s.set_meta("hot_until", until)
+
+
+## How hot a stone still is, 1 just set to 0 cold (for the view).
+func heat(s: RigidBody2D) -> float:
+	return clampf((s.get_meta("hot_until", 0.0) - time) / HOT_TIME, 0.0, 1.0)
 
 
 ## Gold in the hero's room is pulled to him (a pull, not a jump: rock and pins in the way still stop it);

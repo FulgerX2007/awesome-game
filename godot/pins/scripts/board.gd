@@ -827,7 +827,10 @@ func _draw_matter() -> void:
 			continue
 		i += 1
 		_matter.draw_set_transform(s.position, s.rotation, Vector2.ONE)
-		_matter.draw_texture_rect(sprite_tex("stone%d" % (i % 3)), Rect2(-ssize / 2, ssize), false)
+		# fresh from lava it glows red-hot and cools down
+		var h := world.heat(s)
+		var tint := Color(1.0 + h * 1.6, 1.0 + h * 0.2, 1.0 - h * 0.5)
+		_matter.draw_texture_rect(sprite_tex("stone%d" % (i % 3)), Rect2(-ssize / 2, ssize), false, tint)
 	_matter.draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
 
 
@@ -922,6 +925,10 @@ func _draw_fx_add() -> void:
 			_fx_add.draw_line(p.p - Vector2(s, 0), p.p + Vector2(s, 0), c, 1.2, true)
 			_fx_add.draw_line(p.p - Vector2(0, s), p.p + Vector2(0, s), c, 1.2, true)
 		_fx_add.draw_texture_rect(_glow, Rect2(p.p - Vector2(p.size, p.size) * 2, Vector2(p.size, p.size) * 4), false, c)
+	for st in world.stones:
+		var h := world.heat(st)
+		if h > 0.0 and not st.get_meta("gone", false):
+			_fx_add.draw_texture_rect(_glow, Rect2(st.position - Vector2(13, 13), Vector2(26, 26)), false, Color(1, 0.4, 0.1, h * 0.55))
 	if _take_glow > 0.0:
 		var hands := _hero_hands()
 		_fx_add.draw_texture_rect(_glow, Rect2(hands - Vector2(22, 22), Vector2(44, 44)), false, Color(1, 0.8, 0.35, _take_glow * 0.6))
