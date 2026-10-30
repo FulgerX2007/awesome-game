@@ -3,7 +3,8 @@
 # level with real physics and exports the game to web/pins-godot/ (the engine goes to web/godot/).
 #   GODOT=/path/to/godot-4.7.2 tools/pins-godot/build.sh [--plan]
 # --plan looks for each level's plan again (the pull order the hint shows) and rewrites data/plans.json.
-# Needs Godot 4.7.2 with its web export templates and Node with Playwright (for the art bake).
+# Needs Godot 4.7.2 with its web export templates, Node with Playwright (for the art bake) and Python 3
+# with OpenCV (pip install opencv-python-headless) for slicing the style reference.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 GODOT="${GODOT:-godot}"
@@ -11,6 +12,7 @@ GODOT="${GODOT:-godot}"
 cd "$ROOT"
 node tools/pins-godot/data.cjs
 node tools/pins-godot/bake.cjs
+python3 tools/pins-godot/slice.py
 "$GODOT" --headless --path godot/pins --import >/dev/null 2>&1 || true
 if [ "${1:-}" = "--plan" ]; then
   "$GODOT" --headless --fixed-fps 60 --path godot/pins -s res://tests/levels.gd -- plan

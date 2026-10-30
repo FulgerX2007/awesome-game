@@ -103,6 +103,7 @@ func _ready() -> void:
 	board = Board.new()
 	board.reduce_motion = PinsStore.prefers_reduced_motion()
 	board.finished_walk.connect(_finish)
+	board.coin_landed.connect(func(_pos): _gold_pop())
 	add_child(board)
 	_build_ui()
 	get_window().size_changed.connect(_resize)
@@ -770,6 +771,21 @@ func _show_result() -> void:
 	_show("result")
 	if btn_next.visible:
 		btn_next.grab_focus.call_deferred()
+
+
+## The gold counter jumps a little when a coin lands in the hero's room.
+var _gold_tween: Tween
+
+
+func _gold_pop() -> void:
+	if hud_gold == null or board.reduce_motion:
+		return
+	hud_gold.pivot_offset = hud_gold.size / 2
+	if _gold_tween:
+		_gold_tween.kill()
+	_gold_tween = create_tween()
+	hud_gold.scale = Vector2.ONE * 1.18
+	_gold_tween.tween_property(hud_gold, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _toggle_sound() -> void:
