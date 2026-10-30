@@ -250,7 +250,7 @@ func noCache(files fs.FS, next http.Handler) http.Handler {
 }
 
 // precompressed serves name from name.gz when only the gzipped file is embedded. The Godot engine
-// (web/deep-godot/index.wasm, ~40 MB) is stored that way: a quarter of the size in the repository,
+// (web/godot/engine.wasm, ~40 MB, shared by the Godot games) is stored that way: a quarter of the size in the repository,
 // the binary and on the wire. Browsers get the gzip bytes as they are; a client that does not accept
 // gzip gets them unpacked on the fly.
 func precompressed(files fs.FS, next http.Handler) http.Handler {

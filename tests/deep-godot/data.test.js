@@ -28,12 +28,12 @@ test('every species has a baked sprite and an atlas card', () => {
   assert.deepEqual(Object.keys(baked).sort(), C.SPECIES.map((s) => s.id).sort());
 });
 
-test('the web export is in place: our loading page, the engine gzipped, the game pack', () => {
+test('the web export is in place: our loading page and the game pack; the engine is shared', () => {
   const html = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
   assert.match(html, /Погружаемся/, 'index.html comes from godot/deep/shell.html');
-  assert.match(html, /"executable":"index"/);
+  assert.match(html, /\.\.\/godot\/engine\.js/, 'the page loads the shared engine');
   assert.ok(fs.statSync(path.join(WEB, 'index.pck')).size > 1e6);
-  assert.ok(!fs.existsSync(path.join(WEB, 'index.wasm')), 'the engine is stored only as index.wasm.gz');
-  const gz = fs.readFileSync(path.join(WEB, 'index.wasm.gz'));
+  assert.deepEqual(fs.readdirSync(WEB).sort(), ['index.html', 'index.pck'], 'only the page and the pack: the engine lives in web/godot');
+  const gz = fs.readFileSync(path.join(__dirname, '../../web/godot/engine.wasm.gz'));
   assert.deepEqual([...gz.subarray(0, 2)], [0x1f, 0x8b]);
 });
