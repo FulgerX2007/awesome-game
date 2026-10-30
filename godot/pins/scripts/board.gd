@@ -873,7 +873,10 @@ func _draw_blobs() -> void:
 	_fluid_draw.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-## Rock and the pins still in, one byte a cell.
+## Rock and the pins still in, one byte a cell; and for the liquid shader a texture of the cells, red where
+## it is solid, green where liquid may show: the cells that hold a ball of matter and their eight neighbours.
+## A ball's blob reaches one and a half cells, past a pin or a thin wall only one cell thick; the green
+## keeps a pool on a pin from showing under it (a neighbour of a neighbour across the pin is never green).
 func _update_solid() -> void:
 	_solid = world.rock_grid.duplicate()
 	for id in world.pins:
@@ -883,7 +886,19 @@ func _update_solid() -> void:
 		for y in range(int(d.y), int(d.y + d.h)):
 			for x in range(int(d.x), int(d.x + d.w)):
 				_solid[y * World.W + x] = 1
-	var img := Image.create_from_data(World.W, World.H, false, Image.FORMAT_L8, _solid)
+	var cells := PackedByteArray()
+	cells.resize(World.W * World.H * 2)
+	for i in World.W * World.H:
+		cells[i * 2] = 255 if _solid[i] else 0
+	for b in world.balls:
+		var t: String = b.get_meta("type")
+		if (t != "water" and t != "lava" and t != "gas") or b.get_meta("gone", false):
+			continue
+		var c := Vector2i(b.position / C)
+		for y in range(maxi(c.y - 1, 0), mini(c.y + 2, World.H)):
+			for x in range(maxi(c.x - 1, 0), mini(c.x + 2, World.W)):
+				cells[(y * World.W + x) * 2 + 1] = 255
+	var img := Image.create_from_data(World.W, World.H, false, Image.FORMAT_RG8, cells)
 	if _solid_tex == null:
 		_solid_tex = ImageTexture.create_from_image(img)
 	else:

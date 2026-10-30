@@ -3,7 +3,8 @@ render_mode unshaded;
 // Liquids as one body: the fluid viewport sums a soft blob per ball, water in red, lava in green, gas in
 // blue (HDR, so deep pools add up past 1). Here the sums turn into surfaces:
 //   - cut off sharply where rock or a pin is (the board mirrors blobs across walls, so pools meet the
-//     walls square, and this cut makes the edge crisp);
+//     walls square, and this cut makes the edge crisp), and away from the cells that hold matter, so a
+//     blob never shows through a pin or a wall one cell thick;
 //   - the surface ripples: the field is read a little higher or lower along x, in two slow waves;
 //   - water is clear: the wall behind shows through, bent by the moving water, tinted deeper blue the
 //     deeper it gets, with caustics, rising bubbles and a bright line of foam on top;
@@ -17,7 +18,7 @@ uniform vec2 texel;   // 1 / size of the fluid texture
 uniform float t = 0.0;
 uniform vec3 ambient = vec3(0.62, 0.6, 0.78);
 uniform sampler2D lava_tex : filter_linear_mipmap, repeat_enable;  // the lava cells of the style reference
-uniform sampler2D solid : filter_nearest;                          // rock and pins, one texel a cell
+uniform sampler2D solid : filter_nearest;  // one texel a cell: r = rock or pin, g = a ball of matter in or next to it
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -43,7 +44,8 @@ vec3 lava_ramp(float d) {
 }
 
 void fragment() {
-	if (texture(solid, UV).r > 0.002) {
+	vec2 cell = texture(solid, UV).rg;
+	if (cell.r > 0.5 || cell.g < 0.5) {
 		COLOR = vec4(0.0);
 	} else {
 		vec2 px = UV / texel;
