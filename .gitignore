@@ -1,3 +1,5 @@
 /awesome-game
 /data/
 *.exe
+/godot/*/.godot/
+/godot/*/data/*.translation

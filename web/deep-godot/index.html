@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Глубина</title>
+<meta name="description" content="Спокойная игра про океан на движке Godot: начни клеткой, ешь тех, кто меньше, и вырасти от кита до морской легенды.">
+<style>
+/* Глубина on Godot: the loading screen, styled like web/deep. The game itself draws everything else. */
+:root { --abyss: #031421; --fg: #e6f4f1; --dim: #8fb3b5; --glow: #ffd98a; color-scheme: dark; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--abyss); }
+body { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+#canvas { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
+#canvas:focus { outline: none; }
+#status {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  padding: 24px 16px; text-align: center; color: var(--fg); font: 15px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(ellipse at 50% 30%, #0b4a5c 0%, #06283b 45%, var(--abyss) 100%);
+}
+#status h1 { margin: 0; font: 400 clamp(48px, 12vw, 80px)/1 "Trebuchet MS", system-ui, sans-serif; color: var(--glow); text-shadow: 0 0 40px rgba(255,217,138,.35); }
+#status p { margin: 0; color: var(--dim); max-width: 420px; }
+.bar { width: min(280px, 70vw); height: 8px; border-radius: 4px; background: rgba(143,179,181,.22); overflow: hidden; }
+.bar b { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #f0b85a, var(--glow)); transition: width .2s ease-out; }
+.bar.wait b { width: 30%; animation: wait 1.4s ease-in-out infinite; }
+@keyframes wait { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+#notice { display: none; color: var(--fg); }
+#notice a, #status a { color: var(--glow); }
+.snow { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(1.5px 1.5px at 20% 30%, rgba(220,240,235,.35), transparent), radial-gradient(1px 1px at 70% 60%, rgba(220,240,235,.3), transparent), radial-gradient(1.5px 1.5px at 40% 80%, rgba(220,240,235,.25), transparent), radial-gradient(1px 1px at 85% 20%, rgba(220,240,235,.3), transparent); background-size: 180px 180px; animation: drift 12s linear infinite; }
+@keyframes drift { to { background-position: 0 180px; } }
+@media (prefers-reduced-motion: reduce) { .snow, .bar.wait b { animation: none; } }
+</style>
+
+</head>
+<body>
+<canvas id="canvas" aria-label="Океан"></canvas>
+<div id="status">
+  <div class="snow"></div>
+  <h1 id="title">Глубина</h1>
+  <p id="loading">Погружаемся…</p>
+  <div class="bar wait" id="bar"><b id="fill"></b></div>
+  <p id="notice"></p>
+  <p><a href="../deep/" id="classic">Лёгкая версия без Godot</a></p>
+</div>
+<script>
+// The language follows the site: ?lang=, then the saved choice, then the browser (like web/i18n.js).
+(function () {
+  let lang = 'ru';
+  try {
+    const q = new URLSearchParams(location.search).get('lang');
+    const s = localStorage.getItem('lang');
+    const nav = (navigator.languages || [navigator.language]).map((l) => String(l).slice(0, 2).toLowerCase());
+    lang = q === 'ro' || q === 'ru' ? q : s === 'ro' || s === 'ru' ? s : nav.find((l) => l === 'ro' || l === 'mo' || l === 'ru') || 'ru';
+    if (lang === 'mo') lang = 'ro';
+  } catch (e) { /* blocked storage */ }
+  if (lang !== 'ro') return;
+  document.documentElement.lang = 'ro';
+  document.title = 'Adâncul';
+  document.getElementById('title').textContent = 'Adâncul';
+  document.getElementById('loading').textContent = 'Ne scufundăm…';
+  document.getElementById('classic').textContent = 'Versiunea ușoară, fără Godot';
+  window.DEEP_RO = true;
+}());
+</script>
+<script src="index.js"></script>
+<script>
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":4333188,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_THREADS_ENABLED = false;
+const engine = new Engine(GODOT_CONFIG);
+(function () {
+  const status = document.getElementById('status');
+  const bar = document.getElementById('bar');
+  const fill = document.getElementById('fill');
+  const notice = document.getElementById('notice');
+  function fail(err) {
+    console.error(err);
+    bar.style.display = 'none';
+    document.getElementById('loading').style.display = 'none';
+    notice.style.display = 'block';
+    notice.textContent = (window.DEEP_RO
+      ? 'Jocul nu poate porni în acest browser: '
+      : 'Игра не запускается в этом браузере: ') + (err instanceof Error ? err.message : String(err));
+  }
+  const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+  if (missing.length) { fail(missing.join(', ')); return; }
+  engine.startGame({
+    onProgress(current, total) {
+      if (current > 0 && total > 0) { bar.classList.remove('wait'); fill.style.width = `${Math.min(100, (current / total) * 100)}%`; }
+    },
+  }).then(() => status.remove(), fail);
+}());
+</script>
+</body>
+</html>
+
