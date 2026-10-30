@@ -7,23 +7,29 @@ extends Node2D
 ##   lava burns gold and gas, lava sets off a powder keg, gas rises and bubbles up through water,
 ##   an enemy dies when lava or gas touches it, the hero is lost when it does,
 ##   an enemy that can reach the hero through open space gets him,
+##   gold that gets into the hero's room is drawn to him and is his once it touches him,
 ##   when everything has come to rest: enough gold in the room and no lava or gas on the way to the door wins.
 ## No rendering here (game.gd draws), so the headless tests run exactly the world the player sees.
 
 signal pulled(id: int)
 signal reacted(kind: String, pos: Vector2)   # steam, sizzle, poof, blast, kill_lava, kill_gas, kill_blast
+signal gold_taken(pos: Vector2)              # a ball of gold reached the hero
 
 const CELL := 12.0
 const W := 36
 const H := 54
 const R_BALL := CELL * 0.5
-const KILL := 3                # balls of lava or gas touching an enemy to kill it
+const KILL := 3                # balls of lava or gas touching an enemy within KILL_WINDOW to kill it
+const KILL_WINDOW := 1.0       # s: a cloud of gas drifting past counts every ball that brushed the enemy
+const GAS_KILL := 2            # gas drifts by and spreads out: fewer balls of it are enough
 const HERO_KILL := 2           # ...or the hero to lose
 const BLAST_R := 4.5           # cells wiped out around a keg that goes off
 const QUIET_SPEED := 24.0      # px/s: slower than this counts as resting
 const QUIET_TIME := 0.6        # s of rest that settles the world
 const SETTLE_CAP := 10.0       # s after a pull when a still jittering world counts as settled anyway
 const PULL_TIME := 0.22        # s a pin takes to slide out
+const MAGNET := 1500.0         # px/s² the hero draws the gold in his room with
+const REACH := R_BALL * 1.4    # px from the hero's box where gold is his
 
 # Collision layers (bits)
 const L_SOLID := 1
@@ -45,6 +51,7 @@ var enemies: Array = []        # {rect, body, area, dead, cause}
 var room: Rect2                # cells
 var exit_rect: Rect2           # cells
 var gold_target := 0
+var gold_taken_n := 0          # gold the hero already holds (still counts as gold in the room)
 var lost := ""                 # "" | "lava" | "gas" | "blast" | "enemy"
 var since_pull := 0.0
 var quiet := 0.0
@@ -128,6 +135,7 @@ func build(def: Dictionary) -> void:
 		var en := _entity(e)
 		en.dead = false
 		en.cause = ""
+		en.touched = {}        # instance id of a lava or gas ball -> [type, time it last touched]
 		enemies.append(en)
 
 
@@ -257,6 +265,13 @@ func _entity(r: Dictionary) -> Dictionary:
 	a.add_child(s)
 	add_child(a)
 	return {rect = cells(r), body = b, area = a}
+
+
+## The level is won and the hero walks to the door: his box leaves the world, so the water he stood in
+## closes up behind him instead of keeping his shape.
+func release_hero() -> void:
+	if is_instance_valid(hero.body):
+		hero.body.queue_free()
 
 
 # ───────────── Player action ─────────────
@@ -406,9 +421,20 @@ func _check_entities() -> void:
 	for e in enemies:
 		if e.dead:
 			continue
-		if _touching(e.area, "lava") >= KILL:
+		var seen: Dictionary = e.touched
+		for b in e.area.get_overlapping_bodies():
+			var t: String = b.get_meta("type", "")
+			if (t == "lava" or t == "gas") and not b.get_meta("gone", false):
+				seen[b.get_instance_id()] = [t, time]
+		var n := {lava = 0, gas = 0}
+		for id in seen.keys():
+			if time - seen[id][1] > KILL_WINDOW:
+				seen.erase(id)
+			else:
+				n[seen[id][0]] += 1
+		if n.lava >= KILL:
 			_kill(e, "lava")
-		elif _touching(e.area, "gas") >= KILL:
+		elif n.gas >= GAS_KILL:
 			_kill(e, "gas")
 	if lost == "":
 		if _touching(hero.area, "lava") >= HERO_KILL:
@@ -485,7 +511,7 @@ func enemy_reaches_hero() -> bool:
 
 # ───────────── State ─────────────
 func gold_in_room() -> int:
-	var n := 0
+	var n := gold_taken_n
 	var r := Rect2(room.position * CELL, room.size * CELL)
 	for b in balls:
 		if b.get_meta("type") == "gold" and not b.get_meta("gone", false) and r.has_point(b.position):
@@ -563,6 +589,7 @@ func _physics_process(delta: float) -> void:
 		if b.position.y > H * CELL + 40 or b.position.y < -40:
 			_remove(b)
 	_check_entities()
+	_draw_gold()
 	# Rest means almost nothing moves: a ball or two always shiver on a flat puddle, they don't count.
 	var moving := 0
 	for b in balls + stones:
@@ -576,6 +603,35 @@ func _physics_process(delta: float) -> void:
 	quiet = 0.0 if fast else quiet + delta
 	if settled() and not was:
 		settle_log.append(snappedf(since_pull, 0.1) if since_pull < SETTLE_CAP else "cap:%s" % _slowest())
+
+
+## Gold in the hero's room is pulled to him (a pull, not a jump: rock and pins in the way still stop it);
+## a ball that comes within REACH of him is gone from the world and counted as his.
+func _draw_gold() -> void:
+	var r := Rect2(room.position * CELL, room.size * CELL)
+	var hr: Rect2 = hero.rect
+	var hb := Rect2(hr.position * CELL, hr.size * CELL)
+	var near := hb.grow(REACH)
+	var c := hb.get_center()
+	for b in balls:
+		if b.get_meta("type") != "gold" or b.get_meta("gone", false) or not r.has_point(b.position):
+			continue
+		if near.has_point(b.position):
+			gold_taken_n += 1
+			_remove(b)
+			gold_taken.emit(b.position)
+			continue
+		if not b.get_meta("drawn", false):
+			# from now on it slips through water and the other coins (nothing heavy can pin it down)
+			# and hardly falls; rock, pins, the hero and lava still stop it
+			b.set_meta("drawn", true)
+			b.collision_layer = 0
+			b.collision_mask = L_SOLID | L_LAVA
+			b.physics_material_override = _material(0.0, 0.0)
+			b.gravity_scale = 0.3
+			b.linear_damp = 2.0
+		b.sleeping = false
+		b.apply_central_force((c - b.position).normalized() * MAGNET * b.mass)
 
 
 ## What keeps the world from resting, for tuning: the type and speed of the fastest ball.

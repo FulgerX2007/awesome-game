@@ -35,7 +35,6 @@ var outcome := {}
 var speed := 1
 var sound_on := true
 var view := Vector2(390, 700)
-var _gold_seen := 0
 var _press := {}                    # the gesture: {id, at (world), moved}
 var _sounds := {}
 var _players: Array[AudioStreamPlayer] = []
@@ -104,6 +103,7 @@ func _ready() -> void:
 	board.reduce_motion = PinsStore.prefers_reduced_motion()
 	board.finished_walk.connect(_finish)
 	board.coin_landed.connect(func(_pos): _gold_pop())
+	board.coin_taken.connect(func(_pos): sfx("coin", 0.05))
 	add_child(board)
 	_build_ui()
 	get_window().size_changed.connect(_resize)
@@ -214,7 +214,6 @@ func _load_level(i: int) -> void:
 	world.pulled.connect(func(_id): sfx("pin"))
 	board.show_level(world, level + 1)
 	outcome = {}
-	_gold_seen = 0
 	phase_t = 0.0
 	tip.text = tr(data.TIPS.get(str(level), ""))
 	tip.visible = tip.text != ""
@@ -268,15 +267,13 @@ func _process(delta: float) -> void:
 			_fit_board()
 	if phase == "play":
 		var gold := world.gold_in_room()
-		if gold > _gold_seen:
-			sfx("coin", 0.09)
-		_gold_seen = gold
 		var st := world.status()
 		if st.status == "won":
 			outcome = {won = true, stars = world.stars(), gold = gold}
 			_record_win(outcome.stars)
 			sfx("win")
 			board.celebrate(Vector2(world.hero.rect.get_center() * World.CELL))
+			world.release_hero()
 			_set_phase("walk")
 		elif st.status == "lost":
 			outcome = {won = false, reason = st.reason, gold = gold}
