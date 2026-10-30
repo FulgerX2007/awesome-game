@@ -5,8 +5,11 @@ extends Node2D
 ##   - the dungeon: shaders/walls.gdshader draws masonry, chamber walls and the wooden room from the
 ##     level's cell mask (a blast that breaks rock just changes the mask);
 ##   - every pin is built from parts (gold rod, collar, cap, ring) along its real cells;
-##   - every ball of gold is its own coin or gem sprite at the ball's position;
-##   - water, lava and gas are one smooth body (shaders/liquid.gdshader), lava with the reference's texture;
+##   - every ball of gold is its own coin or gem sprite at the ball's position; gold the hero takes flies
+##     into his hands with a glint;
+##   - water, lava and gas are one smooth body (shaders/liquid.gdshader), cut off sharply by the rock, with a
+##     rippling surface; water is clear (the wall shows through, bent), lava churns with the reference's
+##     texture; fast streams stretch out and splash;
 ##   - the hero, the door with its sign and the torch are the reference's sprites, animated by code;
 ##   - the torch and the lava are 2D lights over a dark CanvasModulate; soft shadows, embers and sparks.
 ## The goblins, kegs and stone lumps are still the art baked from web/pins (tools/pins-godot/bake.cjs).
@@ -14,6 +17,7 @@ extends Node2D
 
 signal finished_walk
 signal coin_landed(pos: Vector2)
+signal coin_taken(pos: Vector2)
 
 const World := preload("res://scripts/world.gd")
 const LIQUID := preload("res://shaders/liquid.gdshader")
@@ -24,6 +28,7 @@ const BLOB := 18.0               # radius of a ball's blob in the fluid texture
 const AMBIENT := Color(0.62, 0.6, 0.78)
 const WARM := Color(1.0, 0.62, 0.3)
 const LAVA_LIGHT := Color(1.0, 0.45, 0.14)
+const TAKE_TIME := 0.28          # s a coin takes to fly into the hero's hands
 
 var world: PinsWorld
 var art: Dictionary              # the baked web art (goblins, kegs)
@@ -68,6 +73,11 @@ var _glow: Texture2D
 var _light_tex: Texture2D
 var _rock_seen := -1
 var _in_room := {}               # gold balls already counted in the room
+var _taken: Array = []           # coins flying into the hero's hands: {from, t, tex, size}
+var _take_glow := 0.0            # the hero lights up a little with every coin
+var _solid := PackedByteArray()  # rock and pins still in, for the liquids' edges
+var _solid_tex: ImageTexture     # the same, one texel a cell, for the liquid shader
+var _splash_t := 0.0
 
 
 func _ready() -> void:
@@ -145,8 +155,12 @@ func show_level(w: PinsWorld, n: int) -> void:
 	_enemies.clear()
 	_lava_lights.clear()
 	_in_room.clear()
+	_solid_tex = null
+	_taken.clear()
+	_take_glow = 0.0
 	_rock_seen = w.rock_version
 	world.reacted.connect(_on_reacted)
+	world.gold_taken.connect(_on_gold_taken)
 	world.pulled.connect(_on_pulled)
 
 	# The dungeon is dim; the torch, the lava and the open door bring the warm light.
@@ -230,6 +244,7 @@ func show_level(w: PinsWorld, n: int) -> void:
 	m.shader = LIQUID
 	m.set_shader_parameter("texel", Vector2.ONE / Vector2(_fluid_vp.size))
 	m.set_shader_parameter("lava_tex", style_tex("lava"))
+	m.set_shader_parameter("ambient", Vector3(AMBIENT.r, AMBIENT.g, AMBIENT.b))
 	_fluid.material = m
 	add_child(_fluid)
 
@@ -525,6 +540,8 @@ func _puff(p: Vector2, kind: String) -> void:
 		"twinkle": o = {v = Vector2((r.call() - 0.5) * 30, -20 - r.call() * 30), life = 0.5 + r.call() * 0.3, size = 2.0 + r.call() * 1.5, grow = -2.0, color = Color(1.0, 0.95, 0.6, 1.0), drag = 1.0, add = true, star = true}
 		"debris": o = {v = Vector2((r.call() - 0.5) * 260, -60 - r.call() * 200), life = 0.8 + r.call() * 0.5, size = 1.8 + r.call() * 1.8, grow = 0.0, color = Color(0.36, 0.33, 0.38, 1.0), drag = 0.2, fall = true, square = true}
 		"gas": o = {v = Vector2((r.call() - 0.5) * 16, -14 - r.call() * 10), life = 1.0 + r.call() * 0.5, size = 3.0 + r.call() * 2.0, grow = 6.0, color = Color(0.6, 0.85, 0.35, 0.6), drag = 0.5}
+		"drop": o = {v = Vector2((r.call() - 0.5) * 110, -70 - r.call() * 110), life = 0.45 + r.call() * 0.3, size = 1.3 + r.call() * 1.0, grow = -0.8, color = Color(0.75, 0.92, 1.0, 0.95), drag = 0.3, fall = true}
+		"spit": o = {v = Vector2((r.call() - 0.5) * 70, -50 - r.call() * 80), life = 0.5 + r.call() * 0.3, size = 1.4 + r.call() * 1.0, grow = -1.2, color = Color(1.0, 0.62, 0.2, 1.0), drag = 0.3, fall = true, add = true}
 		"confetti": o = {v = Vector2((r.call() - 0.5) * 220, -120 - r.call() * 160), life = 1.4 + r.call() * 0.6, size = 2.0, grow = 0.0, color = Color.from_hsv(r.call(), 0.7, 1.0), drag = 0.4, fall = true, square = true}
 		_: return
 	o.p = p
@@ -561,6 +578,14 @@ func _process(delta: float) -> void:
 		badge.position = node.position + badge.get_meta("off")
 	_lava_frame(delta)
 	_gold_frame()
+	_splash_frame(delta)
+	for g in _taken:
+		g.t += delta
+		if g.t >= TAKE_TIME:
+			for i in 2:
+				_puff(_hero_hands(), "twinkle")
+	_taken = _taken.filter(func(g): return g.t < TAKE_TIME)
+	_take_glow = maxf(0.0, _take_glow - delta * 3.0)
 	for p in _parts:
 		p.t += delta
 		p.v *= 1.0 - minf(1.0, p.drag * delta)
@@ -641,6 +666,44 @@ func _gold_frame() -> void:
 				coin_landed.emit(b.position)
 
 
+## The hero takes a ball of gold: the coin flies into his hands, glints, and he lights up.
+func _on_gold_taken(pos: Vector2) -> void:
+	var t: Texture2D = style_tex("coin%d" % (randi() % 3))
+	_taken.append({from = pos, t = 0.0, tex = t, size = 15.5})
+	_take_glow = minf(1.0, _take_glow + 0.35)
+	coin_taken.emit(pos)
+
+
+## Where the hero holds what he takes: his chest.
+func _hero_hands() -> Vector2:
+	return _hero.position + Vector2(0, -2.6 * C)
+
+
+## Liquids that move fast throw droplets: water splashes where a stream lands, lava spits.
+func _splash_frame(delta: float) -> void:
+	if reduce_motion:
+		return
+	_splash_t += delta
+	if _splash_t < 1.0 / 30.0:
+		return
+	_splash_t = 0.0
+	var n := 0
+	for b in world.balls:
+		if n >= 3:
+			break
+		var t: String = b.get_meta("type")
+		if t != "water" and t != "lava":
+			continue
+		var v := b.linear_velocity
+		# a ball that is slowing down hard, after a fall: it just hit the pool or the floor
+		var last: Vector2 = b.get_meta("v_last", v)
+		b.set_meta("v_last", v)
+		if last.y > 220.0 and v.y < last.y * 0.45 and randf() < 0.5:
+			for i in 2 + randi() % 2:
+				_puff(b.position + Vector2(0, -4), "drop" if t == "water" else "spit")
+			n += 1
+
+
 # ───────────── Figures ─────────────
 func _fig_pos(r: Rect2) -> Vector2:
 	return (r.position * 10.0 - Vector2(art.figure.ox, art.figure.oy)) * S
@@ -690,7 +753,9 @@ func _update_figures(delta: float) -> void:
 	_hero.position = feet + Vector2(0, bob)
 	_hero.rotation = tilt
 	_hero.scale = Vector2(face * k, k * squash)
-	_hero.modulate = Color(tint, alpha)
+	var glow := 1.0 + _take_glow * 0.35
+	_hero.modulate = Color(tint.r * glow, tint.g * glow, tint.b * (1.0 + _take_glow * 0.1), alpha)
+	_hero.scale.y *= 1.0 + _take_glow * 0.05
 	# the door swings towards its hinge (its left edge) and lets the daylight out
 	var dsp: Sprite2D = _door.get_child(0)
 	dsp.scale.x = (5.3 * C) / style.door.h * (1.0 - open * 0.8)
@@ -746,6 +811,15 @@ func _draw_matter() -> void:
 		var sz := Vector2.ONE * (14.0 if gem else 15.0 + float((h / 7) % 5) * 0.7)
 		_matter.draw_set_transform(b.position, b.rotation * 0.15 + float((h / 3) % 7 - 3) * 0.08, Vector2.ONE)
 		_matter.draw_texture_rect(t, Rect2(-sz / 2, sz), false)
+	# coins on their way into the hero's hands: a quick arc, shrinking at the end
+	var hands := _hero_hands()
+	for g in _taken:
+		var q: float = g.t / TAKE_TIME
+		var e := q * q * (3.0 - 2.0 * q)
+		var at: Vector2 = (g.from as Vector2).lerp(hands, e) + Vector2(0, -sin(q * PI) * 10.0)
+		var sz: Vector2 = Vector2.ONE * g.size * (1.0 - 0.7 * q * q)
+		_matter.draw_set_transform(at, q * 6.0, Vector2(cos(q * 9.0), 1.0))
+		_matter.draw_texture_rect(g.tex, Rect2(-sz / 2, sz), false)
 	var i := 0
 	var ssize := Vector2.ONE * 12.0 * S
 	for s in world.stones:
@@ -753,12 +827,21 @@ func _draw_matter() -> void:
 			continue
 		i += 1
 		_matter.draw_set_transform(s.position, s.rotation, Vector2.ONE)
-		_matter.draw_texture_rect(sprite_tex("stone%d" % (i % 3)), Rect2(-ssize / 2, ssize), false)
+		# fresh from lava it glows red-hot and cools down
+		var h := world.heat(s)
+		var tint := Color(1.0 + h * 1.6, 1.0 + h * 0.2, 1.0 - h * 0.5)
+		_matter.draw_texture_rect(sprite_tex("stone%d" % (i % 3)), Rect2(-ssize / 2, ssize), false, tint)
 	_matter.draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
 
 
+## The fluid field: a soft blob per ball. A fast ball's blob stretches along its way, so a falling stream
+## reads as a stream. A ball next to rock or a pin also gets a mirror blob on the far side of that wall: the
+## field does not thin out there, so a pool meets the wall square instead of rounding off like dough (the
+## shader cuts away what lands in the rock).
 func _draw_blobs() -> void:
+	_update_solid()
 	var r := Vector2.ONE * BLOB
+	var box := Rect2(-r, r * 2)
 	for b in world.balls:
 		if b.get_meta("gone", false):
 			continue
@@ -768,7 +851,48 @@ func _draw_blobs() -> void:
 			"lava": c = Color(0, 1, 0)
 			"gas": c = Color(0, 0, 1)
 			_: continue
-		_fluid_draw.draw_texture_rect(_blob, Rect2(b.position - r, r * 2), false, c)
+		var p := b.position
+		var v := b.linear_velocity
+		var sp := v.length()
+		var st := clampf((sp - 60.0) / 500.0, 0.0, 0.55)
+		_fluid_draw.draw_set_transform(p, v.angle() if st > 0.0 else 0.0, Vector2(1.0 + st, 1.0 - st * 0.45))
+		_fluid_draw.draw_texture_rect(_blob, box, false, c)
+		if c.b > 0.0:
+			continue  # gas is a haze, no hard edge to square off
+		var cell := Vector2i(p / C)
+		var ghosts: Array[Vector2] = []
+		if _solid_at(cell.x - 1, cell.y):
+			ghosts.append(Vector2(2.0 * cell.x * C - p.x, p.y))
+		if _solid_at(cell.x + 1, cell.y):
+			ghosts.append(Vector2(2.0 * (cell.x + 1) * C - p.x, p.y))
+		if _solid_at(cell.x, cell.y + 1):
+			ghosts.append(Vector2(p.x, 2.0 * (cell.y + 1) * C - p.y))
+		for g in ghosts:
+			_fluid_draw.draw_set_transform(g, 0.0, Vector2.ONE)
+			_fluid_draw.draw_texture_rect(_blob, box, false, c)
+	_fluid_draw.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Rock and the pins still in, one byte a cell.
+func _update_solid() -> void:
+	_solid = world.rock_grid.duplicate()
+	for id in world.pins:
+		if world.pins[id].pulled:
+			continue
+		var d: Dictionary = world.pins[id].def
+		for y in range(int(d.y), int(d.y + d.h)):
+			for x in range(int(d.x), int(d.x + d.w)):
+				_solid[y * World.W + x] = 1
+	var img := Image.create_from_data(World.W, World.H, false, Image.FORMAT_L8, _solid)
+	if _solid_tex == null:
+		_solid_tex = ImageTexture.create_from_image(img)
+	else:
+		_solid_tex.update(img)
+	(_fluid.material as ShaderMaterial).set_shader_parameter("solid", _solid_tex)
+
+
+func _solid_at(x: int, y: int) -> bool:
+	return x >= 0 and y >= 0 and x < World.W and y < World.H and _solid[y * World.W + x] == 1
 
 
 func _draw_fx_mix() -> void:
@@ -801,6 +925,13 @@ func _draw_fx_add() -> void:
 			_fx_add.draw_line(p.p - Vector2(s, 0), p.p + Vector2(s, 0), c, 1.2, true)
 			_fx_add.draw_line(p.p - Vector2(0, s), p.p + Vector2(0, s), c, 1.2, true)
 		_fx_add.draw_texture_rect(_glow, Rect2(p.p - Vector2(p.size, p.size) * 2, Vector2(p.size, p.size) * 4), false, c)
+	for st in world.stones:
+		var h := world.heat(st)
+		if h > 0.0 and not st.get_meta("gone", false):
+			_fx_add.draw_texture_rect(_glow, Rect2(st.position - Vector2(13, 13), Vector2(26, 26)), false, Color(1, 0.4, 0.1, h * 0.55))
+	if _take_glow > 0.0:
+		var hands := _hero_hands()
+		_fx_add.draw_texture_rect(_glow, Rect2(hands - Vector2(22, 22), Vector2(44, 44)), false, Color(1, 0.8, 0.35, _take_glow * 0.6))
 	# twinkles on the top of the gold piles now and then
 	var n := 0
 	for b in world.balls:
