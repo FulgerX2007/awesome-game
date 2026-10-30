@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14101b">
+<title>Аншлаг</title>
+<meta name="description" content="Ритм-кликер: бей по ведру в такт, нанимай музыкантов и слушай, как растёт группа.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <section class="stage-wrap" id="stage-wrap">
+    <canvas id="stage" aria-label="Подземный переход. Бей по ведру в такт"></canvas>
+    <div class="hud">
+      <div class="coins"><b id="coins">0</b> <span>монет</span></div>
+      <div class="rate" id="rate"></div>
+    </div>
+    <p class="hint" id="hint" hidden>Бей, когда кольцо ляжет на край ведра. Пробел тоже бьёт</p>
+
+    <section class="screen" id="intro" aria-labelledby="intro-title">
+      <div class="card">
+        <h2 id="intro-title">Аншлаг</h2>
+        <p>Ты уличный музыкант в подземном переходе. Вместо барабана — перевёрнутое ведро.</p>
+        <p>Бей в такт: удар в долю растит серию, а с ней множитель до ×4. Промах срезает серию вдвое. На монеты нанимай музыкантов, и каждый добавит в музыку свою партию.</p>
+        <button class="btn primary big" id="btn-play" type="button">Играть</button>
+        <button class="btn" id="btn-calib-intro" type="button">Калибровка задержки</button>
+        <p class="small">Лучше со звуком. В Bluetooth-наушниках сначала пройди калибровку.</p>
+      </div>
+    </section>
+
+    <section class="screen" id="calib" hidden aria-labelledby="calib-title">
+      <div class="card">
+        <h2 id="calib-title">Калибровка</h2>
+        <p>Слушай щелчки метронома и нажимай в такт — пальцем, мышью или пробелом. Смотреть на экран не нужно.</p>
+        <div class="dots" id="calib-dots" aria-hidden="true"></div>
+        <button class="btn" id="btn-calib-cancel" type="button">Отмена</button>
+      </div>
+    </section>
+  </section>
+
+  <aside class="panel">
+    <header class="panel-head">
+      <h1>Аншлаг <small>прототип</small></h1>
+      <div class="head-side" id="lang-slot"></div>
+    </header>
+
+    <section class="block">
+      <div class="block-head"><h2>Группа</h2><span class="muted small" id="band-rate"></span></div>
+      <div class="band" id="band"></div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Темп</h2><span class="muted small" id="bpm-note"></span></div>
+      <div class="tempo">
+        <button class="btn round" id="bpm-down" type="button" aria-label="Медленнее">−</button>
+        <div class="bpm"><b id="bpm">90</b><span>ударов в минуту</span></div>
+        <button class="btn round" id="bpm-up" type="button" aria-label="Быстрее">+</button>
+      </div>
+      <button class="buy" id="rush" type="button" hidden>
+        <span class="buy-top"><b class="buy-name">Разгон</b><span class="buy-lv"></span></span>
+        <span class="buy-note">+5 ударов в минуту к потолку темпа.</span>
+        <span class="buy-cost"></span>
+      </button>
+      <p class="small muted">Монеты идут за каждую долю: чем быстрее, тем больше. Но окно попадания не растёт.</p>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Настройки</h2></div>
+      <div class="row">
+        <button class="btn" id="btn-sound" type="button" aria-pressed="true">Звук: вкл</button>
+        <button class="btn" id="btn-free" type="button" aria-pressed="false">Свободная игра: выкл</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="btn-calib" type="button">Калибровка</button>
+        <span class="small muted" id="offset"></span>
+      </div>
+      <p class="small muted" id="stats"></p>
+      <p class="small muted">Клавиши: пробел или любая буква — удар, <kbd>M</kbd> — звук.</p>
+      <div class="row"><button class="btn danger" id="btn-reset" type="button">Начать с нуля</button></div>
+    </section>
+  </aside>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="../i18n.js"></script>
+<script src="../nav.js"></script>
+<script src="../fx.js"></script>
+<script src="lang.js"></script>
+<script src="core.js"></script>
+<script src="music.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
