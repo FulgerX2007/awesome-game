@@ -7,6 +7,7 @@ shader_type canvas_item;
 
 uniform vec2 texel;   // 1 / size of the fluid texture
 uniform float t = 0.0;
+uniform sampler2D lava_tex : filter_linear_mipmap, repeat_enable;  // the lava cells of the style reference
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -30,28 +31,25 @@ vec3 lava_ramp(float d) {
 	return mix(e, f, (d - 0.6) / 0.4);
 }
 
-// How deep under the surface: the share of samples straight up that are still inside the liquid.
-// (Works on a plain 8-bit texture too, where the sums stop at 1.)
-float depth_of(sampler2D tex, vec2 uv, float y, int ch) {
-	float d = 0.0;
-	for (int i = 1; i <= 6; i++) {
-		vec4 s = texture(tex, uv - vec2(0.0, y * float(i * i) * 2.0));
-		d += step(0.5, ch == 0 ? s.r : s.g);
-	}
-	return d / 6.0;
-}
-
 void fragment() {
 	vec4 f = texture(TEXTURE, UV);
 	vec2 px = UV / texel;
 	vec4 up = texture(TEXTURE, UV - vec2(0.0, texel.y * 3.0));
 	vec4 col = vec4(0.0);
+	// How deep under the surface: the share of samples straight up that are still inside the liquid
+	// (works on a plain 8-bit texture too, where the sums stop at 1). x for water, y for lava.
+	vec2 deep = vec2(0.0);
+	for (int i = 1; i <= 6; i++) {
+		vec4 s = texture(TEXTURE, UV - vec2(0.0, texel.y * float(i * i) * 2.0));
+		deep += step(vec2(0.5), s.rg);
+	}
+	deep /= 6.0;
 
 	// water
 	float w = smoothstep(0.42, 0.62, f.r);
 	if (w > 0.0) {
 		float top = 1.0 - smoothstep(0.42, 0.62, up.r);
-		vec3 c = water_ramp(0.04 + depth_of(TEXTURE, UV, texel.y, 0) * 0.9);
+		vec3 c = water_ramp(0.04 + deep.x * 0.9);
 		float caustic = pow(1.0 - abs(noise(px / 10.0 + vec2(t * 0.6, t * 0.3)) - noise(px / 8.0 - vec2(t * 0.4, -t * 0.5))), 18.0);
 		c += vec3(0.84, 0.97, 1.0) * caustic * 0.22;
 		c = mix(c, vec3(0.86, 0.97, 1.0), top * 0.9);
@@ -62,13 +60,16 @@ void fragment() {
 	float l = smoothstep(0.42, 0.62, f.g);
 	if (l > 0.0) {
 		float top = 1.0 - smoothstep(0.42, 0.62, up.g);
-		vec3 c = lava_ramp(0.08 + depth_of(TEXTURE, UV, texel.y, 1) * 0.85);
-		float crust = smoothstep(0.55, 0.8, noise(px / 11.0 + vec2(t * 0.15, -t * 0.08)));
-		c = mix(c, vec3(0.47, 0.08, 0.02), crust * 0.5);
-		float hot = smoothstep(0.72, 0.95, noise(px / 6.0 - vec2(t * 0.25, t * 0.1)));
-		c += vec3(1.0, 0.85, 0.45) * hot * 0.5;
-		c = mix(c, vec3(1.0, 0.95, 0.7), top * 0.8);
-		c *= 1.3;  // past 1: the bloom picks it up
+		float depth = deep.y;
+		// the painted lava cells, slowly churning: a drifting, wobbling lookup into the reference texture
+		vec2 warp = vec2(noise(px / 14.0 + t * 0.35), noise(px / 14.0 - t * 0.3 + 7.0)) - 0.5;
+		vec3 cells = texture(lava_tex, px / vec2(142.0, 82.0) + vec2(t * 0.02, t * -0.015) + warp * 0.12).rgb;
+		vec3 c = mix(lava_ramp(0.08 + depth * 0.85), cells * 1.15, 0.7);
+		// bubbles that swell and pop near the top
+		float bub = smoothstep(0.82, 0.95, noise(px / 5.0 + vec2(0.0, -t * 0.8))) * (1.0 - depth);
+		c += vec3(1.0, 0.85, 0.4) * bub * 0.6;
+		c = mix(c, vec3(1.0, 0.93, 0.6), top * 0.85);
+		c *= 1.25;  // a little past 1 for the glow
 		col = mix(col, vec4(c, 1.0), l);
 	}
 

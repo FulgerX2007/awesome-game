@@ -18,27 +18,26 @@ test('levels, solver orders, tips and the Romanian dictionary are copied from we
   assert.equal(fs.readFileSync(path.join(GODOT, 'data/pins.csv'), 'utf8'), csv, 'data/pins.csv is stale');
 });
 
-test('every level has a board, its pins and a plan; the art has every pose', () => {
-  const art = JSON.parse(fs.readFileSync(path.join(GODOT, 'data/art.json'), 'utf8'));
+test('every level has a plan; the style parts and the baked goblins are all there', () => {
   const plans = JSON.parse(fs.readFileSync(path.join(GODOT, 'data/plans.json'), 'utf8'));
   L.LEVELS.forEach((lv, i) => {
-    const n = i + 1;
-    assert.ok(fs.existsSync(path.join(GODOT, `assets/boards/${n}.webp`)), `board ${n}`);
-    for (const p of lv.pins) {
-      assert.ok(art.pins[`${n}-${p.id}`], `pin ${n}-${p.id} in art.json`);
-      assert.ok(fs.existsSync(path.join(GODOT, `assets/pins/${n}-${p.id}.png`)), `pin ${n}-${p.id}.png`);
-    }
-    const plan = plans[String(n)];
-    assert.ok(Array.isArray(plan) && plan.length, `level ${n} has a plan (the hint)`);
-    for (const id of plan) assert.ok(lv.pins.some((p) => p.id === id), `level ${n}: plan pin ${id}`);
+    const plan = plans[String(i + 1)];
+    assert.ok(Array.isArray(plan) && plan.length, `level ${i + 1} has a plan (the hint)`);
+    for (const id of plan) assert.ok(lv.pins.some((p) => p.id === id), `level ${i + 1}: plan pin ${id}`);
   });
-  const sprites = fs.readdirSync(path.join(GODOT, 'assets/sprites'));
-  for (const who of ['hero', 'enemy']) {
-    for (const pose of ['idle', 'cheer', 'scared']) for (const f of ['l', 'r']) assert.ok(sprites.includes(`${who}_${pose}_${f}.png`), `${who} ${pose} ${f}`);
-    for (let i = 0; i < 8; i++) assert.ok(sprites.includes(`${who}_walk_r${i}.png`), `${who} walk ${i}`);
-    assert.ok(sprites.includes(`${who}_burnt.png`) && sprites.includes(`${who}_poisoned.png`));
+  // the parts cut from the style reference by tools/pins-godot/slice.py
+  const style = JSON.parse(fs.readFileSync(path.join(GODOT, 'data/style.json'), 'utf8'));
+  for (const name of ['hero', 'torch', 'door', 'sign', 'ring', 'collar', 'cap', 'rod', 'coin0', 'coin1', 'coin2',
+    'gem_blue', 'gem_green', 'gem_red', 'vine0', 'stone', 'faces', 'back', 'wood', 'band', 'lava']) {
+    assert.ok(style[name], `style.json: ${name}`);
+    assert.ok(fs.existsSync(path.join(GODOT, `assets/style/${name}.png`)), `assets/style/${name}.png`);
   }
-  for (const s of ['keg', 'coin', 'coinTilt', 'door0', 'door4', 'torch']) assert.ok(sprites.includes(`${s}.png`), s);
+  assert.ok(style.hero.feet && style.torch.flame, 'anchor points of the hero and the torch');
+  // what is still baked from web/pins
+  const sprites = fs.readdirSync(path.join(GODOT, 'assets/sprites'));
+  for (const pose of ['idle', 'cheer', 'scared']) for (const f of ['l', 'r']) assert.ok(sprites.includes(`enemy_${pose}_${f}.png`), `enemy ${pose} ${f}`);
+  for (const s of ['enemy_burnt', 'enemy_poisoned', 'keg', 'stone0']) assert.ok(sprites.includes(`${s}.png`), s);
+  assert.ok(!fs.existsSync(path.join(GODOT, 'assets/boards')), 'the levels are drawn from their cells, not from pictures');
   const sounds = fs.readdirSync(path.join(GODOT, 'assets/sounds'));
   for (const s of require('../../web/pins/audio.js').SOUND_NAMES) assert.ok(sounds.includes(`${s}.wav`), `sound ${s}`);
 });
@@ -48,5 +47,5 @@ test('the web export is in place: our loading page and the game pack; the engine
   assert.match(html, /Готовим штифты/, 'index.html comes from godot/pins/shell.html');
   assert.match(html, /\.\.\/godot\/engine\.js/);
   assert.deepEqual(fs.readdirSync(WEB).sort(), ['index.html', 'index.pck']);
-  assert.ok(fs.statSync(path.join(WEB, 'index.pck')).size > 1e6);
+  assert.ok(fs.statSync(path.join(WEB, 'index.pck')).size > 3e5, 'the pack holds the art, the sounds and the fonts');
 });
