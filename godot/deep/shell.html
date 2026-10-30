@@ -61,9 +61,10 @@ $GODOT_HEAD_INCLUDE
   window.DEEP_RO = true;
 }());
 </script>
-<script src="$GODOT_URL"></script>
+<!-- The engine is shared by all the Godot games of the site: web/godot/ (tools/godot-web/export.sh). -->
+<script src="../godot/engine.js"></script>
 <script>
-const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_CONFIG = Object.assign($GODOT_CONFIG, { executable: '../godot/engine', mainPack: 'index.pck' });
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 const engine = new Engine(GODOT_CONFIG);
 (function () {

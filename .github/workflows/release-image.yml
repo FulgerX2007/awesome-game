@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Godot runs the tests of the Godot port of Глубина (godot/deep) and the parity test against web/deep.
+      # Godot runs the tests of the Godot games (godot/deep, godot/pins) and the parity test against web/deep.
       - name: Install Godot
         run: |
           curl -sSfLo "$RUNNER_TEMP/godot.zip" https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
@@ -36,6 +36,9 @@ jobs:
           echo "GODOT=$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64" >> "$GITHUB_ENV"
       - run: $GODOT --headless --path godot/deep --import
       - run: $GODOT --headless --path godot/deep -s res://tests/run.gd
+      # Тяни штифт on Godot: every level replayed with real physics (about a minute and a half).
+      - run: $GODOT --headless --path godot/pins --import
+      - run: $GODOT --headless --fixed-fps 60 --path godot/pins -s res://tests/levels.gd
       - run: node --test 'tests/**/*.test.js'
 
   image:

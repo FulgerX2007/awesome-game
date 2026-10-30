@@ -1,0 +1,36 @@
+; Тяни штифт on Godot. Open this folder in Godot 4.7, or build with tools/pins-godot/build.sh.
+
+config_version=5
+
+[application]
+
+config/name="Тяни штифт"
+config/description="Головоломка со штифтами на настоящей физике: вода, лава, газ и золото."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0.0784314, 0.0588235, 0.0705882, 1)
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1000
+window/stretch/mode="disabled"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://data/pins.ru.translation", "res://data/pins.ro.translation")
+locale/fallback="ru"
+
+[physics]
+
+common/physics_ticks_per_second=60
+2d/solver/solver_iterations=12
+2d/default_gravity=1100.0
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.105882, 0.0862745, 0.14902, 1)

@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://mbvyh4okrwbh"
+
+[deps]
+
+files=["res://data/pins.ru.translation", "res://data/pins.ro.translation"]
+
+source_file="res://data/pins.csv"
+dest_files=["res://data/pins.ru.translation", "res://data/pins.ro.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
