@@ -274,6 +274,15 @@ func hit() -> void:
 ## Stones knit back after the wall is repaired or fortified.
 func repair() -> void:
 	_repair_t = 1.0
+	var aura := CastleFlipbook.make("magic_heal_aura", 9.0)
+	if aura:
+		aura.position = GATEHOUSE + Vector3(0, 4.5, 2.6)
+		add_child(aura)
+		# the aura loops: let it glow for a moment and fade
+		var tw := aura.create_tween()
+		tw.tween_interval(1.2)
+		tw.tween_property(aura, "modulate:a", 0.0, 0.6)
+		tw.tween_callback(aura.queue_free)
 
 
 func _apply() -> void:

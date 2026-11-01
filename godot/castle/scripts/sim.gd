@@ -68,6 +68,7 @@ class Enemy:
 	var bob := 0.0
 	var dead := false
 	var burn := 0.0
+	var scorch := 0.0               # standing in fire on the ground (oil, dragon breath): the view shows flames
 	var atk_t := 0.0
 	var attacking := false
 	var target = null               # the Defense it hits, null for the wall
@@ -527,6 +528,7 @@ func _step_enemies() -> void:
 		e.stagger = maxf(0.0, e.stagger - TICK)
 		e.vulnerable = maxf(0.0, e.vulnerable - TICK)
 		e.immune = maxf(0.0, e.immune - TICK)
+		e.scorch = maxf(0.0, e.scorch - TICK)
 		e.state_t += TICK
 		if e.burn > 0.0:
 			e.burn = maxf(0.0, e.burn - TICK)
@@ -883,6 +885,7 @@ func _step_zones() -> void:
 				if not e.dead and (not e.flies or e.state == "landed") and e.x + e.w * 0.5 >= z.x0 and e.x - e.w * 0.5 <= z.x1:
 					# boiling oil is no fire arrow: the Ashen Lands' fire resistance doesn't help against it
 					var res := mod("fire_resist") if z.get("resist", true) else 0.0
+					e.scorch = 0.25
 					damage(e, z.enemy * TICK * (1.0 - res), "fire", 0.0)
 		if z.struct > 0.0:
 			for d in defenses_in(z.x0, z.x1):

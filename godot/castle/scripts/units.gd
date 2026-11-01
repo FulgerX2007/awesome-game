@@ -34,6 +34,7 @@ class View:
 	var t := 0.0
 	var mode := ""                  # the material look applied: "", flash, shadow
 	var overlay := ""
+	var flames: Node3D               # shown while the enemy burns: an Ember flipbook, or particles without it
 	var stars: Node3D
 	var barrier: MeshInstance3D
 	var aura: Node3D
@@ -67,7 +68,7 @@ static func _mat(kind: String) -> Material:
 			s.cull_mode = BaseMaterial3D.CULL_DISABLED
 			s.albedo_color = Color(0.55, 0.25, 1.0, 0.3)
 			m = s
-		"open", "rage", "buff":
+		"open", "rage", "buff", "burn":
 			var sh := Shader.new()
 			sh.code = """
 shader_type spatial;
@@ -82,9 +83,9 @@ void fragment() {
 """
 			var sm := ShaderMaterial.new()
 			sm.shader = sh
-			var c: Color = {open = Color(1.0, 0.8, 0.2), rage = Color(1.0, 0.15, 0.05), buff = Color(0.9, 0.7, 0.2)}[kind]
+			var c: Color = {open = Color(1.0, 0.8, 0.2), rage = Color(1.0, 0.15, 0.05), buff = Color(0.9, 0.7, 0.2), burn = Color(1.0, 0.45, 0.08)}[kind]
 			sm.set_shader_parameter("tint", c)
-			sm.set_shader_parameter("speed", 9.0 if kind == "open" else 4.0)
+			sm.set_shader_parameter("speed", 9.0 if kind == "open" else (14.0 if kind == "burn" else 4.0))
 			m = sm
 	_mats[kind] = m
 	return m
@@ -213,6 +214,15 @@ func _update(v: View, e: CastleSim.Enemy, delta: float) -> void:
 	v.rig.position.y = bob
 	if v.flies and not v.boss:
 		v.rig.position.y += sin(v.t * 9.0 + v.id) * 0.06
+	# flames on a burning enemy (fire arrows, oil, dragon fire): real fire, not a grey flash
+	var burning := e.burn > 0.0 or e.scorch > 0.0
+	if burning and v.flames == null:
+		v.flames = _flames(v)
+	if v.flames:
+		if v.flames is CPUParticles3D:
+			(v.flames as CPUParticles3D).emitting = burning
+		else:
+			v.flames.visible = burning
 	# stunned stars
 	var stunned := e.state == "stun"
 	if stunned and v.stars == null:
@@ -232,6 +242,37 @@ func _update(v: View, e: CastleSim.Enemy, delta: float) -> void:
 		v.aura.scale = Vector3.ONE * (1.0 + 0.06 * sin(v.t * 5.0))
 
 
+## Flames licking up a burning body, sized to it.
+func _flames(v: View) -> Node3D:
+	var fb := CastleFlipbook.make("fire_campfire", maxf(1.6, v.h * 1.25), true)
+	if fb:
+		fb.position = Vector3(0, v.h * 0.55, 0.3)
+		v.root.add_child(fb)
+		return fb
+	var f := CPUParticles3D.new()
+	f.amount = 14 if not v.boss else 28
+	f.lifetime = 0.55
+	f.mesh = CastleWorld._soft_ball(Color(1.0, 0.6, 0.2, 0.9))
+	f.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	f.emission_box_extents = Vector3(v.w * 0.35, v.h * 0.35, 0.25)
+	f.position = Vector3(0, v.h * 0.45, 0.2)
+	f.direction = Vector3.UP
+	f.spread = 12.0
+	f.initial_velocity_min = 0.8
+	f.initial_velocity_max = 1.6
+	f.gravity = Vector3(0, 1.2, 0)
+	f.scale_amount_min = 0.22 * maxf(1.0, v.h / 1.7)
+	f.scale_amount_max = 0.4 * maxf(1.0, v.h / 1.7)
+	var g := Gradient.new()
+	g.set_color(0, Color(2.0, 1.25, 0.35, 0.95))
+	g.add_point(0.5, Color(1.6, 0.45, 0.08, 0.8))
+	g.set_color(g.get_point_count() - 1, Color(0.3, 0.12, 0.08, 0.0))
+	f.color_ramp = g
+	f.emitting = false
+	v.root.add_child(f)
+	return f
+
+
 ## The materials: a hit flash beats the shadow look; open, rage and the commander's buff are overlays.
 func _look(v: View, e: CastleSim.Enemy) -> void:
 	var mode := "flash" if v.flash > 0.0 else ("shadow" if e.immune > 0.0 and e.kind == "shadow_beast" or e.state == "evade" else "")
@@ -247,8 +288,11 @@ func _look(v: View, e: CastleSim.Enemy) -> void:
 		for mi in v.meshes:
 			mi.material_override = m
 	var ov := ""
+	var burning := e.burn > 0.0 or e.scorch > 0.0
 	if e.vulnerable > 0.0:
 		ov = "open"
+	elif burning:
+		ov = "burn"
 	elif e.raging or (e.boss and e.phase >= 3 and e.kind == "dark_king"):
 		ov = "rage"
 	elif e.buffed:
@@ -454,7 +498,9 @@ func on_event(ev: Dictionary) -> void:
 		return
 	match ev.type:
 		"hit":
-			v.flash = FLASH
+			# fire hurts every tick: flashing on it would wash the body to flat grey
+			if ev.get("cause", "") != "fire":
+				v.flash = FLASH
 		"kill", "ward":
 			if v.dying < 0.0:
 				v.dying = 0.0

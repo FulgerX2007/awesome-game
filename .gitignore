@@ -4,3 +4,4 @@
 /godot/*/.godot/
 /godot/*/data/*.translation
 /build/
+/godot/castle/assets/ember/
