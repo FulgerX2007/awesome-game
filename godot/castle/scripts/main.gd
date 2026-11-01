@@ -322,7 +322,8 @@ func _on_event(ev: Dictionary) -> void:
 			sfx.play("bow", -4.0)
 			castle.shoot()
 		"hit":
-			sfx.play("hit", -8.0)
+			if ev.cause != "fire":
+				sfx.play("hit", -8.0)
 		"shield_hit":
 			sfx.play("clank", -6.0)
 		"kill":
@@ -581,6 +582,9 @@ func debug_setup(args: Dictionary) -> void:
 			sim.tick()
 			for ev in sim.drain():
 				_on_event(ev)
+		if args.has("burn"):
+			for e in sim.enemies:
+				e.burn = CastleSim.BURN_TIME
 		if args.has("aim"):
 			# hold the aim (the preview shows) at angle,power
 			var v := String(args.aim).split(",")
