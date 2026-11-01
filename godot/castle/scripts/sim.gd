@@ -391,7 +391,7 @@ func damage_defense(d: Defense, amount: float, cause := "blow") -> void:
 	emit("struct_hit", {did = d.id, amount = amount, cause = cause, x = d.x})
 	if d.hp <= 1e-9:
 		d.dead = true
-		emit("struct_broken", {did = d.id, type = d.type, x = d.x})
+		emit("struct_broken", {did = d.id, what = d.type, x = d.x})
 
 
 ## Live defences whose footprint touches [x0, x1].
@@ -795,7 +795,7 @@ func place(slot: int, type: String) -> String:
 	d.hp = d.max_hp
 	d.armor = float(c.get("armor", 0))
 	defenses.append(d)
-	emit("placed", {did = d.id, type = type, x = d.x})
+	emit("placed", {did = d.id, what = type, x = d.x})
 	return "ok"
 
 
@@ -807,7 +807,7 @@ func demolish(slot: int) -> bool:
 	gold += int(int(d.cfg.cost) * 0.5 * d.hp / d.max_hp)
 	d.dead = true
 	defenses.erase(d)
-	emit("demolished", {did = d.id, x = d.x})
+	emit("demolished", {did = d.id, what = d.type, x = d.x})
 	return true
 
 

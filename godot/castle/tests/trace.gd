@@ -4,7 +4,8 @@ extends SceneTree
 const Bot := preload("res://tests/bot.gd")
 func _initialize():
 	var n := int(OS.get_cmdline_user_args()[0])
-	var s := CastleSim.new_level(n, {}, 7)
+	var args := OS.get_cmdline_user_args()
+	var s := CastleSim.new_level(n, {}, int(args[1]) if args.size() > 1 else 7)
 	var t := 0.0
 	var next := 0.0
 	while s.status in ["ready", "between", "wave"]:

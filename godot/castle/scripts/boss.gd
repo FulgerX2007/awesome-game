@@ -17,7 +17,7 @@ static func init(s: CastleSim, e: CastleSim.Enemy) -> void:
 	e.state = "walk"
 	match e.kind:
 		"iron_warlord":
-			e.brain = {charge_cd = 5.0}
+			e.brain = {charge_cd = 5.0, last_blows = 0}
 		"siege_titan":
 			e.brain = {slam_cd = 5.0, throw_cd = 3.0}
 		"fire_dragon":
@@ -60,7 +60,7 @@ static func _telegraph(s: CastleSim, e: CastleSim.Enemy, kind: String, x0: float
 static func _on_phase(s: CastleSim, e: CastleSim.Enemy) -> void:
 	match e.kind:
 		"iron_warlord":
-			e.interval *= 0.6
+			e.interval *= 0.75
 			e.base_speed *= 1.35
 		"siege_titan":
 			e.base_speed *= 1.3
@@ -84,13 +84,18 @@ static func _on_phase(s: CastleSim, e: CastleSim.Enemy) -> void:
 					s.spawn("flyer", {x = e.x + 2.0 + k * 1.5, summoner = e.id, alt = 7.0 + k})
 
 
-## ── The Iron Warlord: slow and heavy; a telegraphed charge breaks defences; a charge that ends on stakes or
-## on open ground leaves him stunned and open; below half health he swings and charges more often. ──
+## ── The Iron Warlord: slow and heavy; each great swing leaves him open for a moment; a telegraphed charge
+## breaks defences; a charge that ends on stakes or on open ground leaves him stunned and open; below half
+## health he swings and charges more often. ──
 static func _warlord(s: CastleSim, e: CastleSim.Enemy) -> void:
 	var b := e.brain
 	match e.state:
 		"walk", "attack":
 			b.charge_cd -= TICK
+			if e.blows != b.last_blows:
+				# every heavy swing over-commits: a moment to hit back
+				b.last_blows = e.blows
+				e.vulnerable = maxf(e.vulnerable, 0.7)
 			var stop: float = s.stop_for(e)[0]
 			if b.charge_cd <= 0.0 and e.x - stop > 5.0:
 				_to(e, "tele_charge")

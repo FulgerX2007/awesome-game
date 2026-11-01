@@ -1,6 +1,6 @@
 {
   "_doc": "Bosses: the same body numbers as enemies plus their own brain (scripts/boss.gd). phases are the HP shares where the next phase starts. vuln is the damage multiplier while vulnerable (armour is ignored then).",
-  "iron_warlord": { "hp": 130, "speed": 0.75, "w": 1.6, "h": 3.0, "armor": 0.45, "damage": 6,  "interval": 2.0, "gold": 60,  "wall_mult": 1, "structure_mult": 2, "vuln": 1.6, "phases": [0.5], "flies": false },
+  "iron_warlord": { "hp": 130, "speed": 0.75, "w": 1.6, "h": 3.0, "armor": 0.45, "damage": 5,  "interval": 2.0, "gold": 60,  "wall_mult": 1, "structure_mult": 2, "vuln": 1.6, "phases": [0.5], "flies": false },
   "siege_titan":  { "hp": 260, "speed": 0.35, "w": 3.2, "h": 5.6, "armor": 0.65, "damage": 9,  "interval": 2.6, "gold": 90,  "wall_mult": 1, "structure_mult": 2, "vuln": 2.0, "phases": [0.4], "flies": false },
   "fire_dragon":  { "hp": 190, "speed": 2.2,  "w": 4.0, "h": 2.2, "armor": 0.3,  "damage": 4,  "interval": 1.5, "gold": 110, "wall_mult": 1, "structure_mult": 1, "vuln": 1.6, "phases": [0.5], "flies": true },
   "shadow_beast": { "hp": 170, "speed": 3.0,  "w": 2.4, "h": 2.0, "armor": 0.15, "damage": 3,  "interval": 0.9, "gold": 120, "wall_mult": 1, "structure_mult": 1.5, "vuln": 1.5, "phases": [0.66, 0.33], "flies": false },

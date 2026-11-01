@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://myrio7pxim45"
+
+[deps]
+
+files=["res://data/castle.ru.translation", "res://data/castle.ro.translation"]
+
+source_file="res://data/castle.csv"
+dest_files=["res://data/castle.ru.translation", "res://data/castle.ro.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

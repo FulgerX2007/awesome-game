@@ -573,3 +573,18 @@ func test_translations_cover_the_data() -> void:
 		need.append(c.desc)
 	for k in need:
 		ok(keys.has(k) and keys[k] != "", "Romanian for «%s»" % k)
+
+
+func test_translations_cover_the_ui() -> void:
+	var f := FileAccess.open("res://data/castle.csv", FileAccess.READ)
+	var keys := {}
+	f.get_csv_line()
+	while not f.eof_reached():
+		var row := f.get_csv_line()
+		if row.size() >= 3 and row[2] != "":
+			keys[row[0]] = true
+	var re := RegEx.create_from_string("tr\\(\"((?:[^\"\\\\]|\\\\.)*)\"\\)")
+	for script in ["res://scripts/main.gd", "res://scripts/ui.gd"]:
+		var src := FileAccess.get_file_as_string(script)
+		for m in re.search_all(src):
+			ok(keys.has(m.get_string(1)), "Romanian for «%s» (%s)" % [m.get_string(1), script.get_file()])
