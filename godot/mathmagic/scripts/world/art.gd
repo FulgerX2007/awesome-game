@@ -35,7 +35,7 @@ static func font() -> Font:
 
 
 ## Packs stored as .gltf (+ .bin and shared textures); the others are single .glb files.
-const GLTF_PACKS := ["hexagon/", "nature/"]
+const GLTF_PACKS := ["hexagon/", "nature/", "kaykit_forest/"]
 
 
 static func path(key: String) -> String:

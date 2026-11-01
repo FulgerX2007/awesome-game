@@ -5,9 +5,14 @@ extends RefCounted
 ## the island is warm and sunny, the mountains a little cooler and higher, with a pale sky.
 
 const WATER_Y := -1.1
+## Light per world. The island keeps its first tuning. The mountains were retuned with the art pass: a
+## softer, lower sun and less flat ambient light, and a higher tonemap white point, so lit grass stays green
+## instead of clipping to pale lime and shadows show the shape of the rock.
 const PALETTES := [
-	{top = "#4fa8f0", horizon = "#bfe6ff", sea = "#2f7fb8", ambient = "#c9dcff", sun = "#fff4dd"},
-	{top = "#5d8fe0", horizon = "#e6e4fa", sea = "#3b6fb0", ambient = "#d4d8ff", sun = "#ffe8cf"},
+	{top = "#4fa8f0", horizon = "#bfe6ff", sea = "#2f7fb8", ambient = "#c9dcff", sun = "#fff4dd",
+		sun_energy = 1.0, sun_pitch = -52.0, ambient_energy = 0.45, exposure = 0.9, white = 1.0},
+	{top = "#5d8fe0", horizon = "#e6e4fa", sea = "#3b6fb0", ambient = "#cfd8f5", sun = "#ffeacc",
+		sun_energy = 0.75, sun_pitch = -40.0, ambient_energy = 0.34, exposure = 1.1, white = 4.0, fog = 0.55},
 ]
 
 
@@ -26,9 +31,18 @@ static func build(parent: Node3D, min_x: float, max_x: float, world := 0) -> voi
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(pal.ambient)
-	env.ambient_light_energy = 0.45
+	env.ambient_light_energy = pal.ambient_energy
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 0.9
+	env.tonemap_exposure = pal.exposure
+	env.tonemap_white = pal.white
+	if pal.has("fog"):  # haze toward the horizon: far rocks fade into the sky and the path stands out
+		env.fog_enabled = true
+		env.fog_mode = Environment.FOG_MODE_DEPTH   # starts behind the play area, so nothing near is hazy
+		env.fog_light_color = Color(pal.horizon)
+		env.fog_density = pal.fog
+		env.fog_depth_begin = 18.0
+		env.fog_depth_end = 55.0
+		env.fog_sky_affect = 0.0
 	env.glow_enabled = true
 	env.glow_intensity = 0.25
 	env.glow_hdr_threshold = 1.2
@@ -37,8 +51,8 @@ static func build(parent: Node3D, min_x: float, max_x: float, world := 0) -> voi
 	parent.add_child(we)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-52, -35, 0)
-	sun.light_energy = 1.0
+	sun.rotation_degrees = Vector3(pal.sun_pitch, -35, 0)
+	sun.light_energy = pal.sun_energy
 	sun.light_color = Color(pal.sun)
 	sun.shadow_enabled = true
 	sun.shadow_opacity = 0.55

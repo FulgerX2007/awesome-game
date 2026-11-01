@@ -34,18 +34,19 @@ func focus_point() -> Vector3:
 
 func _build() -> void:
 	challenge = _make_challenge()
-	var base := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(1.4, 1.2, 1.4)
-	base.mesh = bm
-	base.material_override = Art.material(Color("#8d8a99"))
+	var base := MeshInstance3D.new()  # a carved stone pedestal (the same stone as the crystal steps)
+	base.mesh = Shapes.bevel_box(Vector3(1.4, 1.2, 1.4), 0.14)
+	base.material_override = Art.material(Color("#9c8670"))
 	base.position.y = 0.6
 	add_child(base)
-	_crystal = MeshInstance3D.new()
-	var pm := PrismMesh.new()
-	pm.size = Vector3(0.7, 1.0, 0.7)
-	_crystal.mesh = pm
-	_crystal.position.y = 1.75
+	var cap := MeshInstance3D.new()
+	cap.mesh = Shapes.bevel_box(Vector3(1.1, 0.16, 1.1), 0.05)
+	cap.material_override = Art.material(Color("#7d6a58"))
+	cap.position.y = 1.28
+	add_child(cap)
+	_crystal = MeshInstance3D.new()  # the energy crystal growing out of it
+	_crystal.mesh = Shapes.crystal_cluster(1.7, 3)
+	_crystal.position.y = 1.32
 	add_child(_crystal)
 	_panel = Node3D.new()  # the meter faces the camera, behind and above the machine
 	_panel.position = Vector3(1.6, 0.4, -0.6)
@@ -95,7 +96,7 @@ func _show_state() -> void:
 		c = Color("#ffd166")
 	elif state == State.SOLVED:
 		c = Color("#5be37d")
-	_crystal.material_override = Art.material(c, 1.0 if state != State.SOLVED else 3.0)
+	_crystal.material_override = Art.material(c, 0.8 if state != State.SOLVED else 1.6)
 
 
 func _show_wrong(value: int) -> void:

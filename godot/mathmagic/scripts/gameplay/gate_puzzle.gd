@@ -91,7 +91,7 @@ func _build() -> void:
 	_plate.rotation_degrees.y = 0
 	_vis.add_child(_plate)
 	_text = Art.label(challenge.question_text(), 110)
-	_text.position = Vector3(0, HEIGHT + 1.45, 0.0)
+	_text.position = Vector3(0, HEIGHT + 1.05, 0.0)
 	add_child(_text)
 	if show_objects:
 		_build_objects()

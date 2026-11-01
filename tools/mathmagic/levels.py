@@ -27,6 +27,7 @@ class Lvl:
     def __init__(self, name, index, cmin, cmax, intro):
         self.name, self.index, self.cmin, self.cmax, self.intro = name, index, cmin, cmax, intro
         self.nodes=[]; self.used=set(['level']); self.counts={}
+        self.terrain = False   # True: ground pieces use the sculpted Terrain mesh instead of hex tiles
     def _n(self, base):
         self.counts[base]=self.counts.get(base,0)+1
         return '%s%d' % (base, self.counts[base])
@@ -34,8 +35,14 @@ class Lvl:
         self.used.add(kind)
         self.nodes.append((name, typ, kind, tf(x,y,z,s,ry), props or {}, parent))
         return name
-    def ground(self, x, y, L, h=3, rows=3): return self.add('ground','StaticBody3D',self._n('Ground'),x,y,props={'length':L,'height':h,'rows':rows})
-    def plat(self, x, y, L=1): return self.add('ground','StaticBody3D',self._n('Platform'),x,y,props={'length':L,'height':1,'rows':1,'style':'"island"'})
+    def ground(self, x, y, L, h=3, rows=3):
+        props = {'length':L,'height':h,'rows':rows}
+        if self.terrain: props['style'] = '"terrain"'
+        return self.add('ground','StaticBody3D',self._n('Ground'),x,y,props=props)
+    def plat(self, x, y, L=1):
+        if self.terrain:  # a grassy wedge of rock, drawn deeper than it is solid so it never blocks a jump
+            return self.add('ground','StaticBody3D',self._n('Platform'),x,y,props={'length':L,'height':2,'rows':1,'style':'"terrain"','taper':0.85,'solid':0.9})
+        return self.add('ground','StaticBody3D',self._n('Platform'),x,y,props={'length':L,'height':1,'rows':1,'style':'"island"'})
     def kdecor(self, xs, y, seed):
         """Kenney Mini Forest dressing: little plants and grass patches at the front, tall pines behind."""
         r = random.Random(seed)
@@ -46,7 +53,9 @@ class Lvl:
     def stone(self, x, y): return self.add('pickup','Area3D',self._n('Stone'),x,y,props={'kind':'"stone"'})
     def gem(self, x, y): return self.add('pickup','Area3D',self._n('Gem'),x,y,props={'kind':'"gem"'})
     def prop(self, model, x, y, z, s=1.0, ry=0.0): return self.add('prop','Node3D',self._n('Prop'),x,y,z,s,ry,{'model':q(model)})
-    def sign(self, x, y, text, z=-2.2): return self.add('sign','Node3D',self._n('Sign'),x,y,z,props={'text':q(text)})
+    def sign(self, x, y, text, z=None):
+        if z is None: z = -1.6 if self.terrain else -2.2   # in front of the trees in the mountains
+        return self.add('sign','Node3D',self._n('Sign'),x,y,z,props={'text':q(text)})
     def checkpoint(self, x, y): return self.add('checkpoint','Area3D',self._n('Checkpoint'),x,y,-0.9)
     def goal(self, x, y, hidden=False): return self.add('goal','Area3D','Goal',x,y,props={'hidden':'true'} if hidden else {})
     def boss(self, x, y): return self.add('boss','Node3D','StoneGuardian',x,y)
@@ -75,21 +84,40 @@ class Lvl:
         while x < x1 + 10:
             self.prop(r.choice(['hexagon/cloud_big','hexagon/cloud_small']), x, r.uniform(8, 11), r.uniform(-16, -12), r.uniform(1.6, 2.4)); x += r.uniform(10, 16)
     def mscenery(self, x0, x1, seed):
-        """Multiplication Mountains: bare and grassy peaks close behind, clouds lower than on the island."""
+        """Multiplication Mountains in the distance: KayKit rock formations in two rows (the far row bigger and
+        lower, so the range has depth), pines on the near row, and a few clouds."""
         r = random.Random(seed)
-        far = ['hexagon/mountain_B', 'hexagon/mountain_A_grass_trees', 'hexagon/mountain_C_grass_trees', 'hexagon/mountain_B_grass', 'hexagon/mountain_B']
+        far = ['Rock_3_Q', 'Rock_3_R', 'Rock_3_P', 'Rock_3_O']      # KayKit's rounded boulders: no stacked blocks
+        tall = ['Rock_3_M', 'Rock_3_N', 'Rock_3_O', 'Rock_3_P']
+        x = x0 - 16
+        while x < x1 + 16:
+            self.prop('kaykit_forest/%s_Color1' % r.choice(far), x, -5.5, r.uniform(-36, -30), r.uniform(3.0, 4.0), r.uniform(0, 360)); x += r.uniform(9, 13)
         x = x0 - 14
         while x < x1 + 14:
-            self.prop(r.choice(far), x, -1.6, r.uniform(-14.5, -11.5), r.uniform(4.0, 5.2), r.uniform(0, 360)); x += r.uniform(5, 7.5)
+            self.prop('kaykit_forest/%s_Color1' % r.choice(tall), x, -2.8, r.uniform(-18, -15), r.uniform(1.0, 1.4), r.uniform(0, 360))
+            if r.random() < 0.6:
+                self.prop('kaykit_forest/Tree_4_%s_Color1' % r.choice('ABC'), x + r.uniform(1.2, 2.2), -1.4, r.uniform(-14.5, -13), r.uniform(0.7, 1.0), r.uniform(0, 360))
+            x += r.uniform(6, 9)
         x = x0 - 10
         while x < x1 + 10:
-            self.prop(r.choice(['hexagon/cloud_big','hexagon/cloud_small']), x, r.uniform(6.5, 9), r.uniform(-14, -10), r.uniform(1.8, 2.6)); x += r.uniform(8, 13)
-    def mdecor(self, xs, y, seed):
-        """Mountain dressing: pines and rocks behind the path, stones and low plants in front."""
+            self.prop(r.choice(['hexagon/cloud_big','hexagon/cloud_small']), x, r.uniform(8, 10.5), r.uniform(-18, -14), r.uniform(1.8, 2.6)); x += r.uniform(9, 14)
+    def mdecor(self, xs, y, seed, front=True):
+        """Mountain dressing from one family (KayKit Forest): a pine or a round tree well behind the path, with a
+        bush at its foot, and sometimes a boulder or a grass tuft at the front edge. Trees stand back far enough
+        that they never hide the hero, a sign or a puzzle."""
         r = random.Random(seed)
         for x in xs:
-            self.prop(r.choice(['kenney_forest/tree-high', 'kenney_forest/tree-high', 'kenney_forest/tree']), x + r.uniform(-0.5, 0.5), y, r.uniform(-2.6, -1.8), r.uniform(1.9, 2.5), r.uniform(0, 360))
-            self.prop(r.choice(['kenney_forest/stones', 'kenney_forest/rocks-low', 'nature/Grass_Small', 'kenney_forest/plant']), x + r.uniform(-0.8, 0.8), y, r.uniform(1.8, 2.5), r.uniform(1.6, 2.2), r.uniform(0, 360))
+            tree = r.choice(['Tree_4_A', 'Tree_4_B', 'Tree_4_C', 'Tree_1_A', 'Tree_1_B', 'Tree_3_A'])
+            self.prop('kaykit_forest/%s_Color1' % tree, x + r.uniform(-0.4, 0.4), y, r.uniform(-3.6, -2.9), r.uniform(0.7, 0.95), r.uniform(0, 360))
+            self.prop('kaykit_forest/Bush_%s_Color1' % r.choice(['1_D', '1_E', '1_F', '3_B', '1_C']), x + r.uniform(-1.0, 1.0), y, r.uniform(-3.0, -2.5), r.uniform(0.9, 1.2), r.uniform(0, 360))
+            if front and r.random() < 0.7:
+                k = r.choice(['Rock_3_D', 'Rock_3_E', 'Rock_3_F', 'Rock_3_G', 'Grass_1_A', 'Grass_2_A', 'Grass_1_B'])
+                self.prop('kaykit_forest/%s_Color1' % k, x + r.uniform(-0.8, 0.8), y - 0.05, r.uniform(2.0, 2.4), r.uniform(0.9, 1.3) if 'Rock' in k else r.uniform(1.6, 2.0), r.uniform(0, 360))
+    def krocks(self, xs, y, seed):
+        """KayKit boulders at the front edge, half sunk into the grass."""
+        r = random.Random(seed)
+        for x in xs:
+            self.prop('kaykit_forest/%s_Color1' % r.choice(['Rock_3_G', 'Rock_3_H', 'Rock_3_I', 'Rock_3_J']), x, y, r.uniform(2.0, 2.3), r.uniform(0.45, 0.65), r.uniform(0, 360))
     def ndecor(self, xs, y, seed):
         """Quaternius nature: a bush behind the path and a clump of flowers or grass in front, per x."""
         r = random.Random(seed)
@@ -272,6 +300,7 @@ def level5():
 
 def level6():
     L = Lvl('EqualGroupsTrail', 5, 7, 56, ["Welcome to Multiplication Mountains!", "Same-size piles are quick to count."])
+    L.terrain = True
     L.spawn(1, 0.6)
     L.ground(0, 0, 10)
     L.sign(4, 0, "Count one pile, then count on.")
@@ -290,12 +319,13 @@ def level6():
     L.mdecor([31, 44], 1, 202)
     L.prop('hexagon/tent', 25.5, 0, -2.2, 2.2, -25)
     L.prop('hexagon/flag_green', 23.5, 0, -1.6, 2.2)
-    L.rocks([5, 24, 48, 57], 0, 203)
+    L.krocks([5, 24, 48, 57], 0, 203)
     L.mscenery(0, 62, 204)
     L.write()
 
 def level7():
     L = Lvl('CrystalSteps', 6, 7, 42, ["The cliffs are too tall to jump.", "Light the crystals to build the steps."])
+    L.terrain = True
     L.spawn(1, 0.6)
     L.ground(0, 0, 7)
     L.sign(3, 0, "Each step needs the same number of crystals.")
@@ -313,12 +343,13 @@ def level7():
     L.mdecor([25.5], 3.2, 212)
     L.mdecor([38, 43, 46], 6.4, 213)
     L.prop('hexagon/flag_red', 46.5, 6.4, -1.6, 2.4)
-    L.rocks([3], 0, 214)
+    L.krocks([3], 0, 214)
     L.mscenery(0, 48, 215)
     L.write()
 
 def level8():
     L = Lvl('SummitPath', 7, 7, 50, ["The summit is near!", "Use everything you have learned."])
+    L.terrain = True
     L.spawn(1, 0.6)
     L.ground(0, 0, 6)
     L.sign(3, 0, "Adding, taking away and groups: you know them all!")
@@ -342,7 +373,7 @@ def level8():
     L.prop('hexagon/flag_red', 54.5, 6.4, -1.6, 2.6)
     L.prop('hexagon/flag_green', 51.5, 6.4, -1.8, 2.4)
     L.prop('hexagon/building_tower_A_blue', 55.5, 6.4, -2.8, 2.4)
-    L.rocks([5, 24], 0, 224)
+    L.krocks([5], 0, 224)
     L.mscenery(0, 56, 225)
     L.write()
 

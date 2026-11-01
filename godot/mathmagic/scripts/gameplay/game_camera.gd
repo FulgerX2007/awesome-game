@@ -3,8 +3,12 @@ extends Camera3D
 ## The fixed, angled 2.5D camera. Follows the mage with a little look-ahead, never rotates, stays inside the
 ## level's limits, and frames a puzzle while its challenge is open so the answer can be seen changing the world.
 
-@export var offset := Vector3(0, 4.2, 11.5)
-@export var look_up := 1.4          # the camera aims this far above the target
+## About 17% closer than the first version, at the same downward angle, so the hero is bigger on screen.
+@export var offset := Vector3(0, 3.6, 9.6)
+@export var look_up := 1.3          # the camera aims this far above the target
+## While a challenge is open the camera steps back to this multiple of the offset, so a whole puzzle (a gate
+## with its piles, a staircase) fits above the dialog.
+@export var focus_distance := 1.2
 @export var look_ahead := 1.8
 @export var smooth := 4.0
 
@@ -46,7 +50,7 @@ func _goal(delta: float) -> Vector3:
 		p = target.global_position + Vector3(_ahead, 0, 0)
 		p.y = maxf(p.y, 0.0) * 0.8   # rise with high ledges, never dive after a fall into the sea
 	p.x = clampf(p.x, min_x, max_x)
-	return p + offset * (zoom if focus == null else 1.0)
+	return p + offset * (zoom if focus == null else focus_distance)
 
 
 func snap() -> void:

@@ -15,13 +15,15 @@ extends PuzzleBase
 
 const DEPTH := 1.7
 const BASE_Y := -0.8             # the steps go down into the ground so they never float
-const GHOST := Color("#9ee8ff")
-const STONE := Color("#8f7fd0")       # lilac crystal stone, so the built steps read as magic
-const CRYSTAL := Color("#a259ff")
+const GHOST := Color("#9ee8ff")         # not real yet: light, see-through blue
+const STONE := Color("#9c8670")         # built: warm carved stone, like the rock around it
+const CRYSTAL := Color("#a259ff")       # the magic accent: lit crystals and the strip on each built step
+const EMPTY := Color("#e9e4ff")         # a socket still waiting for its crystal
 const CRYSTAL_GAP := 0.42
 
 var _steps: Array[Node3D] = []           # pivots at the bottom of each step, scaled up when they rise
 var _step_meshes: Array[MeshInstance3D] = []
+var _strips: Array[MeshInstance3D] = []  # the crystal strip on each step's front edge, lit once it is built
 var _bodies: Array[CollisionShape3D] = []
 var _crystals: Array = []                # per step, its crystal meshes
 var _text: Label3D
@@ -59,24 +61,26 @@ func _top(i: int) -> float:
 
 func _build() -> void:
 	challenge = _make_challenge()
-	var crystal_mesh := SphereMesh.new()   # 4 sides and one ring: a long diamond
-	crystal_mesh.radius = 0.2
-	crystal_mesh.height = 0.62
-	crystal_mesh.radial_segments = 4
-	crystal_mesh.rings = 1
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(global_position.x * 10.0)
 	for i in challenge.a:
 		var pivot := Node3D.new()
 		pivot.position = Vector3((i + 0.5) * _w(), BASE_Y, 0)
 		add_child(pivot)
 		_steps.append(pivot)
 		var h := _top(i) - BASE_Y
-		var m := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(_w() - 0.06, h, DEPTH)
-		m.mesh = bm
+		var m := MeshInstance3D.new()   # a carved block with softened edges, each one turned a hair differently
+		m.mesh = Shapes.bevel_box(Vector3(_w() - 0.08, h, DEPTH), 0.1)
 		m.position.y = h / 2.0
+		m.rotation_degrees.y = rng.randf_range(-1.5, 1.5)
 		pivot.add_child(m)
 		_step_meshes.append(m)
+		var strip := MeshInstance3D.new()
+		strip.mesh = Shapes.bevel_box(Vector3(_w() - 0.4, 0.09, 0.06), 0.03)
+		strip.position = Vector3(0, h - 0.2, DEPTH / 2.0 + 0.01)
+		strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pivot.add_child(strip)
+		_strips.append(strip)
 		var body := StaticBody3D.new()
 		body.collision_layer = 1
 		body.collision_mask = 0
@@ -99,10 +103,11 @@ func _build() -> void:
 		var gap_x := minf(CRYSTAL_GAP, (_w() - 0.2) / maxf(cx - 1, 1))
 		for k in challenge.b:
 			var cr := MeshInstance3D.new()
-			cr.mesh = crystal_mesh
+			cr.mesh = Shapes.crystal(0.12, 0.52, Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2)))
+			cr.rotation.y = rng.randf_range(0, TAU)
 			var row := k / cx
 			var in_row := mini(cx, challenge.b - row * cx)
-			cr.position = Vector3((k % cx - (in_row - 1) / 2.0) * gap_x, h + 0.34, (row - (rows - 1) / 2.0) * 0.5)
+			cr.position = Vector3((k % cx - (in_row - 1) / 2.0) * gap_x, h - 0.03, (row - (rows - 1) / 2.0) * 0.5)
 			cr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			pivot.add_child(cr)
 			list.append(cr)
@@ -138,10 +143,12 @@ func _paint_step(i: int, real: bool, lit: int) -> void:
 	var m := _step_meshes[i]
 	m.material_override = Art.material(STONE) if real else Art.material(GHOST, 0.5, 0.3)
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if real else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_strips[i].visible = real
+	_strips[i].material_override = Art.material(CRYSTAL, 0.8)
 	var list: Array = _crystals[i]
 	for k in list.size():
 		var cr: MeshInstance3D = list[k]
-		cr.material_override = Art.material(CRYSTAL, 0.6) if k < lit else Art.material(Color("#e9e4ff"), 0.4, 0.7)
+		cr.material_override = Art.material(CRYSTAL, 0.5) if k < lit else Art.material(EMPTY, 0.25, 0.6)
 
 
 func _wrong_message(value: int) -> String:
@@ -189,7 +196,7 @@ func _play_solved() -> void:
 		_bodies[i].set_deferred("disabled", false)
 		var list: Array = _crystals[i]
 		for k in list.size():
-			list[k].material_override = Art.material(CRYSTAL, 0.6)
+			list[k].material_override = Art.material(CRYSTAL, 0.5)
 		Fx.burst(self, _steps[i].global_position + Vector3(0, _top(i) - BASE_Y + 0.3, 0), CRYSTAL, 12, 2.5)
 	_wall.set_deferred("disabled", true)
 	Sfx.play("open")

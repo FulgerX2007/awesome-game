@@ -39,11 +39,11 @@ func _ready() -> void:
 	_panel.anchor_bottom = 1.0
 	_panel.offset_left = 24
 	_panel.offset_right = -24
-	_panel.offset_bottom = -16
+	_panel.offset_bottom = -12
 	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(_panel)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
+	v.add_theme_constant_override("separation", 2)
 	_panel.add_child(v)
 	_prompt = UiTheme.label("", "")
 	v.add_child(_prompt)
@@ -51,14 +51,14 @@ func _ready() -> void:
 	row.add_theme_constant_override("separation", 24)
 	v.add_child(row)
 	_equation = UiTheme.label("", "Title")
-	_equation.add_theme_font_size_override("font_size", 64)
+	_equation.add_theme_font_size_override("font_size", 58)
 	_equation.custom_minimum_size.x = 330
 	_equation.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_equation.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_equation.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_equation)
 	_view = CountingView.new()
-	_view.custom_minimum_size = Vector2(300, 110)
+	_view.custom_minimum_size = Vector2(300, 96)
 	_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_view)
 	var bottom := HBoxContainer.new()
@@ -99,7 +99,7 @@ func open(c: MathChallenge, who: Object) -> void:
 	for i in c.choices.size():
 		var b := UiTheme.button(str(c.choices[i]), "AnswerButton")
 		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		b.custom_minimum_size = Vector2(140, 100)
+		b.custom_minimum_size = Vector2(140, 88)  # still a big target for small fingers
 		b.tooltip_text = str(i + 1)
 		var value: int = c.choices[i]
 		b.pressed.connect(func(): answer(value))

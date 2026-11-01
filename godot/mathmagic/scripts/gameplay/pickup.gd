@@ -26,19 +26,10 @@ func _ready() -> void:
 	_visual = Node3D.new()
 	add_child(_visual)
 	if kind == "gem":
-		var m := MeshInstance3D.new()
-		var p := PrismMesh.new()
-		p.size = Vector3(0.55, 0.7, 0.55)
-		m.mesh = p
-		m.material_override = Art.material(Color("#ff5fb4"), 1.6)
+		var m := MeshInstance3D.new()  # a cut gem with facets, gently glowing
+		m.mesh = Shapes.gem(0.34)
+		m.material_override = Art.material(Color("#ff5fb4"), 0.9)
 		m.position.y = 0.95
-		var m2 := MeshInstance3D.new()
-		m2.mesh = p
-		m2.material_override = m.material_override
-		m2.rotation_degrees.z = 180
-		m2.position.y = -0.7
-		m.add_child(m2)
-		m.scale = Vector3(1, 0.6, 1)
 		_visual.add_child(m)
 	else:
 		var st := Art.counting_stone(1.6)

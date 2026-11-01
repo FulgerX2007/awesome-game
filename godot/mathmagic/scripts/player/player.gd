@@ -15,7 +15,9 @@ signal landed
 @export var jump_buffer := 0.14
 @export var interact_cooldown := 0.35
 
-const MODEL_SCALE := 0.66
+## The model is drawn a little larger than its collision capsule (1.3 tall) so the hero reads well on screen;
+## the capsule, and with it every jump and gap, is unchanged.
+const MODEL_SCALE := 0.74
 ## What the game asks for and which rig clip shows it (the hero rig has no cheer or spell clips).
 const ACTIONS := {cheer = "Jump_Full_Short", cast = "Use_Item", hit = "Hit_A", pickup = "PickUp"}
 

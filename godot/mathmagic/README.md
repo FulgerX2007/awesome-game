@@ -129,11 +129,14 @@ godot/mathmagic/
     progression/ level_catalog.gd, progress_manager.gd
     save/        save_manager.gd
     ui/          ui_manager.gd, challenge_dialog.gd, counting_view.gd, ui_theme.gd, touch_controls.gd
-    world/       ground.gd (hex-tile terrain and floating islands), prop.gd, art.gd (models, heroes, materials), fx.gd, lift.gd, windmill.gd, sign_post.gd, level_environment.gd
+    world/       ground.gd (hex tiles, floating islands or sculpted terrain), terrain.gd (the sculpted ground mesh),
+                 shapes.gd (crystals, gems, bevelled blocks), prop.gd, art.gd (models, heroes, materials), fx.gd,
+                 lift.gd, windmill.gd, sign_post.gd, level_environment.gd (sky, light and fog per world)
     audio/       sfx.gd
   data/strings.csv       EN/RU/RO texts (Godot imports it as translations)
   tests/                 run.gd (unit), playthrough.tscn (bot plays the game)
   docs/ASSETS.md         asset manifest and licenses
+  docs/ART.md            art direction, the mountain art pass, lighting values
 ```
 
 | Piece | Responsibility |
@@ -166,10 +169,13 @@ scenes, a world entry with its own sky palette, and the gate learning to show eq
   easy to keep consistent, and "big text" is just a different theme.
 - The gameplay plane is z = 0. The player's z is reset every physics frame, so nothing can push the mage into
   the background.
-- The camera never rotates. It follows with look-ahead, is clamped to the level, pulls back in the boss arena,
-  and frames the puzzle above the dialog while a challenge is open. Below 16:10 it keeps the width instead of
+- The camera never rotates. It follows with look-ahead, is clamped to the level, pulls back in the boss
+  arena, and frames the puzzle above the dialog while a challenge is open (stepping back 20% so the whole
+  puzzle fits). It sits close enough that the hero is a clear figure; the hero model is also drawn a little
+  larger than its collision capsule, which is unchanged. Below 16:10 it keeps the width instead of
   the height, so the path ahead stays visible on narrow and portrait screens.
-- Terrain is hex tiles in one MultiMesh per layer (a few draw calls per strip), one shadowed sun, no other
+- Island terrain is hex tiles in one MultiMesh per layer (a few draw calls per strip); mountain terrain is one
+  generated mesh per ground piece (`Terrain`), with its own colors baked into the vertices. One shadowed sun, no other
   real-time lights. Particles are one-shot and free themselves. Models and level scenes are loaded once and cached.
 - No puzzle hard-codes a question. Levels only choose a skill and a difficulty window; the bridge also caps
   the answer so it never asks for more stones than the level offers.
