@@ -232,6 +232,11 @@ func _process(delta: float) -> void:
 		_flash -= delta
 		if _flash < -6.0 + _rng.randf() * 3.0:
 			_flash = 0.18
+			# a bolt of lightning somewhere over the hills (Ember sheet when present; the flash either way)
+			var bolt := CastleFlipbook.make("elemental_lightning_strike", 46.0)
+			if bolt:
+				bolt.position = Vector3(_rng.randf_range(5.0, 70.0), 20.0, _rng.randf_range(-110.0, -70.0))
+				add_child(bolt)
 		sun.light_energy = env.sun_energy * (1.0 + (2.5 if _flash > 0.0 else 0.0))
 
 

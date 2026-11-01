@@ -306,6 +306,7 @@ static func _arrow_mesh(fire: bool, enemy: bool) -> Mesh:
 func _sync_zones(sim: CastleSim) -> void:
 	var i := 0
 	var counts := {fire = 0, curse = 0}
+	var flames_used := 0
 	for z in sim.zones:
 		var d := _zone_decal(i)
 		i += 1
@@ -329,6 +330,15 @@ func _sync_zones(sim: CastleSim) -> void:
 		m.set_shader_parameter("tint", Color(0.55, 0.2, 0.9) if curse else Color(1.0, 0.35, 0.05))
 		m.set_shader_parameter("alpha", fade * minf(1.0, (t - delay) / 0.25))
 		var key := "curse" if curse else "fire"
+		if not curse and CastleFlipbook.available("fire_campfire"):
+			# real flames along the burning stretch, a flipbook every 1.4 m
+			var n := maxi(1, int((x1 - x0) / 1.4))
+			for k in n:
+				var f := _zone_flame(flames_used)
+				flames_used += 1
+				f.visible = fade > 0.05
+				f.modulate.a = fade
+				f.position = Vector3(x0 + (k + 0.5) * (x1 - x0) / n, 0.95, 0.3 + (k % 2) * 0.5 - 0.25)
 		var e := _zone_emitter(key, counts[key])
 		counts[key] += 1
 		e.visible = true
@@ -337,10 +347,23 @@ func _sync_zones(sim: CastleSim) -> void:
 		e.emission_box_extents = Vector3((x1 - x0) * 0.5, 0.1, 1.5)
 	for k in range(i, _zone_decals.size()):
 		_zone_decals[k].node.visible = false
+	for k in range(flames_used, _zone_flames.size()):
+		_zone_flames[k].visible = false
 	for key in _zone_emitters:
 		var arr: Array = _zone_emitters[key]
 		for k in range(counts[key], arr.size()):
 			arr[k].emitting = false
+
+
+var _zone_flames: Array[CastleFlipbook] = []
+
+
+func _zone_flame(i: int) -> CastleFlipbook:
+	while _zone_flames.size() <= i:
+		var f := CastleFlipbook.make("fire_campfire", 2.4, true)
+		add_child(f)
+		_zone_flames.append(f)
+	return _zone_flames[i]
 
 
 func _zone_decal(i: int) -> Dictionary:
@@ -421,6 +444,16 @@ func hide_aim() -> void:
 
 ## ── Events ──
 
+## A one-shot Ember flipbook at a point (when the sheets are there); true when one plays.
+func _fb(effect: String, at: Vector3, size: float) -> bool:
+	var f := CastleFlipbook.make(effect, size)
+	if f == null:
+		return false
+	f.position = at
+	add_child(f)
+	return true
+
+
 func on_event(ev: Dictionary) -> void:
 	match ev.type:
 		"hit":
@@ -466,11 +499,13 @@ func on_event(ev: Dictionary) -> void:
 					_burst("puff", at, 1.8)
 					_shake(0.45)
 				"fireball":
-					_burst("explode", at, 1.0)
+					if not _fb("explosion_fireball", at + Vector3(0, 0.8, 0.2), 4.0):
+						_burst("explode", at, 1.0)
 					_burst("embers", at)
 					_shake(0.25)
 				"bolt":
-					_burst("magic", at, 0.8)
+					if not _fb("magic_arcane_burst", at + Vector3(0, 0.3, 0.2), 2.6):
+						_burst("magic", at, 0.8)
 				_:
 					_burst("puff", at, 0.5)
 		"telegraph":
@@ -481,7 +516,11 @@ func on_event(ev: Dictionary) -> void:
 			_burst("ring", Vector3((x0 + x1) * 0.5, 0.2, 0.2), 1.0, Vector3(maxf(0.5, (x1 - x0) * 0.5), 0.1, 1.4))
 			if ev.kind != "breath":
 				_burst("chips", Vector3((x0 + x1) * 0.5, 0.3, 0.3), 1.2)
+			if ev.kind == "shockwave":
+				_fb("magic_arcane_burst", Vector3((x0 + x1) * 0.5, 1.5, 0.4), 6.0)
 			_shake(0.6)
+		"oil":
+			_fb("explosion_fireball", Vector3(ev.x, 1.2, 0.5), 4.5)
 		"tower_shot":
 			var from := Vector3(ev.x0, ev.y0, -2.6)
 			var to := Vector3(ev.x1, ev.y1, 0.0)
@@ -490,6 +529,7 @@ func on_event(ev: Dictionary) -> void:
 				_trail_emit(from.lerp(to, f) + Vector3(0, sin(f * PI) * 0.8, 0), Color(1.0, 0.95, 0.8), 0.5)
 			_burst("spark", to, 0.7)
 		"ward":
+			_fb("magic_arcane_burst", Vector3(ev.x, ev.y, 0.6), 2.6)
 			_burst("ward", Vector3(ev.x, ev.y, 0.5), 1.0)
 			_burst("ring", Vector3(ev.x, ev.y, 0.5), 0.6, Vector3(0.3, 0.3, 0.3))
 		"rage":
@@ -498,7 +538,8 @@ func on_event(ev: Dictionary) -> void:
 			var at := Vector3(float(ev.get("x", 0.0)), 0.3, 0.2)
 			if ev.type == "summon" and not ev.has("x"):
 				at.x = _last_boss_x()
-			_burst("portal", at, 1.2 if ev.type != "spawned" else 0.7)
+			if ev.type == "spawned" or not _fb("magic_arcane_burst", at + Vector3(0, 1.4, 0.3), 4.0):
+				_burst("portal", at, 1.2 if ev.type != "spawned" else 0.7)
 		"evade":
 			_burst("shadow", Vector3(ev.x, 1.0, 0.3), 1.4)
 		"land", "stun":
@@ -509,11 +550,13 @@ func on_event(ev: Dictionary) -> void:
 			var x := _last_boss_x()
 			var big: bool = ev.get("final", false)
 			_burst("flash", Vector3(x, 2.5, 0.4), 2.0 if big else 1.3)
+			_fb("magic_arcane_burst", Vector3(x, 2.5, 0.6), 8.0 if big else 5.0)
 			_burst("ring", Vector3(x, 0.3, 0.3), 1.0, Vector3(4.0 if big else 2.5, 0.2, 2.0))
 			_shake(0.9 if big else 0.5)
 		"boss_dead":
 			var at := Vector3(ev.x, 1.5, 0.4)
-			_burst("explode", at, 2.2)
+			if not _fb("explosion_fireball", at + Vector3(0, 1.5, 0.3), 10.0):
+				_burst("explode", at, 2.2)
 			_burst("flash", at, 2.4)
 			_burst("embers", at, 1.5)
 			_burst("chips", at, 1.5)

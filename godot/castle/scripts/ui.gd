@@ -50,50 +50,54 @@ var pause_box: Control
 var _t := 0.0
 
 
-class Bar extends Control:
-	## A rounded bar: value 0..1, colour, text in the middle, optional phase marks.
-	var value := 1.0
-	var shown := 1.0
-	var color := Color("#86d36f")
-	var back := Color(0, 0, 0, 0.45)
-	var text := ""
-	var marks: Array = []
-	var flash := 0.0
+class PixelBox extends Control:
+	## A Pixel Bars bar (addons/pixel_bars, by heyheythere, CC BY 4.0) drawn at its native pixel size and
+	## scaled by a whole number, so the pixel art stays crisp, with a label over it. value is 0..1.
+	const K := 3.0
+	var bar: PixelBar
+	var caption: Label
+	var value := 1.0:
+		set(v):
+			value = v
+			if bar:
+				bar.value = v
+	var fill := "health":
+		set(v):
+			if v != fill:
+				fill = v
+				if bar:
+					bar.fill = v
+	var text := "":
+		set(v):
+			text = v
+			if caption:
+				caption.text = v
 
-	func _process(delta: float) -> void:
-		shown = move_toward(shown, value, delta * 0.8)
-		flash = maxf(0.0, flash - delta * 3.0)
-		queue_redraw()
-
-	func _draw() -> void:
-		var r := Rect2(Vector2.ZERO, size)
-		draw_style_box(_box(back, 0), r)
-		if shown > value:
-			draw_style_box(_box(Color(1, 0.9, 0.7, 0.85), 0), Rect2(Vector2.ZERO, Vector2(size.x * shown, size.y)))
-		if value > 0.0:
-			var c := color.lerp(Color.WHITE, flash * 0.6)
-			draw_style_box(_box(c, 0), Rect2(Vector2.ZERO, Vector2(maxf(size.y, size.x * value), size.y)))
-			draw_rect(Rect2(3, 2, maxf(0.0, size.x * value - 6), size.y * 0.3), Color(1, 1, 1, 0.18))
-		for m in marks:
-			draw_line(Vector2(size.x * m, 2), Vector2(size.x * m, size.y - 2), Color(0, 0, 0, 0.6), 2.0)
-		draw_style_box(_box(Color(0, 0, 0, 0), 2), r)
-		if text != "":
-			var f := get_theme_default_font()
-			var fs := int(size.y * 0.62)
-			var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-			var p := Vector2((size.x - w) * 0.5, size.y * 0.5 + fs * 0.36)
-			draw_string_outline(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color(0, 0, 0, 0.7))
-			draw_string(f, p, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)
-
-	func _box(c: Color, border: int) -> StyleBoxFlat:
-		var s := StyleBoxFlat.new()
-		s.bg_color = c
-		s.set_corner_radius_all(int(size.y * 0.5))
-		if border:
-			s.border_color = Color(0, 0, 0, 0.55)
-			s.set_border_width_all(border)
-			s.draw_center = false
-		return s
+	func _init(shape: int, px: Vector2, font: Font) -> void:
+		custom_minimum_size = px
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		bar = PixelBar.new()
+		bar.shape = shape
+		bar.style = "wood"
+		bar.fill = fill
+		bar.max_value = 1.0
+		bar.low = 0.3
+		bar.scale = Vector2(K, K)
+		bar.size = px / K
+		bar.custom_minimum_size = px / K
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(bar)
+		caption = Label.new()
+		caption.set_anchors_preset(Control.PRESET_FULL_RECT)
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		caption.add_theme_font_override("font", font)
+		caption.add_theme_font_size_override("font_size", int(px.y * 0.5))
+		caption.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		caption.add_theme_constant_override("outline_size", 5)
+		caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(caption)
 
 
 class Icon extends Control:
@@ -106,10 +110,23 @@ class Icon extends Control:
 		kind = k
 		custom_minimum_size = Vector2(px, px)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var pip: String = {star = "star", star_off = "star_empty", shield = "shield"}.get(k, "")
+		if pip != "":
+			# the Pixel Bars pips (16 px), crisp
+			var pic := TextureRect.new()
+			pic.texture = load("res://addons/pixel_bars/pips/%s.png" % pip)
+			pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+			pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			add_child(pic)
 
 	func _draw() -> void:
 		var s := minf(size.x, size.y)
 		var c := size * 0.5
+		if get_child_count() > 0:
+			return
 		match kind:
 			"coin":
 				draw_circle(c, s * 0.45, Color("#b8801e"))
@@ -158,6 +175,7 @@ func _ready() -> void:
 	bars.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bars.draw.connect(_draw_bars)
+	bars.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	root.add_child(bars)
 
 
@@ -392,8 +410,10 @@ func show_menu() -> void:
 		rec.append(tr("Кампания пройдена"))
 	if not rec.is_empty():
 		v.add_child(label(" · ".join(rec), 16, DIM, HORIZONTAL_ALIGNMENT_CENTER))
+	var credits := label(tr("Графика") + ": Pixel Bars Free by heyheythere (CC BY 4.0) · Avramania (CC0) · Low Poly Winter Pack by reodesuxz", 12, DIM.darkened(0.15), HORIZONTAL_ALIGNMENT_CENTER)
 	var how := label(tr("Потяни назад от любой точки поля — стрела полетит в другую сторону; пока держишь, лук стреляет сам. Между волнами выбери улучшение, почини стену и поставь укрепления перед ней. Клавиши: стрелки — угол и сила, Пробел — стрелять, P — пауза."), 15, DIM)
 	v.add_child(how)
+	v.add_child(credits)
 	p.add_child(v)
 	col.add_child(p)
 	var right := MarginContainer.new()
@@ -631,8 +651,7 @@ func show_play() -> void:
 	lv.add_child(hud_level)
 	lv.add_child(hud_wave)
 	row.add_child(lv)
-	var wall := Bar.new()
-	wall.custom_minimum_size = Vector2(200, 26)
+	var wall := PixelBox.new(PixelBar.Shape.BAR, Vector2(216, 36), FONT)
 	wall.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hud_wall = wall
 	row.add_child(wall)
@@ -666,9 +685,8 @@ func show_play() -> void:
 	boss_name.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	boss_name.add_theme_constant_override("outline_size", 6)
 	boss_box.add_child(boss_name)
-	var bb := Bar.new()
-	bb.custom_minimum_size = Vector2(540, 20)
-	bb.color = Color("#d8443a")
+	var bb := PixelBox.new(PixelBar.Shape.BOSS, Vector2(540, 48), FONT)
+	bb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	boss_bar = bb
 	boss_box.add_child(bb)
 	boss_hint = label("", 16, ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
@@ -758,13 +776,9 @@ func update_play(delta: float) -> void:
 	var s: CastleSim = main.sim
 	if s == null or hud == null:
 		return
-	var wb: Bar = hud_wall
-	var f := s.wall_hp / s.wall_max
-	if f < wb.value - 0.001:
-		wb.flash = 1.0
-	wb.value = f
+	var wb: PixelBox = hud_wall
+	wb.value = s.wall_hp / s.wall_max
 	wb.text = "%d/%d" % [ceili(s.wall_hp), roundi(s.wall_max)]
-	wb.color = GOOD if f > 0.6 else (WARN if f > 0.3 else BAD)
 	hud_gold.text = str(s.gold)
 	hud_ward.text = str(s.ward)
 	if s.mode == "endless":
@@ -775,24 +789,24 @@ func update_play(delta: float) -> void:
 	if b:
 		var th: Array = CastleContent.bosses()[b.kind].phases
 		boss_name.text = tr(main.BOSS_INFO[b.kind][0]) + ("  ·  " + tr("Фаза {n}").format({n = b.phase}) if th.size() > 0 else "")
-		var bb: Bar = boss_bar
+		var bb: PixelBox = boss_bar
 		bb.value = clampf(b.frac(), 0.0, 1.0)
-		bb.marks = th
+		# the fill tells the state: red as usual, green while open to a hit, blue behind a shield
 		if b.vulnerable > 0.0:
 			boss_hint.text = tr("Уязвим — бей!")
 			boss_hint.add_theme_color_override("font_color", GOOD)
-			bb.color = Color("#ffb03a")
+			bb.fill = "stamina"
 		elif b.immune > 0.0:
 			boss_hint.text = tr("Неуязвим")
 			boss_hint.add_theme_color_override("font_color", DIM)
-			bb.color = Color("#6a5a8a")
+			bb.fill = "mana"
 		elif b.barrier:
 			boss_hint.text = tr("Барьер: убей свиту короля")
 			boss_hint.add_theme_color_override("font_color", Color("#c9a0ff"))
-			bb.color = Color("#8a5ad8")
+			bb.fill = "mana"
 		else:
 			boss_hint.text = ""
-			bb.color = Color("#d8443a")
+			bb.fill = "health"
 	# the banner
 	if banner_box and banner_box.visible:
 		_banner_t -= delta
@@ -840,10 +854,28 @@ func _draw_health() -> void:
 		if a == Vector3.INF:
 			continue
 		var p: Vector2 = main.world.to_screen(a)
-		var w := clampf(e.w * 22.0, 22.0, 46.0)
-		var r := Rect2(p.x - w * 0.5, p.y - 8, w, 5)
-		bars.draw_rect(r.grow(1.0), Color(0, 0, 0, 0.6))
-		bars.draw_rect(Rect2(r.position, Vector2(w * clampf(e.frac(), 0.0, 1.0), 5)), Color("#ff6a55") if not e.raging else Color("#ff2a2a"))
+		# the Pixel Bars thin bar at twice its pixels: a wooden frame and the red fill over its track
+		var w := roundf(clampf(e.w * 11.0, 11.0, 23.0))
+		bars.draw_set_transform(Vector2(roundf(p.x - w), roundf(p.y - 16)), 0.0, Vector2(2, 2))
+		bars.draw_style_box(_thin("frames/wood"), Rect2(0, 0, w, 7))
+		var inner := 1.0 + clampf(e.frac(), 0.0, 1.0) * (w - 2.0)
+		if inner > 1.5:
+			bars.draw_style_box(_thin("fills/health"), Rect2(0, 0, inner + 1.0, 7))
+	bars.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+static var _thin_boxes := {}
+
+
+## A thin bar piece as a 9-slice (the pack's 2 px margins), for the enemies' health over the field.
+static func _thin(dir: String) -> StyleBoxTexture:
+	if not _thin_boxes.has(dir):
+		var sb := StyleBoxTexture.new()
+		sb.texture = load("res://addons/pixel_bars/%s/thin.png" % dir)
+		sb.set_texture_margin_all(2)
+		sb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+		_thin_boxes[dir] = sb
+	return _thin_boxes[dir]
 
 
 func toast(text: String, color := FG, dur := 2.0) -> void:
