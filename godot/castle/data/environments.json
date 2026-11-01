@@ -1,0 +1,60 @@
+{
+  "_doc": "The look of each region (scripts/world.gd builds every one from these numbers; nothing else changes between regions). Colours are hex. trees: oak | pine | snowpine | dead | twisted | spire. particles: leaves | snow | embers | motes | ash. times override the sky, sun and fog for a level's time of day.",
+  "frontier": {
+    "sky_top": "#3f7fd6", "sky_horizon": "#bfe0f2", "ground_horizon": "#9cc79a",
+    "sun": "#fff1d6", "sun_energy": 1.35, "sun_angle": [-38, -30], "ambient": "#b9d4ff", "ambient_energy": 0.55,
+    "fog": "#c5dcea", "fog_density": 0.0042,
+    "grass": "#7cbd4f", "grass_dark": "#5a9a3c", "grass_light": "#a8d86e", "road": "#b08a5c", "road_dark": "#8a6a46",
+    "hills": ["#5f9d48", "#78ad5a", "#8fbb78"], "mountain": "#6f7f9c", "mountain_far": "#93a3bd", "snowcap": "#f4f7fb",
+    "trees": "oak", "tree_colors": ["#4d8f34", "#3f7c2e", "#62a442"], "trunk": "#6b4a2f",
+    "rocks": "#9a9a92", "flowers": ["#f2e15a", "#e86fa4", "#ffffff", "#9b7ff0"], "particles": "leaves", "clouds": "#ffffff",
+    "props": ["windmill", "fence", "haystacks"]
+  },
+  "frost": {
+    "sky_top": "#5a7fb4", "sky_horizon": "#dfe8f2", "ground_horizon": "#d8e3ee",
+    "sun": "#eaf2ff", "sun_energy": 1.15, "sun_angle": [-30, -40], "ambient": "#c8dcff", "ambient_energy": 0.75,
+    "fog": "#dce6f0", "fog_density": 0.0065,
+    "grass": "#e8eff6", "grass_dark": "#c4d3e2", "grass_light": "#ffffff", "road": "#a8a29a", "road_dark": "#7f7a74",
+    "hills": ["#d7e2ee", "#c7d6e6", "#b6c8dc"], "mountain": "#8796b4", "mountain_far": "#a8b5cf", "snowcap": "#ffffff",
+    "trees": "snowpine", "tree_colors": ["#2f5a4c", "#2a5045", "#3a6b5a"], "trunk": "#5a4433",
+    "rocks": "#8b93a0", "flowers": [], "particles": "snow", "clouds": "#eef3fa",
+    "props": ["icicles", "frozen_lake"]
+  },
+  "ash": {
+    "sky_top": "#5a2f2a", "sky_horizon": "#d9874e", "ground_horizon": "#6e4a3a",
+    "sun": "#ffb070", "sun_energy": 1.2, "sun_angle": [-25, -35], "ambient": "#ff9c6e", "ambient_energy": 0.45,
+    "fog": "#a8684a", "fog_density": 0.0075,
+    "grass": "#5b4a42", "grass_dark": "#3e322e", "grass_light": "#7a6458", "road": "#7c5d48", "road_dark": "#5a4232",
+    "hills": ["#4d3b35", "#5d4840", "#6e574c"], "mountain": "#4a3633", "mountain_far": "#6e4e45", "snowcap": "#ff7a3a",
+    "trees": "dead", "tree_colors": ["#2b2220", "#3a2c28", "#1f1917"], "trunk": "#2b2220",
+    "rocks": "#4e4440", "flowers": [], "particles": "embers", "clouds": "#7d6b66",
+    "props": ["lava", "smoke_vents", "bones"]
+  },
+  "cursed": {
+    "sky_top": "#1d1a3a", "sky_horizon": "#6a5a8e", "ground_horizon": "#3e3d55",
+    "sun": "#b7b0ff", "sun_energy": 0.85, "sun_angle": [-40, -25], "ambient": "#8d7fd6", "ambient_energy": 0.6,
+    "fog": "#4b4566", "fog_density": 0.0085,
+    "grass": "#3f5241", "grass_dark": "#2b3a2e", "grass_light": "#5d7556", "road": "#5e5149", "road_dark": "#443a34",
+    "hills": ["#2f3b34", "#38463d", "#435146"], "mountain": "#3a3650", "mountain_far": "#575173", "snowcap": "#a99be0",
+    "trees": "twisted", "tree_colors": ["#3a4a35", "#2c3a2b", "#4a3f5c"], "trunk": "#3b302c",
+    "rocks": "#57545e", "flowers": ["#a77cff", "#6be0c0"], "particles": "motes", "clouds": "#6f6a8c",
+    "props": ["ruins", "gravestones", "crows"]
+  },
+  "citadel": {
+    "sky_top": "#140f1f", "sky_horizon": "#7a2e3a", "ground_horizon": "#3a2a30",
+    "sun": "#ff8a7a", "sun_energy": 0.9, "sun_angle": [-30, -30], "ambient": "#9a6a8a", "ambient_energy": 0.55,
+    "fog": "#4a2a33", "fog_density": 0.008,
+    "grass": "#3c3434", "grass_dark": "#2a2424", "grass_light": "#524545", "road": "#4e443f", "road_dark": "#36302c",
+    "hills": ["#2e2628", "#382e30", "#433638"], "mountain": "#2a2028", "mountain_far": "#4a3440", "snowcap": "#c0435a",
+    "trees": "spire", "tree_colors": ["#2a2226", "#1e1a1c", "#3a2c30"], "trunk": "#221c1e",
+    "rocks": "#4a4044", "flowers": [], "particles": "ash", "clouds": "#5a3a44",
+    "props": ["citadel", "spikes", "banners"]
+  },
+  "times": {
+    "day": {},
+    "evening": { "sky_top_mul": 0.85, "sky_horizon_mix": ["#ffc58a", 0.35], "sun_mix": ["#ffc080", 0.4], "sun_angle_add": [14, 0], "fog_mix": ["#e8b48a", 0.25] },
+    "dusk": { "sky_top_mul": 0.6, "sky_horizon_mix": ["#ff8a5a", 0.5], "sun_mix": ["#ff9a6a", 0.55], "sun_energy_mul": 0.8, "sun_angle_add": [22, 0], "fog_mix": ["#b8705a", 0.35], "torches": true },
+    "night": { "sky_top_mul": 0.3, "sky_horizon_mix": ["#2a3058", 0.65], "sun_mix": ["#8fa6ff", 0.7], "sun_energy_mul": 0.45, "ambient_mul": 0.8, "fog_mix": ["#1e2240", 0.55], "torches": true, "stars": true },
+    "storm": { "sky_top_mul": 0.55, "sky_horizon_mix": ["#7a8090", 0.6], "sun_energy_mul": 0.6, "fog_mix": ["#8a909c", 0.5], "fog_density_mul": 1.5, "torches": true, "storm": true }
+  }
+}
