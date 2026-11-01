@@ -225,18 +225,59 @@ func _missile(kind: String, k: int) -> Node3D:
 	return arr[k]
 
 
-## An arrow of the model pack (+y along the shaft, origin at the nock) turned to point +x with its tip at the
-## node's origin; a fire arrow gets a glowing head.
+## A player arrow pointing +x with its tip at the node's origin; a fire arrow gets a glowing head.
 func _arrow_node(fire: bool, scale: float) -> Node3D:
 	var n := Node3D.new()
-	var a := Kit.pack_node("weapons_arrow_01", Vector3(-0.78 * scale, 0, 0), scale)
-	a.rotation_degrees = Vector3(0, 0, -90)
+	# a bold arrow, not the real 4 cm one: at gameplay zoom a metre is ~19 px, so the shaft is drawn ~14 cm
+	# thick and dark, with a bright steel head and white fletching, to stand out on sky, snow and grass
+	var len := 0.78 * scale
+	var bb := Kit.builder()
+	bb.add("box", Vector3(-len * 0.5, 0, 0), Vector3(len, 0.13, 0.13), Color("#3a2414"), "wood")
+	bb.add("cone4", Vector3(0.12, 0, 0), Vector3(0.3, 0.32, 0.3), Color(0.95, 0.95, 1.0) if not fire else Color(2.6, 1.3, 0.4), "metal" if not fire else "glow", Vector3(0, 0, -90))
+	bb.add("prism", Vector3(-len + 0.14, 0.1, 0), Vector3(0.34, 0.2, 0.05), Color(1, 1, 1), "matte", Vector3(0, 0, 90))
+	bb.add("prism", Vector3(-len + 0.14, -0.1, 0), Vector3(0.34, 0.2, 0.05), Color(1, 1, 1), "matte", Vector3(0, 0, -90))
+	var a := bb.instance("Arrow")
 	a.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	n.add_child(a)
+	# a warm streak behind it, fading towards the tail, so a flying arrow is easy to follow
+	var streak := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(2.6, 0.24)
+	streak.mesh = q
+	streak.position = Vector3(-len - 1.2, 0, -0.02)
+	streak.material_override = _streak_material(fire)
+	streak.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	n.add_child(streak)
 	if fire:
 		var g := Kit.builder().add("ball", Vector3(-0.05, 0, 0), Vector3(0.3, 0.22, 0.22), Color(2.6, 1.3, 0.4), "glow").instance()
 		n.add_child(g)
 	return n
+
+
+static var _streaks := {}
+
+
+## An unshaded quad material that fades from the arrow (UV x = 1) to nothing at the tail (UV x = 0).
+static func _streak_material(fire: bool) -> Material:
+	if _streaks.has(fire):
+		return _streaks[fire]
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabled;
+uniform vec4 tint : source_color;
+void fragment() {
+	float along = UV.x;
+	float across = 1.0 - abs(UV.y - 0.5) * 2.0;
+	ALBEDO = tint.rgb;
+	ALPHA = tint.a * along * along * smoothstep(0.0, 0.6, across);
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	m.set_shader_parameter("tint", Color(1.0, 0.5, 0.1, 0.85) if fire else Color(0.95, 0.72, 0.3, 0.7))
+	_streaks[fire] = m
+	return m
 
 
 static var _arrow_cache := {}
