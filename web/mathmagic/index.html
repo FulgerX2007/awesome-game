@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<title>MathMagic</title>
+<meta name="description" content="A 2.5D math adventure for children aged 6-10: count, add and subtract to build bridges, open gates and calm the Stone Guardian.">
+<style>
+/* MathMagic: the loading screen. The game draws everything else. */
+:root { --sky: #8fd0f7; --deep: #2b7de9; --ink: #23304a; --accent: #6a4cff; --green: #2fbf71; color-scheme: light; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--sky); }
+body { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+#canvas { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
+#canvas:focus { outline: none; }
+#status {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  padding: 24px 16px; text-align: center; color: var(--ink); font: 17px/1.45 "Segoe UI", system-ui, sans-serif;
+  background: linear-gradient(#bfe6ff, #8fd0f7 55%, #4fa8f0);
+}
+#status h1 { margin: 0; font: 700 clamp(48px, 12vw, 84px)/1 "Trebuchet MS", system-ui, sans-serif; color: var(--accent); text-shadow: 0 4px 0 #fff; }
+#status p { margin: 0; max-width: 420px; }
+.bar { width: min(300px, 70vw); height: 14px; border-radius: 7px; background: rgba(255,255,255,.7); overflow: hidden; border: 3px solid #fff; }
+.bar b { display: block; height: 100%; width: 0; border-radius: 7px; background: linear-gradient(90deg, #5be37d, var(--green)); transition: width .2s ease-out; }
+.bar.wait b { width: 30%; animation: wait 1.4s ease-in-out infinite; }
+@keyframes wait { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+#notice { display: none; }
+#status a { color: var(--deep); }
+@media (prefers-reduced-motion: reduce) { .bar.wait b { animation: none; } }
+</style>
+
+</head>
+<body>
+<canvas id="canvas" aria-label="Game"></canvas>
+<div id="status">
+  <h1>MathMagic</h1>
+  <p id="loading">Loading the island…</p>
+  <div class="bar wait" id="bar"><b id="fill"></b></div>
+  <p id="notice"></p>
+  <p><a href="../" id="home">All games</a></p>
+</div>
+<script>
+// The language follows the site: ?lang=, then the saved choice, then the browser (like web/i18n.js). The game
+// reads the same sources (scripts/main/main.gd), so the loading screen and the game always agree.
+(function () {
+  const TEXT = {
+    ru: { loading: 'Загружаем остров…', home: 'Все игры', fail: 'Игра не запускается в этом браузере: ' },
+    ro: { loading: 'Încărcăm insula…', home: 'Toate jocurile', fail: 'Jocul nu poate porni în acest browser: ' },
+    en: { loading: 'Loading the island…', home: 'All games', fail: 'The game cannot start in this browser: ' },
+  };
+  let lang = 'en';
+  try {
+    const q = new URLSearchParams(location.search).get('lang');
+    const s = localStorage.getItem('lang');
+    const nav = (navigator.languages || [navigator.language]).map((l) => String(l).slice(0, 2).toLowerCase());
+    lang = TEXT[q] ? q : TEXT[s] ? s : nav.find((l) => TEXT[l] || l === 'mo') || 'en';
+    if (lang === 'mo') lang = 'ro';
+  } catch (e) { /* blocked storage */ }
+  document.documentElement.lang = lang;
+  document.getElementById('loading').textContent = TEXT[lang].loading;
+  document.getElementById('home').textContent = TEXT[lang].home;
+  window.MM_FAIL = TEXT[lang].fail;
+}());
+</script>
+<!-- The engine is shared by all the Godot games of the site: web/godot/ (tools/godot-web/export.sh). -->
+<script src="../godot/engine.js"></script>
+<script>
+const GODOT_CONFIG = Object.assign({"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":2665972,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4}, { executable: '../godot/engine', mainPack: 'index.pck' });
+const GODOT_THREADS_ENABLED = false;
+const engine = new Engine(GODOT_CONFIG);
+(function () {
+  const status = document.getElementById('status');
+  const bar = document.getElementById('bar');
+  const fill = document.getElementById('fill');
+  const notice = document.getElementById('notice');
+  function fail(err) {
+    console.error(err);
+    bar.style.display = 'none';
+    document.getElementById('loading').style.display = 'none';
+    notice.style.display = 'block';
+    notice.textContent = window.MM_FAIL + (err instanceof Error ? err.message : String(err));
+  }
+  const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+  if (missing.length) { fail(missing.join(', ')); return; }
+  engine.startGame({
+    onProgress(current, total) {
+      if (current > 0 && total > 0) { bar.classList.remove('wait'); fill.style.width = `${Math.min(100, (current / total) * 100)}%`; }
+    },
+  }).then(() => status.remove(), fail);
+}());
+</script>
+</body>
+</html>
+

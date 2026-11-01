@@ -3,6 +3,9 @@ extends Area3D
 ## The end of a level: a treasure chest under a banner. Reaching it opens the lid, a star flies up and the
 ## level is complete. While a puzzle before it is unsolved the path is blocked anyway, so no lock is needed.
 
+## A goal that appears later (after the boss) starts hidden and switched off.
+@export var hidden := false
+
 var _lid: Node3D
 var _opened := false
 
@@ -31,6 +34,17 @@ func _ready() -> void:
 	star.name = "Star"
 	add_child(star)
 	body_entered.connect(_on_body)
+	if hidden:
+		visible = false
+		monitoring = false
+
+
+func reveal() -> void:
+	visible = true
+	set_deferred("monitoring", true)
+	scale = Vector3.ONE * 0.1
+	create_tween().tween_property(self, "scale", Vector3.ONE, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	Fx.confetti(get_parent(), global_position + Vector3(0, 2, 0))
 
 
 func _process(delta: float) -> void:

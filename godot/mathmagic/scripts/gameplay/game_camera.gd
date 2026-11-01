@@ -12,6 +12,7 @@ var target: Node3D
 var min_x := -INF
 var max_x := INF
 var focus: Variant = null           # a Vector3 to frame instead of the target
+var zoom := 1.0                     # > 1 pulls back (the boss arena)
 var _ahead := 0.0
 var _shake := 0.0
 var _shake_t := 0.0
@@ -45,7 +46,7 @@ func _goal(delta: float) -> Vector3:
 		p = target.global_position + Vector3(_ahead, 0, 0)
 		p.y = maxf(p.y, 0.0) * 0.8   # rise with high ledges, never dive after a fall into the sea
 	p.x = clampf(p.x, min_x, max_x)
-	return p + offset
+	return p + offset * (zoom if focus == null else 1.0)
 
 
 func snap() -> void:

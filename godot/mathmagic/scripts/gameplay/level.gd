@@ -10,6 +10,9 @@ signal stones_changed(count: int)
 signal gems_changed(found: int)
 signal objective_changed(text: String)
 signal message(text: String)
+signal hearts_changed(hearts: int)
+
+const MAX_HEARTS := 3
 
 @export var level_index := 0
 @export var camera_min_x := 0.0
@@ -25,6 +28,7 @@ var camera: GameCamera
 var respawn_point := Vector3.ZERO
 var puzzles: Array = []
 var done := false
+var hearts := MAX_HEARTS
 
 
 static func of(node: Node) -> Level:
@@ -63,7 +67,7 @@ func _ready() -> void:
 		if p.kind == "gem" and ProgressManager.has_gem(level_id, p.name):
 			p.set_ghost()
 	puzzles = find_children("*", "PuzzleBase", true, false)
-	puzzles.sort_custom(func(a, b): return a.global_position.x < b.global_position.x)
+	puzzles.sort_custom(func(a, b): return a.sort_key() < b.sort_key())
 	for p in puzzles:
 		p.solved.connect(_on_puzzle_solved)
 	MathChallengeManager.challenge_opened.connect(_on_challenge_opened)
@@ -126,6 +130,23 @@ func _on_fell() -> void:
 	player.respawn(respawn_point)
 	camera.snap()
 	say("Splash! Let's try again.")
+
+
+## A bump from the boss costs a heart. With none left the mage is back at the last checkpoint with all
+## hearts again; the boss keeps its phase, so no progress is lost.
+func hurt_player(from_x: float) -> void:
+	if done or player.is_invulnerable() or MathChallengeManager.is_active():
+		return
+	player.hurt(from_x)
+	camera.shake(0.2, 0.3)
+	hearts -= 1
+	if hearts <= 0:
+		say("Oops! Let's try again.")
+		await get_tree().create_timer(0.7).timeout
+		player.respawn(respawn_point)
+		camera.snap()
+		hearts = MAX_HEARTS
+	hearts_changed.emit(hearts)
 
 
 func _on_challenge_opened(_c: MathChallenge, requester: Object) -> void:

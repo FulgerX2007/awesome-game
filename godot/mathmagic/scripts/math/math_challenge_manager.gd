@@ -71,9 +71,9 @@ func record(challenge: MathChallenge, first_try: bool) -> void:
 	while st.history.size() > HISTORY:
 		st.history.pop_front()
 	if first_try:
-		st.streak = maxi(st.streak, 0) + 1
+		st.streak = mini(maxi(st.streak, 0) + 1, UP_STREAK)
 	else:
-		st.streak = mini(st.streak, 0) - 1
+		st.streak = maxi(mini(st.streak, 0) - 1, -DOWN_STREAK)
 	if st.streak >= UP_STREAK and st.level < ChallengeGenerator.MAX_DIFFICULTY:
 		st.level += 1
 		st.streak = 0

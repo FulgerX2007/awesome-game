@@ -19,7 +19,7 @@ func _initialize() -> void:
 	for name in ["test_addition", "test_subtraction", "test_missing", "test_answer_checking", "test_choices_unique",
 			"test_ranges", "test_difficulty_boundaries", "test_max_unknown", "test_text", "test_adaptation",
 			"test_weakest_skill", "test_save_roundtrip", "test_save_invalid", "test_progress_sanitize",
-			"test_levels_load"]:
+			"test_levels_load", "test_translations"]:
 		var before := failed
 		var finished = await call(name)
 		if finished != true:
@@ -282,4 +282,36 @@ func test_levels_load():
 			check(p.challenge != null and p.challenge.choices.has(p.challenge.answer), "%s/%s has a valid challenge" % [info.id, p.name])
 		lvl.queue_free()
 		await process_frame
+	return true
+
+
+## Every line a child reads in a level, the catalog or the boss fight has a Russian and a Romanian version.
+func test_translations():
+	var f := FileAccess.open("res://data/strings.csv", FileAccess.READ)
+	var keys := {}
+	f.get_csv_line()
+	while not f.eof_reached():
+		var row := f.get_csv_line()
+		if row.size() >= 4 and row[0] != "":
+			keys[row[0]] = true
+			check(row[2] != "" and row[3] != "", "%s is translated" % row[0])
+	var need: Array = ["Reach the flag!", "Great job!"]
+	for l in LevelCatalog.LEVELS:
+		need.append_array([l.title, l.goal])
+		var lvl = load(l.scene).instantiate()
+		need.append_array(Array(lvl.intro))
+		for n in lvl.find_children("*", "", true, false):
+			if n.get("objective") is String:
+				need.append(n.objective)
+			if n.get_script() and n.get_script().resource_path.ends_with("sign_post.gd"):
+				need.append(n.text)
+		lvl.free()
+	need.append_array(load("res://scripts/bosses/stone_guardian.gd").PHASE_TEXT)
+	need.append_array(load("res://scripts/bosses/boss_rune.gd").PROMPTS)
+	for op in [MathChallenge.Op.ADD, MathChallenge.Op.SUB, MathChallenge.Op.MISSING]:
+		var c := MathChallenge.new()
+		c.op = op
+		need.append(c.hint_key())
+	for k in need:
+		check(keys.has(k), "missing translation for: %s" % k)
 	return true

@@ -90,14 +90,14 @@ script = ExtResource("5")
 kind = "stone"
 
 [node name="Platform2" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 27, 2.2, 0)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 27, 1.8, 0)
 script = ExtResource("3")
 length = 1
 height = 1
 rows = 1
 
 [node name="Gem1" type="Area3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 27, 2.2, 0)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 27, 1.8, 0)
 script = ExtResource("5")
 kind = "gem"
 
@@ -109,24 +109,24 @@ height = 4
 rows = 3
 
 [node name="Stone8" type="Area3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 36, 1, 0)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 34.5, 1, 0)
 script = ExtResource("5")
 kind = "stone"
 
 [node name="Stone9" type="Area3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 38, 1, 0)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 39.5, 1, 0)
 script = ExtResource("5")
 kind = "stone"
 
 [node name="Platform3" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 37, 3, 0)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 37, 2.8, 0)
 script = ExtResource("3")
 length = 1
 height = 1
 rows = 1
 
 [node name="Gem2" type="Area3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 37, 3, 0)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 37, 2.8, 0)
 script = ExtResource("5")
 kind = "gem"
 
@@ -148,14 +148,14 @@ height = 4
 rows = 3
 
 [node name="Platform4" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 54, 3, 0)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 54, 2.8, 0)
 script = ExtResource("3")
 length = 1
 height = 1
 rows = 1
 
 [node name="Gem3" type="Area3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 54, 3, 0)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 54, 2.8, 0)
 script = ExtResource("5")
 kind = "gem"
 

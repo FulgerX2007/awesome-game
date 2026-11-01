@@ -9,6 +9,15 @@ static var _meshes := {}
 static var _materials := {}
 
 
+## The game font (Golos Text) with a tiny DejaVu Sans subset behind it for ● ◆ ♥ ✦ ★, which browsers do not
+## supply as system fallbacks. The same resource is the project's default GUI font, so this covers every Label.
+static func font() -> Font:
+	var f: FontFile = load("res://assets/fonts/GolosText.ttf")
+	if f.fallbacks.is_empty():
+		f.fallbacks = [load("res://assets/fonts/Symbols.ttf")]
+	return f
+
+
 static func path(key: String) -> String:
 	return "res://assets/models/%s.%s" % [key, "gltf" if key.begins_with("hexagon/") else "glb"]
 
@@ -97,7 +106,7 @@ const STONE_COLOR := Color("#6f8dff")
 static func label(text: String, size := 64, color := Color.WHITE) -> Label3D:
 	var l := Label3D.new()
 	l.text = text
-	l.font = load("res://assets/fonts/GolosText.ttf")
+	l.font = font()
 	l.font_size = size
 	l.pixel_size = 0.01
 	l.modulate = color

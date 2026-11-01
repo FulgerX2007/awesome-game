@@ -100,7 +100,7 @@ func _build_hud() -> void:
 	_toast = UiTheme.label("", "Big")
 	_toast.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_toast.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_toast.offset_top = 110
+	_toast.offset_top = 200
 	_toast.offset_left = -500
 	_toast.offset_right = 500
 	_toast.add_theme_color_override("font_color", Color.WHITE)
@@ -111,7 +111,7 @@ func _build_hud() -> void:
 
 	_boss_box = VBoxContainer.new()
 	_boss_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_boss_box.offset_top = 16
+	_boss_box.offset_top = 92  # under the objective, so neither covers the other
 	_boss_box.offset_left = -220
 	_boss_box.offset_right = 220
 	_boss_box.visible = false
@@ -168,6 +168,13 @@ func show_hud(level: Level) -> void:
 	level.objective_changed.connect(set_objective)
 	level.message.connect(toast)
 	set_objective(level.objective())
+	var boss: StoneGuardian = level.find_children("*", "StoneGuardian", true, false).front() if level.find_children("*", "StoneGuardian", true, false).size() > 0 else null
+	if boss:
+		var refresh := func(_a = null, _b = null):
+			show_boss(StoneGuardian.PHASE_TEXT[mini(boss.phase, 3)], boss.phase, level.hearts)
+			set_objective(level.objective())
+		boss.changed.connect(refresh)
+		level.hearts_changed.connect(refresh)
 
 
 func hide_hud() -> void:

@@ -39,6 +39,11 @@ func prompt() -> String:
 	return "Solve it!"
 
 
+## Puzzles become the objective in this order (left to right unless a subclass says otherwise).
+func sort_key() -> float:
+	return global_position.x
+
+
 func is_solved() -> bool:
 	return state == State.SOLVED
 

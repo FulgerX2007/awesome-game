@@ -33,6 +33,7 @@ var _cooldown := 0.0
 var _was_on_floor := true
 var _action_t := 0.0          # a one-shot animation (cheer, spell, hit) plays for this long
 var _knock := 0.0             # horizontal push after being hit, decays
+var _move_vx := 0.0           # the walking speed the controls ask for
 var _invuln := 0.0
 var _candidates: Array[Interactable] = []
 var focused: Interactable
@@ -134,8 +135,9 @@ func _physics_process(delta: float) -> void:
 
 	var target := ix * speed
 	var a := accel if is_on_floor() else air_accel
-	velocity.x = move_toward(velocity.x, target, a * delta) + _knock
-	_knock = move_toward(_knock, 0.0, 30.0 * delta)
+	_move_vx = move_toward(_move_vx, target, a * delta)
+	velocity.x = _move_vx + _knock  # the push from a hit rides on top and fades; it never builds up
+	_knock = move_toward(_knock, 0.0, 24.0 * delta)
 	velocity.z = 0.0
 	move_and_slide()
 	position.z = 0.0  # the gameplay plane: nothing may push the mage into the background
@@ -214,6 +216,7 @@ func respawn(at: Vector3) -> void:
 	global_position = Vector3(at.x, at.y, 0.0)
 	velocity = Vector3.ZERO
 	_knock = 0.0
+	_move_vx = 0.0
 	_invuln = 1.2
 	_buffer = 0.0
 	Sfx.play("respawn")
@@ -228,7 +231,7 @@ func hurt(from_x: float) -> void:
 	if _invuln > 0.0:
 		return
 	_invuln = 1.5
-	_knock = 9.0 * signf(global_position.x - from_x if global_position.x != from_x else -1.0)
+	_knock = 6.0 * signf(global_position.x - from_x if global_position.x != from_x else -1.0)
 	velocity.y = 6.0
 	play_action("Hit_A", 0.5)
 	Sfx.play("hurt")

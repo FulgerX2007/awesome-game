@@ -13,7 +13,7 @@ const SOFT := Color("#f3f8ff")
 static func make(large := false) -> Theme:
 	var k := 1.2 if large else 1.0
 	var t := Theme.new()
-	t.default_font = load("res://assets/fonts/GolosText.ttf")
+	t.default_font = Art.font()
 	t.default_font_size = int(28 * k)
 	t.set_color("font_color", "Label", INK)
 	t.set_constant("outline_size", "Label", 0)
@@ -53,13 +53,33 @@ static func make(large := false) -> Theme:
 	t.set_font_size("font_size", "Small", int(22 * k))
 	t.set_color("font_color", "Small", Color("#5a6782"))
 
+	# sliders with a thick track and a big round knob, easy to drag with a small finger
 	var slider := StyleBoxFlat.new()
 	slider.bg_color = Color("#d6e4f7")
-	slider.set_corner_radius_all(8)
-	slider.content_margin_top = 8
-	slider.content_margin_bottom = 8
+	slider.set_corner_radius_all(10)
+	slider.content_margin_top = 10
+	slider.content_margin_bottom = 10
 	t.set_stylebox("slider", "HSlider", slider)
+	var filled := slider.duplicate()
+	filled.bg_color = BLUE
+	t.set_stylebox("grabber_area", "HSlider", filled)
+	t.set_stylebox("grabber_area_highlight", "HSlider", filled)
+	var knob := _circle(int(40 * k), BLUE)
+	t.set_icon("grabber", "HSlider", knob)
+	t.set_icon("grabber_highlight", "HSlider", _circle(int(44 * k), ORANGE))
 	return t
+
+
+static func _circle(d: int, color: Color) -> ImageTexture:
+	var img := Image.create(d, d, false, Image.FORMAT_RGBA8)
+	var r := d / 2.0
+	for y in d:
+		for x in d:
+			var dist := Vector2(x + 0.5 - r, y + 0.5 - r).length()
+			var c := Color.WHITE if dist < r - 6 else color
+			c.a = clampf(r - dist, 0.0, 1.0)
+			img.set_pixel(x, y, c)
+	return ImageTexture.create_from_image(img)
 
 
 static func _button(t: Theme, type: String, bg: Color, border: Color, size: int, bw := 4) -> void:

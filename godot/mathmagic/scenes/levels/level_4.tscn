@@ -1,0 +1,314 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/bridge_puzzle.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/gameplay/energy_puzzle.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/gameplay/gate_puzzle.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/gameplay/goal.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/world/ground.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/gameplay/level.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/world/lift.gd" id="7"]
+[ext_resource type="Script" path="res://scripts/gameplay/pickup.gd" id="8"]
+[ext_resource type="Script" path="res://scripts/world/prop.gd" id="9"]
+[ext_resource type="Script" path="res://scripts/world/sign_post.gd" id="10"]
+[ext_resource type="Script" path="res://scripts/world/windmill.gd" id="11"]
+
+[node name="WindmillHill" type="Node3D"]
+script = ExtResource("6")
+level_index = 3
+camera_min_x = 7
+camera_max_x = 45
+intro = PackedStringArray("The lift has no energy.", "Fill the machine, ride up and fix the bridge.")
+
+[node name="Spawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 1, 0.6, 0)
+
+[node name="Ground1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+script = ExtResource("5")
+length = 6
+height = 3
+rows = 3
+
+[node name="Sign1" type="Node3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 3, 0, -2.2)
+script = ExtResource("10")
+text = "Machines need energy. Fill them up!"
+
+[node name="Windmill1" type="Node3D" parent="."]
+transform = Transform3D(2.6, 0, -0, 0, 2.6, 0, 0, 0, 2.6, 9.5, 0, -2.6)
+script = ExtResource("11")
+
+[node name="Lift1" type="AnimatableBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 14.3, 0, 0)
+script = ExtResource("7")
+travel = Vector3(0, 4, 0)
+
+[node name="Machine1" type="Node3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 7, 0, 0)
+script = ExtResource("2")
+skill = "missing"
+min_difficulty = 2
+max_difficulty = 3
+objective = "Fill the machine to start the lift."
+target = NodePath("../Lift1")
+windmill = NodePath("../Windmill1")
+
+[node name="Ground2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 17, 4, 0)
+script = ExtResource("5")
+length = 6
+height = 7
+rows = 3
+
+[node name="Stone1" type="Area3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 17.5, 4, 0)
+script = ExtResource("8")
+kind = "stone"
+
+[node name="Stone2" type="Area3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 19, 4, 0)
+script = ExtResource("8")
+kind = "stone"
+
+[node name="Stone3" type="Area3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 24, 4, 0)
+script = ExtResource("8")
+kind = "stone"
+
+[node name="Stone4" type="Area3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 25.5, 4, 0)
+script = ExtResource("8")
+kind = "stone"
+
+[node name="Platform1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 21.5, 5.8, 0)
+script = ExtResource("5")
+length = 1
+height = 1
+rows = 1
+
+[node name="Gem1" type="Area3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 21.5, 5.8, 0)
+script = ExtResource("8")
+kind = "gem"
+
+[node name="Bridge1" type="Node3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 27, 4, 0)
+script = ExtResource("1")
+skill = "missing"
+gap = 6.0
+max_missing = 4
+min_difficulty = 2
+max_difficulty = 3
+objective = "Fix the bridge with your stones."
+
+[node name="Ground3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 34, 4, 0)
+script = ExtResource("5")
+length = 4
+height = 7
+rows = 3
+
+[node name="Gate1" type="Node3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 40, 4, 0)
+script = ExtResource("3")
+skill = "mixed"
+min_difficulty = 2
+max_difficulty = 3
+objective = "Open the gate at the top."
+show_objects = false
+
+[node name="Ground4" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 42, 2, 0)
+script = ExtResource("5")
+length = 6
+height = 5
+rows = 3
+
+[node name="Platform2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 46, 3.8, 0)
+script = ExtResource("5")
+length = 1
+height = 1
+rows = 1
+
+[node name="Gem2" type="Area3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 46, 3.8, 0)
+script = ExtResource("8")
+kind = "gem"
+
+[node name="Platform3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 4, 1.8, 0)
+script = ExtResource("5")
+length = 1
+height = 1
+rows = 1
+
+[node name="Gem3" type="Area3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 4, 1.8, 0)
+script = ExtResource("8")
+kind = "gem"
+
+[node name="Goal" type="Area3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 51, 2, 0)
+script = ExtResource("4")
+
+[node name="Prop1" type="Node3D" parent="."]
+transform = Transform3D(1.68349, 0, -2.0574, 0, 2.65839, 0, 2.0574, 0, 1.68349, 1, 0, -2.0713)
+script = ExtResource("9")
+model = "hexagon/tree_single_A"
+
+[node name="Prop2" type="Node3D" parent="."]
+transform = Transform3D(0.258696, 0, -2.25266, 0, 2.26747, 0, 2.25266, 0, 0.258696, 5.5, 0, -2.30292)
+script = ExtResource("9")
+model = "hexagon/tree_single_A"
+
+[node name="Prop3" type="Node3D" parent="."]
+transform = Transform3D(-1.38641, 0, 2.25182, 0, 2.64439, 0, -2.25182, 0, -1.38641, 18.5, 0, -2.29682)
+script = ExtResource("9")
+model = "hexagon/tree_single_B"
+
+[node name="Prop4" type="Node3D" parent="."]
+transform = Transform3D(-2.6041, 0, 0.430404, 0, 2.63942, 0, -0.430404, 0, -2.6041, 23, 0, -2.23818)
+script = ExtResource("9")
+model = "hexagon/tree_single_B"
+
+[node name="Prop5" type="Node3D" parent="."]
+transform = Transform3D(2.23742, 0, -0.287888, 0, 2.25587, 0, 0.287888, 0, 2.23742, 35, 0, -1.70256)
+script = ExtResource("9")
+model = "hexagon/tree_single_B"
+
+[node name="Prop6" type="Node3D" parent="."]
+transform = Transform3D(-1.80825, 0, -1.45916, 0, 2.32356, 0, 1.45916, 0, -1.80825, 44, 0, -2.16093)
+script = ExtResource("9")
+model = "hexagon/trees_B_small"
+
+[node name="Prop7" type="Node3D" parent="."]
+transform = Transform3D(-2.0064, 0, 1.1849, 0, 2.33016, 0, -1.1849, 0, -2.0064, 50, 0, -2.25277)
+script = ExtResource("9")
+model = "hexagon/tree_single_B"
+
+[node name="Prop8" type="Node3D" parent="."]
+transform = Transform3D(2.4, 0, -0, 0, 2.4, 0, 0, 0, 2.4, 9, 0, 1.6)
+script = ExtResource("9")
+model = "hexagon/barrel"
+
+[node name="Prop9" type="Node3D" parent="."]
+transform = Transform3D(2.25526, 0, -0.820848, 0, 2.4, 0, 0.820848, 0, 2.25526, 2, 0, 1.7)
+script = ExtResource("9")
+model = "hexagon/crate_A_big"
+
+[node name="Prop10" type="Node3D" parent="."]
+transform = Transform3D(2.4, 0, -0, 0, 2.4, 0, 0, 0, 2.4, 25.5, 4, -1.6)
+script = ExtResource("9")
+model = "hexagon/sack"
+
+[node name="Prop11" type="Node3D" parent="."]
+transform = Transform3D(-0.843209, 0, 2.50662, 0, 2.64465, 0, -2.50662, 0, -0.843209, 37, 0, 2.2559)
+script = ExtResource("9")
+model = "hexagon/rock_single_A"
+
+[node name="Prop12" type="Node3D" parent="."]
+transform = Transform3D(2.60243, 0, -1.89666, 0, 3.22024, 0, 1.89666, 0, 2.60243, 48, 0, 1.99775)
+script = ExtResource("9")
+model = "hexagon/rock_single_B"
+
+[node name="Prop13" type="Node3D" parent="."]
+transform = Transform3D(1.87867, 0, 2.92917, 0, 3.47986, 0, -2.92917, 0, 1.87867, -14, -1.2, -12.9982)
+script = ExtResource("9")
+model = "hexagon/hill_single_A"
+
+[node name="Prop14" type="Node3D" parent="."]
+transform = Transform3D(-1.98229, 0, 2.7916, 0, 3.42382, 0, -2.7916, 0, -1.98229, -7.5631, -1.2, -10.7735)
+script = ExtResource("9")
+model = "hexagon/hill_single_A"
+
+[node name="Prop15" type="Node3D" parent="."]
+transform = Transform3D(-3.99568, 0, -0.480175, 0, 4.02443, 0, 0.480175, 0, -3.99568, -0.711747, -1.2, -12.537)
+script = ExtResource("9")
+model = "hexagon/hill_single_A"
+
+[node name="Prop16" type="Node3D" parent="."]
+transform = Transform3D(-3.57004, 0, -0.0874866, 0, 3.57111, 0, 0.0874866, 0, -3.57004, 5.13487, -1.2, -12.5961)
+script = ExtResource("9")
+model = "hexagon/mountain_A_grass_trees"
+
+[node name="Prop17" type="Node3D" parent="."]
+transform = Transform3D(1.59916, 0, 3.68025, 0, 4.01267, 0, -3.68025, 0, 1.59916, 10.2927, -1.2, -10.9205)
+script = ExtResource("9")
+model = "hexagon/hill_single_A"
+
+[node name="Prop18" type="Node3D" parent="."]
+transform = Transform3D(2.97568, 0, -2.69938, 0, 4.01762, 0, 2.69938, 0, 2.97568, 16.1341, -1.2, -11.8332)
+script = ExtResource("9")
+model = "hexagon/hills_A_trees"
+
+[node name="Prop19" type="Node3D" parent="."]
+transform = Transform3D(4.0141, 0, -1.77395, 0, 4.38861, 0, 1.77395, 0, 4.0141, 21.3022, -1.2, -10.5144)
+script = ExtResource("9")
+model = "hexagon/hills_A_trees"
+
+[node name="Prop20" type="Node3D" parent="."]
+transform = Transform3D(-1.62683, 0, -3.45114, 0, 3.81535, 0, 3.45114, 0, -1.62683, 27.3997, -1.2, -11.1913)
+script = ExtResource("9")
+model = "hexagon/hills_A_trees"
+
+[node name="Prop21" type="Node3D" parent="."]
+transform = Transform3D(-1.40514, 0, 3.38694, 0, 3.66685, 0, -3.38694, 0, -1.40514, 33.4613, -1.2, -11.8349)
+script = ExtResource("9")
+model = "hexagon/hills_A_trees"
+
+[node name="Prop22" type="Node3D" parent="."]
+transform = Transform3D(-3.81244, 0, 1.49981, 0, 4.09684, 0, -1.49981, 0, -3.81244, 41.0989, -1.2, -10.8817)
+script = ExtResource("9")
+model = "hexagon/hills_A_trees"
+
+[node name="Prop23" type="Node3D" parent="."]
+transform = Transform3D(4.16903, 0, -0.0796124, 0, 4.16979, 0, 0.0796124, 0, 4.16903, 46.4704, -1.2, -13.2202)
+script = ExtResource("9")
+model = "hexagon/mountain_C_grass_trees"
+
+[node name="Prop24" type="Node3D" parent="."]
+transform = Transform3D(-1.95134, 0, 2.82255, 0, 3.43141, 0, -2.82255, 0, -1.95134, 52.7004, -1.2, -12.8913)
+script = ExtResource("9")
+model = "hexagon/hills_A_trees"
+
+[node name="Prop25" type="Node3D" parent="."]
+transform = Transform3D(-3.74739, 0, -1.10727, 0, 3.90756, 0, 1.10727, 0, -3.74739, 59.0738, -1.2, -11.1309)
+script = ExtResource("9")
+model = "hexagon/mountain_B_grass"
+
+[node name="Prop26" type="Node3D" parent="."]
+transform = Transform3D(-2.74007, 0, -2.60015, 0, 3.77741, 0, 2.60015, 0, -2.74007, 66.6566, -1.2, -13.2893)
+script = ExtResource("9")
+model = "hexagon/mountain_B_grass"
+
+[node name="Prop27" type="Node3D" parent="."]
+transform = Transform3D(2.34954, 0, -0, 0, 2.34954, 0, 0, 0, 2.34954, -10, 10.0028, -15.0248)
+script = ExtResource("9")
+model = "hexagon/cloud_big"
+
+[node name="Prop28" type="Node3D" parent="."]
+transform = Transform3D(2.2906, 0, -0, 0, 2.2906, 0, 0, 0, 2.2906, 3.80817, 10.6179, -12.6251)
+script = ExtResource("9")
+model = "hexagon/cloud_small"
+
+[node name="Prop29" type="Node3D" parent="."]
+transform = Transform3D(2.08139, 0, -0, 0, 2.08139, 0, 0, 0, 2.08139, 19.2673, 8.10051, -15.6501)
+script = ExtResource("9")
+model = "hexagon/cloud_small"
+
+[node name="Prop30" type="Node3D" parent="."]
+transform = Transform3D(1.92511, 0, -0, 0, 1.92511, 0, 0, 0, 1.92511, 33.6443, 8.83918, -12.2127)
+script = ExtResource("9")
+model = "hexagon/cloud_small"
+
+[node name="Prop31" type="Node3D" parent="."]
+transform = Transform3D(1.8541, 0, -0, 0, 1.8541, 0, 0, 0, 1.8541, 46.4795, 9.16346, -12.9638)
+script = ExtResource("9")
+model = "hexagon/cloud_small"
+
+[node name="Prop32" type="Node3D" parent="."]
+transform = Transform3D(2.16934, 0, -0, 0, 2.16934, 0, 0, 0, 2.16934, 62.2216, 8.3167, -15.2589)
+script = ExtResource("9")
+model = "hexagon/cloud_big"
