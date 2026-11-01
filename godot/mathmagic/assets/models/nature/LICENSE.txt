@@ -1,0 +1,6 @@
+Ultimate Stylized Nature Pack (May 2022), by Quaternius
+https://quaternius.com/packs/ultimatestylizednature.html
+License: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), as stated on the pack page.
+
+Converted from the AllModels.blend supplied by the project owner (which names this pack in its texture
+paths) with tools/mathmagic/nature.py: bushes, flower clumps, grass and plants only, textures at 512 px.
