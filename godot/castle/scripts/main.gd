@@ -293,17 +293,25 @@ func _process(delta: float) -> void:
 
 
 func _update_aim_preview() -> void:
+	# the dotted flight is drawn by the UI in screen pixels, so it reads at any zoom and over any sky
+	fx.hide_aim()
+	ui.aim_points.clear()
 	var aiming := sim.status == "wave" and (not _press.is_empty() or _keys_fire)
 	if not aiming:
-		fx.hide_aim()
 		return
-	var pts := PackedVector3Array()
-	for k in range(1, 70):
-		var p := sim.flight(sim.aim_angle, sim.aim_power, k * 0.05)
-		if p.y < 0.0 or p.x > CastleWorld.FIELD_X1:
+	for k in range(1, 60):
+		var p := sim.flight(sim.aim_angle, sim.aim_power, k * 0.06)
+		if p.x > CastleWorld.FIELD_X1:
 			break
-		pts.append(Vector3(p.x, p.y, 0.3))
-	fx.show_aim(pts)
+		if p.y < 0.0:
+			# where it lands: the last point, on the ground
+			var prev := sim.flight(sim.aim_angle, sim.aim_power, (k - 1) * 0.06)
+			var f := prev.y / maxf(1e-4, prev.y - p.y)
+			ui.aim_points.append(world.to_screen(Vector3(lerpf(prev.x, p.x, f), 0.0, 0.0)))
+			ui.aim_lands = true
+			return
+		ui.aim_points.append(world.to_screen(Vector3(p.x, p.y, 0.0)))
+	ui.aim_lands = false
 
 
 func _on_event(ev: Dictionary) -> void:
@@ -573,6 +581,13 @@ func debug_setup(args: Dictionary) -> void:
 			sim.tick()
 			for ev in sim.drain():
 				_on_event(ev)
+		if args.has("aim"):
+			# hold the aim (the preview shows) at angle,power
+			var v := String(args.aim).split(",")
+			_debug_bot = null
+			sim.aim(deg_to_rad(float(v[0])), float(v[1]))
+			_keys_fire = true
+			sim.set_firing(true)
 		if args.has("stay"):
 			_debug_bot = null
 		ui.refresh()

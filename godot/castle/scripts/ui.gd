@@ -36,7 +36,9 @@ var boss_box: Control
 var boss_name: Label
 var boss_bar: Control
 var boss_hint: Label
-var bars: Control                   # enemy health bars over the field
+var bars: Control                   # enemy health bars and the aim preview over the field
+var aim_points: PackedVector2Array = []   # the arrow's flight on screen while aiming (main fills it)
+var aim_lands := false              # the last point is where it hits the ground
 var toasts: VBoxContainer
 var banner_box: PanelContainer
 var banner_title: Label
@@ -308,6 +310,7 @@ func _dim(alpha := 0.55) -> ColorRect:
 
 
 func _clear_screen() -> void:
+	aim_points.clear()
 	for n in [screen_box, hud, side, pause_box, banner_box, boss_box, tip, toasts]:
 		if is_instance_valid(n):
 			n.queue_free()
@@ -801,6 +804,32 @@ func update_play(delta: float) -> void:
 
 ## Health bars over wounded enemies (bosses have their own bar at the top).
 func _draw_bars() -> void:
+	_draw_aim()
+	_draw_health()
+
+
+## The aim preview: dots along the flight, big and bright near the bow, smaller further on, each with a dark
+## rim so they show on a pale sky and on snow; a ring where the arrow will land.
+func _draw_aim() -> void:
+	var n := aim_points.size()
+	if n == 0:
+		return
+	var last := n - 1 if aim_lands else n
+	for i in last:
+		var f := float(i) / maxf(1.0, n - 1)
+		var r := lerpf(5.5, 3.0, f)
+		var a := lerpf(1.0, 0.55, f)
+		var p := aim_points[i]
+		bars.draw_circle(p, r + 1.8, Color(0.12, 0.07, 0.03, 0.75 * a))
+		bars.draw_circle(p, r, Color(1.0, 0.95, 0.75, a))
+	if aim_lands:
+		var p := aim_points[n - 1]
+		bars.draw_arc(p, 9.0, 0, TAU, 24, Color(0.12, 0.07, 0.03, 0.8), 5.0)
+		bars.draw_arc(p, 9.0, 0, TAU, 24, Color(1.0, 0.82, 0.35), 2.5)
+		bars.draw_circle(p, 2.5, Color(1.0, 0.82, 0.35))
+
+
+func _draw_health() -> void:
 	var s: CastleSim = main.sim
 	if s == null or main.screen != "play" or main.units == null:
 		return
