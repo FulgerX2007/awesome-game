@@ -284,6 +284,9 @@ func test_levels_load():
 		check(has_goal or has_boss, "%s has a way to finish" % info.id)
 		for p in lvl.puzzles:
 			check(p.challenge != null and p.challenge.choices.has(p.challenge.answer), "%s/%s has a valid challenge" % [info.id, p.name])
+		for n in lvl.find_children("*", "Node3D", true, false):
+			if n.get_script() and n.get_script().resource_path.ends_with("world/prop.gd"):
+				check(ResourceLoader.exists(Art.path(n.model)), "%s/%s: model %s exists" % [info.id, n.name, n.model])
 		lvl.queue_free()
 		await process_frame
 	return true

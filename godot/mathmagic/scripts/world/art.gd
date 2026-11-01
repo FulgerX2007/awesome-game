@@ -34,8 +34,13 @@ static func font() -> Font:
 	return f
 
 
+## Packs stored as .gltf (+ .bin and shared textures); the others are single .glb files.
+const GLTF_PACKS := ["hexagon/", "nature/"]
+
+
 static func path(key: String) -> String:
-	return "res://assets/models/%s.%s" % [key, "gltf" if key.begins_with("hexagon/") else "glb"]
+	var gltf := GLTF_PACKS.any(func(p): return key.begins_with(p))
+	return "res://assets/models/%s.%s" % [key, "gltf" if gltf else "glb"]
 
 
 static func scene(key: String) -> PackedScene:

@@ -192,191 +192,281 @@ script = ExtResource("7")
 model = "kenney_forest/tree-high"
 
 [node name="Prop14" type="Node3D" parent="."]
+transform = Transform3D(0.5049, 0, 0.976168, 0, 1.09901, 0, -0.976168, 0, 0.5049, 2.88722, 0, -1.69307)
+script = ExtResource("7")
+model = "nature/Bush_Small"
+
+[node name="Prop15" type="Node3D" parent="."]
+transform = Transform3D(-0.694049, 0, -1.43974, 0, 1.5983, 0, 1.43974, 0, -0.694049, 3.67765, 0, 2.02156)
+script = ExtResource("7")
+model = "nature/Plant_1"
+
+[node name="Prop16" type="Node3D" parent="."]
+transform = Transform3D(0.156335, 0, -1.06456, 0, 1.07598, 0, 1.06456, 0, 0.156335, 4.67379, 0, -1.51772)
+script = ExtResource("7")
+model = "nature/Bush_Flowers"
+
+[node name="Prop17" type="Node3D" parent="."]
+transform = Transform3D(0.502712, 0, -1.35771, 0, 1.44779, 0, 1.35771, 0, 0.502712, 5.53551, 0, 2.4352)
+script = ExtResource("7")
+model = "nature/Flower_3_Clump"
+
+[node name="Prop18" type="Node3D" parent="."]
+transform = Transform3D(-0.601574, 0, 0.775051, 0, 0.98112, 0, -0.775051, 0, -0.601574, 15.6807, 0, -1.49055)
+script = ExtResource("7")
+model = "nature/Bush"
+
+[node name="Prop19" type="Node3D" parent="."]
+transform = Transform3D(-0.36059, 0, 1.46891, 0, 1.51253, 0, -1.46891, 0, -0.36059, 16.1276, 0, 2.49406)
+script = ExtResource("7")
+model = "nature/Flower_2_Clump"
+
+[node name="Prop20" type="Node3D" parent="."]
+transform = Transform3D(-0.802431, 0, 0.496759, 0, 0.94375, 0, -0.496759, 0, -0.802431, 19.6255, 0, -1.83475)
+script = ExtResource("7")
+model = "nature/Bush_Large_Flowers"
+
+[node name="Prop21" type="Node3D" parent="."]
+transform = Transform3D(-1.28717, 0, -0.0699148, 0, 1.28907, 0, 0.0699148, 0, -1.28717, 19.8784, 0, 2.00974)
+script = ExtResource("7")
+model = "nature/Flower_1_Clump"
+
+[node name="Prop22" type="Node3D" parent="."]
+transform = Transform3D(1.05, 0, 0.198442, 0, 1.06858, 0, -0.198442, 0, 1.05, 39.3753, 0, -1.42063)
+script = ExtResource("7")
+model = "nature/Bush_Large"
+
+[node name="Prop23" type="Node3D" parent="."]
+transform = Transform3D(-1.36194, 0, 0.118083, 0, 1.36705, 0, -0.118083, 0, -1.36194, 38.6811, 0, 2.27281)
+script = ExtResource("7")
+model = "nature/Flower_4_Clump"
+
+[node name="Prop24" type="Node3D" parent="."]
+transform = Transform3D(0.713018, 0, 0.677204, 0, 0.983361, 0, -0.677204, 0, 0.713018, 43.0616, 0, -1.72982)
+script = ExtResource("7")
+model = "nature/Bush_Large_Flowers"
+
+[node name="Prop25" type="Node3D" parent="."]
+transform = Transform3D(-1.28856, 0, -0.198742, 0, 1.30379, 0, 0.198742, 0, -1.28856, 42.9708, 0, 2.12479)
+script = ExtResource("7")
+model = "nature/Flower_3_Clump"
+
+[node name="Prop26" type="Node3D" parent="."]
+transform = Transform3D(-1.02945, 0, 0.222736, 0, 1.05327, 0, -0.222736, 0, -1.02945, 49.5169, 0, -1.53382)
+script = ExtResource("7")
+model = "nature/Bush_Small"
+
+[node name="Prop27" type="Node3D" parent="."]
+transform = Transform3D(0.054025, 0, -1.59303, 0, 1.59395, 0, 1.59303, 0, 0.054025, 49.9283, 0, 2.58118)
+script = ExtResource("7")
+model = "nature/Flower_1_Clump"
+
+[node name="Prop28" type="Node3D" parent="."]
+transform = Transform3D(0.863279, 0, -0.273877, 0, 0.905682, 0, 0.273877, 0, 0.863279, 24.6935, 1, -1.7502)
+script = ExtResource("7")
+model = "nature/Bush_Large"
+
+[node name="Prop29" type="Node3D" parent="."]
+transform = Transform3D(-1.41991, 0, 0.696308, 0, 1.58145, 0, -0.696308, 0, -1.41991, 24.9379, 1, 2.21029)
+script = ExtResource("7")
+model = "nature/Grass_Small"
+
+[node name="Prop30" type="Node3D" parent="."]
+transform = Transform3D(0.647061, 0, 0.610867, 0, 0.889857, 0, -0.610867, 0, 0.647061, 28.3427, 1, -1.67971)
+script = ExtResource("7")
+model = "nature/Bush_Small_Flowers"
+
+[node name="Prop31" type="Node3D" parent="."]
+transform = Transform3D(-1.5129, 0, 0.253883, 0, 1.53406, 0, -0.253883, 0, -1.5129, 27.2005, 1, 2.27055)
+script = ExtResource("7")
+model = "nature/Grass_Small"
+
+[node name="Prop32" type="Node3D" parent="."]
 transform = Transform3D(-0.478237, 0, -2.40371, 0, 2.45082, 0, 2.40371, 0, -0.478237, 2, 0, -2.1074)
 script = ExtResource("7")
 model = "hexagon/tree_single_B"
 
-[node name="Prop15" type="Node3D" parent="."]
+[node name="Prop33" type="Node3D" parent="."]
 transform = Transform3D(2.41872, 0, 0.569202, 0, 2.48479, 0, -0.569202, 0, 2.41872, 7, 0, -1.7072)
 script = ExtResource("7")
 model = "hexagon/tree_single_B"
 
-[node name="Prop16" type="Node3D" parent="."]
+[node name="Prop34" type="Node3D" parent="."]
 transform = Transform3D(2.34117, 0, -0.0467932, 0, 2.34163, 0, 0.0467932, 0, 2.34117, 17, 0, -2.04644)
 script = ExtResource("7")
 model = "hexagon/tree_single_B"
 
-[node name="Prop17" type="Node3D" parent="."]
+[node name="Prop35" type="Node3D" parent="."]
 transform = Transform3D(1.50681, 0, -1.94061, 0, 2.45691, 0, 1.94061, 0, 1.50681, 22, 0, -1.74706)
 script = ExtResource("7")
 model = "hexagon/trees_A_medium"
 
-[node name="Prop18" type="Node3D" parent="."]
+[node name="Prop36" type="Node3D" parent="."]
 transform = Transform3D(-2.41312, 0, -1.01101, 0, 2.61635, 0, 1.01101, 0, -2.41312, 26, 0, -1.75495)
 script = ExtResource("7")
 model = "hexagon/tree_single_B"
 
-[node name="Prop19" type="Node3D" parent="."]
+[node name="Prop37" type="Node3D" parent="."]
 transform = Transform3D(-1.05659, 0, -1.95294, 0, 2.22044, 0, 1.95294, 0, -1.05659, 37, 0, -1.96888)
 script = ExtResource("7")
 model = "hexagon/trees_B_small"
 
-[node name="Prop20" type="Node3D" parent="."]
+[node name="Prop38" type="Node3D" parent="."]
 transform = Transform3D(2.39474, 0, 0.984702, 0, 2.58929, 0, -0.984702, 0, 2.39474, 45, 0, -1.91426)
 script = ExtResource("7")
 model = "hexagon/trees_B_small"
 
-[node name="Prop21" type="Node3D" parent="."]
+[node name="Prop39" type="Node3D" parent="."]
 transform = Transform3D(1.90394, 0, -1.90101, 0, 2.69051, 0, 1.90101, 0, 1.90394, 51, 0, -2.29163)
 script = ExtResource("7")
 model = "hexagon/tree_single_A"
 
-[node name="Prop22" type="Node3D" parent="."]
+[node name="Prop40" type="Node3D" parent="."]
 transform = Transform3D(-1.39528, 0, -2.11191, 0, 2.5312, 0, 2.11191, 0, -1.39528, 55, 0, -2.08281)
 script = ExtResource("7")
 model = "hexagon/tree_single_A"
 
-[node name="Prop23" type="Node3D" parent="."]
+[node name="Prop41" type="Node3D" parent="."]
 transform = Transform3D(2.2, 0, -0, 0, 2.2, 0, 0, 0, 2.2, 21, 0, -2.3)
 script = ExtResource("7")
 model = "hexagon/building_well_green"
 
-[node name="Prop24" type="Node3D" parent="."]
+[node name="Prop42" type="Node3D" parent="."]
 transform = Transform3D(1.46958e-16, 0, -2.4, 0, 2.4, 0, 2.4, 0, 1.46958e-16, 4, 0, 1.9)
 script = ExtResource("7")
 model = "hexagon/fence_wood_straight"
 
-[node name="Prop25" type="Node3D" parent="."]
+[node name="Prop43" type="Node3D" parent="."]
 transform = Transform3D(1.46958e-16, 0, -2.4, 0, 2.4, 0, 2.4, 0, 1.46958e-16, 38, 0, 1.9)
 script = ExtResource("7")
 model = "hexagon/fence_wood_straight"
 
-[node name="Prop26" type="Node3D" parent="."]
+[node name="Prop44" type="Node3D" parent="."]
 transform = Transform3D(2.16129, 0, 0.786646, 0, 2.3, 0, -0.786646, 0, 2.16129, 52, 0, -2.6)
 script = ExtResource("7")
 model = "hexagon/building_home_A_blue"
 
-[node name="Prop27" type="Node3D" parent="."]
+[node name="Prop45" type="Node3D" parent="."]
 transform = Transform3D(-2.94292, 0, -1.01516, 0, 3.11309, 0, 1.01516, 0, -2.94292, 12, 0, 1.84557)
 script = ExtResource("7")
 model = "hexagon/rock_single_B"
 
-[node name="Prop28" type="Node3D" parent="."]
+[node name="Prop46" type="Node3D" parent="."]
 transform = Transform3D(0.8931, 0, 3.25845, 0, 3.37863, 0, -3.25845, 0, 0.8931, 29, 0, 2.14376)
 script = ExtResource("7")
 model = "hexagon/rock_single_A"
 
-[node name="Prop29" type="Node3D" parent="."]
+[node name="Prop47" type="Node3D" parent="."]
 transform = Transform3D(-1.46219, 0, -3.13529, 0, 3.45949, 0, 3.13529, 0, -1.46219, 39, 0, 1.83904)
 script = ExtResource("7")
 model = "hexagon/rock_single_A"
 
-[node name="Prop30" type="Node3D" parent="."]
+[node name="Prop48" type="Node3D" parent="."]
 transform = Transform3D(2.82756, 0, 1.46656, 0, 3.18526, 0, -1.46656, 0, 2.82756, 50, 0, 2.25925)
 script = ExtResource("7")
 model = "hexagon/rock_single_B"
 
-[node name="Prop31" type="Node3D" parent="."]
+[node name="Prop49" type="Node3D" parent="."]
 transform = Transform3D(-2.76375, 0, 1.80372, 0, 3.30026, 0, -1.80372, 0, -2.76375, -14, -1.2, -10.8227)
 script = ExtResource("7")
 model = "hexagon/hills_A_trees"
 
-[node name="Prop32" type="Node3D" parent="."]
+[node name="Prop50" type="Node3D" parent="."]
 transform = Transform3D(-0.443742, 0, -4.04689, 0, 4.07115, 0, 4.04689, 0, -0.443742, -7.72876, -1.2, -12.4258)
 script = ExtResource("7")
 model = "hexagon/hill_single_A"
 
-[node name="Prop33" type="Node3D" parent="."]
+[node name="Prop51" type="Node3D" parent="."]
 transform = Transform3D(2.77193, 0, -1.65756, 0, 3.22972, 0, 1.65756, 0, 2.77193, -2.68653, -1.2, -12.1349)
 script = ExtResource("7")
 model = "hexagon/hill_single_A"
 
-[node name="Prop34" type="Node3D" parent="."]
+[node name="Prop52" type="Node3D" parent="."]
 transform = Transform3D(-3.59053, 0, -1.65406, 0, 3.9532, 0, 1.65406, 0, -3.59053, 4.44349, -1.2, -13.4413)
 script = ExtResource("7")
 model = "hexagon/mountain_B_grass"
 
-[node name="Prop35" type="Node3D" parent="."]
+[node name="Prop53" type="Node3D" parent="."]
 transform = Transform3D(-2.13653, 0, 3.27101, 0, 3.90695, 0, -3.27101, 0, -2.13653, 11.7558, -1.2, -11.1507)
 script = ExtResource("7")
 model = "hexagon/mountain_C_grass_trees"
 
-[node name="Prop36" type="Node3D" parent="."]
+[node name="Prop54" type="Node3D" parent="."]
 transform = Transform3D(4.14987, 0, 0.83057, 0, 4.23217, 0, -0.83057, 0, 4.14987, 18.6188, -1.2, -11.8034)
 script = ExtResource("7")
 model = "hexagon/hills_A_trees"
 
-[node name="Prop37" type="Node3D" parent="."]
+[node name="Prop55" type="Node3D" parent="."]
 transform = Transform3D(1.83458, 0, -3.7527, 0, 4.17713, 0, 3.7527, 0, 1.83458, 24.4626, -1.2, -11.781)
 script = ExtResource("7")
 model = "hexagon/hills_A_trees"
 
-[node name="Prop38" type="Node3D" parent="."]
+[node name="Prop56" type="Node3D" parent="."]
 transform = Transform3D(1.02932, 0, 3.23657, 0, 3.3963, 0, -3.23657, 0, 1.02932, 30.9119, -1.2, -11.4728)
 script = ExtResource("7")
 model = "hexagon/mountain_B_grass"
 
-[node name="Prop39" type="Node3D" parent="."]
+[node name="Prop57" type="Node3D" parent="."]
 transform = Transform3D(2.71692, 0, -1.93778, 0, 3.33716, 0, 1.93778, 0, 2.71692, 37.5126, -1.2, -12.9132)
 script = ExtResource("7")
 model = "hexagon/hill_single_A"
 
-[node name="Prop40" type="Node3D" parent="."]
+[node name="Prop58" type="Node3D" parent="."]
 transform = Transform3D(-2.98657, 0, 1.89437, 0, 3.5367, 0, -1.89437, 0, -2.98657, 42.6294, -1.2, -10.6797)
 script = ExtResource("7")
 model = "hexagon/hills_A_trees"
 
-[node name="Prop41" type="Node3D" parent="."]
+[node name="Prop59" type="Node3D" parent="."]
 transform = Transform3D(-4.10172, 0, -1.19926, 0, 4.27345, 0, 1.19926, 0, -4.10172, 47.9566, -1.2, -11.8735)
 script = ExtResource("7")
 model = "hexagon/hills_A_trees"
 
-[node name="Prop42" type="Node3D" parent="."]
+[node name="Prop60" type="Node3D" parent="."]
 transform = Transform3D(-1.10153, 0, 3.99136, 0, 4.14057, 0, -3.99136, 0, -1.10153, 53.6114, -1.2, -13.1786)
 script = ExtResource("7")
 model = "hexagon/mountain_C_grass_trees"
 
-[node name="Prop43" type="Node3D" parent="."]
+[node name="Prop61" type="Node3D" parent="."]
 transform = Transform3D(-0.0992358, 0, 3.36948, 0, 3.37094, 0, -3.36948, 0, -0.0992358, 61.0971, -1.2, -12.5152)
 script = ExtResource("7")
 model = "hexagon/mountain_C_grass_trees"
 
-[node name="Prop44" type="Node3D" parent="."]
+[node name="Prop62" type="Node3D" parent="."]
 transform = Transform3D(4.10303, 0, -1.50403, 0, 4.37001, 0, 1.50403, 0, 4.10303, 66.3982, -1.2, -12.9982)
 script = ExtResource("7")
 model = "hexagon/mountain_B_grass"
 
-[node name="Prop45" type="Node3D" parent="."]
+[node name="Prop63" type="Node3D" parent="."]
 transform = Transform3D(1.61019, 0, -0, 0, 1.61019, 0, 0, 0, 1.61019, -10, 8.48771, -15.0975)
 script = ExtResource("7")
 model = "hexagon/cloud_big"
 
-[node name="Prop46" type="Node3D" parent="."]
+[node name="Prop64" type="Node3D" parent="."]
 transform = Transform3D(2.19921, 0, -0, 0, 2.19921, 0, 0, 0, 2.19921, 1.33321, 9.61579, -12.0471)
 script = ExtResource("7")
 model = "hexagon/cloud_big"
 
-[node name="Prop47" type="Node3D" parent="."]
+[node name="Prop65" type="Node3D" parent="."]
 transform = Transform3D(1.81145, 0, -0, 0, 1.81145, 0, 0, 0, 1.81145, 13.4101, 9.47179, -15.852)
 script = ExtResource("7")
 model = "hexagon/cloud_small"
 
-[node name="Prop48" type="Node3D" parent="."]
+[node name="Prop66" type="Node3D" parent="."]
 transform = Transform3D(1.6828, 0, -0, 0, 1.6828, 0, 0, 0, 1.6828, 26.6997, 10.8514, -15.1362)
 script = ExtResource("7")
 model = "hexagon/cloud_small"
 
-[node name="Prop49" type="Node3D" parent="."]
+[node name="Prop67" type="Node3D" parent="."]
 transform = Transform3D(1.79091, 0, -0, 0, 1.79091, 0, 0, 0, 1.79091, 39.8735, 10.0718, -13.768)
 script = ExtResource("7")
 model = "hexagon/cloud_big"
 
-[node name="Prop50" type="Node3D" parent="."]
+[node name="Prop68" type="Node3D" parent="."]
 transform = Transform3D(1.87422, 0, -0, 0, 1.87422, 0, 0, 0, 1.87422, 50.4736, 10.7026, -14.2212)
 script = ExtResource("7")
 model = "hexagon/cloud_big"
 
-[node name="Prop51" type="Node3D" parent="."]
+[node name="Prop69" type="Node3D" parent="."]
 transform = Transform3D(1.9301, 0, -0, 0, 1.9301, 0, 0, 0, 1.9301, 65.8276, 10.6855, -13.249)
 script = ExtResource("7")
 model = "hexagon/cloud_big"

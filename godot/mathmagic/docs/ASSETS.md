@@ -9,13 +9,16 @@ in the packs themselves (each pack's `LICENSE.txt` is kept next to its files). N
 |---|---|---|---|---|
 | KayKit Adventurers Character Pack 2.0 (FREE), by Kay Lousberg | `assets/models/heroes/*`: six heroes (Mage, Knight, Ranger, Barbarian, Rogue, Hooded Rogue) and the shared `Rig_Medium` animations (`Rig_Medium_General.glb`, `Rig_Medium_MovementBasic.glb`) | Supplied by the project owner (`KayKit_Adventurers_2.0_FREE.zip`); https://kaylousberg.itch.io/kaykit-adventurers | CC0 1.0 (`heroes/LICENSE.txt`) | Not required. Credited anyway: "Kay Lousberg, www.kaylousberg.com" |
 | Kenney Mini Forest 1.0, by Kenney | `assets/models/kenney_forest/*`: floating grass platform, wooden deck (the lift), tall and small pines, plants, grass patches, tent, ladder, rope fence, stumps, rocks; one shared `Textures/colormap.png` | Supplied by the project owner (`kenney_mini-forest_1.0.zip`); https://kenney.nl/assets | CC0 1.0 (`kenney_forest/LICENSE.txt`) | Not required. Credited anyway: "Kenney, www.kenney.nl" |
+| Ultimate Stylized Nature Pack (May 2022), by Quaternius | `assets/models/nature/*`: 6 bushes, 5 flower clumps, 2 grass tufts, 3 plants (`.gltf` + `.bin`), textures shared in `nature/textures/` at 512 px | Supplied by the project owner as `AllModels.blend` (its texture paths name this pack); converted with `tools/mathmagic/nature.py`; https://quaternius.com/packs/ultimatestylizednature.html | CC0 1.0, per the pack page (`nature/LICENSE.txt`) | Not required. Credited anyway: "Quaternius" |
 | KayKit Medieval Hexagon Pack 1.0, by Kay Lousberg | `assets/models/hexagon/*` (hex tiles for ground and sea, trees, rocks, hills, mountains, clouds, houses, windmill, well, tower, tent, fence, flags, barrel, crate, sack; one shared atlas `hexagons_medieval.png`) | https://github.com/KayKit-Game-Assets/KayKit-Medieval-Hexagon-Pack-1.0 | CC0 1.0 | Not required. Credited anyway |
 | KayKit Dungeon Remastered 1.0, by Kay Lousberg | `assets/models/dungeon/*` (gold chest, column, pillar, lit torch, banner) | https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0 | CC0 1.0 | Not required. Credited anyway |
 | Golos Text, by The Golos Text Project Authors | `assets/fonts/GolosText.ttf` (Latin, Cyrillic, Romanian diacritics) | https://github.com/googlefonts/golos-text (copied from `godot/pins`) | SIL Open Font License 1.1 | License kept in `assets/fonts/OFL-GolosText.txt` |
 | DejaVu Sans (13-glyph subset: ● ◆ ♥ ♡ ✦ ★ ☆ ◀ ▶ ! ? −) | `assets/fonts/Symbols.ttf` | https://dejavu-fonts.github.io/, cut with `pyftsubset` from the system font | Bitstream Vera / DejaVu license (free, redistributable) | License kept in `assets/fonts/LICENSE-DejaVu.txt` |
 
 KayKit and Kenney Mini Forest are both flat-shaded pastel low-poly with one small color atlas per pack, so
-they sit together without a style clash (checked side by side in renders before use). Only the files listed
+they sit together without a style clash (checked side by side in renders before use). The Quaternius plants
+are textured, so they are used only as small ground decor (bushes behind the path, flowers and grass in
+front), where the extra detail reads as richness rather than a different style. Only the files listed
 are copied; the rest of each pack (weapons, the Kenney archer) is not in the project. The KayKit Adventurers
 1.0 Mage used by the first version was replaced by the 2.0 heroes and removed.
 
@@ -37,6 +40,11 @@ Replacing one means swapping the mesh in its script; the puzzle logic does not d
 - energy machine body, crystal and meter (`energy_puzzle.gd`), lift deck (`lift.gd`)
 - rune pedestals and light beams (`boss_rune.gd`), the Guardian's shield bubble and warning rings
 - sign posts (`sign_post.gd`), gems (two prisms in `pickup.gd`)
+
+Not used from the supplied `AllModels.blend`: its trees (birch, maple, pine, palm, "normal", dead) and rocks.
+Their textures were not packed into the file (only paths to the author's own disk), so they render blank; the
+birches do have textures, but their yellow foliage clashes with the island's teal trees. With the original
+pack's texture files, `tools/mathmagic/nature.py` can export the trees too.
 
 Replaced by pack models since the first version: the floating platforms (now Kenney islands, `ground.gd`
 style "island") and the lift deck (Kenney wooden deck).

@@ -29,6 +29,8 @@ navigates them through Godot's default `ui_*` actions (not tested yet).
   `scenes/main/main.tscn`.
 - **Browser, through the site:** `go run . -addr :8080` in the repository root, then open
   `http://localhost:8080/mathmagic/` (`?lang=en`, `ru` or `ro` picks the language).
+- **Re-convert the Quaternius plants** (only if the `.blend` changes): `python -I tools/mathmagic/nature.py AllModels.blend`
+  with Blender as a Python module (`pip install bpy==4.5.9`, Python 3.11).
 - **Rebuild the web version:** `GODOT=/path/to/godot-4.7.2 tools/mathmagic/build.sh` runs the tests and
   exports to `web/mathmagic/`. It needs the Godot 4.7.2 web export templates. `--sounds` regenerates the audio
   first (Python 3 + numpy).
@@ -146,7 +148,8 @@ contain the answer; number ranges per difficulty; difficulty clamping and monoto
 answer cap; question text; adaptation up and down and its bounds; weak-skill repetition; save/load round
 trip; broken, empty, wrong-version and missing saves; sanitizing bad values; every level scene loading with
 spawn, camera limits, three gems, a goal or boss and valid challenges; every visible text translated;
-every hero building with every animation the game plays, its tracks reaching its skeleton.
+every hero building with every animation the game plays, its tracks reaching its skeleton; every
+decoration in every level pointing at a model that exists.
 
 `tests/playthrough.tscn` (about 5 s; `--fixed-fps 60` runs the physics as fast as the machine allows): first the menu flows (intro card, pause and
 resume with a frozen world, a double interaction ignored, "Later" closing and reopening the same question,

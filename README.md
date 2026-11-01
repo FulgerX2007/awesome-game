@@ -563,7 +563,8 @@ Tower defense. Враги идут по дороге к замку, а ты ст
   сборка — `web/mathmagic/` (`tools/mathmagic/build.sh`).
 - Модели — KayKit (Kay Lousberg, CC0): шесть героев Adventurers 2.0 с общим набором анимаций, гексагональные
   плитки острова, деревья, камни, домики, мельница, сундук; Kenney Mini Forest (CC0): парящие островки, деревянный
-  подъёмник, сосны, растения, палатка, лестница; звуки и музыка синтезированы `tools/mathmagic/sounds.py`. Полный список с лицензиями —
+  подъёмник, сосны, растения, палатка, лестница; Quaternius Ultimate Stylized Nature (CC0): кусты, цветы, трава
+  (`tools/mathmagic/nature.py` переводит их из присланного `.blend`); звуки и музыка синтезированы `tools/mathmagic/sounds.py`. Полный список с лицензиями —
   `godot/mathmagic/docs/ASSETS.md`.
 - Тесты: `godot --headless --path godot/mathmagic -s res://tests/run.gd` (генерация и проверка примеров,
   диапазоны, адаптация, сохранение) и `godot --headless --fixed-fps 60 --path godot/mathmagic res://tests/playthrough.tscn`
