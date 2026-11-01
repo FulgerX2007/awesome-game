@@ -164,7 +164,7 @@ func complete() -> void:
 		return
 	done = true
 	player.controls_enabled = false
-	player.play_action("Cheer", 3.0)
+	player.play_action("cheer", 3.0)
 	Sfx.play("victory")
 	Fx.confetti(self, player.global_position + Vector3(0, 2, 0))
 	ProgressManager.complete_level(level_index)

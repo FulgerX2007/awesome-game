@@ -22,21 +22,10 @@ func _ready() -> void:
 	cs.shape = box
 	cs.position.y = -0.2
 	add_child(cs)
-	var deck := MeshInstance3D.new()
-	var dm := BoxMesh.new()
-	dm.size = box.size
-	deck.mesh = dm
-	deck.material_override = Art.material(Color("#b07a45"))
-	deck.position.y = -0.2
+	var deck := Art.instance("kenney_forest/building-platform")  # a wooden deck, 1.3 x 0.5 x 1.3
+	deck.scale = Vector3(2.0, 1.0, 1.7)
+	deck.position.y = -0.5
 	add_child(deck)
-	for x in [-1.1, 1.1]:
-		var rail := MeshInstance3D.new()
-		var rm := BoxMesh.new()
-		rm.size = Vector3(0.12, 0.12, 2.2)
-		rail.mesh = rm
-		rail.material_override = Art.material(Color("#6e4a2a"))
-		rail.position = Vector3(x, 0.05, 0)
-		add_child(rail)
 	_lamp = MeshInstance3D.new()  # off: dim purple, on: bright yellow
 	var lm := SphereMesh.new()
 	lm.radius = 0.18

@@ -99,6 +99,14 @@ func flows() -> void:
 	_check(main.levels.current == null and main.ui.has_screen(), "the map closes the level")
 	main.show_title()
 	_check(main.ui.has_screen(), "back to the title")
+	main.ui.show_heroes()
+	for b in main.ui.root.find_children("*", "Button", true, false):
+		if b.is_visible_in_tree() and b.text == "Knight":
+			b.pressed.emit()
+	_check(Progress.settings.hero == "knight", "picking a hero saves the choice")
+	main.start(0)
+	_check(main.levels.current.player.model.find_child("Knight_Body", true, false) != null, "the chosen hero walks into the level")
+	Progress.set_setting("hero", "mage")
 
 
 func play(i: int) -> bool:

@@ -7,13 +7,17 @@ in the packs themselves (each pack's `LICENSE.txt` is kept next to its files). N
 
 | Asset | Files in the project | Source | License | Attribution |
 |---|---|---|---|---|
-| KayKit Character Pack: Adventurers 1.0, by Kay Lousberg | `assets/models/adventurers/Mage.glb` (the player, with its 76 animations) | https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0 (also https://kaylousberg.itch.io/kaykit-adventurers) | CC0 1.0 | Not required. Credited anyway: "Kay Lousberg, www.kaylousberg.com" |
+| KayKit Adventurers Character Pack 2.0 (FREE), by Kay Lousberg | `assets/models/heroes/*`: six heroes (Mage, Knight, Ranger, Barbarian, Rogue, Hooded Rogue) and the shared `Rig_Medium` animations (`Rig_Medium_General.glb`, `Rig_Medium_MovementBasic.glb`) | Supplied by the project owner (`KayKit_Adventurers_2.0_FREE.zip`); https://kaylousberg.itch.io/kaykit-adventurers | CC0 1.0 (`heroes/LICENSE.txt`) | Not required. Credited anyway: "Kay Lousberg, www.kaylousberg.com" |
+| Kenney Mini Forest 1.0, by Kenney | `assets/models/kenney_forest/*`: floating grass platform, wooden deck (the lift), tall and small pines, plants, grass patches, tent, ladder, rope fence, stumps, rocks; one shared `Textures/colormap.png` | Supplied by the project owner (`kenney_mini-forest_1.0.zip`); https://kenney.nl/assets | CC0 1.0 (`kenney_forest/LICENSE.txt`) | Not required. Credited anyway: "Kenney, www.kenney.nl" |
 | KayKit Medieval Hexagon Pack 1.0, by Kay Lousberg | `assets/models/hexagon/*` (hex tiles for ground and sea, trees, rocks, hills, mountains, clouds, houses, windmill, well, tower, tent, fence, flags, barrel, crate, sack; one shared atlas `hexagons_medieval.png`) | https://github.com/KayKit-Game-Assets/KayKit-Medieval-Hexagon-Pack-1.0 | CC0 1.0 | Not required. Credited anyway |
 | KayKit Dungeon Remastered 1.0, by Kay Lousberg | `assets/models/dungeon/*` (gold chest, column, pillar, lit torch, banner) | https://github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0 | CC0 1.0 | Not required. Credited anyway |
 | Golos Text, by The Golos Text Project Authors | `assets/fonts/GolosText.ttf` (Latin, Cyrillic, Romanian diacritics) | https://github.com/googlefonts/golos-text (copied from `godot/pins`) | SIL Open Font License 1.1 | License kept in `assets/fonts/OFL-GolosText.txt` |
 | DejaVu Sans (13-glyph subset: ● ◆ ♥ ♡ ✦ ★ ☆ ◀ ▶ ! ? −) | `assets/fonts/Symbols.ttf` | https://dejavu-fonts.github.io/, cut with `pyftsubset` from the system font | Bitstream Vera / DejaVu license (free, redistributable) | License kept in `assets/fonts/LICENSE-DejaVu.txt` |
 
-All KayKit models share one gradient atlas each, so they light and color the same way: one art style.
+KayKit and Kenney Mini Forest are both flat-shaded pastel low-poly with one small color atlas per pack, so
+they sit together without a style clash (checked side by side in renders before use). Only the files listed
+are copied; the rest of each pack (weapons, the Kenney archer) is not in the project. The KayKit Adventurers
+1.0 Mage used by the first version was replaced by the 2.0 heroes and removed.
 
 ## Original assets (made for this game)
 
@@ -34,7 +38,10 @@ Replacing one means swapping the mesh in its script; the puzzle logic does not d
 - rune pedestals and light beams (`boss_rune.gd`), the Guardian's shield bubble and warning rings
 - sign posts (`sign_post.gd`), gems (two prisms in `pickup.gd`)
 
+Replaced by pack models since the first version: the floating platforms (now Kenney islands, `ground.gd`
+style "island") and the lift deck (Kenney wooden deck).
+
 ## Not used
 
-Sources checked but not used: Kenney (blocked by the build network at the time), Quaternius (its downloads
-go through Google Drive), OpenGameArt and itch.io (not needed: KayKit covered everything in one style).
+Sources checked but not used: Quaternius (its downloads go through Google Drive), OpenGameArt and itch.io
+(not needed). Kenney's site was blocked by the build network; its Mini Forest pack came as a supplied file.

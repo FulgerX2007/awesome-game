@@ -89,7 +89,7 @@ func dialog_closed(was_solved: bool) -> void:
 		interactable.enabled = false
 		var p := Level.of(self)
 		if p and p.player:
-			p.player.play_action("Spellcast_Shoot", 0.9)
+			p.player.play_action("cast", 0.9)
 		await _play_solved()
 		solved.emit(self)
 	else:

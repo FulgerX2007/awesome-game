@@ -4,7 +4,23 @@ extends RefCounted
 ## e.g. "hexagon/tree_single_A" or "dungeon/chest". Shared materials live here too, so every scene that wants
 ## "stone" or "glow" gets the same resource instead of a new one per node.
 
+## The heroes a child can play (KayKit Adventurers 2.0). They share one skeleton, Rig_Medium, so one
+## animation library drives all six. Names are translation keys.
+const HEROES := [
+	{id = "mage", model = "heroes/Mage", name = "Mage"},
+	{id = "knight", model = "heroes/Knight", name = "Knight"},
+	{id = "ranger", model = "heroes/Ranger", name = "Ranger"},
+	{id = "barbarian", model = "heroes/Barbarian", name = "Barbarian"},
+	{id = "rogue", model = "heroes/Rogue", name = "Rogue"},
+	{id = "rogue_hooded", model = "heroes/Rogue_Hooded", name = "Hooded Rogue"},
+]
+## The rig's animation files; together they hold idle, run, jump, hit, interact and use clips.
+const HERO_ANIMATIONS := ["heroes/Rig_Medium_General", "heroes/Rig_Medium_MovementBasic"]
+## Clips that repeat. Everything else plays once.
+const HERO_LOOPS := ["Idle_A", "Idle_B", "Running_A", "Running_B", "Walking_A", "Jump_Idle", "Jump_Full_Short"]
+
 static var _scenes := {}
+static var _hero_lib: AnimationLibrary
 static var _meshes := {}
 static var _materials := {}
 
@@ -31,6 +47,43 @@ static func scene(key: String) -> PackedScene:
 static func instance(key: String) -> Node3D:
 	var s := scene(key)
 	return s.instantiate() if s else Node3D.new()
+
+
+static func hero_ids() -> Array:
+	return HEROES.map(func(h): return h.id)
+
+
+static func hero_info(id: String) -> Dictionary:
+	for h in HEROES:
+		if h.id == id:
+			return h
+	return HEROES[0]
+
+
+## A hero model with an AnimationPlayer holding the shared rig animations, ready to play.
+static func hero(id: String) -> Node3D:
+	var n := instance(hero_info(id).model)
+	var ap := AnimationPlayer.new()
+	ap.name = "AnimationPlayer"
+	n.add_child(ap)
+	ap.add_animation_library("", _hero_animations())
+	return n
+
+
+static func _hero_animations() -> AnimationLibrary:
+	if _hero_lib == null:
+		_hero_lib = AnimationLibrary.new()
+		for key in HERO_ANIMATIONS:
+			var rig := instance(key)
+			var src: AnimationPlayer = rig.find_child("AnimationPlayer", true, false)
+			if src:
+				for name in src.get_animation_list():
+					if name != "T-Pose" and not _hero_lib.has_animation(name):
+						var a: Animation = src.get_animation(name).duplicate()
+						a.loop_mode = Animation.LOOP_LINEAR if HERO_LOOPS.has(name) else Animation.LOOP_NONE
+						_hero_lib.add_animation(name, a)
+			rig.free()
+	return _hero_lib
 
 
 ## The first mesh of a model, for MultiMesh tiles and other single-mesh pieces.

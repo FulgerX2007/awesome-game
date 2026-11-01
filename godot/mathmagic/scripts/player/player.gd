@@ -15,8 +15,9 @@ signal landed
 @export var jump_buffer := 0.14
 @export var interact_cooldown := 0.35
 
-const MODEL_SCALE := 0.7
-const LOOPS := ["Idle", "Running_A", "Walking_A", "Jump_Idle", "Cheer", "Spellcasting", "Unarmed_Idle"]
+const MODEL_SCALE := 0.66
+## What the game asks for and which rig clip shows it (the hero rig has no cheer or spell clips).
+const ACTIONS := {cheer = "Jump_Full_Short", cast = "Use_Item", hit = "Hit_A", pickup = "PickUp"}
 
 var controls_enabled := true
 var kill_y := -4.0
@@ -54,15 +55,11 @@ func _ready() -> void:
 	shape.position.y = 0.65
 	add_child(shape)
 
-	model = Art.instance("adventurers/Mage")
+	model = Art.hero(ProgressManager.settings.get("hero", "mage"))
 	model.scale = Vector3.ONE * MODEL_SCALE
 	add_child(model)
-	anim = model.find_child("AnimationPlayer", true, false)
-	if anim:
-		for n in LOOPS:
-			if anim.has_animation(n):
-				anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
-		anim.play("Idle")
+	anim = model.get_node("AnimationPlayer")
+	anim.play("Idle_A")
 
 	var area := Area3D.new()  # finds interactables nearby
 	area.collision_layer = 0
@@ -188,9 +185,9 @@ func _animate(delta: float, ix: float) -> void:
 	model.visible = _invuln <= 0.0 or int(_invuln * 12.0) % 2 == 0
 	if anim == null or _action_t > 0.0:
 		return
-	var name := "Idle"
+	var name := "Idle_A"
 	if MathChallengeManager.is_active():
-		name = "Spellcasting"
+		name = "Idle_B"  # standing and thinking
 	elif not is_on_floor():
 		name = "Jump_Idle" if velocity.y < 2.0 else "Jump_Start"
 	elif absf(velocity.x) > 0.4:
@@ -204,8 +201,9 @@ func _animate(delta: float, ix: float) -> void:
 	anim.speed_scale = clampf(absf(velocity.x) / speed, 0.6, 1.2) if name == "Running_A" else 1.0
 
 
-## Plays a one-shot animation (Cheer, Spellcast_Shoot, Hit_A, PickUp...) over the movement ones.
-func play_action(name: String, duration := 0.8) -> void:
+## Plays an action (a key of ACTIONS: cheer, cast, hit, pickup) over the movement animations.
+func play_action(action: String, duration := 0.8) -> void:
+	var name: String = ACTIONS.get(action, action)
 	if anim and anim.has_animation(name):
 		anim.speed_scale = 1.0
 		anim.play(name, 0.1)
@@ -233,5 +231,5 @@ func hurt(from_x: float) -> void:
 	_invuln = 1.5
 	_knock = 6.0 * signf(global_position.x - from_x if global_position.x != from_x else -1.0)
 	velocity.y = 6.0
-	play_action("Hit_A", 0.5)
+	play_action("hit", 0.5)
 	Sfx.play("hurt")

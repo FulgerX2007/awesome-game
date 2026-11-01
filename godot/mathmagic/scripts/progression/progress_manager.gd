@@ -6,7 +6,7 @@ signal progress_changed
 signal settings_changed
 
 const GEMS_PER_LEVEL := 3
-const DEFAULT_SETTINGS := {sfx = 0.8, music = 0.5, lang = "", large_text = false}
+const DEFAULT_SETTINGS := {sfx = 0.8, music = 0.5, lang = "", large_text = false, hero = "mage"}
 
 var unlocked := 1                 # how many levels can be played, counting from the first
 var completed: Array[String] = [] # level ids
@@ -121,6 +121,8 @@ func from_dict(d: Variant) -> void:
 				settings[k] = clampf(float(s[k]), 0.0, 1.0)
 		if _is_str(s.get("lang")) and str(s.lang) in ["", "en", "ru", "ro"]:
 			settings.lang = str(s.lang)
+		if _is_str(s.get("hero")) and Art.hero_ids().has(str(s.hero)):
+			settings.hero = str(s.hero)
 		if s.get("large_text") is bool:
 			settings.large_text = s.large_text
 

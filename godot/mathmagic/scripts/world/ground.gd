@@ -13,6 +13,11 @@ extends StaticBody3D
 	set(v):
 		rows = v
 		_queue_build()
+## hex: island ground of hex tiles. island: a floating grass platform (Kenney Mini Forest), one per tile.
+@export_enum("hex", "island") var style := "hex":
+	set(v):
+		style = v
+		_queue_build()
 @export_range(1, 8) var height := 3:
 	set(v):
 		height = v
@@ -21,6 +26,8 @@ extends StaticBody3D
 const TILE_W := 2.0
 const ROW_Z := 1.732
 const GRASS_TINT := Color(0.62, 0.9, 0.55)
+const ISLAND_SCALE := Vector3(2.0, 2.0, 2.1)   # the Kenney platform is 1 x 0.47 x 1, its top at 0.47
+const ISLAND_TOP := 0.47
 
 var _dirty := false
 
@@ -43,6 +50,9 @@ func _build() -> void:
 	for c in get_children():
 		if c.has_meta("generated"):
 			c.free()
+	if style == "island":
+		_build_islands()
+		return
 	var top := []
 	var below := []
 	var mid := (rows - 1) / 2.0
@@ -62,6 +72,23 @@ func _build() -> void:
 	box.size = Vector3(length * TILE_W, height, maxf(rows, 1) * ROW_Z + 0.6)
 	col.shape = box
 	col.position = Vector3((length - 1) * TILE_W / 2.0, -height / 2.0, 0)
+	col.set_meta("generated", true)
+	add_child(col)
+
+
+func _build_islands() -> void:
+	for i in length:
+		var n := Art.instance("kenney_forest/platform")
+		n.scale = ISLAND_SCALE
+		n.position = Vector3(i * TILE_W, -ISLAND_TOP * ISLAND_SCALE.y, 0)
+		n.set_meta("generated", true)
+		add_child(n)
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	var h := ISLAND_TOP * ISLAND_SCALE.y
+	box.size = Vector3(length * TILE_W - 0.1, h, 1.9)
+	col.shape = box
+	col.position = Vector3((length - 1) * TILE_W / 2.0, -h / 2.0, 0)
 	col.set_meta("generated", true)
 	add_child(col)
 

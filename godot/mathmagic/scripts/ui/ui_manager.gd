@@ -352,6 +352,11 @@ func show_title() -> void:
 	var levels := UiTheme.button("Island map")
 	levels.pressed.connect(func(): map_pressed.emit())
 	v.add_child(levels)
+	var hero := UiTheme.button("")
+	hero.text = tr("Hero: %s") % tr(Art.hero_info(ProgressManager.settings.get("hero", "mage")).name)
+	hero.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	hero.pressed.connect(show_heroes)
+	v.add_child(hero)
 	var settings := UiTheme.button("Settings")
 	settings.pressed.connect(func(): show_settings(false))
 	v.add_child(settings)
@@ -398,6 +403,52 @@ func show_map() -> void:
 	back.pressed.connect(func(): menu_pressed.emit())
 	v.add_child(back)
 	_open(c[0])
+
+
+## Choose your hero: a strip along the bottom, so the hero in the 3D picture above changes as you pick.
+func show_heroes() -> void:
+	var shade := Control.new()
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var card := PanelContainer.new()
+	card.theme_type_variation = "Card"
+	card.anchor_left = 0.0
+	card.anchor_right = 1.0
+	card.anchor_top = 1.0
+	card.anchor_bottom = 1.0
+	card.offset_left = 24
+	card.offset_right = -24
+	card.offset_bottom = -16
+	card.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	shade.add_child(card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	card.add_child(v)
+	v.add_child(UiTheme.label("Choose your hero", "Big"))
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 10)
+	v.add_child(grid)
+	var current: String = ProgressManager.settings.get("hero", "mage")
+	var chosen: Button
+	for h in Art.HEROES:
+		var b := UiTheme.button(h.name, "PrimaryButton" if h.id == current else "")
+		if h.id == current:
+			chosen = b
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var id: String = h.id
+		b.pressed.connect(func():
+			ProgressManager.set_setting("hero", id)
+			Sfx.play("collect")
+			show_heroes())
+		grid.add_child(b)
+	var back := UiTheme.button("Back", "PrimaryButton")
+	back.pressed.connect(show_title)
+	v.add_child(back)
+	_open(shade)
+	if chosen:
+		chosen.grab_focus.call_deferred()  # after _open's own focus, so the chosen hero has it
 
 
 ## Settings as a card. From the pause menu, Back returns there.

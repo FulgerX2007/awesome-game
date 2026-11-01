@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cp6xc3380w0nm"
-path="res://.godot/imported/Mage.glb-df41da7dccd9c1c3151a875abfb32db1.scn"
+uid="uid://dgd70xq0ba4u4"
+path="res://.godot/imported/tree-high.glb-1f9552d2dcd02b2457a55d8c0234d9a5.scn"
 
 [deps]
 
-source_file="res://assets/models/adventurers/Mage.glb"
-dest_files=["res://.godot/imported/Mage.glb-df41da7dccd9c1c3151a875abfb32db1.scn"]
+source_file="res://assets/models/kenney_forest/tree-high.glb"
+dest_files=["res://.godot/imported/tree-high.glb-1f9552d2dcd02b2457a55d8c0234d9a5.scn"]
 
 [params]
 

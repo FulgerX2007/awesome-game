@@ -19,7 +19,7 @@ func _initialize() -> void:
 	for name in ["test_addition", "test_subtraction", "test_missing", "test_answer_checking", "test_choices_unique",
 			"test_ranges", "test_difficulty_boundaries", "test_max_unknown", "test_text", "test_adaptation",
 			"test_weakest_skill", "test_save_roundtrip", "test_save_invalid", "test_progress_sanitize",
-			"test_levels_load", "test_translations"]:
+			"test_levels_load", "test_translations", "test_heroes"]:
 		var before := failed
 		var finished = await call(name)
 		if finished != true:
@@ -248,6 +248,10 @@ func test_progress_sanitize():
 	check(not Progress.gems.has("nowhere") and not Progress.gems.has("bridge"), "bad gem lists dropped")
 	check(Progress.settings.sfx == 1.0 and Progress.settings.music == Progress.DEFAULT_SETTINGS.music, "settings clamped or defaulted")
 	check(Progress.settings.lang == "" and Progress.settings.large_text == false, "bad settings fall back")
+	Progress.from_dict({settings = {hero = "dragon"}})
+	check(Progress.settings.hero == "mage", "an unknown hero falls back to the mage")
+	Progress.from_dict({settings = {hero = "knight"}})
+	check(Progress.settings.hero == "knight", "a known hero is kept")
 	Progress.from_dict({completed = ["bridge"]})
 	check(Progress.is_unlocked(2), "a finished level opens the next even if 'unlocked' was lost")
 	Math.from_dict({add = {level = 9, history = [true, "x", false, true, true, true, true, true, true, true, true]}, sub = "bad"})
@@ -314,4 +318,28 @@ func test_translations():
 		need.append(c.hint_key())
 	for k in need:
 		check(keys.has(k), "missing translation for: %s" % k)
+	return true
+
+
+## Every hero builds with the shared rig and has every animation the player and the menu play.
+func test_heroes():
+	var actions: Dictionary = load("res://scripts/player/player.gd").ACTIONS
+	var needed: Array = ["Idle_A", "Idle_B", "Running_A", "Jump_Start", "Jump_Idle"] + actions.values()
+	for id in Art.hero_ids():
+		var h := Art.hero(id)
+		var ap: AnimationPlayer = h.get_node_or_null("AnimationPlayer")
+		check(ap != null, "%s has an AnimationPlayer" % id)
+		if ap:
+			for a in needed:
+				check(ap.has_animation(a), "%s can play %s" % [id, a])
+			var track_ok := true
+			var anim := ap.get_animation("Running_A")
+			for t in anim.get_track_count():
+				var path := String(anim.track_get_path(t)).split(":")[0]
+				if h.get_node_or_null(path) == null:
+					track_ok = false
+			check(track_ok, "%s: the shared animations reach its skeleton" % id)
+		check(Art.hero_info(id).name != "", "%s has a name" % id)
+		h.free()
+	check(Art.hero_info("nobody").id == "mage", "an unknown hero id gives the mage")
 	return true

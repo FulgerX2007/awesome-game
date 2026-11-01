@@ -1,7 +1,8 @@
 # MathMagic: Island of Addition
 
-A 2.5D math adventure for children aged 6–10, made with Godot 4.7 (GDScript). A young mage walks across a
-colorful low-poly island. Counting, adding and subtracting are how the mage moves forward: the answers open
+A 2.5D math adventure for children aged 6–10, made with Godot 4.7 (GDScript). A young hero (six to choose
+from: mage, knight, ranger, barbarian, rogue, hooded rogue) walks across a colorful low-poly island.
+Counting, adding and subtracting are how the hero moves forward: the answers open
 gates, build bridges, power machines and calm the Stone Guardian. It runs on desktop and in the browser
 (`/mathmagic/` on this site), in English, Russian and Romanian.
 
@@ -44,6 +45,11 @@ navigates them through Godot's default `ui_*` actions (not tested yet).
 | 4 | Windmill Hill | Puzzles combined: fill an energy machine to start the lift, use the stones from up there to fix a bridge, open a gate | machine + lift + bridge + gate |
 | 5 | Stone Guardian | Boss: everything learned, under gentle pressure | 3 phases |
 
+**Heroes.** "Hero" on the title screen opens a picker with the six KayKit Adventurers 2.0 characters; the
+choice is saved and the picked hero shows in the menu picture and plays every level. They all share one
+skeleton (`Rig_Medium`), so `Art.hero()` gives any of them the same animation library, built once from the
+pack's two animation files.
+
 Each level has an intro card with one or two short lines, an objective always shown in the corner (the next
 unsolved puzzle), three optional magic gems on harder-to-reach platforms, a treasure chest at the end, and
 checkpoints: falling into the sea brings the mage back to the last flag or solved puzzle. Nothing is ever
@@ -83,7 +89,7 @@ godot/mathmagic/
     progression/ level_catalog.gd, progress_manager.gd
     save/        save_manager.gd
     ui/          ui_manager.gd, challenge_dialog.gd, counting_view.gd, ui_theme.gd
-    world/       ground.gd (hex-tile terrain), prop.gd, art.gd, fx.gd, lift.gd, windmill.gd, sign_post.gd, level_environment.gd
+    world/       ground.gd (hex-tile terrain and floating islands), prop.gd, art.gd (models, heroes, materials), fx.gd, lift.gd, windmill.gd, sign_post.gd, level_environment.gd
     audio/       sfx.gd
   data/strings.csv       EN/RU/RO texts (Godot imports it as translations)
   tests/                 run.gd (unit), playthrough.tscn (bot plays the game)
@@ -134,16 +140,17 @@ godot --headless --path godot/mathmagic -s res://tests/run.gd
 godot --headless --fixed-fps 60 --path godot/mathmagic res://tests/playthrough.tscn
 ```
 
-`tests/run.gd` (16 tests, about 1 s): addition, subtraction and missing-addend results over 300 random
+`tests/run.gd` (17 tests, about 1 s): addition, subtraction and missing-addend results over 300 random
 questions per skill and difficulty; right and wrong answer detection; distinct, non-negative choices that
 contain the answer; number ranges per difficulty; difficulty clamping and monotonic ranges; the bridge's
 answer cap; question text; adaptation up and down and its bounds; weak-skill repetition; save/load round
 trip; broken, empty, wrong-version and missing saves; sanitizing bad values; every level scene loading with
-spawn, camera limits, three gems, a goal or boss and valid challenges; every visible text translated.
+spawn, camera limits, three gems, a goal or boss and valid challenges; every visible text translated;
+every hero building with every animation the game plays, its tracks reaching its skeleton.
 
 `tests/playthrough.tscn` (about 5 s; `--fixed-fps 60` runs the physics as fast as the machine allows): first the menu flows (intro card, pause and
 resume with a frozen world, a double interaction ignored, "Later" closing and reopening the same question,
-restart, map, title), then a bot plays all five levels with the real scenes, physics and dialog. It walks,
+restart, map, title, picking a hero and seeing that hero in the level), then a bot plays all five levels with the real scenes, physics and dialog. It walks,
 jumps gaps and steps, waits for the lift, collects stones, answers one wrong and then right at every puzzle,
 and in the boss fight waits for the Guardian to tire before going to each crystal. Each level must end at its
 goal; afterwards the saved progress must load back identical. The bot found real layout bugs (platforms that
@@ -163,8 +170,10 @@ desktop with a GPU and in a browser:
 
 ## Known limitations
 
-- The gate bars, bridge slabs, machine, lift, gems, crystals and signs are code-built primitives (see
-  `docs/ASSETS.md`). They are readable and consistent but simpler than the KayKit models around them.
+- The gate bars, bridge slabs, machine, gems, crystals and signs are code-built primitives (see
+  `docs/ASSETS.md`). They are readable and consistent but simpler than the pack models around them.
+- The 2.0 hero rig has no cheer or spell clips: the level-end cheer is a happy hop (`Jump_Full_Short`), a
+  solved puzzle plays `Use_Item`, and the hero thinks with `Idle_B` during a challenge. Heroes carry no weapons.
 - No touch controls yet. The UI works with a mouse, but walking and jumping need a keyboard or a gamepad.
   This is the main step for Android.
 - The browser version was checked in headless Chromium with software rendering (under 2 FPS there), which
