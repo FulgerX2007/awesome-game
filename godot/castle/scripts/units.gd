@@ -34,7 +34,7 @@ class View:
 	var t := 0.0
 	var mode := ""                  # the material look applied: "", flash, shadow
 	var overlay := ""
-	var flames: CPUParticles3D       # shown while the enemy burns
+	var flames: Node3D               # shown while the enemy burns: an Ember flipbook, or particles without it
 	var stars: Node3D
 	var barrier: MeshInstance3D
 	var aura: Node3D
@@ -219,7 +219,10 @@ func _update(v: View, e: CastleSim.Enemy, delta: float) -> void:
 	if burning and v.flames == null:
 		v.flames = _flames(v)
 	if v.flames:
-		v.flames.emitting = burning
+		if v.flames is CPUParticles3D:
+			(v.flames as CPUParticles3D).emitting = burning
+		else:
+			v.flames.visible = burning
 	# stunned stars
 	var stunned := e.state == "stun"
 	if stunned and v.stars == null:
@@ -240,7 +243,12 @@ func _update(v: View, e: CastleSim.Enemy, delta: float) -> void:
 
 
 ## Flames licking up a burning body, sized to it.
-func _flames(v: View) -> CPUParticles3D:
+func _flames(v: View) -> Node3D:
+	var fb := CastleFlipbook.make("fire_campfire", maxf(1.6, v.h * 1.25), true)
+	if fb:
+		fb.position = Vector3(0, v.h * 0.55, 0.3)
+		v.root.add_child(fb)
+		return fb
 	var f := CPUParticles3D.new()
 	f.amount = 14 if not v.boss else 28
 	f.lifetime = 0.55

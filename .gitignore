@@ -3,3 +3,4 @@
 *.exe
 /godot/*/.godot/
 /godot/*/data/*.translation
+/godot/castle/assets/ember/
