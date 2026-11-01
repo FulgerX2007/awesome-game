@@ -4,7 +4,7 @@ extends RefCounted
 ## Every number range lives in LEVELS; level scripts never contain questions, only a skill and a difficulty window.
 
 const MAX_DIFFICULTY := 5
-const SKILLS := ["add", "sub", "missing"]
+const SKILLS := ["add", "sub", "missing", "mul"]
 
 ## Per difficulty: the largest number in the question (the sum, the start of a subtraction or the target of a
 ## missing addend), the smallest operand, and how many answer buttons. 1-2 stay within five and ten so the
@@ -18,15 +18,29 @@ const LEVELS := {
 }
 
 
+## Multiplication as equal groups: how many groups and how many in each, per difficulty. Products stay at
+## 30 or less, so every group can still be drawn and counted one by one.
+const MUL_LEVELS := {
+	1: {groups = [2, 2], size = [2, 3], choices = 3},
+	2: {groups = [2, 3], size = [2, 4], choices = 3},
+	3: {groups = [2, 4], size = [2, 5], choices = 3},
+	4: {groups = [3, 5], size = [2, 5], choices = 4},
+	5: {groups = [3, 5], size = [3, 6], choices = 4},
+}
+
+
 static func range_for(difficulty: int) -> Dictionary:
 	return LEVELS[clampi(difficulty, 1, MAX_DIFFICULTY)]
 
 
-## skill: "add", "sub" or "missing". options:
+## skill: "add", "sub", "missing" or "mul". options:
 ##   max_unknown: int - the answer may not exceed this (a bridge cannot ask for more stones than the pouch holds)
 ##   min_total:   int - the question's largest number is at least this
+##   max_groups:  int - "mul" only: at most this many groups (a staircase has room for so many steps)
 static func generate(skill: String, difficulty: int, rng: RandomNumberGenerator, options := {}) -> MathChallenge:
 	var d := clampi(difficulty, 1, MAX_DIFFICULTY)
+	if skill == "mul":
+		return _generate_mul(d, rng, options)
 	var r := range_for(d)
 	var max_total: int = r.max_total
 	var lo: int = r.min_operand
@@ -63,6 +77,23 @@ static func generate(skill: String, difficulty: int, rng: RandomNumberGenerator,
 	return c
 
 
+static func _generate_mul(d: int, rng: RandomNumberGenerator, options: Dictionary) -> MathChallenge:
+	var r: Dictionary = MUL_LEVELS[d]
+	var g_hi: int = clampi(options.get("max_groups", r.groups[1]), 2, r.groups[1])
+	var g_lo: int = mini(r.groups[0], g_hi)
+	var c := MathChallenge.new()
+	c.op = MathChallenge.Op.MUL
+	c.difficulty = d
+	c.skill = "mul"
+	c.visual = true
+	c.a = rng.randi_range(g_lo, g_hi)
+	c.b = rng.randi_range(r.size[0], r.size[1])
+	c.total = c.a * c.b
+	c.answer = c.total
+	c.choices = make_choices(c, r.choices, rng)
+	return c
+
+
 ## The answer plus near misses a child would really pick: one off, two off, and the typical slips
 ## (adding instead of subtracting, giving the total instead of the missing part). Distinct, never negative.
 static func make_choices(c: MathChallenge, count: int, rng: RandomNumberGenerator) -> Array[int]:
@@ -75,6 +106,8 @@ static func make_choices(c: MathChallenge, count: int, rng: RandomNumberGenerato
 		MathChallenge.Op.MISSING:
 			slips.append(c.total)
 			slips.append(c.a)
+		MathChallenge.Op.MUL:  # one group too many or too few, or adding the two numbers
+			slips = [c.answer + c.b, c.answer - c.b, c.a + c.b, c.answer + 1, c.answer - 1]
 		_:
 			slips.append(c.a)
 	slips.append_array([c.answer + 2, c.answer - 2, c.answer + 3, c.answer - 3])

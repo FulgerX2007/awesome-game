@@ -27,7 +27,7 @@ are copied; the rest of each pack (weapons, the Kenney archer) is not in the pro
 | Asset | Files | How | License |
 |---|---|---|---|
 | Sound effects (23) and the music loop | `assets/audio/*.wav` | Synthesized by `tools/mathmagic/sounds.py` (numpy): tones, sweeps and filtered noise | CC0, part of this repository |
-| Counting stones, gems, gate bars and rune plate, bridge slabs and empty spots, energy machine and meter, lift, rune crystals, Stone Guardian's eyes, core and shield, warning rings | built in code (`scripts/`) from Godot primitive meshes | Original | Same as the code |
+| Counting stones, gems, gate bars and rune plate, bridge slabs and empty spots, energy machine and meter, lift, rune crystals, crystal steps and their crystals, Stone Guardian's eyes, core and shield, warning rings, the on-screen touch buttons | built in code (`scripts/`) from Godot primitive meshes | Original | Same as the code |
 | The Stone Guardian | `scripts/bosses/stone_guardian.gd` assembles it from the hexagon pack's rocks and mountain plus primitives | Original design | Same as the code |
 | UI theme, buttons, counting view, HUD, menus | `scripts/ui/*` | Drawn in code, no image files | Same as the code |
 
@@ -40,6 +40,10 @@ Replacing one means swapping the mesh in its script; the puzzle logic does not d
 - energy machine body, crystal and meter (`energy_puzzle.gd`), lift deck (`lift.gd`)
 - rune pedestals and light beams (`boss_rune.gd`), the Guardian's shield bubble and warning rings
 - sign posts (`sign_post.gd`), gems (two prisms in `pickup.gd`)
+- crystal steps and their crystals (`steps_puzzle.gd`: boxes and four-sided diamonds)
+
+Multiplication Mountains uses no new files: its peaks, pines, rocks, flags and tower are the same KayKit and
+Kenney models listed above, placed differently, under a cooler sky (`level_environment.gd`).
 
 Not used from the supplied `AllModels.blend`: its trees (birch, maple, pine, palm, "normal", dead) and rocks.
 Their textures were not packed into the file (only paths to the author's own disk), so they render blank; the

@@ -107,6 +107,60 @@ func flows() -> void:
 	main.start(0)
 	_check(main.levels.current.player.model.find_child("Knight_Body", true, false) != null, "the chosen hero walks into the level")
 	Progress.set_setting("hero", "mage")
+	await touch_flows()
+
+
+## The on-screen buttons: real touch events on them move and jump the mage; they hide while the math
+## dialog is open and when the setting says off.
+func touch_flows() -> void:
+	Progress.set_setting("touch", "on")
+	main.start(0)
+	main.ui.close_screen()
+	main._on_intro_closed()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var tc: TouchControls = main.ui.touch
+	_check(tc.visible and TouchControls.shown, "touch buttons show in a level when turned on")
+	var lvl: Level = main.levels.current
+	for k in 30:
+		await get_tree().physics_frame
+	var right: Node2D = tc.get_child(1)
+	var jump: Node2D = tc.get_child(3)
+	var x0 := lvl.player.global_position.x
+	_touch(0, right.global_position, true)
+	for k in 30:
+		await get_tree().physics_frame
+	_check(Input.is_action_pressed("move_right") and lvl.player.global_position.x > x0 + 1.0, "holding the right button walks right")
+	_touch(1, jump.global_position, true)  # a second finger, while the first still holds right
+	var top := lvl.player.global_position.y
+	for k in 20:
+		await get_tree().physics_frame
+		top = maxf(top, lvl.player.global_position.y)
+	_check(top > 1.2, "the jump button jumps, with another finger down")
+	_touch(1, jump.global_position, false)
+	_touch(0, right.global_position, false)
+	await get_tree().physics_frame
+	_check(not Input.is_action_pressed("move_right") and not Input.is_action_pressed("jump"), "lifting the fingers releases the buttons")
+	lvl.puzzles[0]._on_interact(lvl.player)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(not tc.visible, "the buttons hide while the math dialog is open")
+	main.ui.dialog._close(false)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Progress.set_setting("touch", "off")
+	await get_tree().process_frame
+	_check(not tc.visible, "turned off, they stay hidden")
+	Progress.set_setting("touch", "auto")
+	main.show_title()
+
+
+func _touch(index: int, at: Vector2, down: bool) -> void:
+	var ev := InputEventScreenTouch.new()
+	ev.index = index
+	ev.position = get_tree().root.get_final_transform() * at  # events come in window pixels; the UI is stretched
+	ev.pressed = down
+	Input.parse_input_event(ev)
 
 
 func play(i: int) -> bool:

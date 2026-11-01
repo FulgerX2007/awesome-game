@@ -2,7 +2,6 @@ keys,en,ru,ro
 MathMagic,MathMagic,MathMagic,MathMagic
 Island of Addition,Island of Addition,Остров Сложения,Insula Adunării
 Play,Play,Играть,Joacă
-Island map,Island map,Карта острова,Harta insulei
 Settings,Settings,Настройки,Setări
 Back,Back,Назад,Înapoi
 Magic gems: %d,Magic gems: %d,Волшебные камни: %d,Pietre magice: %d
@@ -103,3 +102,38 @@ Ranger,Ranger,Следопыт,Arcașul
 Barbarian,Barbarian,Варвар,Barbarul
 Rogue,Rogue,Ловкач,Hoțomanul
 Hooded Rogue,Hooded Rogue,Ловкач в капюшоне,Hoțomanul cu glugă
+Multiplication Mountains,Multiplication Mountains,Горы Умножения,Munții Înmulțirii
+You climbed the mountains!,You climbed the mountains!,Ты покорил горы!,Ai urcat munții!
+Map,Map,Карта,Hartă
+Equal Groups Trail,Equal Groups Trail,Тропа равных групп,Cărarea grupurilor egale
+Count the same-size piles to open the gates.,Count the same-size piles to open the gates.,"Считай одинаковые кучки, чтобы открыть ворота.",Numără grămezile la fel de mari ca să deschizi porțile.
+Crystal Steps,Crystal Steps,Хрустальные ступени,Treptele de cristal
+Light the crystals and build the steps.,Light the crystals and build the steps.,Зажги кристаллы и построй ступени.,Aprinde cristalele și construiește treptele.
+Summit Path,Summit Path,Путь к вершине,Drumul spre vârf
+Use all your magic to reach the summit.,Use all your magic to reach the summit.,"Используй всю свою магию, чтобы добраться до вершины.",Folosește toată magia ta ca să ajungi pe vârf.
+Every pile has the same number of stones. How many in all?,Every pile has the same number of stones. How many in all?,В каждой кучке одинаково камней. Сколько всего?,Fiecare grămadă are la fel de multe pietre. Câte sunt în total?
+Every step needs the same number of crystals. How many crystals in all?,Every step needs the same number of crystals. How many crystals in all?,Каждой ступени нужно одинаково кристаллов. Сколько всего кристаллов?,Fiecare treaptă are nevoie de la fel de multe cristale. Câte cristale în total?
+Some steps have no crystals yet. We need more.,Some steps have no crystals yet. We need more.,На некоторых ступенях ещё нет кристаллов. Нужно больше.,Unele trepte nu au încă cristale. Avem nevoie de mai multe.
+Crystals are left over. That is too many.,Crystals are left over. That is too many.,Остались лишние кристаллы. Это слишком много.,Au rămas cristale în plus. Sunt prea multe.
+"Every group has the same number. Count on, group by group.","Every group has the same number. Count on, group by group.","В каждой группе одинаково. Считай дальше, группа за группой.","Fiecare grup are la fel. Numără mai departe, grup cu grup."
+Touch buttons,Touch buttons,Кнопки на экране,Butoane pe ecran
+Auto,Auto,Авто,Auto
+On,On,Вкл,Pornit
+Off,Off,Выкл,Oprit
+Welcome to Multiplication Mountains!,Welcome to Multiplication Mountains!,Добро пожаловать в Горы Умножения!,Bine ai venit în Munții Înmulțirii!
+Same-size piles are quick to count.,Same-size piles are quick to count.,Одинаковые кучки легко считать.,Grămezile la fel de mari se numără repede.
+"Count one pile, then count on.","Count one pile, then count on.","Посчитай одну кучку, потом считай дальше.","Numără o grămadă, apoi numără mai departe."
+Count the piles. Open the gate!,Count the piles. Open the gate!,Посчитай кучки. Открой ворота!,Numără grămezile. Deschide poarta!
+Open the mountain gate!,Open the mountain gate!,Открой горные ворота!,Deschide poarta muntelui!
+The last gate: think in groups!,The last gate: think in groups!,Последние ворота: думай группами!,Ultima poartă: gândește în grupuri!
+The cliffs are too tall to jump.,The cliffs are too tall to jump.,"Скалы слишком высокие, не перепрыгнуть.",Stâncile sunt prea înalte pentru sărit.
+Light the crystals to build the steps.,Light the crystals to build the steps.,"Зажги кристаллы, чтобы построить ступени.",Aprinde cristalele ca să construiești treptele.
+Each step needs the same number of crystals.,Each step needs the same number of crystals.,Каждой ступени нужно одинаково кристаллов.,Fiecare treaptă are nevoie de la fel de multe cristale.
+Build the crystal steps.,Build the crystal steps.,Построй хрустальные ступени.,Construiește treptele de cristal.
+Open the gate on the ledge.,Open the gate on the ledge.,Открой ворота на уступе.,Deschide poarta de pe stâncă.
+Build the steps to the top.,Build the steps to the top.,Построй ступени наверх.,Construiește treptele până sus.
+The summit is near!,The summit is near!,Вершина уже близко!,Vârful e aproape!
+Use everything you have learned.,Use everything you have learned.,"Используй всё, чему научился.",Folosește tot ce ai învățat.
+"Adding, taking away and groups: you know them all!","Adding, taking away and groups: you know them all!","Сложение, вычитание и группы: ты всё знаешь!","Adunarea, scăderea și grupurile: le știi pe toate!"
+Climb the crystal steps.,Climb the crystal steps.,Поднимись по хрустальным ступеням.,Urcă pe treptele de cristal.
+Open the summit gate!,Open the summit gate!,Открой ворота на вершине!,Deschide poarta de pe vârf!

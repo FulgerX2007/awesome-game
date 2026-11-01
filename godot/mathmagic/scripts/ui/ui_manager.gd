@@ -16,6 +16,7 @@ signal pause_pressed
 
 var root: Control
 var dialog: ChallengeDialog
+var touch: TouchControls
 var hud: Control
 var _objective: Label
 var _level_title: Label
@@ -40,6 +41,9 @@ func _ready() -> void:
 	apply_theme()
 	ProgressManager.settings_changed.connect(apply_theme)
 	_build_hud()
+	touch = TouchControls.new()
+	touch.ui = self
+	root.add_child(touch)
 	dialog = ChallengeDialog.new()
 	root.add_child(dialog)
 
@@ -301,7 +305,7 @@ func show_pause() -> void:
 	var b2 := UiTheme.button("Start the level again")
 	b2.pressed.connect(func(): restart_pressed.emit())
 	v.add_child(b2)
-	var b3 := UiTheme.button("Island map")
+	var b3 := UiTheme.button("Map")
 	b3.pressed.connect(func(): map_pressed.emit())
 	v.add_child(b3)
 	var b4 := UiTheme.button("Settings")
@@ -314,7 +318,9 @@ func show_result(level: Level) -> void:
 	var c := _card()
 	var v: VBoxContainer = c[1]
 	var last := level.level_index >= LevelCatalog.count() - 1
-	v.add_child(UiTheme.label("You saved the island!" if last else "Level complete!", "Title"))
+	var world_end := LevelCatalog.is_last_in_world(level.level_index)
+	var finale: String = LevelCatalog.world(LevelCatalog.world_of(level.level_index)).finale
+	v.add_child(UiTheme.label(finale if world_end else "Level complete!", "Title"))
 	var star := UiTheme.label("★", "Title")
 	star.add_theme_font_size_override("font_size", 110)
 	star.add_theme_color_override("font_color", Color("#ffc53d"))
@@ -328,7 +334,7 @@ func show_result(level: Level) -> void:
 		var n := UiTheme.button("Next level", "PrimaryButton")
 		n.pressed.connect(func(): next_pressed.emit())
 		v.add_child(n)
-	var m := UiTheme.button("Island map", "" if not last else "PrimaryButton")
+	var m := UiTheme.button("Map", "" if not last else "PrimaryButton")
 	m.pressed.connect(func(): map_pressed.emit())
 	v.add_child(m)
 	_open(c[0])
@@ -344,12 +350,12 @@ func show_title() -> void:
 	t.add_theme_font_size_override("font_size", 84)
 	t.add_theme_color_override("font_color", Color("#6a4cff"))
 	v.add_child(t)
-	v.add_child(UiTheme.label("Island of Addition", "Big"))
+	v.add_child(UiTheme.label(LevelCatalog.world(LevelCatalog.world_of(ProgressManager.next_level())).title, "Big"))
 	var play := UiTheme.button("Play", "PrimaryButton")
 	play.custom_minimum_size.y = 90
 	play.pressed.connect(func(): play_pressed.emit())
 	v.add_child(play)
-	var levels := UiTheme.button("Island map")
+	var levels := UiTheme.button("Map")
 	levels.pressed.connect(func(): map_pressed.emit())
 	v.add_child(levels)
 	var hero := UiTheme.button("")
@@ -371,38 +377,53 @@ func show_map() -> void:
 	hide_hud()
 	var c := _card(false)
 	var v: VBoxContainer = c[1]
-	v.get_parent().custom_minimum_size.x = 760
-	v.add_child(UiTheme.label("Island map", "Title"))
-	var grid := GridContainer.new()
-	grid.columns = 1
-	grid.add_theme_constant_override("v_separation", 10)
-	v.add_child(grid)
-	for i in LevelCatalog.count():
-		var info: Dictionary = LevelCatalog.get_level(i)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		var open := ProgressManager.is_unlocked(i)
-		var b := UiTheme.button("", "PrimaryButton" if open and not ProgressManager.is_completed(i) else "")
-		b.text = "%d. %s" % [i + 1, tr(info.title) if open else tr("Locked")]
-		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		b.disabled = not open
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		var idx := i
-		b.pressed.connect(func(): level_chosen.emit(idx))
-		row.add_child(b)
-		var status := UiTheme.label("", "Big")
-		status.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		status.custom_minimum_size.x = 170
-		if open:
-			status.text = ("★ " if ProgressManager.is_completed(i) else "☆ ") + "◆ %d/3" % ProgressManager.gem_count(info.id)
-		status.add_theme_color_override("font_color", Color("#e0459b"))
-		row.add_child(status)
-		grid.add_child(row)
+	v.get_parent().custom_minimum_size.x = 1160
+	var title := UiTheme.label("Map", "Title")
+	v.add_child(title)
+	v.add_theme_constant_override("separation", 10)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 28)
+	v.add_child(cols)
+	for w in LevelCatalog.WORLDS.size():  # one column per world
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 10)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cols.add_child(col)
+		var head := UiTheme.label(LevelCatalog.world(w).title, "Big")
+		head.add_theme_color_override("font_color", Color("#6a4cff"))
+		col.add_child(head)
+		for i in LevelCatalog.levels_in(w):
+			col.add_child(_map_row(i))
 	var back := UiTheme.button("Back")
 	back.pressed.connect(func(): menu_pressed.emit())
 	v.add_child(back)
 	_open(c[0])
+
+
+func _map_row(i: int) -> Control:
+	var info: Dictionary = LevelCatalog.get_level(i)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var open := ProgressManager.is_unlocked(i)
+	var b := UiTheme.button("", "PrimaryButton" if open and not ProgressManager.is_completed(i) else "")
+	b.text = "%d. %s" % [i + 1, tr(info.title) if open else tr("Locked")]
+	b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	b.disabled = not open
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	b.custom_minimum_size.y = 66  # five rows per world must fit a 720 px tall screen
+	b.pressed.connect(func(): level_chosen.emit(i))
+	row.add_child(b)
+	var status := UiTheme.label("", "")
+	status.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	status.autowrap_mode = TextServer.AUTOWRAP_OFF
+	status.custom_minimum_size.x = 120
+	if open:
+		status.text = ("★ " if ProgressManager.is_completed(i) else "☆ ") + "◆ %d/3" % ProgressManager.gem_count(info.id)
+	status.add_theme_color_override("font_color", Color("#e0459b"))
+	row.add_child(status)
+	return row
 
 
 ## Choose your hero: a strip along the bottom, so the hero in the 3D picture above changes as you pick.
@@ -473,6 +494,20 @@ func show_settings(from_pause: bool) -> void:
 		s.drag_ended.connect(func(_c): Sfx.play("click"))
 		row.add_child(s)
 		v.add_child(row)
+	var trow := HBoxContainer.new()
+	trow.add_theme_constant_override("separation", 10)
+	var tl := UiTheme.label("Touch buttons", "", HORIZONTAL_ALIGNMENT_LEFT)
+	tl.custom_minimum_size.x = 200
+	trow.add_child(tl)
+	for mode in [["auto", "Auto"], ["on", "On"], ["off", "Off"]]:
+		var tb := UiTheme.button(mode[1], "PrimaryButton" if ProgressManager.settings.get("touch", "auto") == mode[0] else "")
+		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var m: String = mode[0]
+		tb.pressed.connect(func():
+			ProgressManager.set_setting("touch", m)
+			show_settings(from_pause))
+		trow.add_child(tb)
+	v.add_child(trow)
 	var big := CheckButton.new()
 	big.text = "Big text"
 	big.button_pressed = ProgressManager.settings.large_text

@@ -4,17 +4,18 @@ extends RefCounted
 ##   ADD:     a + b = ?
 ##   SUB:     a - b = ?
 ##   MISSING: a + ? = total   (how many more do we need?)
+##   MUL:     a × b = ?       (a equal groups of b)
 
-enum Op { ADD, SUB, MISSING }
+enum Op { ADD, SUB, MISSING, MUL }
 
 var op: Op = Op.ADD
 var a := 0
 var b := 0                     # for MISSING this is the unknown, so b == answer
-var total := 0                 # a + b for ADD and MISSING, a for SUB
+var total := 0                 # a + b for ADD and MISSING, a for SUB, a × b for MUL
 var answer := 0
 var choices: Array[int] = []   # distinct, shuffled, contains answer
 var difficulty := 1            # 1..ChallengeGenerator.MAX_DIFFICULTY
-var skill := ""                # "add" | "sub" | "missing", the learning stat it counts toward
+var skill := ""                # "add" | "sub" | "missing" | "mul", the learning stat it counts toward
 var visual := true             # show countable objects in the dialog
 
 
@@ -29,6 +30,8 @@ func question_text() -> String:
 			return "%d + %d = ?" % [a, b]
 		Op.SUB:
 			return "%d − %d = ?" % [a, b]
+		Op.MUL:
+			return "%d × %d = ?" % [a, b]
 		_:
 			return "%d + ? = %d" % [a, total]
 
@@ -40,6 +43,8 @@ func solved_text() -> String:
 			return "%d + %d = %d" % [a, b, answer]
 		Op.SUB:
 			return "%d − %d = %d" % [a, b, answer]
+		Op.MUL:
+			return "%d × %d = %d" % [a, b, answer]
 		_:
 			return "%d + %d = %d" % [a, answer, total]
 
@@ -51,6 +56,8 @@ func hint_key() -> String:
 			return "Count all the stones together."
 		Op.SUB:
 			return "Start with all the stones. Cross some out. Count what is left."
+		Op.MUL:
+			return "Every group has the same number. Count on, group by group."
 		_:
 			return "Count the empty spots."
 

@@ -23,6 +23,8 @@ func prompt() -> String:
 			return "Some stones rolled away. How many are left?"
 		MathChallenge.Op.MISSING:
 			return "How many more stones do we need?"
+		MathChallenge.Op.MUL:
+			return "Every pile has the same number of stones. How many in all?"
 	return "How many stones are there in all?"
 
 
@@ -97,17 +99,27 @@ func _build() -> void:
 
 
 ## Stones on pedestals in front of the gate: a + b as two piles, a - b as one pile with b faded out,
-## a + ? as a pile and empty rings. Placed toward the camera so they are never hidden by the mage.
+## a + ? as a pile and empty rings, a × b as a small pedestals of b stones each. Placed toward the camera
+## so they are never hidden by the mage.
 func _build_objects() -> void:
 	var groups := []
+	var spacing := 2.8
+	var radius := 1.0
+	var stone := 1.25
 	match challenge.op:
 		MathChallenge.Op.ADD:
 			groups = [[challenge.a, 0], [challenge.b, 0]]
 		MathChallenge.Op.SUB:
 			groups = [[challenge.a, challenge.b]]
+		MathChallenge.Op.MUL:
+			for i in challenge.a:
+				groups.append([challenge.b, 0])
+			spacing = 1.9
+			radius = 0.75
+			stone = 1.0
 		_:
 			groups = [[challenge.a, 0], [0, challenge.b]]
-	var gx := -3.9 - (groups.size() - 1) * 1.4
+	var gx := -3.9 - (groups.size() - 1) * spacing / 2.0
 	for g in groups:
 		var ped := Node3D.new()
 		ped.position = Vector3(gx, 0, 2.2)
@@ -115,8 +127,8 @@ func _build_objects() -> void:
 		_pedestals.append(ped)
 		var base := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.95
-		cyl.bottom_radius = 1.05
+		cyl.top_radius = radius * 0.95
+		cyl.bottom_radius = radius * 1.05
 		cyl.height = 0.35
 		base.mesh = cyl
 		base.material_override = Art.material(Color("#8a6a4a"))
@@ -127,9 +139,9 @@ func _build_objects() -> void:
 		var n: int = full if challenge.op != MathChallenge.Op.MISSING else maxi(full, faded)
 		var count := n if challenge.op != MathChallenge.Op.MISSING or full > 0 else faded
 		for i in count:
-			var st := Art.counting_stone(1.25)
+			var st := Art.counting_stone(stone)
 			var per_row := 3 if count <= 6 else 5
-			st.position = Vector3((i % per_row - (mini(count, per_row) - 1) / 2.0) * 0.55, 0.52 + (i / per_row) * 0.42, 0.0)
+			st.position = Vector3((i % per_row - (mini(count, per_row) - 1) / 2.0) * 0.44 * stone, 0.52 + (i / per_row) * 0.42, 0.0)
 			ped.add_child(st)
 			var is_faded := (challenge.op == MathChallenge.Op.SUB and i >= full - faded) or (challenge.op == MathChallenge.Op.MISSING and full == 0)
 			if is_faded:
@@ -138,7 +150,7 @@ func _build_objects() -> void:
 		lbl.position = Vector3(0, 1.5 + (count / 3) * 0.42, 0)
 		lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		ped.add_child(lbl)
-		gx += 2.8
+		gx += spacing
 
 
 func _show_state() -> void:

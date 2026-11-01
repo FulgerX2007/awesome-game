@@ -1,6 +1,6 @@
 class_name Interactable
 extends Area3D
-## Something the mage can use with E. Shows a gentle bobbing sparkle while it can be used, and a big key
+## Something the mage can use with E (or the sparkle button on a touch screen). Shows a gentle bobbing sparkle while it can be used, and a big key
 ## prompt when it is the nearest one. The player decides who is nearest, so only one prompt shows at a time.
 
 signal interacted(player: Player)
@@ -65,3 +65,4 @@ func _refresh() -> void:
 		return
 	_hint.visible = enabled and not _focused
 	_prompt.visible = enabled and _focused
+	_prompt.text = "✦" if TouchControls.shown else "E"

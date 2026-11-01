@@ -43,7 +43,7 @@ static func of(node: Node) -> Level:
 func _ready() -> void:
 	add_to_group("level")
 	level_id = LevelCatalog.get_level(level_index).id
-	LevelEnvironment.build(self, camera_min_x, camera_max_x)
+	LevelEnvironment.build(self, camera_min_x, camera_max_x, LevelCatalog.world_of(level_index))
 	var spawn: Node3D = get_node_or_null("Spawn")
 	respawn_point = spawn.global_position if spawn else Vector3(0, 1, 0)
 

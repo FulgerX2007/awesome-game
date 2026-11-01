@@ -1,25 +1,31 @@
 class_name LevelEnvironment
 extends RefCounted
 ## The shared look of every level: a bright sky, one sun with soft shadows and the sea around the island.
-## Built in code so all five levels light the same way and none can drift.
+## Built in code so all levels of a world light the same way and none can drift. Each world has a palette:
+## the island is warm and sunny, the mountains a little cooler and higher, with a pale sky.
 
 const WATER_Y := -1.1
+const PALETTES := [
+	{top = "#4fa8f0", horizon = "#bfe6ff", sea = "#2f7fb8", ambient = "#c9dcff", sun = "#fff4dd"},
+	{top = "#5d8fe0", horizon = "#e6e4fa", sea = "#3b6fb0", ambient = "#d4d8ff", sun = "#ffe8cf"},
+]
 
 
-static func build(parent: Node3D, min_x: float, max_x: float) -> void:
+static func build(parent: Node3D, min_x: float, max_x: float, world := 0) -> void:
+	var pal: Dictionary = PALETTES[clampi(world, 0, PALETTES.size() - 1)]
 	var env := Environment.new()
 	var sky := Sky.new()
 	var sm := ProceduralSkyMaterial.new()
-	sm.sky_top_color = Color("#4fa8f0")
-	sm.sky_horizon_color = Color("#bfe6ff")
-	sm.ground_bottom_color = Color("#2f7fb8")
-	sm.ground_horizon_color = Color("#bfe6ff")
+	sm.sky_top_color = Color(pal.top)
+	sm.sky_horizon_color = Color(pal.horizon)
+	sm.ground_bottom_color = Color(pal.sea)
+	sm.ground_horizon_color = Color(pal.horizon)
 	sm.sun_angle_max = 20.0
 	sky.sky_material = sm
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#c9dcff")
+	env.ambient_light_color = Color(pal.ambient)
 	env.ambient_light_energy = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 0.9
@@ -33,7 +39,7 @@ static func build(parent: Node3D, min_x: float, max_x: float) -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, -35, 0)
 	sun.light_energy = 1.0
-	sun.light_color = Color("#fff4dd")
+	sun.light_color = Color(pal.sun)
 	sun.shadow_enabled = true
 	sun.shadow_opacity = 0.55
 	sun.directional_shadow_max_distance = 45.0
