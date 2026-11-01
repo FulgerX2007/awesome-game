@@ -253,7 +253,7 @@ script = ExtResource("9")
 model = "kaykit_forest/Bush_1_D_Color1"
 
 [node name="Prop15" type="Node3D" parent="."]
-transform = Transform3D(-0.197251, 0, 1.62265, 0, 1.63459, 0, -1.62265, 0, -0.197251, 49.2463, 6.35, 2.33712)
+transform = Transform3D(-0.111736, 0, 0.919177, 0, 0.925943, 0, -0.919177, 0, -0.111736, 49.2463, 6.35, 2.33712)
 script = ExtResource("9")
 model = "kaykit_forest/Grass_2_A_Color1"
 

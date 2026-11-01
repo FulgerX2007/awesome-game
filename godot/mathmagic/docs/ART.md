@@ -1,4 +1,7 @@
-# MathMagic art direction and the mountain art pass
+# MathMagic art direction and the art pass
+
+The pass was made on Crystal Steps (level 7), applied to all of Multiplication Mountains, and then to the
+Island of Addition (levels 1–5, the boss arena's rising stairs and the menu backdrop).
 
 ## Audit before the pass (Crystal Steps, level 7)
 
@@ -86,19 +89,38 @@ HUD: the challenge dialog is a little more compact (equation 58 px, answer butto
 spacing): it now covers about 40% of the screen instead of 44%. Gate questions sit lower so the closer
 camera does not cut them off.
 
-## Lighting (Multiplication Mountains only; the island keeps its tuning)
+## Lighting (per world, `level_environment.gd`)
 
-| Setting | Before | After |
-|---|---|---|
-| Sun energy | 1.0 | 0.75 |
-| Sun pitch | −52° | −40° (longer, more readable shadows) |
-| Ambient energy | 0.45 | 0.34 |
-| Tonemap | filmic, exposure 0.9, white 1.0 | filmic, exposure 1.1, white 4.0 |
-| Fog | none | depth fog from 18 to 55 units, horizon color, max 0.55: the far range fades into the sky, nothing near is hazy |
+| Setting | Before (both worlds) | Island after | Mountains after |
+|---|---|---|---|
+| Sun energy | 1.0 | 0.82, warm `#fff0d6` | 0.75, `#ffeacc` |
+| Sun pitch | −52° | −44° | −40° (longer, more readable shadows) |
+| Ambient energy | 0.45 | 0.36 | 0.34 |
+| Tonemap | filmic, exposure 0.9, white 1.0 | filmic, exposure 1.1, white 4.0 | the same |
+| Fog | none | depth fog 18–55 units, max 0.4 | the same, max 0.55 |
 | Crystal glow | 1.4 (bloomed white) | 0.5 lit crystals, 0.8 the strip; machine 0.8, 1.6 when solved |
 
 No new post effects: the Compatibility renderer used for the browser has no SSAO or SDFGI, so occlusion is
 painted into the terrain's vertex colors. Fog and the tonemap are cheap.
+
+## The island pass
+
+The level generator (`tools/mathmagic/levels.py`) does it with one flag per level, `L.terrain = True`:
+- Ground pieces become the sculpted terrain, the Kenney floating platforms become grassy rock wedges.
+- The island helpers (`kdecor`, `ndecor`, `trees`, `rocks`, `scenery`) switch to KayKit Forest: round trees
+  and pines well behind the path (z −3.7 to −4.6, scale 0.55–0.78, so gates and signs stand clear), round
+  bushes, knee-high grass tufts and small boulders at the front edge.
+- The horizon: small green islands in the sea (the same terrain, tapered, with a few trees) instead of the
+  hexagon pack's grey and yellow block mountains.
+- Kenney fence and tent become the hexagon pack's (same artist as the heroes); the Kenney ladder is dropped.
+- The hexagon buildings (houses, windmill, well, tower), the gates and the Stone Guardian stay: they are
+  KayKit already and are characters of the island.
+- The boss arena's rising stairs and the menu backdrop use the terrain too.
+
+Found and fixed on the way: a bridge only became solid after its last stone landed (0.25 s per stone), so
+on a long bridge a child who walked on at once fell through stones that were already showing. It was there
+before the art pass (2 falls in 10 runs of level 2 with the old scene); the bridge is now solid at once
+(0 falls in 10 runs).
 
 ## Validation
 
@@ -110,9 +132,6 @@ painted into the terrain's vertex colors. Fog and the tonemap are cheap.
 
 ## Not done / next
 
-- The Island of Addition (levels 1–5) still uses hex tiles and Kenney platforms; switching a level is
-  `L.terrain = True` in `tools/mathmagic/levels.py`, but its decor would need the same pass. Its lighting is
-  also still the old, overexposed tuning; the mountain values could be applied after a look at those levels.
 - Still primitive: gate bars and rune plate, bridge slabs, the energy meter, boss runes, sign posts.
 - Grass is vertex color only (no texture or blades): it reads clean at this camera distance, but close up it
   is flat.

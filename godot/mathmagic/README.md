@@ -174,8 +174,8 @@ scenes, a world entry with its own sky palette, and the gate learning to show eq
   puzzle fits). It sits close enough that the hero is a clear figure; the hero model is also drawn a little
   larger than its collision capsule, which is unchanged. Below 16:10 it keeps the width instead of
   the height, so the path ahead stays visible on narrow and portrait screens.
-- Island terrain is hex tiles in one MultiMesh per layer (a few draw calls per strip); mountain terrain is one
-  generated mesh per ground piece (`Terrain`), with its own colors baked into the vertices. One shadowed sun, no other
+- Terrain is one generated mesh per ground piece (`Terrain`), colors baked into the vertices (the older hex
+  tile style is still in `Ground` and can be chosen per level). One shadowed sun, no other
   real-time lights. Particles are one-shot and free themselves. Models and level scenes are loaded once and cached.
 - No puzzle hard-codes a question. Levels only choose a skill and a difficulty window; the bridge also caps
   the answer so it never asks for more stones than the level offers.

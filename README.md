@@ -621,11 +621,11 @@ Tower defense. Враги идут по дороге к замку, а ты ст
 
 - Исходники — `godot/mathmagic/` (подробности, управление и архитектура — в его `README.md`),
   сборка — `web/mathmagic/` (`tools/mathmagic/build.sh`).
-- Модели — KayKit (Kay Lousberg, CC0): шесть героев Adventurers 2.0 с общим набором анимаций, гексагональные
-  плитки острова, деревья, камни, домики, мельница, сундук; Kenney Mini Forest (CC0): парящие островки, деревянный
-  подъёмник, сосны, растения, палатка, лестница; Quaternius Ultimate Stylized Nature (CC0): кусты, цветы, трава
-  (`tools/mathmagic/nature.py` переводит их из присланного `.blend`); звуки и музыка синтезированы `tools/mathmagic/sounds.py`. Полный список с лицензиями —
-  `godot/mathmagic/docs/ASSETS.md`.
+- Модели — KayKit (Kay Lousberg, CC0): шесть героев Adventurers 2.0 с общим набором анимаций, Forest Nature
+  Pack (деревья, кусты, трава, валуны), домики, мельница, ворота, сундук; деревянный подъёмник — Kenney Mini Forest
+  (CC0). Земля и скалы — сгенерированный меш (`scripts/world/terrain.gd`), кристаллы, самоцветы и резные блоки
+  смоделированы в коде (`shapes.gd`); арт-направление и значения света — `godot/mathmagic/docs/ART.md`. Звуки и
+  музыка синтезированы `tools/mathmagic/sounds.py`. Полный список с лицензиями — `godot/mathmagic/docs/ASSETS.md`.
 - Тесты: `godot --headless --path godot/mathmagic -s res://tests/run.gd` (генерация и проверка примеров,
   диапазоны, адаптация, сохранение) и `godot --headless --fixed-fps 60 --path godot/mathmagic res://tests/playthrough.tscn`
   (бот проходит все восемь уровней с боссом на настоящей физике, плюс проверка сенсорных кнопок настоящими

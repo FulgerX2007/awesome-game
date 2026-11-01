@@ -63,6 +63,7 @@ func _ready() -> void:
 	runes[2].visible = false  # it waits on top of the stairs, which are still underground
 	for s in STAIRS:  # the arena mechanism: columns hidden in the ground until phase 2
 		var g := Ground.new()
+		g.style = "terrain"
 		g.length = 1
 		g.rows = 1
 		g.height = int(s[1]) + 3

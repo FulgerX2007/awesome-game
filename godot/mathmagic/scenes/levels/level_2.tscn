@@ -24,9 +24,10 @@ script = ExtResource("3")
 length = 8
 height = 3
 rows = 3
+style = "terrain"
 
 [node name="Sign1" type="Node3D" parent="."]
-transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 3, 0, -2.2)
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 3, 0, -1.6)
 script = ExtResource("7")
 text = "Stones fix bridges. Collect them!"
 
@@ -49,9 +50,11 @@ kind = "stone"
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 12, 1.8, 0)
 script = ExtResource("3")
 length = 1
-height = 1
+height = 2
 rows = 1
-style = "island"
+style = "terrain"
+taper = 0.85
+solid = 0.9
 
 [node name="Stone4" type="Area3D" parent="."]
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 12, 1.8, 0)
@@ -74,6 +77,7 @@ script = ExtResource("3")
 length = 6
 height = 3
 rows = 3
+style = "terrain"
 
 [node name="Stone5" type="Area3D" parent="."]
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 24, 0, 0)
@@ -94,9 +98,11 @@ kind = "stone"
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 27, 1.8, 0)
 script = ExtResource("3")
 length = 1
-height = 1
+height = 2
 rows = 1
-style = "island"
+style = "terrain"
+taper = 0.85
+solid = 0.9
 
 [node name="Gem1" type="Area3D" parent="."]
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 27, 1.8, 0)
@@ -109,6 +115,7 @@ script = ExtResource("3")
 length = 4
 height = 4
 rows = 3
+style = "terrain"
 
 [node name="Stone8" type="Area3D" parent="."]
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 34.5, 1, 0)
@@ -124,9 +131,11 @@ kind = "stone"
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 37, 2.8, 0)
 script = ExtResource("3")
 length = 1
-height = 1
+height = 2
 rows = 1
-style = "island"
+style = "terrain"
+taper = 0.85
+solid = 0.9
 
 [node name="Gem2" type="Area3D" parent="."]
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 37, 2.8, 0)
@@ -149,14 +158,17 @@ script = ExtResource("3")
 length = 8
 height = 4
 rows = 3
+style = "terrain"
 
 [node name="Platform4" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 54, 2.8, 0)
 script = ExtResource("3")
 length = 1
-height = 1
+height = 2
 rows = 1
-style = "island"
+style = "terrain"
+taper = 0.85
+solid = 0.9
 
 [node name="Gem3" type="Area3D" parent="."]
 transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 54, 2.8, 0)
@@ -168,291 +180,377 @@ transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 62, 1, 0)
 script = ExtResource("2")
 
 [node name="Prop1" type="Node3D" parent="."]
-transform = Transform3D(-1.66159, 0, -0.955083, 0, 1.91653, 0, 0.955083, 0, -1.66159, 2.33692, 0, 1.85278)
+transform = Transform3D(-0.830796, 0, -0.477542, 0, 0.958263, 0, 0.477542, 0, -0.830796, 2.67384, 0, -2.64201)
 script = ExtResource("6")
-model = "kenney_forest/plant"
+model = "kaykit_forest/Bush_1_E_Color1"
 
 [node name="Prop2" type="Node3D" parent="."]
-transform = Transform3D(-0.928964, 0, 1.70064, 0, 1.93782, 0, -1.70064, 0, -0.928964, 7.75489, 0, 1.93732)
+transform = Transform3D(0.451194, 0, 0.935809, 0, 1.0389, 0, -0.935809, 0, 0.451194, 8.09454, 0, -2.70834)
 script = ExtResource("6")
-model = "kenney_forest/plant"
+model = "kaykit_forest/Bush_3_B_Color1"
 
 [node name="Prop3" type="Node3D" parent="."]
-transform = Transform3D(-0.362229, 0, 2.25487, 0, 2.28378, 0, -2.25487, 0, -0.362229, 23.1716, 0, 1.90251)
+transform = Transform3D(-0.272175, 0, 0.592107, 0, 0.651667, 0, -0.592107, 0, -0.272175, 22.9999, 0, -4.37682)
 script = ExtResource("6")
-model = "kenney_forest/patch-grass"
+model = "kaykit_forest/Tree_3_A_Color1"
 
 [node name="Prop4" type="Node3D" parent="."]
-transform = Transform3D(0.159012, 0, -2.25064, 0, 2.25625, 0, 2.25064, 0, 0.159012, 30.2432, 0, 1.85051)
+transform = Transform3D(-1.02618, 0, 0.0527097, 0, 1.02753, 0, -0.0527097, 0, -1.02618, 22.9226, 0, -2.76797)
 script = ExtResource("6")
-model = "kenney_forest/patch-grass"
+model = "kaykit_forest/Bush_3_C_Color1"
 
 [node name="Prop5" type="Node3D" parent="."]
-transform = Transform3D(-1.93157, 0, -0.432096, 0, 1.97931, 0, 0.432096, 0, -1.93157, 35.2664, 1, 2.06384)
+transform = Transform3D(0.92591, 0, 0.293666, 0, 0.971365, 0, -0.293666, 0, 0.92591, 22.9361, -0.05, 2.08611)
 script = ExtResource("6")
-model = "kenney_forest/patch-grass"
+model = "kaykit_forest/Grass_1_B_Color1"
 
 [node name="Prop6" type="Node3D" parent="."]
-transform = Transform3D(-1.59824, 0, -1.32002, 0, 2.07288, 0, 1.32002, 0, -1.59824, 51.7301, 1, 1.77674)
+transform = Transform3D(-0.5232, 0, 0.911459, 0, 1.05095, 0, -0.911459, 0, -0.5232, 30.3224, 0, -2.5897)
 script = ExtResource("6")
-model = "kenney_forest/plant"
+model = "kaykit_forest/Bush_1_D_Color1"
 
 [node name="Prop7" type="Node3D" parent="."]
-transform = Transform3D(-0.196873, 0, 1.90699, 0, 1.91712, 0, -1.90699, 0, -0.196873, 58.9648, 1, 1.81016)
+transform = Transform3D(0.013339, 0, 1.1706, 0, 1.17068, 0, -1.1706, 0, 0.013339, 35.1917, 1, -2.45028)
 script = ExtResource("6")
-model = "kenney_forest/plant"
+model = "kaykit_forest/Bush_3_C_Color1"
 
 [node name="Prop8" type="Node3D" parent="."]
-transform = Transform3D(1.02204, 0, 0.344534, 0, 1.07855, 0, -0.344534, 0, 1.02204, 3.70416, 0, -1.81599)
+transform = Transform3D(0.0933296, 0, -1.07457, 0, 1.07862, 0, 1.07457, 0, 0.0933296, 35.0421, 0.95, 2.01086)
 script = ExtResource("6")
-model = "nature/Bush_Small"
+model = "kaykit_forest/Grass_1_A_Color1"
 
 [node name="Prop9" type="Node3D" parent="."]
-transform = Transform3D(-1.48307, 0, -0.177432, 0, 1.49365, 0, 0.177432, 0, -1.48307, 3.25479, 0, 2.54729)
+transform = Transform3D(0.959519, 0, 0.497528, 0, 1.08084, 0, -0.497528, 0, 0.959519, 51.7625, 1, -2.68631)
 script = ExtResource("6")
-model = "nature/Plant_1"
+model = "kaykit_forest/Bush_1_F_Color1"
 
 [node name="Prop10" type="Node3D" parent="."]
-transform = Transform3D(-0.680779, 0, 0.653293, 0, 0.943531, 0, -0.653293, 0, -0.680779, 8.54915, 0, -1.54457)
+transform = Transform3D(1.01069, 0, -0.135291, 0, 1.0197, 0, 0.135291, 0, 1.01069, 52.0327, 0.95, 2.16302)
 script = ExtResource("6")
-model = "nature/Bush_Small_Flowers"
+model = "kaykit_forest/Grass_1_B_Color1"
 
 [node name="Prop11" type="Node3D" parent="."]
-transform = Transform3D(1.19842, 0, -0.0891548, 0, 1.20173, 0, 0.0891548, 0, 1.19842, 9.15718, 0, 2.39806)
+transform = Transform3D(-0.597309, 0, 0.337571, 0, 0.686099, 0, -0.337571, 0, -0.597309, 58.8456, 1, -3.94703)
 script = ExtResource("6")
-model = "nature/Flower_2_Clump"
+model = "kaykit_forest/Tree_1_B_Color1"
 
 [node name="Prop12" type="Node3D" parent="."]
-transform = Transform3D(0.887239, 0, 0.605709, 0, 1.07428, 0, -0.605709, 0, 0.887239, 25.0262, 0, -1.40692)
+transform = Transform3D(-1.08851, 0, -0.149234, 0, 1.09869, 0, 0.149234, 0, -1.08851, 58.3012, 1, -2.67732)
 script = ExtResource("6")
-model = "nature/Bush_Large"
+model = "kaykit_forest/Bush_1_D_Color1"
 
 [node name="Prop13" type="Node3D" parent="."]
-transform = Transform3D(-1.53095, 0, -0.350498, 0, 1.57056, 0, 0.350498, 0, -1.53095, 24.9511, 0, 2.42382)
+transform = Transform3D(0.504103, 0, -0.928401, 0, 1.05643, 0, 0.928401, 0, 0.504103, 59.2398, 0.95, 2.17386)
 script = ExtResource("6")
-model = "nature/Grass_Small"
+model = "kaykit_forest/Grass_1_B_Color1"
 
 [node name="Prop14" type="Node3D" parent="."]
-transform = Transform3D(0.531683, 0, -0.898566, 0, 1.04408, 0, 0.898566, 0, 0.531683, 27.9163, 0, -1.67945)
+transform = Transform3D(0.744533, 0, 0.250986, 0, 0.785699, 0, -0.250986, 0, 0.744533, 3.52666, -0.05, 2.06721)
 script = ExtResource("6")
-model = "nature/Bush_Large"
+model = "kaykit_forest/Rock_3_D_Color1"
 
 [node name="Prop15" type="Node3D" parent="."]
-transform = Transform3D(1.35453, 0, -0.153424, 0, 1.36319, 0, 0.153424, 0, 1.35453, 27.6287, 0, 2.28129)
+transform = Transform3D(0.555533, 0, 0.489161, 0, 0.7402, 0, -0.489161, 0, 0.555533, 8.96789, -0.05, 2.30179)
 script = ExtResource("6")
-model = "nature/Grass_Small"
+model = "kaykit_forest/Rock_3_D_Color1"
 
 [node name="Prop16" type="Node3D" parent="."]
-transform = Transform3D(-0.811657, 0, -0.493796, 0, 0.950064, 0, 0.493796, 0, -0.811657, 51.1901, 1, -1.58617)
+transform = Transform3D(0.471213, 0, 0.787367, 0, 0.917599, 0, -0.787367, 0, 0.471213, 25.3666, -0.05, 2.18421)
 script = ExtResource("6")
-model = "nature/Bush"
+model = "kaykit_forest/Grass_1_B_Color1"
 
 [node name="Prop17" type="Node3D" parent="."]
-transform = Transform3D(0.282565, 0, 1.21456, 0, 1.247, 0, -1.21456, 0, 0.282565, 50.9201, 1, 1.91824)
+transform = Transform3D(0.898814, 0, -0.0668661, 0, 0.901298, 0, 0.0668661, 0, 0.898814, 28.1572, -0.05, 2.2846)
 script = ExtResource("6")
-model = "nature/Flower_5_Clump"
+model = "kaykit_forest/Grass_1_A_Color1"
 
 [node name="Prop18" type="Node3D" parent="."]
-transform = Transform3D(-0.571919, 0, 0.787034, 0, 0.97289, 0, -0.787034, 0, -0.571919, 56.4091, 1, -1.86854)
+transform = Transform3D(-0.897089, 0, -0.545771, 0, 1.05006, 0, 0.545771, 0, -0.897089, 51.3042, 0.95, 2.25107)
 script = ExtResource("6")
-model = "nature/Bush_Small_Flowers"
+model = "kaykit_forest/Grass_1_A_Color1"
 
 [node name="Prop19" type="Node3D" parent="."]
-transform = Transform3D(1.4632, 0, -0.401514, 0, 1.51729, 0, 0.401514, 0, 1.4632, 55.3131, 1, 2.18924)
+transform = Transform3D(0.680783, 0, -0.112446, 0, 0.690007, 0, 0.112446, 0, 0.680783, 56.7615, 0.95, 2.38345)
 script = ExtResource("6")
-model = "nature/Flower_5_Clump"
+model = "kaykit_forest/Rock_3_D_Color1"
 
 [node name="Prop20" type="Node3D" parent="."]
-transform = Transform3D(-1.02026, 0, 0.0201988, 0, 1.02046, 0, -0.0201988, 0, -1.02026, 61.4146, 1, -1.4224)
+transform = Transform3D(1.08225, 0, -0.45171, 0, 1.17273, 0, 0.45171, 0, 1.08225, 60.8747, 0.95, 2.12722)
 script = ExtResource("6")
-model = "nature/Bush"
+model = "kaykit_forest/Grass_1_A_Color1"
 
 [node name="Prop21" type="Node3D" parent="."]
-transform = Transform3D(-1.20765, 0, 0.485248, 0, 1.30149, 0, -0.485248, 0, -1.20765, 61.1969, 1, 2.2138)
+transform = Transform3D(2.02974, 0, 0.738764, 0, 2.16, 0, -0.738764, 0, 2.02974, 31, 0, -2.6)
 script = ExtResource("6")
-model = "nature/Flower_1_Clump"
+model = "hexagon/tent"
 
 [node name="Prop22" type="Node3D" parent="."]
-transform = Transform3D(2.25526, 0, 0.820848, 0, 2.4, 0, -0.820848, 0, 2.25526, 31, 0, -2.6)
+transform = Transform3D(-0.706959, 0, -0.22074, 0, 0.740619, 0, 0.22074, 0, -0.706959, 1.79259, 0, -3.91451)
 script = ExtResource("6")
-model = "kenney_forest/tent"
+model = "kaykit_forest/Tree_4_A_Color1"
 
 [node name="Prop23" type="Node3D" parent="."]
-transform = Transform3D(0.528964, 0, 2.66207, 0, 2.71412, 0, -2.66207, 0, 0.528964, 1.5, 0, -1.79398)
+transform = Transform3D(-0.517259, 0, 0.450046, 0, 0.685637, 0, -0.450046, 0, -0.517259, 5.75192, 0, -3.95688)
 script = ExtResource("6")
-model = "hexagon/trees_B_small"
+model = "kaykit_forest/Tree_4_B_Color1"
 
 [node name="Prop24" type="Node3D" parent="."]
-transform = Transform3D(1.01869, 0, -2.34034, 0, 2.55243, 0, 2.34034, 0, 1.01869, 6, 0, -2.04451)
+transform = Transform3D(0.225602, 0, 0.573546, 0, 0.616321, 0, -0.573546, 0, 0.225602, 22.6753, 0, -4.35728)
 script = ExtResource("6")
-model = "hexagon/trees_B_small"
+model = "kaykit_forest/Tree_1_C_Color1"
 
 [node name="Prop25" type="Node3D" parent="."]
-transform = Transform3D(2.22134, 0, -1.4918, 0, 2.67579, 0, 1.4918, 0, 2.22134, 23, 0, -1.95908)
+transform = Transform3D(-0.642243, 0, -0.195396, 0, 0.671309, 0, 0.195396, 0, -0.642243, 29.6076, 0, -4.12365)
 script = ExtResource("6")
-model = "hexagon/trees_B_small"
+model = "kaykit_forest/Tree_4_C_Color1"
 
 [node name="Prop26" type="Node3D" parent="."]
-transform = Transform3D(1.94801, 0, 1.60371, 0, 2.52322, 0, -1.60371, 0, 1.94801, 29.5, 0, -2.30074)
+transform = Transform3D(-0.593143, 0, 0.106908, 0, 0.6027, 0, -0.106908, 0, -0.593143, 35.0925, 0, -4.474)
 script = ExtResource("6")
-model = "hexagon/trees_A_medium"
+model = "kaykit_forest/Tree_4_C_Color1"
 
 [node name="Prop27" type="Node3D" parent="."]
-transform = Transform3D(-2.33215, 0, -0.709533, 0, 2.4377, 0, 0.709533, 0, -2.33215, 35, 0, -1.98319)
+transform = Transform3D(0.124379, 0, 0.696919, 0, 0.707931, 0, -0.696919, 0, 0.124379, 51.6285, 0, -3.89635)
 script = ExtResource("6")
-model = "hexagon/tree_single_A"
+model = "kaykit_forest/Tree_1_A_Color1"
 
 [node name="Prop28" type="Node3D" parent="."]
-transform = Transform3D(2.48923, 0, -1.04328, 0, 2.69902, 0, 1.04328, 0, 2.48923, 52, 0, -1.96381)
+transform = Transform3D(-0.441037, 0, 0.535116, 0, 0.693442, 0, -0.535116, 0, -0.441037, 57.9524, 0, -3.92606)
 script = ExtResource("6")
-model = "hexagon/tree_single_B"
+model = "kaykit_forest/Tree_3_A_Color1"
 
 [node name="Prop29" type="Node3D" parent="."]
-transform = Transform3D(2.3034, 0, -0.440636, 0, 2.34517, 0, 0.440636, 0, 2.3034, 58, 0, -2.26685)
+transform = Transform3D(-0.598204, 0, -0.396839, 0, 0.717864, 0, 0.396839, 0, -0.598204, 63.6037, 0, -4.53201)
 script = ExtResource("6")
-model = "hexagon/tree_single_A"
+model = "kaykit_forest/Tree_4_A_Color1"
 
 [node name="Prop30" type="Node3D" parent="."]
-transform = Transform3D(0.860476, 0, -2.40529, 0, 2.55458, 0, 2.40529, 0, 0.860476, 64, 0, -2.17159)
-script = ExtResource("6")
-model = "hexagon/trees_B_small"
-
-[node name="Prop31" type="Node3D" parent="."]
 transform = Transform3D(2.22163, 0, 0.595284, 0, 2.3, 0, -0.595284, 0, 2.22163, 9, 0, -2.4)
 script = ExtResource("6")
 model = "hexagon/building_home_B_red"
 
-[node name="Prop32" type="Node3D" parent="."]
+[node name="Prop31" type="Node3D" parent="."]
 transform = Transform3D(2.4, 0, -0, 0, 2.4, 0, 0, 0, 2.4, 56, 1, -2.5)
 script = ExtResource("6")
 model = "hexagon/building_tower_A_blue"
 
-[node name="Prop33" type="Node3D" parent="."]
-transform = Transform3D(-1.77717, 0, -2.45302, 0, 3.02913, 0, 2.45302, 0, -1.77717, 3, 0, 1.8614)
+[node name="Prop32" type="Node3D" parent="."]
+transform = Transform3D(-0.3261, 0, -0.450113, 0, 0.555826, 0, 0.450113, 0, -0.3261, 3, 0, 2.0807)
 script = ExtResource("6")
-model = "hexagon/rock_single_D"
+model = "kaykit_forest/Rock_3_J_Color1"
+
+[node name="Prop33" type="Node3D" parent="."]
+transform = Transform3D(-0.079018, 0, -0.51897, 0, 0.524951, 0, 0.51897, 0, -0.079018, 25, 0, 2.00326)
+script = ExtResource("6")
+model = "kaykit_forest/Rock_3_J_Color1"
 
 [node name="Prop34" type="Node3D" parent="."]
-transform = Transform3D(-0.432721, 0, -2.842, 0, 2.87475, 0, 2.842, 0, -0.432721, 25, 0, 1.70652)
+transform = Transform3D(-0.532597, 0, 0.203895, 0, 0.570291, 0, -0.203895, 0, -0.532597, 39, 0, 2.20718)
 script = ExtResource("6")
-model = "hexagon/rock_single_D"
+model = "kaykit_forest/Rock_3_J_Color1"
 
 [node name="Prop35" type="Node3D" parent="."]
-transform = Transform3D(-2.89646, 0, 1.10886, 0, 3.10146, 0, -1.10886, 0, -2.89646, 39, 0, 2.11436)
+transform = Transform3D(-0.279633, 0, -0.442595, 0, 0.523531, 0, 0.442595, 0, -0.279633, 60, 0, 2.29341)
 script = ExtResource("6")
-model = "hexagon/rock_single_D"
+model = "kaykit_forest/Rock_3_H_Color1"
+
+[node name="FarIsland1" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, -14, 0.491448, -22.1869)
+script = ExtResource("3")
+length = 4
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop36" type="Node3D" parent="."]
-transform = Transform3D(-1.5317, 0, -2.42432, 0, 2.86766, 0, 2.42432, 0, -1.5317, 60, 0, 2.28682)
+transform = Transform3D(0.405032, 0, -0.975651, 0, 1.05638, 0, 0.975651, 0, 0.405032, -10.0029, 0, -21.8831)
 script = ExtResource("6")
-model = "hexagon/rock_single_B"
+model = "kaykit_forest/Tree_3_A_Color1"
+
+[node name="FarIsland2" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, -4.64587, -0.246412, -18.0795)
+script = ExtResource("3")
+length = 4
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop37" type="Node3D" parent="."]
-transform = Transform3D(1.37743, 0, 4.06438, 0, 4.29145, 0, -4.06438, 0, 1.37743, -14, -1.2, -12.6277)
+transform = Transform3D(-0.130234, 0, -0.795179, 0, 0.805773, 0, 0.795179, 0, -0.130234, 0.380073, 0, -18.1669)
 script = ExtResource("6")
-model = "hexagon/hills_A_trees"
+model = "kaykit_forest/Tree_3_A_Color1"
 
 [node name="Prop38" type="Node3D" parent="."]
-transform = Transform3D(-2.68493, 0, 3.28555, 0, 4.24308, 0, -3.28555, 0, -2.68493, -6.33001, -1.2, -11.5014)
+transform = Transform3D(-0.0902876, 0, -1.15181, 0, 1.15534, 0, 1.15181, 0, -0.0902876, -4.13616, 0, -17.8883)
 script = ExtResource("6")
-model = "hexagon/mountain_C_grass_trees"
+model = "kaykit_forest/Tree_3_A_Color1"
+
+[node name="FarIsland3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 6.60946, 0.352525, -20.9426)
+script = ExtResource("3")
+length = 2
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop39" type="Node3D" parent="."]
-transform = Transform3D(-0.957224, 0, -3.32151, 0, 3.45669, 0, 3.32151, 0, -0.957224, -0.767884, -1.2, -11.9061)
+transform = Transform3D(-1.01372, 0, 0.432177, 0, 1.102, 0, -0.432177, 0, -1.01372, 8.30934, 0, -21.2125)
 script = ExtResource("6")
-model = "hexagon/mountain_A_grass_trees"
+model = "kaykit_forest/Tree_3_B_Color1"
 
 [node name="Prop40" type="Node3D" parent="."]
-transform = Transform3D(2.22078, 0, 3.78867, 0, 4.39157, 0, -3.78867, 0, 2.22078, 5.52686, -1.2, -10.506)
+transform = Transform3D(-0.591872, 0, 0.873887, 0, 1.05546, 0, -0.873887, 0, -0.591872, 7.95092, 0, -20.6097)
 script = ExtResource("6")
-model = "hexagon/hill_single_A"
+model = "kaykit_forest/Tree_4_A_Color1"
+
+[node name="FarIsland4" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 17.3394, 0.582817, -19.8373)
+script = ExtResource("3")
+length = 4
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop41" type="Node3D" parent="."]
-transform = Transform3D(3.88793, 0, 1.28156, 0, 4.0937, 0, -1.28156, 0, 3.88793, 10.7817, -1.2, -11.0209)
+transform = Transform3D(-0.378948, 0, 0.765255, 0, 0.853942, 0, -0.765255, 0, -0.378948, 20.6647, 0, -19.7147)
 script = ExtResource("6")
-model = "hexagon/hills_A_trees"
+model = "kaykit_forest/Tree_4_A_Color1"
 
 [node name="Prop42" type="Node3D" parent="."]
-transform = Transform3D(2.79327, 0, 2.07698, 0, 3.48083, 0, -2.07698, 0, 2.79327, 18.163, -1.2, -12.4328)
+transform = Transform3D(-0.539698, 0, -0.684617, 0, 0.871765, 0, 0.684617, 0, -0.539698, 20.5552, 0, -20.3973)
 script = ExtResource("6")
-model = "hexagon/hills_A_trees"
+model = "kaykit_forest/Tree_4_A_Color1"
 
 [node name="Prop43" type="Node3D" parent="."]
-transform = Transform3D(-2.74737, 0, 3.26401, 0, 4.26636, 0, -3.26401, 0, -2.74737, 24.8121, -1.2, -11.4878)
+transform = Transform3D(0.652568, 0, -0.701783, 0, 0.958303, 0, 0.701783, 0, 0.652568, 20.0961, 0, -19.929)
 script = ExtResource("6")
-model = "hexagon/mountain_B_grass"
+model = "kaykit_forest/Tree_3_B_Color1"
+
+[node name="FarIsland5" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 28.7936, 0.463945, -22.3519)
+script = ExtResource("3")
+length = 2
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop44" type="Node3D" parent="."]
-transform = Transform3D(4.14109, 0, 0.373573, 0, 4.15791, 0, -0.373573, 0, 4.14109, 31.7779, -1.2, -11.0411)
+transform = Transform3D(-1.02433, 0, -0.238082, 0, 1.05163, 0, 0.238082, 0, -1.02433, 29.0558, 0, -22.7063)
 script = ExtResource("6")
-model = "hexagon/hills_A_trees"
+model = "kaykit_forest/Tree_3_B_Color1"
 
 [node name="Prop45" type="Node3D" parent="."]
-transform = Transform3D(-4.08052, 0, -1.60434, 0, 4.38459, 0, 1.60434, 0, -4.08052, 38.8507, -1.2, -11.6664)
+transform = Transform3D(0.514018, 0, -0.635403, 0, 0.817283, 0, 0.635403, 0, 0.514018, 30.2314, 0, -21.9524)
 script = ExtResource("6")
-model = "hexagon/hill_single_A"
+model = "kaykit_forest/Tree_1_A_Color1"
 
 [node name="Prop46" type="Node3D" parent="."]
-transform = Transform3D(-3.40821, 0, 0.489284, 0, 3.44315, 0, -0.489284, 0, -3.40821, 46.0375, -1.2, -12.9701)
+transform = Transform3D(0.653044, 0, 0.711002, 0, 0.965396, 0, -0.711002, 0, 0.653044, 30.0718, 0, -23.1122)
 script = ExtResource("6")
-model = "hexagon/hill_single_A"
+model = "kaykit_forest/Tree_4_A_Color1"
+
+[node name="FarIsland6" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 42.2246, 0.246472, -18.3778)
+script = ExtResource("3")
+length = 2
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop47" type="Node3D" parent="."]
-transform = Transform3D(2.71426, 0, 2.26655, 0, 3.53616, 0, -2.26655, 0, 2.71426, 51.7974, -1.2, -12.7147)
+transform = Transform3D(-0.331481, 0, 1.11223, 0, 1.16058, 0, -1.11223, 0, -0.331481, 43.2653, 0, -18.3925)
 script = ExtResource("6")
-model = "hexagon/mountain_B_grass"
+model = "kaykit_forest/Tree_3_B_Color1"
 
 [node name="Prop48" type="Node3D" parent="."]
-transform = Transform3D(1.19069, 0, -3.27296, 0, 3.48281, 0, 3.27296, 0, 1.19069, 58.529, -1.2, -12.7937)
+transform = Transform3D(-0.914617, 0, 0.50938, 0, 1.0469, 0, -0.50938, 0, -0.914617, 43.67, 0, -19.0602)
 script = ExtResource("6")
-model = "hexagon/hill_single_A"
+model = "kaykit_forest/Tree_3_A_Color1"
 
 [node name="Prop49" type="Node3D" parent="."]
-transform = Transform3D(-3.85222, 0, -0.895361, 0, 3.9549, 0, 0.895361, 0, -3.85222, 64.6284, -1.2, -12.2089)
+transform = Transform3D(-0.263121, 0, -0.898812, 0, 0.936534, 0, 0.898812, 0, -0.263121, 42.9433, 0, -18.2863)
 script = ExtResource("6")
-model = "hexagon/mountain_A_grass_trees"
+model = "kaykit_forest/Tree_1_A_Color1"
+
+[node name="FarIsland7" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 52.047, 0.480742, -19.2118)
+script = ExtResource("3")
+length = 2
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop50" type="Node3D" parent="."]
-transform = Transform3D(2.0452, 0, -2.52818, 0, 3.25185, 0, 2.52818, 0, 2.0452, 69.6349, -1.2, -10.7011)
+transform = Transform3D(-0.37929, 0, 1.0568, 0, 1.1228, 0, -1.0568, 0, -0.37929, 52.9053, 0, -19.3191)
 script = ExtResource("6")
-model = "hexagon/mountain_B_grass"
+model = "kaykit_forest/Tree_1_A_Color1"
+
+[node name="FarIsland8" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 65.9026, -0.488806, -18.2225)
+script = ExtResource("3")
+length = 4
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop51" type="Node3D" parent="."]
-transform = Transform3D(-2.90288, 0, -1.75412, 0, 3.39171, 0, 1.75412, 0, -2.90288, 77.0532, -1.2, -11.5828)
+transform = Transform3D(-0.109321, 0, -0.914087, 0, 0.920601, 0, 0.914087, 0, -0.109321, 71.89, 0, -19.0402)
 script = ExtResource("6")
-model = "hexagon/mountain_B_grass"
+model = "kaykit_forest/Tree_3_A_Color1"
+
+[node name="FarIsland9" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, 77.8889, 0.0264222, -23.458)
+script = ExtResource("3")
+length = 3
+height = 2
+rows = 3
+style = "terrain"
+taper = 0.5
 
 [node name="Prop52" type="Node3D" parent="."]
-transform = Transform3D(1.8998, 0, -0, 0, 1.8998, 0, 0, 0, 1.8998, -10, 8.60917, -12.5854)
+transform = Transform3D(-1.00228, 0, 0.209315, 0, 1.0239, 0, -0.209315, 0, -1.00228, 79.1676, 0, -24.2254)
 script = ExtResource("6")
-model = "hexagon/cloud_small"
+model = "kaykit_forest/Tree_1_A_Color1"
 
 [node name="Prop53" type="Node3D" parent="."]
-transform = Transform3D(1.79013, 0, -0, 0, 1.79013, 0, 0, 0, 1.79013, 4.29907, 10.7043, -13.1844)
+transform = Transform3D(1.82539, 0, -0, 0, 1.82539, 0, 0, 0, 1.82539, -10, 10.0085, -18.5172)
 script = ExtResource("6")
 model = "hexagon/cloud_big"
 
 [node name="Prop54" type="Node3D" parent="."]
-transform = Transform3D(1.88748, 0, -0, 0, 1.88748, 0, 0, 0, 1.88748, 17.2771, 9.74262, -13.6351)
+transform = Transform3D(2.34724, 0, -0, 0, 2.34724, 0, 0, 0, 2.34724, 3.00826, 10.2151, -18.7084)
 script = ExtResource("6")
 model = "hexagon/cloud_big"
 
 [node name="Prop55" type="Node3D" parent="."]
-transform = Transform3D(2.22992, 0, -0, 0, 2.22992, 0, 0, 0, 2.22992, 31.6433, 8.54645, -15.2285)
+transform = Transform3D(2.41833, 0, -0, 0, 2.41833, 0, 0, 0, 2.41833, 18.103, 9.27455, -18.8212)
 script = ExtResource("6")
 model = "hexagon/cloud_small"
 
 [node name="Prop56" type="Node3D" parent="."]
-transform = Transform3D(2.07609, 0, -0, 0, 2.07609, 0, 0, 0, 2.07609, 44.9751, 8.50198, -14.2834)
+transform = Transform3D(1.83049, 0, -0, 0, 1.83049, 0, 0, 0, 1.83049, 31.6555, 8.61154, -18.2459)
 script = ExtResource("6")
-model = "hexagon/cloud_big"
+model = "hexagon/cloud_small"
 
 [node name="Prop57" type="Node3D" parent="."]
-transform = Transform3D(2.11607, 0, -0, 0, 2.11607, 0, 0, 0, 2.11607, 59.8171, 10.9133, -12.6986)
+transform = Transform3D(2.53704, 0, -0, 0, 2.53704, 0, 0, 0, 2.53704, 44.0413, 8.20573, -19.772)
 script = ExtResource("6")
 model = "hexagon/cloud_big"
 
 [node name="Prop58" type="Node3D" parent="."]
-transform = Transform3D(1.8412, 0, -0, 0, 1.8412, 0, 0, 0, 1.8412, 72.9766, 10.9937, -15.5139)
+transform = Transform3D(2.2437, 0, -0, 0, 2.2437, 0, 0, 0, 2.2437, 57.9614, 8.57129, -17.5963)
 script = ExtResource("6")
-model = "hexagon/cloud_big"
+model = "hexagon/cloud_small"
+
+[node name="Prop59" type="Node3D" parent="."]
+transform = Transform3D(1.91869, 0, -0, 0, 1.91869, 0, 0, 0, 1.91869, 69.9586, 9.58417, -15.2422)
+script = ExtResource("6")
+model = "hexagon/cloud_small"

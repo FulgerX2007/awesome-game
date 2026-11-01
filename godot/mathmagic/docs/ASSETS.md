@@ -51,7 +51,11 @@ Replacing one means swapping the mesh in its script; the puzzle logic does not d
 
 Multiplication Mountains is built from the KayKit Forest models above on the sculpted terrain, plus the
 hexagon pack's flags and tower, under its own lighting (`level_environment.gd`). The Island of Addition still
-uses the hex tiles and Kenney platforms; switching a level is one flag in `tools/mathmagic/levels.py`.
+went through the same pass: all eight levels now use the sculpted terrain and KayKit Forest scenery. The
+hexagon tiles, mountains, trees and rocks, the Kenney platforms, plants, stones, fence, tent and ladder, and
+the Quaternius plants are no longer placed by any level (still used: the Kenney wooden deck of the lift, the
+hexagon buildings, flags, clouds and the rocks the Stone Guardian is built from) (the files stay, and `levels.py` can still write the old style for a level with
+`L.terrain = False`).
 
 Not used from the supplied `AllModels.blend`: its trees (birch, maple, pine, palm, "normal", dead) and rocks.
 Their textures were not packed into the file (only paths to the author's own disk), so they render blank; the

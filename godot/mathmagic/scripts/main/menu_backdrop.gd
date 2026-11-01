@@ -11,13 +11,15 @@ var _t := 0.0
 func _ready() -> void:
 	LevelEnvironment.build(self, -10, 10)
 	var g := Ground.new()
+	g.style = "terrain"
 	g.length = 7
 	g.rows = 5
 	g.position = Vector3(-6, 0, -1)
 	add_child(g)
-	for p in [["hexagon/building_windmill_yellow", Vector3(-4.5, 0, -2.4), 2.4], ["hexagon/tree_single_A", Vector3(3.6, 0, -2.2), 2.6],
-			["hexagon/tree_single_B", Vector3(5.6, 0, -1.2), 2.3], ["hexagon/building_home_A_blue", Vector3(1.5, 0, -3.2), 2.0],
-			["hexagon/mountain_A_grass_trees", Vector3(-8, -1.2, -12), 4.0], ["hexagon/mountain_C_grass_trees", Vector3(6, -1.2, -13), 4.2],
+	for p in [["hexagon/building_windmill_yellow", Vector3(-4.5, 0, -2.4), 2.4], ["kaykit_forest/Tree_1_A_Color1", Vector3(3.6, 0, -2.6), 0.85],
+			["kaykit_forest/Tree_3_A_Color1", Vector3(6.0, 0, -1.6), 0.8], ["hexagon/building_home_A_blue", Vector3(1.5, 0, -3.2), 2.0],
+			["kaykit_forest/Bush_1_E_Color1", Vector3(-1.6, 0, -2.4), 1.1], ["kaykit_forest/Grass_1_A_Color1", Vector3(4.4, 0, 1.6), 1.8],
+			["kaykit_forest/Rock_3_Q_Color1", Vector3(-9, -1.6, -16), 1.6], ["kaykit_forest/Rock_3_R_Color1", Vector3(8, -1.6, -17), 1.5],
 			["hexagon/cloud_big", Vector3(-3, 8, -14), 2.0], ["dungeon/chest_gold", Vector3(2.8, 0, 0.6), 0.6]]:
 		var n := Art.instance(p[0])
 		n.position = p[1]

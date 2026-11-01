@@ -5,12 +5,12 @@ extends RefCounted
 ## the island is warm and sunny, the mountains a little cooler and higher, with a pale sky.
 
 const WATER_Y := -1.1
-## Light per world. The island keeps its first tuning. The mountains were retuned with the art pass: a
-## softer, lower sun and less flat ambient light, and a higher tonemap white point, so lit grass stays green
-## instead of clipping to pale lime and shadows show the shape of the rock.
+## Light per world, from the art pass (docs/ART.md): a softer, lower sun and less flat ambient light, and a
+## higher tonemap white point, so lit grass stays green instead of clipping to pale lime and shadows show the
+## shape of the rock. The island is warmer and brighter than the mountains, with a lighter haze.
 const PALETTES := [
-	{top = "#4fa8f0", horizon = "#bfe6ff", sea = "#2f7fb8", ambient = "#c9dcff", sun = "#fff4dd",
-		sun_energy = 1.0, sun_pitch = -52.0, ambient_energy = 0.45, exposure = 0.9, white = 1.0},
+	{top = "#4fa8f0", horizon = "#cbeaff", sea = "#2f7fb8", ambient = "#d2e0ff", sun = "#fff0d6",
+		sun_energy = 0.82, sun_pitch = -44.0, ambient_energy = 0.36, exposure = 1.1, white = 4.0, fog = 0.4},
 	{top = "#5d8fe0", horizon = "#e6e4fa", sea = "#3b6fb0", ambient = "#cfd8f5", sun = "#ffeacc",
 		sun_energy = 0.75, sun_pitch = -40.0, ambient_energy = 0.34, exposure = 1.1, white = 4.0, fog = 0.55},
 ]

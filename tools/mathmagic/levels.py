@@ -45,6 +45,7 @@ class Lvl:
         return self.add('ground','StaticBody3D',self._n('Platform'),x,y,props={'length':L,'height':1,'rows':1,'style':'"island"'})
     def kdecor(self, xs, y, seed):
         """Kenney Mini Forest dressing: little plants and grass patches at the front, tall pines behind."""
+        if self.terrain: return self.idecor(xs, y, seed)
         r = random.Random(seed)
         for x in xs:
             self.prop(r.choice(['kenney_forest/plant','kenney_forest/patch-grass','kenney_forest/plant']), x + r.uniform(-0.4, 0.4), y, r.uniform(1.6, 2.4), r.uniform(1.8, 2.4), r.uniform(0, 360))
@@ -52,7 +53,19 @@ class Lvl:
                 self.prop('kenney_forest/tree-high', x + r.uniform(-0.6, 0.6), y, r.uniform(-4.4, -3.6), r.uniform(1.8, 2.2), r.uniform(0, 360))
     def stone(self, x, y): return self.add('pickup','Area3D',self._n('Stone'),x,y,props={'kind':'"stone"'})
     def gem(self, x, y): return self.add('pickup','Area3D',self._n('Gem'),x,y,props={'kind':'"gem"'})
-    def prop(self, model, x, y, z, s=1.0, ry=0.0): return self.add('prop','Node3D',self._n('Prop'),x,y,z,s,ry,{'model':q(model)})
+    # Kenney and hexagon props that the art pass swaps for KayKit models (or drops: None)
+    SWAP = {
+        'kenney_forest/fence': ('hexagon/fence_wood_straight', 1.0),
+        'kenney_forest/tent': ('hexagon/tent', 0.9),
+        'kenney_forest/stones': ('kaykit_forest/Rock_3_E_Color1', 0.5),
+        'kenney_forest/rocks-low': ('kaykit_forest/Rock_3_K_Color1', 0.45),
+        'kenney_forest/ladder': None,
+    }
+    def prop(self, model, x, y, z, s=1.0, ry=0.0):
+        if self.terrain and model in self.SWAP:
+            if self.SWAP[model] is None: return None
+            model, k = self.SWAP[model]; s *= k
+        return self.add('prop','Node3D',self._n('Prop'),x,y,z,s,ry,{'model':q(model)})
     def sign(self, x, y, text, z=None):
         if z is None: z = -1.6 if self.terrain else -2.2   # in front of the trees in the mountains
         return self.add('sign','Node3D',self._n('Sign'),x,y,z,props={'text':q(text)})
@@ -75,6 +88,7 @@ class Lvl:
     def spawn(self, x, y): self.nodes.append(('Spawn','Marker3D',None,tf(x,y),{},'.'))
     def scenery(self, x0, x1, seed):
         """Background and foreground dressing, seeded so the file stays stable."""
+        if self.terrain: return self.iscenery(x0, x1, seed)
         r = random.Random(seed)
         far = ['hexagon/mountain_A_grass_trees','hexagon/mountain_C_grass_trees','hexagon/hills_A_trees','hexagon/mountain_B_grass','hexagon/hill_single_A']
         x = x0 - 14
@@ -112,7 +126,44 @@ class Lvl:
             self.prop('kaykit_forest/Bush_%s_Color1' % r.choice(['1_D', '1_E', '1_F', '3_B', '1_C']), x + r.uniform(-1.0, 1.0), y, r.uniform(-3.0, -2.5), r.uniform(0.9, 1.2), r.uniform(0, 360))
             if front and r.random() < 0.7:
                 k = r.choice(['Rock_3_D', 'Rock_3_E', 'Rock_3_F', 'Rock_3_G', 'Grass_1_A', 'Grass_2_A', 'Grass_1_B'])
-                self.prop('kaykit_forest/%s_Color1' % k, x + r.uniform(-0.8, 0.8), y - 0.05, r.uniform(2.0, 2.4), r.uniform(0.9, 1.3) if 'Rock' in k else r.uniform(1.6, 2.0), r.uniform(0, 360))
+                self.prop('kaykit_forest/%s_Color1' % k, x + r.uniform(-0.8, 0.8), y - 0.05, r.uniform(2.0, 2.4), r.uniform(0.9, 1.3) if 'Rock' in k else r.uniform(0.9, 1.2), r.uniform(0, 360))
+    def idecor(self, xs, y, seed):
+        """Island dressing (KayKit Forest): a round tree or a bush well behind the path, sometimes a grass tuft
+        in front."""
+        r = random.Random(seed)
+        for x in xs:
+            if r.random() < 0.4:
+                self.prop('kaykit_forest/%s_Color1' % r.choice(['Tree_1_A', 'Tree_1_B', 'Tree_3_A', 'Tree_4_A']), x + r.uniform(-0.4, 0.4), y, r.uniform(-4.4, -3.7), r.uniform(0.55, 0.7), r.uniform(0, 360))
+            self.prop('kaykit_forest/Bush_%s_Color1' % r.choice(['1_D', '1_E', '1_F', '3_B', '3_C']), x + r.uniform(-0.8, 0.8), y, r.uniform(-2.8, -2.3), r.uniform(0.9, 1.2), r.uniform(0, 360))
+            if r.random() < 0.5:
+                self.prop('kaykit_forest/%s_Color1' % r.choice(['Grass_1_A', 'Grass_1_B', 'Grass_1_C']), x + r.uniform(-0.8, 0.8), y - 0.05, r.uniform(2.0, 2.4), r.uniform(0.9, 1.2), r.uniform(0, 360))
+    def ifront(self, xs, y, seed):
+        """Front edge of the island: grass tufts and the odd small pebble, never on the walking line."""
+        r = random.Random(seed)
+        for x in xs:
+            k = r.choice(['Grass_1_A', 'Grass_1_C', 'Grass_1_D', 'Grass_1_B', 'Rock_3_D', 'Rock_3_E'])
+            self.prop('kaykit_forest/%s_Color1' % k, x + r.uniform(-0.8, 0.8), y - 0.05, r.uniform(2.0, 2.4), r.uniform(0.6, 0.8) if 'Rock' in k else r.uniform(0.9, 1.2), r.uniform(0, 360))
+    def itrees(self, xs, y, seed):
+        """Trees of the island: KayKit round trees and pines, well behind the path."""
+        r = random.Random(seed)
+        for x in xs:
+            self.prop('kaykit_forest/%s_Color1' % r.choice(['Tree_1_A', 'Tree_1_C', 'Tree_3_A', 'Tree_4_A', 'Tree_4_B', 'Tree_4_C']), x + r.uniform(-0.4, 0.4), y, r.uniform(-4.6, -3.8), r.uniform(0.6, 0.78), r.uniform(0, 360))
+    def iscenery(self, x0, x1, seed):
+        """The Island of Addition's horizon: small green islands in the sea (sculpted terrain with a few round
+        trees), soft clouds."""
+        r = random.Random(seed)
+        x = x0 - 14
+        while x < x1 + 14:
+            z = r.uniform(-24, -17)
+            L = r.choice([2, 3, 4])
+            self.add('ground', 'StaticBody3D', self._n('FarIsland'), x, r.uniform(-0.6, 0.6), z,
+                     props={'length': L, 'height': 2, 'rows': 3, 'style': '"terrain"', 'taper': 0.5})
+            for t in range(r.randint(1, 3)):
+                self.prop('kaykit_forest/%s_Color1' % r.choice(['Tree_1_A', 'Tree_3_A', 'Tree_3_B', 'Tree_4_A']), x + r.uniform(0, 2 * L - 2), 0, z + r.uniform(-1.0, 0.5), r.uniform(0.8, 1.2), r.uniform(0, 360))
+            x += r.uniform(9, 14)
+        x = x0 - 10
+        while x < x1 + 10:
+            self.prop(r.choice(['hexagon/cloud_big', 'hexagon/cloud_small']), x, r.uniform(8, 11), r.uniform(-20, -15), r.uniform(1.8, 2.6)); x += r.uniform(10, 16)
     def krocks(self, xs, y, seed):
         """KayKit boulders at the front edge, half sunk into the grass."""
         r = random.Random(seed)
@@ -120,6 +171,7 @@ class Lvl:
             self.prop('kaykit_forest/%s_Color1' % r.choice(['Rock_3_G', 'Rock_3_H', 'Rock_3_I', 'Rock_3_J']), x, y, r.uniform(2.0, 2.3), r.uniform(0.45, 0.65), r.uniform(0, 360))
     def ndecor(self, xs, y, seed):
         """Quaternius nature: a bush behind the path and a clump of flowers or grass in front, per x."""
+        if self.terrain: return self.ifront(xs, y, seed)
         r = random.Random(seed)
         bushes = ['nature/Bush', 'nature/Bush_Flowers', 'nature/Bush_Large', 'nature/Bush_Large_Flowers', 'nature/Bush_Small', 'nature/Bush_Small_Flowers']
         small = ['nature/Flower_1_Clump', 'nature/Flower_2_Clump', 'nature/Flower_3_Clump', 'nature/Flower_4_Clump', 'nature/Flower_5_Clump', 'nature/Grass_Large', 'nature/Grass_Small', 'nature/Plant_1', 'nature/Plant_Flowers']
@@ -128,11 +180,13 @@ class Lvl:
             self.prop(r.choice(small), x + r.uniform(-0.8, 0.8), y, r.uniform(1.9, 2.6), r.uniform(1.2, 1.6), r.uniform(0, 360))
 
     def trees(self, xs, y, seed, z=-2.0):
+        if self.terrain: return self.itrees(xs, y, seed)
         r = random.Random(seed)
         for x in xs:
             m = r.choice(['hexagon/tree_single_A','hexagon/tree_single_B','hexagon/trees_A_medium','hexagon/trees_B_small'])
             self.prop(m, x, y, z + r.uniform(-0.4, 0.3), r.uniform(2.2, 2.8), r.uniform(0, 360))
     def rocks(self, xs, y, seed, z=1.9):
+        if self.terrain: return self.krocks(xs, y, seed)
         r = random.Random(seed)
         for x in xs:
             self.prop(r.choice(['hexagon/rock_single_A','hexagon/rock_single_B','hexagon/rock_single_C','hexagon/rock_single_D']), x, y, z + r.uniform(-0.2, 0.4), r.uniform(2.5, 3.5), r.uniform(0, 360))
@@ -154,6 +208,7 @@ class Lvl:
 
 def level1():
     L = Lvl('CountingBeach', 0, 7, 55, ["Welcome to the Island of Addition!", "Count the stones to open the magic gates."])
+    L.terrain = True
     L.spawn(1, 0.6)
     L.ground(0, 0, 12)
     L.sign(4, 0, "A D or arrows: walk. Space: jump.")
@@ -182,6 +237,7 @@ def level1():
 
 def level2():
     L = Lvl('BrokenBridges', 1, 7, 57, ["The storm broke the bridges.", "Collect stones and count the empty spots."])
+    L.terrain = True
     L.spawn(1, 0.6)
     L.ground(0, 0, 8)
     L.sign(3, 0, "Stones fix bridges. Collect them!")
@@ -212,6 +268,7 @@ def level2():
 
 def level3():
     L = Lvl('GateGarden', 2, 7, 47, ["Some gates want you to take away.", "Take away means some stones go away."])
+    L.terrain = True
     L.spawn(1, 0.6)
     L.ground(0, 0, 7)
     L.sign(3, 0, "Take away: count the stones that stay.")
@@ -241,6 +298,7 @@ def level3():
 
 def level4():
     L = Lvl('WindmillHill', 3, 7, 45, ["The lift has no energy.", "Fill the machine, ride up and fix the bridge."])
+    L.terrain = True
     L.spawn(1, 0.6)
     L.ground(0, 0, 6)
     L.sign(3, 0, "Machines need energy. Fill them up!")
@@ -275,6 +333,7 @@ def level4():
 
 def level5():
     L = Lvl('GuardianArena', 4, 7, 32, ["The Stone Guardian guards the island.", "When it gets tired, solve the crystal spells."])
+    L.terrain = True
     L.spawn(1, 0.6)
     L.ground(0, 0, 6)
     L.sign(2.5, 0, "Be brave! Rocks only bump you.")

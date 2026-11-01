@@ -152,6 +152,9 @@ func _reset_wrong() -> void:
 
 func _play_solved() -> void:
 	_reset_wrong()
+	# solid at once: the stones take a moment to fly in, and a child who walks on right away must not fall
+	# through a bridge that is already showing (the playthrough bot did, on long bridges)
+	_body.get_child(0).set_deferred("disabled", false)
 	var lvl := Level.of(self)
 	for i in _slots.size():
 		var slab := _stone_slab(Art.STONE_COLOR)
@@ -171,7 +174,6 @@ func _play_solved() -> void:
 		nt.tween_callback(n.queue_free)
 		if lvl:
 			lvl.add_stones(-1)
-	_body.get_child(0).set_deferred("disabled", false)
 	_text.text = challenge.solved_text()
 	_text.modulate = Color("#c9ffd2")
 	Sfx.play("correct")
