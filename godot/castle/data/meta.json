@@ -1,0 +1,21 @@
+{
+  "_doc": "Two kinds of upgrades. cards: the original between-wave picks of the web game (one of three per break, reset every level). armory: permanent upgrades bought with the treasury, the gold a level sends home (its reward, plus a fifth of the gold left over). Each armory step costs costs[step]; the campaign is balanced to be won without any (tests/bot.gd checks it).",
+  "cards": {
+    "power":    { "cap": 99, "name": "Острые наконечники", "desc": "+20% урона" },
+    "reload":   { "cap": 5,  "name": "Тугая тетива", "desc": "Перезарядка быстрее на 12%" },
+    "velocity": { "cap": 5,  "name": "Длинный лук", "desc": "Стрелы летят быстрее и дальше" },
+    "pierce":   { "cap": 3,  "name": "Бронебойные стрелы", "desc": "Стрела пробивает ещё одного врага" },
+    "multi":    { "cap": 3,  "name": "Двойной выстрел", "desc": "+1 стрела за выстрел" },
+    "fire":     { "cap": 1,  "name": "Огненные стрелы", "desc": "Поджигают врага на 3 секунды" },
+    "ward":     { "cap": 2,  "name": "Оберег", "desc": "+1 заряд против летунов" }
+  },
+  "armory": {
+    "walls":     { "costs": [60, 110, 180, 270, 380], "name": "Каменщики", "desc": "Стена крепче на 15%" },
+    "bow":       { "costs": [70, 130, 210, 320, 450], "name": "Тисовый лук", "desc": "Стрелы бьют на 10% сильнее" },
+    "broadhead": { "costs": [80, 150, 240, 360],      "name": "Гранёные наконечники", "desc": "Броня врагов слабее на 8 пунктов" },
+    "stakes":    { "costs": [50, 100, 170],           "name": "Закалённые колья", "desc": "Колья ранят на 30% сильнее и служат дольше" },
+    "carpentry": { "costs": [60, 120, 200],           "name": "Плотники", "desc": "Баррикады и башни крепче на 25%" },
+    "tax":       { "costs": [70, 140, 230, 340],      "name": "Сборщики податей", "desc": "+15 золота в начале и +10% за врагов" },
+    "slots":     { "costs": [150, 300],               "name": "Землемеры", "desc": "+1 место под укрепления" }
+  }
+}
