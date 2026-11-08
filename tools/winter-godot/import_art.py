@@ -319,11 +319,110 @@ def cabin(manifest: dict) -> None:
                                     "foot": [hole.width // 2, hole.height // 2], "decal": True, "painted": True}
 
 
+# ── The survivors: the hero's figure in their own clothes ──
+# coat: hue (degrees), saturation; scarf: hue, saturation; hat: value scale; face: the scarf pulled up over the
+# chin (it hides the hero's beard); work: the hero's clip they work with; scale: the child is smaller.
+SURVIVORS = {
+    "hunter": {"coat": (95, 0.38), "scarf": (28, 0.7), "hat": 0.9, "face": False, "work": "gather", "scale": 1.0},
+    "carpenter": {"coat": (28, 0.58), "scarf": (140, 0.45), "hat": 1.15, "face": False, "work": "chop", "scale": 1.0},
+    "herbalist": {"coat": (295, 0.32), "scarf": (172, 0.5), "hat": 1.35, "face": True, "work": "gather", "scale": 0.95},
+    "smith": {"coat": (220, 0.06), "scarf": (24, 0.85), "hat": 0.75, "face": False, "work": "mine", "scale": 1.04},
+    "child": {"coat": (203, 0.5), "scarf": (48, 0.8), "hat": 1.2, "face": True, "work": "gather", "scale": 0.78},
+}
+
+
+def _hsv(rgb):
+    mx, mn = rgb.max(2), rgb.min(2)
+    d = np.maximum(mx - mn, 1e-6)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    h = np.where(mx == r, ((g - b) / d) % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) * 60.0
+    s = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6), 0.0)
+    return h, s, mx
+
+
+def _rgb(h, s, v):
+    h = (h % 360.0) / 60.0
+    c = v * s
+    x = c * (1 - np.abs(h % 2 - 1))
+    z = np.zeros_like(h)
+    k = np.floor(h).astype(int) % 6
+    r = np.choose(k, [c, x, z, z, x, c])
+    g = np.choose(k, [x, c, c, x, z, z])
+    b = np.choose(k, [z, z, x, c, c, x])
+    m = v - c
+    return np.stack([r + m, g + m, b + m], axis=-1)
+
+
+def dress(cell: Image.Image, look: dict) -> Image.Image:
+    """The hero's frame in a survivor's clothes: the cool grey-blue coat and trousers, the red scarf and the dark
+    leather of the hat take the survivor's colours; the light keeps its value, so the shading stays painted."""
+    a = np.asarray(cell).astype(np.float32) / 255.0
+    rgb, al = a[..., :3], a[..., 3]
+    h, s, v = _hsv(rgb)
+    on = al > 0.05
+    ys, xs = np.nonzero(al > 0.5)
+    if not len(ys):
+        return cell
+    top, bot, left, right = ys.min(), ys.max(), xs.min(), xs.max()
+    hh = bot - top
+    yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]
+    head = yy < top + hh * 0.3
+    coat = on & ~head & (((h >= 200) & (h <= 335)) | (s < 0.07)) & (v < 0.62) & ~((s < 0.07) & (v > 0.5))
+    scarf = on & ((h <= 15) | (h >= 350)) & (s > 0.52) & (v > 0.3)
+    hat = on & head & ((h >= 340) | (h <= 6)) & (s > 0.1) & (s < 0.32) & (v < 0.55)
+    out = rgb.copy()
+    ch, cs = look["coat"]
+    out[coat] = _rgb(np.full(coat.sum(), ch), np.full(coat.sum(), cs) * (0.6 + 0.6 * s[coat] / 0.2).clip(0.6, 1.3), v[coat] * 1.08)
+    sh, ss = look["scarf"]
+    out[scarf] = _rgb(np.full(scarf.sum(), sh), np.full(scarf.sum(), ss), v[scarf])
+    out[hat] = (rgb[hat] * look["hat"]).clip(0, 1)
+    if look["face"]:
+        # the scarf over the chin: the beard's warm brown in the face (right of the body's middle, between the
+        # eyes and the scarf) becomes scarf
+        face = on & (yy > top + hh * 0.2) & (yy < top + hh * 0.46) & (xx > left + (right - left) * 0.5) \
+            & (h > 6) & (h < 26) & (s > 0.28) & (s < 0.58) & (v > 0.3) & (v < 0.6)
+        out[face] = _rgb(np.full(face.sum(), sh), np.full(face.sum(), ss * 0.9), v[face] * 0.95)
+    res = np.concatenate([out, al[..., None]], axis=-1)
+    return Image.fromarray((res.clip(0, 1) * 255 + 0.5).astype(np.uint8), "RGBA")
+
+
+def survivors(manifest: dict) -> None:
+    hero_e = manifest["char.hero"]
+    sheet = Image.open(OUT / "characters/hero.png").convert("RGBA")
+    fw, fh = hero_e["frame"]
+    cols = sheet.width // fw
+
+    def clip(name):
+        c = hero_e["anims"][name + "_side"]
+        return [sheet.crop((((c["from"] + i) % cols) * fw, (c["row"] + (c["from"] + i) // cols) * fh,
+                            (((c["from"] + i) % cols) + 1) * fw, (c["row"] + (c["from"] + i) // cols + 1) * fh)) for i in range(c["count"])], c
+    for sid, look in SURVIVORS.items():
+        walk, wc = clip("walk")
+        work, kc = clip(look["work"])
+        frames = walk + work
+        out = Image.new("RGBA", (16 * fw, 2 * fh), (0, 0, 0, 0))
+        for i, fr in enumerate(walk):
+            out.paste(dress(fr, look), (i * fw, 0))
+        for i, fr in enumerate(work):
+            out.paste(dress(fr, look), (i * fw, fh))
+        name = f"survivor_{sid}.png"
+        out.save(OUT / "characters" / name, optimize=True)
+        anims = {
+            "walk_side": {"row": 0, "from": 0, "count": len(walk), "fps": wc["fps"], "loop": True},
+            "idle_side": {"row": 0, "from": 0, "count": 1, "fps": 1, "loop": True},
+            "work_side": {"row": 1, "from": 0, "count": len(work), "fps": max(8, kc["fps"] - 4), "loop": True},
+        }
+        manifest["char.sv." + sid] = {"sheet": RES + "characters/" + name, "frame": [fw, fh], "foot": hero_e["foot"],
+                                      "anims": anims, "scale": look["scale"], "painted": True}
+        print(f"survivor {sid}: {len(frames)} frames")
+
+
 def main() -> None:
     manifest = {"_replace": REPLACE}
     env(manifest)
     cabin(manifest)
     hero(manifest)
+    survivors(manifest)
     MANIFEST.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + "\n")
     size = sum(p.stat().st_size for p in OUT.rglob("*.png"))
     print(f"{len(manifest) - 1} keys, {size // 1024} KB")

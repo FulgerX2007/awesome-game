@@ -650,5 +650,185 @@
    }
   },
   "painted": true
+ },
+ "char.sv.hunter": {
+  "sheet": "res://assets/painted/characters/survivor_hunter.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 16,
+    "fps": 8,
+    "loop": true
+   }
+  },
+  "scale": 1.0,
+  "painted": true
+ },
+ "char.sv.carpenter": {
+  "sheet": "res://assets/painted/characters/survivor_carpenter.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 12,
+    "fps": 10,
+    "loop": true
+   }
+  },
+  "scale": 1.0,
+  "painted": true
+ },
+ "char.sv.herbalist": {
+  "sheet": "res://assets/painted/characters/survivor_herbalist.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 16,
+    "fps": 8,
+    "loop": true
+   }
+  },
+  "scale": 0.95,
+  "painted": true
+ },
+ "char.sv.smith": {
+  "sheet": "res://assets/painted/characters/survivor_smith.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": true
+   }
+  },
+  "scale": 1.04,
+  "painted": true
+ },
+ "char.sv.child": {
+  "sheet": "res://assets/painted/characters/survivor_child.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 16,
+    "fps": 8,
+    "loop": true
+   }
+  },
+  "scale": 0.78,
+  "painted": true
  }
 }

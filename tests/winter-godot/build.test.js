@@ -70,6 +70,9 @@ test('every key of the asset contract exists and its files are on disk', () => {
   for (const id of ['idle', 'run', 'bite', 'hurt', 'death']) assert.ok(Object.keys(m['animal.wolf'].anims).some((a) => a.startsWith(id)), `wolf ${id}`);
   // the painted hero (tools/winter-godot/import_art.py) is drawn from one side; the game mirrors it
   for (const id of ['idle', 'walk', 'chop', 'mine', 'gather', 'build', 'craft', 'fire']) assert.ok(m['char.hero'].anims[`${id}_side`], `hero ${id}_side`);
+  for (const sv of ['hunter', 'carpenter', 'herbalist', 'smith', 'child']) {
+    for (const id of ['idle', 'walk', 'work']) assert.ok(m[`char.sv.${sv}`] && m[`char.sv.${sv}`].anims[`${id}_side`], `survivor ${sv} ${id}`);
+  }
   for (const id of ['chop', 'mine']) {
     const a = m['char.hero'].anims[`${id}_side`];
     assert.ok(Number.isInteger(a.impact) && a.impact > 0 && a.impact < a.count, `hero ${id}: the frame of the blow`);

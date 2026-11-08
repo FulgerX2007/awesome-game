@@ -110,7 +110,12 @@ func sync(g: Dictionary, delta: float) -> void:
 		seen[id] = true
 		var v = views.get(id)
 		if v == null:
-			v = _make(id, "char.villager", "person", COATS.get(s.id, Color("7a5638")), 0.78 if s.id == "child" else 1.0)
+			# the painted survivor in their own clothes when there is one, else the generated villager tinted
+			var painted := "char.sv." + String(s.id)
+			if WinterArt.has(painted):
+				v = _make(id, painted, "person", Color(0, 0, 0, 0), float(WinterArt.entry(painted).get("scale", 1.0)))
+			else:
+				v = _make(id, "char.villager", "person", COATS.get(s.id, Color("7a5638")), 0.78 if s.id == "child" else 1.0)
 		var speed := _ease(v, float(s.x), float(s.y), delta)
 		var a := "walk" if speed > 0.4 else ("work" if s.state == "home" and s.get("busy", false) else "idle")
 		if s.state == "home" and WinterSim.is_night(g):
