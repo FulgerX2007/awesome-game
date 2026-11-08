@@ -5,3 +5,4 @@
 /godot/*/data/*.translation
 /build/
 /godot/castle/assets/ember/
+__pycache__/

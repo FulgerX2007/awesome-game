@@ -57,7 +57,7 @@ void fragment() {
 	// big soft thawed patches near the middle of the camp, tracks of trodden snow elsewhere
 	float bare = smoothstep(0.62, 0.8, n1(t * 0.12 + 41.0) * 0.75 + n1(t * 0.4 + 13.0) * 0.25) * trod;
 	vec3 tcol = mix(mix(snow, camp, 0.55), snow_shade, 0.3 * (1.0 - lam));
-	tcol = mix(tcol, mix(earth, camp, 0.35), bare * 0.6);
+	tcol = mix(tcol, mix(earth, camp, 0.6), bare * 0.28);
 	col = mix(col, tcol, trod * 0.85);
 	nrm = normalize(mix(nrm, vec3(0.0, 0.0, 1.0), trod * 0.6));
 

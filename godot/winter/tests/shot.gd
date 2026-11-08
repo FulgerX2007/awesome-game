@@ -60,8 +60,8 @@ func _run(names: Array) -> void:
 			"day", "dusk", "night":
 				var g := _game()
 				g.t = {"day": 30.0, "dusk": 92.0, "night": 118.0}[n]
-				g.hero.x = 27.5
-				g.hero.y = 21.6
+				g.hero.x = 28.6
+				g.hero.y = 21.4
 				await _frames(60)
 				await _shot(n)
 			"blizzard":
