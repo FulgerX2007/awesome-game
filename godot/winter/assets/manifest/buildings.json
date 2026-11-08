@@ -1,0 +1,684 @@
+{
+ "bench": {
+  "file": "res://assets/buildings/camp/bench.png",
+  "size": [
+   98,
+   72
+  ],
+  "foot": [
+   49.0,
+   61.0
+  ],
+  "normal": "res://assets/buildings/camp/bench.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/bench.shadow.png",
+   "foot": [
+    38.0,
+    28.0
+   ]
+  },
+  "block": 1
+ },
+ "bunk": {
+  "file": "res://assets/buildings/camp/bunk.png",
+  "size": [
+   104,
+   98
+  ],
+  "foot": [
+   52.0,
+   94.0
+  ],
+  "normal": "res://assets/buildings/camp/bunk.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/bunk.shadow.png",
+   "foot": [
+    45.0,
+    80.0
+   ]
+  },
+  "block": 0
+ },
+ "bunk.frame": {
+  "file": "res://assets/buildings/camp/bunk_frame.png",
+  "size": [
+   104,
+   98
+  ],
+  "foot": [
+   52.0,
+   94.0
+  ],
+  "normal": "res://assets/buildings/camp/bunk_frame.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/bunk_frame.shadow.png",
+   "foot": [
+    45.0,
+    80.0
+   ]
+  },
+  "block": 0
+ },
+ "firepit": {
+  "file": "res://assets/buildings/camp/firepit.png",
+  "size": [
+   98,
+   60
+  ],
+  "foot": [
+   50.0,
+   52.0
+  ],
+  "normal": "res://assets/buildings/camp/firepit.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/firepit.shadow.png",
+   "foot": [
+    49.0,
+    42.0
+   ]
+  },
+  "anchor": [
+   50.0,
+   30.0
+  ]
+ },
+ "firepit.ash": {
+  "file": "res://assets/buildings/camp/firepit_ash.png",
+  "size": [
+   98,
+   60
+  ],
+  "foot": [
+   50.0,
+   52.0
+  ],
+  "normal": "res://assets/buildings/camp/firepit_ash.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/firepit_ash.shadow.png",
+   "foot": [
+    49.0,
+    42.0
+   ]
+  },
+  "anchor": [
+   50.0,
+   30.0
+  ]
+ },
+ "hut.0": {
+  "file": "res://assets/buildings/hut/hut_0.png",
+  "size": [
+   328,
+   153
+  ],
+  "foot": [
+   163.0,
+   141.0
+  ],
+  "normal": "res://assets/buildings/hut/hut_0.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/hut/hut_0.shadow.png",
+   "foot": [
+    151.0,
+    78.0
+   ]
+  },
+  "block": 1
+ },
+ "hut.1": {
+  "file": "res://assets/buildings/hut/hut_1.png",
+  "size": [
+   311,
+   258
+  ],
+  "foot": [
+   153.0,
+   259.0
+  ],
+  "normal": "res://assets/buildings/hut/hut_1.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/hut/hut_1.shadow.png",
+   "foot": [
+    153.0,
+    259.0
+   ]
+  },
+  "block": 1
+ },
+ "hut.2": {
+  "file": "res://assets/buildings/hut/hut_2.png",
+  "size": [
+   330,
+   349
+  ],
+  "foot": [
+   165.0,
+   350.0
+  ],
+  "normal": "res://assets/buildings/hut/hut_2.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/hut/hut_2.shadow.png",
+   "foot": [
+    153.0,
+    172.0
+   ]
+  },
+  "block": 1
+ },
+ "hut.3": {
+  "file": "res://assets/buildings/hut/hut_3.png",
+  "size": [
+   330,
+   349
+  ],
+  "foot": [
+   165.0,
+   350.0
+  ],
+  "normal": "res://assets/buildings/hut/hut_3.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/hut/hut_3.shadow.png",
+   "foot": [
+    153.0,
+    172.0
+   ]
+  },
+  "block": 1
+ },
+ "hut.4": {
+  "file": "res://assets/buildings/hut/hut_4.png",
+  "size": [
+   330,
+   349
+  ],
+  "foot": [
+   165.0,
+   350.0
+  ],
+  "normal": "res://assets/buildings/hut/hut_4.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/hut/hut_4.shadow.png",
+   "foot": [
+    153.0,
+    172.0
+   ]
+  },
+  "block": 1,
+  "anchor": [
+   237.0,
+   124.0
+  ]
+ },
+ "hut.roofhole": {
+  "file": "res://assets/buildings/hut/roofhole.png",
+  "size": [
+   83,
+   61
+  ],
+  "foot": [
+   102.0,
+   249.0
+  ],
+  "normal": "res://assets/buildings/hut/roofhole.n.png"
+ },
+ "hut.scaffold": {
+  "file": "res://assets/buildings/hut/scaffold.png",
+  "size": [
+   294,
+   130
+  ],
+  "foot": [
+   147.0,
+   120.0
+  ],
+  "normal": "res://assets/buildings/hut/scaffold.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/hut/scaffold.shadow.png",
+   "foot": [
+    119.0,
+    60.0
+   ]
+  }
+ },
+ "palisade.gate": {
+  "file": "res://assets/buildings/palisade/gate.png",
+  "size": [
+   224,
+   164
+  ],
+  "foot": [
+   112.0,
+   150.0
+  ],
+  "normal": "res://assets/buildings/palisade/gate.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/gate.shadow.png",
+   "foot": [
+    109.0,
+    43.0
+   ]
+  }
+ },
+ "palisade.h": {
+  "file": "res://assets/buildings/palisade/h.png",
+  "size": [
+   117,
+   130
+  ],
+  "foot": [
+   57.0,
+   122.0
+  ],
+  "normal": "res://assets/buildings/palisade/h.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/h.shadow.png",
+   "foot": [
+    59.0,
+    34.0
+   ]
+  },
+  "block": 1
+ },
+ "palisade.h.broken": {
+  "file": "res://assets/buildings/palisade/h_broken.png",
+  "size": [
+   117,
+   59
+  ],
+  "foot": [
+   57.0,
+   51.0
+  ],
+  "normal": "res://assets/buildings/palisade/h_broken.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/h_broken.shadow.png",
+   "foot": [
+    59.0,
+    27.0
+   ]
+  },
+  "block": 1
+ },
+ "palisade.h.damaged": {
+  "file": "res://assets/buildings/palisade/h_damaged.png",
+  "size": [
+   117,
+   128
+  ],
+  "foot": [
+   57.0,
+   120.0
+  ],
+  "normal": "res://assets/buildings/palisade/h_damaged.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/h_damaged.shadow.png",
+   "foot": [
+    59.0,
+    33.0
+   ]
+  },
+  "block": 1
+ },
+ "palisade.post": {
+  "file": "res://assets/buildings/palisade/post.png",
+  "size": [
+   50,
+   140
+  ],
+  "foot": [
+   25.0,
+   130.0
+  ],
+  "normal": "res://assets/buildings/palisade/post.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/post.shadow.png",
+   "foot": [
+    27.0,
+    29.0
+   ]
+  },
+  "block": 1
+ },
+ "palisade.stake": {
+  "file": "res://assets/buildings/palisade/stake.png",
+  "size": [
+   24,
+   124
+  ],
+  "foot": [
+   12.0,
+   114.0
+  ],
+  "normal": "res://assets/buildings/palisade/stake.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/stake.shadow.png",
+   "foot": [
+    15.0,
+    21.0
+   ]
+  }
+ },
+ "palisade.v": {
+  "file": "res://assets/buildings/palisade/v.png",
+  "size": [
+   39,
+   216
+  ],
+  "foot": [
+   19.0,
+   205.0
+  ],
+  "normal": "res://assets/buildings/palisade/v.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/v.shadow.png",
+   "foot": [
+    22.0,
+    97.0
+   ]
+  },
+  "block": 1
+ },
+ "palisade.v.broken": {
+  "file": "res://assets/buildings/palisade/v_broken.png",
+  "size": [
+   39,
+   150
+  ],
+  "foot": [
+   19.0,
+   139.0
+  ],
+  "normal": "res://assets/buildings/palisade/v_broken.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/v_broken.shadow.png",
+   "foot": [
+    22.0,
+    95.0
+   ]
+  },
+  "block": 1
+ },
+ "palisade.v.damaged": {
+  "file": "res://assets/buildings/palisade/v_damaged.png",
+  "size": [
+   39,
+   214
+  ],
+  "foot": [
+   19.0,
+   203.0
+  ],
+  "normal": "res://assets/buildings/palisade/v_damaged.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/palisade/v_damaged.shadow.png",
+   "foot": [
+    22.0,
+    97.0
+   ]
+  },
+  "block": 1
+ },
+ "snare": {
+  "file": "res://assets/buildings/camp/snare.png",
+  "size": [
+   49,
+   46
+  ],
+  "foot": [
+   26.0,
+   34.0
+  ],
+  "normal": "res://assets/buildings/camp/snare.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/snare.shadow.png",
+   "foot": [
+    28.0,
+    13.0
+   ]
+  }
+ },
+ "stock.stone": {
+  "file": "res://assets/buildings/camp/stock_stone.png",
+  "size": [
+   100,
+   44
+  ],
+  "foot": [
+   49.0,
+   42.0
+  ],
+  "normal": "res://assets/buildings/camp/stock_stone.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/stock_stone.shadow.png",
+   "foot": [
+    47.0,
+    28.0
+   ]
+  }
+ },
+ "stock.wood": {
+  "file": "res://assets/buildings/camp/stock_wood.png",
+  "size": [
+   108,
+   63
+  ],
+  "foot": [
+   54.0,
+   52.0
+  ],
+  "normal": "res://assets/buildings/camp/stock_wood.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/stock_wood.shadow.png",
+   "foot": [
+    50.0,
+    40.0
+   ]
+  }
+ },
+ "torch": {
+  "file": "res://assets/buildings/camp/torch.png",
+  "size": [
+   50,
+   128
+  ],
+  "foot": [
+   25.0,
+   119.0
+  ],
+  "normal": "res://assets/buildings/camp/torch.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/torch.shadow.png",
+   "foot": [
+    27.0,
+    25.0
+   ]
+  },
+  "block": 0,
+  "anchor": [
+   26.0,
+   7.0
+  ]
+ },
+ "trader.sled": {
+  "file": "res://assets/buildings/camp/trader_sled.png",
+  "size": [
+   193,
+   121
+  ],
+  "foot": [
+   99.0,
+   115.0
+  ],
+  "normal": "res://assets/buildings/camp/trader_sled.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/camp/trader_sled.shadow.png",
+   "foot": [
+    99.0,
+    69.0
+   ]
+  },
+  "block": 0,
+  "anchor": [
+   170.0,
+   22.0
+  ]
+ },
+ "up.annex": {
+  "file": "res://assets/buildings/upgrades/annex.png",
+  "size": [
+   206,
+   285
+  ],
+  "foot": [
+   103.0,
+   286.0
+  ],
+  "normal": "res://assets/buildings/upgrades/annex.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/upgrades/annex.shadow.png",
+   "foot": [
+    100.0,
+    211.0
+   ]
+  },
+  "block": 1
+ },
+ "up.annex.frame": {
+  "file": "res://assets/buildings/upgrades/annex_frame.png",
+  "size": [
+   204,
+   222
+  ],
+  "foot": [
+   102.0,
+   216.0
+  ],
+  "normal": "res://assets/buildings/upgrades/annex_frame.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/upgrades/annex_frame.shadow.png",
+   "foot": [
+    87.0,
+    171.0
+   ]
+  }
+ },
+ "up.cellar": {
+  "file": "res://assets/buildings/upgrades/cellar.png",
+  "size": [
+   130,
+   105
+  ],
+  "foot": [
+   65.0,
+   91.0
+  ],
+  "normal": "res://assets/buildings/upgrades/cellar.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/upgrades/cellar.shadow.png",
+   "foot": [
+    61.0,
+    31.0
+   ]
+  }
+ },
+ "up.cellar.frame": {
+  "file": "res://assets/buildings/upgrades/cellar_frame.png",
+  "size": [
+   94,
+   85
+  ],
+  "foot": [
+   47.0,
+   80.0
+  ],
+  "normal": "res://assets/buildings/upgrades/cellar_frame.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/upgrades/cellar_frame.shadow.png",
+   "foot": [
+    49.0,
+    42.0
+   ]
+  }
+ },
+ "up.smokehouse": {
+  "file": "res://assets/buildings/upgrades/smokehouse.png",
+  "size": [
+   92,
+   159
+  ],
+  "foot": [
+   46.0,
+   156.0
+  ],
+  "normal": "res://assets/buildings/upgrades/smokehouse.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/upgrades/smokehouse.shadow.png",
+   "foot": [
+    21.0,
+    82.0
+   ]
+  },
+  "anchor": [
+   46.0,
+   6.0
+  ]
+ },
+ "up.smokehouse.frame": {
+  "file": "res://assets/buildings/upgrades/smokehouse_frame.png",
+  "size": [
+   90,
+   122
+  ],
+  "foot": [
+   45.0,
+   116.0
+  ],
+  "normal": "res://assets/buildings/upgrades/smokehouse_frame.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/upgrades/smokehouse_frame.shadow.png",
+   "foot": [
+    30.0,
+    65.0
+   ]
+  }
+ },
+ "up.workshop": {
+  "file": "res://assets/buildings/upgrades/workshop.png",
+  "size": [
+   206,
+   175
+  ],
+  "foot": [
+   103.0,
+   169.0
+  ],
+  "normal": "res://assets/buildings/upgrades/workshop.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/upgrades/workshop.shadow.png",
+   "foot": [
+    71.0,
+    52.0
+   ]
+  },
+  "block": 1
+ },
+ "up.workshop.frame": {
+  "file": "res://assets/buildings/upgrades/workshop_frame.png",
+  "size": [
+   204,
+   148
+  ],
+  "foot": [
+   102.0,
+   142.0
+  ],
+  "normal": "res://assets/buildings/upgrades/workshop_frame.n.png",
+  "shadow": {
+   "file": "res://assets/buildings/upgrades/workshop_frame.shadow.png",
+   "foot": [
+    85.0,
+    87.0
+   ]
+  }
+ }
+}
