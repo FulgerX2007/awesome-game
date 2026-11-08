@@ -77,7 +77,7 @@ ENV = {
 # Generated groups the painted art replaces entirely (their generated variants would clash in style).
 REPLACE = ["tree.pine", "tree.dead", "tree.fallen", "tree.stump", "log", "rock", "rock.small", "rock.group",
            "rock.rubble", "ice.formation", "bush.berry", "bush.bare", "bush.snow", "branch", "ground.patch",
-           "snow.drift", "char.hero", "animal.rabbit", "animal.deer", "animal.wolf", "animal.bear"]
+           "snow.drift", "char.hero", "char.trader", "char.wanderer", "animal.rabbit", "animal.deer", "animal.wolf", "animal.bear"]
 SPENT_BUSH = ["bush.bare.0"]     # a picked bush: the bare one
 
 
@@ -500,12 +500,49 @@ def animal(manifest: dict, key: str) -> None:
     print(f"{key}: {len(frames)} frames of {fw}×{fh}")
 
 
+# The trader in a burgundy fur coat and a gold scarf; the wounded wanderer in faded clothes, lying in the snow.
+TRADER = {"coat": (356, 0.55), "scarf": (44, 0.75), "hat": 0.7, "face": False}
+WANDERER = {"coat": (32, 0.14), "scarf": (210, 0.22), "hat": 1.25, "face": True}
+
+
+def strangers(manifest: dict) -> None:
+    hero_e = manifest["char.hero"]
+    sheet = Image.open(OUT / "characters/hero.png").convert("RGBA")
+    fw, fh = hero_e["frame"]
+    fx, fy = hero_e["foot"]
+    stand = sheet.crop((0, 0, fw, fh))
+    # the trader: standing by his sled, a slow breath (the idle frame and a slightly raised one)
+    trader = dress(stand, TRADER)
+    out = Image.new("RGBA", (fw * 2, fh), (0, 0, 0, 0))
+    out.paste(trader, (0, 0))
+    breath = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
+    breath.alpha_composite(trader.resize((fw, fh + 2), Image.LANCZOS).crop((0, 2, fw, fh + 2)))
+    out.paste(breath, (fw, 0))
+    out.save(OUT / "characters/trader.png", optimize=True)
+    manifest["char.trader"] = {"sheet": RES + "characters/trader.png", "frame": [fw, fh], "foot": [fx, fy],
+                               "anims": {"idle_side": {"row": 0, "from": 0, "count": 2, "fps": 1.2, "loop": True}},
+                               "painted": True}
+    # the wanderer: the figure laid on its side, head to the right, its middle on the foot point
+    worn = dress(stand, WANDERER)
+    body, _ = trim(worn)
+    lying = body.rotate(90, expand=True, resample=Image.BICUBIC)
+    lw, lh = lying.width + 8, lying.height + 8
+    cell = Image.new("RGBA", (lw, lh), (0, 0, 0, 0))
+    cell.alpha_composite(lying, (4, 4))
+    cell.save(OUT / "characters/wanderer.png", optimize=True)
+    manifest["char.wanderer"] = {"sheet": RES + "characters/wanderer.png", "frame": [lw, lh], "foot": [lw // 2, lh - 6],
+                                 "anims": {"idle_side": {"row": 0, "from": 0, "count": 1, "fps": 1, "loop": True}},
+                                 "painted": True, "lying": True}
+    print("trader and wanderer")
+
+
 def main() -> None:
     manifest = {"_replace": REPLACE}
     env(manifest)
     cabin(manifest)
     hero(manifest)
     survivors(manifest)
+    strangers(manifest)
     for key in ANIMALS:
         animal(manifest, key)
     MANIFEST.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + "\n")

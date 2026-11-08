@@ -43,6 +43,8 @@ func _make(id: String, key: String, kind: String, tint := Color(0, 0, 0, 0), sca
 	unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	sh.material = unshaded
 	node.add_child(sh)
+	if WinterArt.entry(key).get("lying", false):
+		sh.scale = Vector2(1.1, 0.3)
 	var spr := WinterAnimSprite.new()
 	spr.setup(key, tint)
 	spr.scale = Vector2.ONE * scale
@@ -171,6 +173,9 @@ func sync(g: Dictionary, delta: float) -> void:
 			v = _make("wanderer", "char.wanderer", "person")
 		_ease(v, float(ev.x) + 0.5, float(ev.y) + 0.6, delta)
 		v.spr.play("idle", "down")
+		# he lies in the snow and shivers
+		v.mt = float(v.get("mt", 0.0)) + delta
+		v.spr.position.x = sin(v.mt * 38.0) * 1.3 * (0.5 + 0.5 * absf(sin(v.mt * 1.3)))
 	for id in views.keys():
 		if not seen.has(id):
 			var v: Dictionary = views[id]

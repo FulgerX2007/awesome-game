@@ -11,8 +11,8 @@ Every asset of the game is listed here with its source, author and license. No w
 
 ## Painted art (the hero and the forest)
 - Folder: `assets/painted/`; manifest `assets/manifest/override_painted.json` (it replaces the generated hero, trees,
-  rocks, bushes, branches, drifts and ice, the hut's last two stages, the five survivors (made from the hero's
-  frames recoloured), and the hare, deer, wolf and bear; the other generated buildings and effects stay).
+  rocks, bushes, branches, drifts and ice, the hut's last two stages, the five survivors, the trader and the
+  wanderer (made from the hero's frames recoloured), and the hare, deer, wolf and bear; the other generated buildings and effects stay).
 - Source: images supplied by the project owner (`tools/winter-godot/source/`: an environment sheet, four GIFs of
   the hero walking, chopping, picking berries and mining, the finished log cabin, three GIFs of the hare, the deer
   and the wolf, and two pictures of the bear: standing and in its fighting stance). Cut, cleaned (the bush and the rock removed from the

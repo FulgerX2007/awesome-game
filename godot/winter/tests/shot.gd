@@ -4,7 +4,7 @@ extends SceneTree
 ## Scenes: menu, day, dusk, night, blizzard, build, bench, inventory, forest, chop, mine (the frame of the blow).
 ## Without names, all of them.
 
-const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest", "chop", "mine", "hut", "hut_day", "survivors", "animals", "wolves"]
+const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest", "chop", "mine", "hut", "hut_day", "survivors", "animals", "wolves", "strangers"]
 
 var main: Node
 var out := "user://shots"
@@ -154,6 +154,17 @@ func _run(names: Array) -> void:
 				main.world.show_game(g)
 				await _frames(40)
 				await _shot(n)
+			"strangers":
+				# the trader at the south gate and the wounded wanderer in the snow nearby
+				var g := _game()
+				g.t = 40.0
+				g.trader = {"x": WinterSim.SPOT.trader.x, "y": WinterSim.SPOT.trader.y, "offers": []}
+				g.event = {"id": "wanderer", "phase": "active", "x": 30, "y": 28, "day": 1}
+				g.hero.x = 26.5
+				g.hero.y = 27.6
+				main.world.show_game(g)
+				await _frames(40)
+				await _shot("strangers")
 			"forest":
 				var g := _game()
 				g.t = 50.0
