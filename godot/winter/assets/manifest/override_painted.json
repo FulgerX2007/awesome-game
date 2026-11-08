@@ -929,12 +929,12 @@
  "animal.bear": {
   "sheet": "res://assets/painted/animals/bear.png",
   "frame": [
-   175,
-   173
+   180,
+   182
   ],
   "foot": [
    87,
-   170
+   180
   ],
   "anims": {
    "walk_side": {
@@ -947,6 +947,13 @@
    "idle_side": {
     "row": 0,
     "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "swipe_side": {
+    "row": 0,
+    "from": 1,
     "count": 1,
     "fps": 1,
     "loop": true

@@ -8,7 +8,8 @@ Sources (tools/winter-godot/source/):
   hero_gather_berries.gif  — picking berries off a bush (16 frames; the bush is in the picture);
   hero_mining.gif          — mining with a pick (16 frames, the blow on frame 11; the rock is in the picture);
   cabin.webp               — the finished log cabin (the hut's last two stages);
-  hare_run.gif, deer_walk.gif, wolf_run.gif (16 frames each) and bear.webp (one picture) — the animals.
+  hare_run.gif, deer_walk.gif, wolf_run.gif (16 frames each), bear.webp and bear_attack.webp (the bear standing
+  and in its fighting stance) — the animals.
 
 Writes godot/winter/assets/painted/ and the manifest fragment assets/manifest/override_painted.json, whose keys
 replace the generated ones (WinterArt loads override_* fragments last; "_replace" drops whole groups first, so no
@@ -428,6 +429,10 @@ ANIMALS = {
 }
 
 
+# Single pictures of other poses, shown for a clip of their own (the bear's fighting stance while it strikes).
+ANIMAL_POSES = {"animal.bear": [("swipe", "bear_attack.webp")]}
+
+
 def clean_edge(fr: Image.Image) -> Image.Image:
     """Drops the one-pixel rim of the GIF's hard mask, where the old background's colour fringes the fur."""
     a = np.array(fr)
@@ -444,6 +449,11 @@ def clean_edge(fr: Image.Image) -> Image.Image:
 def animal(manifest: dict, key: str) -> None:
     src, clip, fps, (axis, px) = ANIMALS[key]
     frames = [clean_edge(f) for f in frames_of(SRC / src)]
+    extra = {}   # clip -> frame index of single-picture poses that follow the main clip
+    for pose, file in ANIMAL_POSES.get(key, []):
+        if (SRC / file).exists():
+            extra[pose] = len(frames)
+            frames.append(clean_edge(frames_of(SRC / file)[0]))
     n, ys, xs = hero_body(frames[0])
     s = px / ((xs.max() - xs.min()) if axis == "w" else (ys.max() - ys.min()))
     bottom = ys.max()
@@ -459,18 +469,28 @@ def animal(manifest: dict, key: str) -> None:
     cols = min(16, len(frames))
     sheet = Image.new("RGBA", (cols * fw, -(-len(frames) // cols) * fh), (0, 0, 0, 0))
     for i, fr in enumerate(frames):
-        big = fr.resize((max(1, round(fr.width * s)), max(1, round(fr.height * s))), Image.LANCZOS)
-        ox, oy = fx - round(foot[0] * s), fy - round(foot[1] * s)
+        ft, si = foot, s
+        if i in extra.values():
+            # a separate picture: as tall as the main one, its own paws on the same foot point
+            _, eys, exs = hero_body(fr)
+            si = s * (ys.max() - ys.min()) / max(1, eys.max() - eys.min())
+            el = exs[eys > eys.max() - (eys.max() - eys.min()) * 0.08]
+            ft = ((el.min() + el.max()) / 2, eys.max())
+        big = fr.resize((max(1, round(fr.width * si)), max(1, round(fr.height * si))), Image.LANCZOS)
+        ox, oy = fx - round(ft[0] * si), fy - round(ft[1] * si)
         cell = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
         cell.alpha_composite(big.crop((max(0, -ox), max(0, -oy), big.width, big.height)), (max(0, ox), max(0, oy)))
         sheet.paste(cell, ((i % cols) * fw, (i // cols) * fh))
     name = key.split(".")[1] + ".png"
     (OUT / "animals").mkdir(parents=True, exist_ok=True)
     sheet.save(OUT / "animals" / name, optimize=True)
-    anims = {clip + "_side": {"row": 0, "from": 0, "count": len(frames), "fps": fps, "loop": True},
+    main_n = len(frames) - len(extra)
+    anims = {clip + "_side": {"row": 0, "from": 0, "count": main_n, "fps": fps, "loop": True},
              "idle_side": {"row": 0, "from": 0, "count": 1, "fps": 1, "loop": True}}
+    for pose, i in extra.items():
+        anims[pose + "_side"] = {"row": i // cols, "from": i % cols, "count": 1, "fps": 1, "loop": True}
     manifest[key] = {"sheet": RES + "animals/" + name, "frame": [fw, fh], "foot": [fx, fy], "anims": anims,
-                     "painted": True, "still": len(frames) == 1}
+                     "painted": True, "still": main_n == 1}
     # the eyes (yellow, like the wolf's): where they shine at night, in the cell, from the first frame
     a = np.asarray(frames[0]).astype(int)
     eye = (a[..., 3] > 0) & (a[..., 0] > 190) & (a[..., 1] > 140) & (a[..., 2] < 90) & (a[..., 0] - a[..., 2] > 120)
