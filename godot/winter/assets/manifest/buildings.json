@@ -160,7 +160,7 @@
    "file": "res://assets/buildings/hut/hut_2.shadow.png",
    "foot": [
     153.0,
-    172.0
+    214.0
    ]
   },
   "block": 1
@@ -180,7 +180,7 @@
    "file": "res://assets/buildings/hut/hut_3.shadow.png",
    "foot": [
     153.0,
-    172.0
+    214.0
    ]
   },
   "block": 1
@@ -200,7 +200,7 @@
    "file": "res://assets/buildings/hut/hut_4.shadow.png",
    "foot": [
     153.0,
-    172.0
+    214.0
    ]
   },
   "block": 1,

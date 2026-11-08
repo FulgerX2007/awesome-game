@@ -144,52 +144,91 @@ def window(cv, x, glow=False):
 
 
 def roof(cv, seed=30, hole=False):
-    """Two snowy slopes running back from the front gable, the gable's log face, icicles on the eaves."""
+    """Two slopes running back from the front gable under a thick, uneven blanket of snow: soft lumps and wind
+    ripples, a rounded snow ridge, a visible snow slab at the eaves and gable edges, shingle rows and plank ends
+    peeking out near the edges, the slope turned from the sun in a cool blue-violet gradient, icicles."""
     top = FY - 8 - WALL
     apex = (FX, top - GABLE)
     over = 14
+    half = 1.5 * T + over
     left = [(X0 - over, top + 10), apex, (apex[0], apex[1] - DEPTH), (X0 - over, top + 10 - DEPTH)]
     right = [(X1 + over, top + 10), apex, (apex[0], apex[1] - DEPTH), (X1 + over, top + 10 - DEPTH)]
+    X, Y = cv.X, cv.Y
+    across = np.clip(np.abs(X - FX) / half, 0, 1)          # 0 at the ridge, 1 at the eave
+    # how far a point lies down the slope from the ridge, and back from the gable (towards the top of the image)
     for poly, sign, sd in ((right, 1, seed + 1), (left, -1, seed)):
-        d = sd_poly(cv.X, cv.Y, poly)
-        # the slope's normal: left slope faces up-left (catches the sun), right slope faces right
-        across = np.clip(np.abs(cv.X - FX) / (1.5 * T + over), 0, 1)
-        rows_ = np.sin((across * (1.5 * T + over)) / 13.0 * math.pi)
-        bulge = (1 - across) * 120 + (cv.noise(30, sd + 7, 2) - 0.5) * 2
-        shingles = 0.5 + 0.5 * np.sin((cv.Y + across * 30) / 7.0 * math.pi)
-        alb = colour_field(cv, "#7a5a44", "#3e2a22", np.clip(0.3 + shingles * 0.25 + cv.noise(4, sd, 2) * 0.3, 0, 1))
-        # a thick snow blanket over the slope with a soft scalloped edge near the eave
-        edge_y = np.abs(cv.X - FX) / (1.5 * T + over)
-        lim = 0.88 + (cv.noise(12, sd + 4, 2) - 0.5) * 0.06
-        smask = (1 - smoothstep(lim - 0.03, lim + 0.02, edge_y))
-        elev = WALL + GABLE * (1 - across)
-        cv.part(d, alb, bulge=bulge, elev=elev, snow=1.0, snow_mask=smask, snow_seed=sd, snow_thick=7, cast=0.5,
-                cast_r=4)
+        d = sd_poly(X, Y, poly)
+        # the roof itself: rows of dark shingles, seen only where the snow leaves them
+        rows_ = 0.5 + 0.5 * np.sin(across * half / 9.0 * math.pi)
+        planks = colour_field(cv, "#8a6248", "#3a2820", np.clip(0.15 + rows_ * 0.55 + cv.noise(6, sd, 2) * 0.25, 0, 1))
+        tilt = (1 - across) * 95
+        cv.part(d, planks, bulge=tilt + rows_ * 1.5, elev=WALL + GABLE * (1 - across), cast=0.5, cast_r=4)
+        # the snow blanket: inset from the eave and the gable edge by an uneven margin, so shingles peek out there
+        edge_noise = (cv.noise(9, sd + 4, 3) - 0.5)
+        dist_eave = (1 - across) * half                      # px from the eave, along the slope
+        front = (top + 10 - Y) - (1 - across) * (top + 10 - apex[1])  # px back from the front edge of the slope
+        margin_e = 5 + edge_noise * 9 + smoothstep(0.6, 0.85, cv.noise(14, sd + 8, 2)) * 7
+        margin_f = 4 + edge_noise * 6
+        ds = np.maximum(d, np.maximum(margin_e - dist_eave, margin_f - front))
+        # a few bare patches near the edges where the wind took the snow off
+        r = rng(sd + 50)
+        for k in range(2):
+            px = FX + sign * half * (0.9 + r.random() * 0.06)
+            py = apex[1] - DEPTH * (0.25 + k * 0.4 + r.random() * 0.15) + (top + 10 - apex[1]) * 0.9
+            ds = np.maximum(ds, -(sd_ellipse(X, Y, px, py, 6 + r.random() * 4, 9 + r.random() * 6) +
+                                  (cv.noise(5, sd + 60 + k, 2) - 0.5) * 5))
+        inside = np.clip(-ds, 0, None)
+        # thickness: a rounded slab edge, soft lumps, long wind ripples across the slope
+        slab = np.sqrt(np.clip(inside / 7.0, 0, 1)) * 7.0
+        lumps = (cv.noise(30, sd + 11, 3) - 0.5) * 10 + (cv.noise(12, sd + 12, 2) - 0.5) * 1.5
+        ripple = np.sin((Y * 0.55 + across * half * 0.35) / 5.5 + cv.noise(40, sd + 13, 2) * 7) * 0.8
+        sbulge = tilt + slab + lumps * smoothstep(0, 10, inside) + ripple
         if sign > 0:
-            # the slope turned from the sun: a cool tint so the two slopes read apart
-            cv.alb = np.where((d < 0)[..., None], cv.alb * np.array([0.9, 0.93, 1.0]), cv.alb)
-    # the ridge: a snow roll along the top
-    cv.part(sd_segment(cv.X, cv.Y, apex[0], apex[1] - DEPTH, apex[0], apex[1] + 2, 7), rgb("snow_hi"), round_=6,
-            elev=np.full_like(cv.X, WALL + GABLE + 6), spec=0.4, cast=0.3)
+            # turned from the sun: cool blue-violet, deeper towards the eave and the ridge
+            tone = np.clip(0.25 + across * 0.35 + (1 - smoothstep(0.0, 0.18, across)) * 0.25
+                           + cv.noise(22, sd + 14, 2) * 0.2, 0, 1)
+            salb = colour_field(cv, "#e4ebf8", "#a9b2dc", tone)
+        else:
+            # in the sun: warm-white near the ridge, cooler and greyer towards the eave, soft drifts of shade
+            tone = np.clip(0.08 + across * 0.45 + (cv.noise(28, sd + 14, 2) - 0.5) * 0.5, 0, 1)
+            salb = colour_field(cv, "#f2f4fa", "#bfcae6", tone)
+        cv.part(ds, salb, bulge=sbulge, elev=WALL + GABLE * (1 - across) + 6, spec=0.45, cast=0.55, cast_r=3,
+                cast_off=(1.0 * sign, 2.0))
+    # the ridge: a soft rounded roll of snow, wobbling a little
+    wob = (cv.noise(18, seed + 21, 2) - 0.5) * 5
+    ridge = sd_segment(X + wob, Y, apex[0], apex[1] - DEPTH + 2, apex[0], apex[1] + 3, 9)
+    rr = np.clip(1 - np.abs(X + wob - FX) / 9, 0, 1)
+    cv.part(ridge, colour_field(cv, "#fbfdff", "#c9d3ee", np.clip((X + wob - FX) / 9 * 0.5 + 0.4, 0, 1)),
+            bulge=np.sqrt(rr) * 9 + 100, elev=np.full_like(X, WALL + GABLE + 8), spec=0.5, cast=0.25, cast_r=3,
+            soft=1.2)
     # the front gable: a triangle of logs over the wall
-    gable = sd_poly(cv.X, cv.Y, [(X0 + 4, top + 2), (FX, top - GABLE + 10), (X1 - 4, top + 2)])
-    rows = np.floor((top - cv.Y) / 11.0)
-    logs = 0.5 + 0.5 * np.cos(((top - cv.Y) % 11.0) / 11.0 * math.tau)
+    gable = sd_poly(X, Y, [(X0 + 4, top + 2), (FX, top - GABLE + 10), (X1 - 4, top + 2)])
+    logs = 0.5 + 0.5 * np.cos(((top - Y) % 11.0) / 11.0 * math.tau)
     alb = colour_field(cv, "#9a6a46", "#4a2f22", np.clip(0.75 - logs * 0.45 + cv.noise(5, 33, 2) * 0.25, 0, 1))
-    cv.part(gable, alb, bulge=logs * 4, elev=WALL + np.clip(top - cv.Y, 0, None), cast=0.3)
-    # the barge boards along the gable's edges
-    for (ax, ay), (bx, by) in (((X0 - over, top + 10), apex), ((X1 + over, top + 10), apex)):
-        cv.part(sd_segment(cv.X, cv.Y, ax, ay, bx, by, 5), wood(cv, 35, "#8a5e3c", "#4a2f22"), round_=4,
-                elev=np.full_like(cv.X, WALL + GABLE / 2), cast=0.45, snow=0.8, snow_seed=36, snow_thick=4)
-    # icicles hanging from the eaves' lowest corners
+    cv.part(gable, alb, bulge=logs * 4, elev=WALL + np.clip(top - Y, 0, None), cast=0.3)
+    # the barge boards along the gable's edges, with plank ends at the eave corners
+    for side, ((ax, ay), (bx, by)) in ((-1, ((X0 - over, top + 10), apex)), (1, ((X1 + over, top + 10), apex))):
+        cv.part(sd_segment(X, Y, ax, ay, bx, by, 5), wood(cv, 35, "#8a5e3c", "#4a2f22"), round_=4,
+                elev=np.full_like(X, WALL + GABLE / 2), cast=0.45)
+        de = sd_ellipse(X, Y, ax + side * 1, ay + 1, 4.2, 4.6)
+        cv.part(de, colour_field(cv, "#b88a5a", "#5a3a26", np.clip(np.hypot(X - ax, Y - ay) / 5, 0, 1)), round_=2,
+                elev=np.full_like(X, WALL), cast=0.2)
+        # the snow slab overhanging the gable edge: a thick lip, uneven, shading the board under it
+        t = np.clip(((X - ax) * (bx - ax) + (Y - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2), 0, 1)
+        lip_r = 5.5 + (cv.noise(8, 40 + side, 2) - 0.5) * 5
+        lip = sd_segment(X, Y, ax + side * -3, ay - 6, bx, by - 6, 1.0) - lip_r * smoothstep(0.0, 0.1, t)
+        cv.part(lip, colour_field(cv, "#f6f9ff", "#c3cde8", np.clip((Y - (ay + (by - ay) * t)) / 12 + 0.5, 0, 1)),
+                round_=5, elev=np.full_like(X, WALL + GABLE / 2 + 6), spec=0.4, cast=0.5, cast_r=2.5, cast_off=(0, 2.5))
+    # icicles under the eaves' lowest corners
     r = rng(seed + 9)
     for side in (-1, 1):
-        for k in range(5):
-            ex = FX + side * (1.5 * T + over - 4 - k * 9)
-            ey = top + 10 - k * 9 * GABLE / (1.5 * T)
-            L = 8 + r.random() * 12
-            d = sd_poly(cv.X, cv.Y, [(ex - 2.5, ey), (ex + 2.5, ey), (ex, ey + L)])
-            cv.part(d, rgb("ice_hi"), round_=1.5, spec=1.0, elev=np.full_like(cv.X, WALL), cast=0.15, opacity=0.9)
+        for k in range(6):
+            ex = FX + side * (half - 4 - k * 8)
+            ey = top + 12 - k * 8 * GABLE / (1.5 * T)
+            L = 7 + r.random() * 13
+            d = sd_poly(X, Y, [(ex - 2.4, ey), (ex + 2.4, ey), (ex, ey + L)])
+            cv.part(d, colour_field(cv, "ice_hi", "ice", np.clip((Y - ey) / L, 0, 1)), round_=1.5, spec=1.0,
+                    elev=np.full_like(X, WALL), cast=0.15, opacity=0.92)
     if hole:
         roof_hole(cv)
 
@@ -213,20 +252,42 @@ def roof_hole(cv):
 
 
 def chimney(cv):
+    """A stone chimney standing out of the right slope: three courses wide, dark against the snow, a snow cap
+    around its sooty mouth, snow heaped against its uphill side. The mouth (the smoke anchor) stays put."""
     cx, top = FX + 70, FY - 8 - WALL - GABLE - 70
+    X, Y = cv.X, cv.Y
+    base_y = top + 62
+    # its shadow and the snow heaped behind it on the slope
+    shapes.snow_mound(cv, cx, base_y - 4, 50, 14, 105, sastrugi=False)
+    # its shadow falling down-right over the snow of the slope
+    sh = sd_ellipse(X, Y, cx + 22, base_y + 6, 24, 9) + (cv.noise(6, 108, 2) - 0.5) * 4
+    cv.part(sh, rgb("#5a628e"), flat=True, elev=np.full_like(X, WALL + GABLE + 30), cast=0, opacity=0.38, soft=8)
     stones = None
-    r = rng(101)
-    for k in range(6):
-        for j in range(2):
-            x = cx - 9 + j * 18 + (k % 2) * 4
-            y = top + 50 - k * 10
-            s = sd_box(cv.X, cv.Y, x, y, 9, 5, 3) + (cv.noise(2, 102 + k * 2 + j, 2) - 0.5) * 2
+    for k in range(7):
+        for j in range(3):
+            x = cx - 15 + j * 15 + (k % 2) * 5 - 2
+            y = base_y - 6 - k * 9.5
+            s = sd_box(X, Y, x, y, 7.6, 4.6, 2.6) + (cv.noise(2, 102 + k * 3 + j, 2) - 0.5) * 1.6
             stones = s if stones is None else np.minimum(stones, s)
-    alb = colour_field(cv, "stone_hi", "stone_dark", np.clip(0.35 + cv.noise(3, 103, 2) * 0.4, 0, 1))
-    cv.part(stones, alb, round_=4, elev=np.full_like(cv.X, WALL + GABLE + 50), cast=0.5, snow=0.7, snow_seed=104)
-    # the dark mouth and its snow-free sooty rim
-    cv.part(sd_ellipse(cv.X, cv.Y, cx + 2, top - 6, 12, 5), rgb("#1a1416"), flat=True,
-            elev=np.full_like(cv.X, WALL + GABLE + 60))
+    body = sd_box(X, Y, cx, (base_y + top) / 2 - 4, 20, (base_y - top) / 2 + 2, 3)
+    stones = np.maximum(stones, body)
+    mortar = sd_box(X, Y, cx, (base_y + top) / 2 - 4, 19, (base_y - top) / 2 + 1, 3)
+    cv.part(mortar, rgb("#2e2a30"), round_=6, elev=np.full_like(X, WALL + GABLE + 50), cast=0.75, cast_r=6,
+            cast_off=(4, 4))
+    alb = colour_field(cv, "#b4aea6", "#4c4650", np.clip(0.28 + cv.noise(3, 103, 2) * 0.45 + (X - cx) / 36, 0, 1))
+    cv.part(stones, alb, round_=3.5, elev=np.full_like(X, WALL + GABLE + 50), cast=0.3, cast_r=1.5)
+    # snow around its foot on the slope (in front)
+    d = sd_ellipse(X, Y, cx + 2, base_y + 2, 26, 7) + (cv.noise(4, 106, 2) - 0.5) * 5
+    cv.part(d, colour_field(cv, "#eef2fb", "#b6bfe0", np.clip((X - cx) / 40 + 0.5, 0, 1)), round_=5,
+            elev=np.full_like(X, WALL + GABLE + 30), spec=0.4, cast=0.2)
+    # the cap: a stone slab, a ring of snow and the dark sooty mouth
+    cv.part(sd_box(X, Y, cx + 1, top - 3, 23, 6, 3), colour_field(cv, "#8e90a0", "#3e3e50", np.clip((Y - top + 6) / 10, 0, 1)),
+            round_=4, elev=np.full_like(X, WALL + GABLE + 62), cast=0.4)
+    ring = sd_ellipse(X, Y, cx + 2, top - 7, 21, 8) + (cv.noise(3, 107, 2) - 0.5) * 3
+    cv.part(ring, colour_field(cv, "#fbfdff", "#c9d1ec", np.clip((X - cx) / 30 + 0.4, 0, 1)), round_=5,
+            elev=np.full_like(X, WALL + GABLE + 64), spec=0.5, cast=0.2)
+    cv.part(sd_ellipse(X, Y, cx + 2, top - 6, 11, 4.6), colour_field(cv, "#2a2024", "#0e0a0c", np.clip((Y - top + 10) / 8, 0, 1)),
+            flat=True, elev=np.full_like(X, WALL + GABLE + 66), soft=1.0)
     return (cx + 2, top - 8)
 
 
@@ -280,7 +341,9 @@ def hut(m):
         if stage == 4:
             sx, sy = chimney(cv)
             extra["anchor"] = [round(sx, 1), round(sy, 1)]
-        e = emit_sprite(m, f"hut.{stage}", cv, rel + f"hut_{stage}", block=1)
+        # the crop the roofed hut has always had (330 × 349, foot 165, 350): the game's placement must not move
+        e = emit_sprite(m, f"hut.{stage}", cv, rel + f"hut_{stage}", block=1,
+                        box=(0, int(FY) - 350, HW, int(FY) - 350 + 349))
         if extra:
             # the anchor in trimmed coordinates: the foot moved by the trim, so move it the same way
             dx, dy = e["foot"][0] - FX, e["foot"][1] - FY

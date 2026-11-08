@@ -424,12 +424,17 @@ class Manifest:
 
 
 def emit_sprite(man, key, cv, rel, shadow=True, normal=True, block=None, shadow_strength=0.42, shadow_soft=3.0,
-                normal_scale=1.0, squash=1.0, extra=None):
+                normal_scale=1.0, squash=1.0, extra=None, box=None):
     """Render a Canvas, trim it, write the PNGs under assets/<rel> and add the key to the manifest."""
     rgba, nm, _ = cv.render()
     foot = cv.foot
-    rgba, foot2, ex = trim(rgba, foot, [nm])
-    nm = ex[0]
+    if box is not None:
+        # a fixed crop (x0, y0, x1, y1) in canvas px: keeps a sprite's size and foot when its content changes
+        x0, y0, x1, y1 = box
+        rgba, nm, foot2 = rgba[y0:y1, x0:x1], nm[y0:y1, x0:x1], (foot[0] - x0, foot[1] - y0)
+    else:
+        rgba, foot2, ex = trim(rgba, foot, [nm])
+        nm = ex[0]
     path = os.path.join(ASSETS, rel + ".png")
     save_png(rgba, path)
     entry = {"file": res_path(path), "size": [int(rgba.shape[1]), int(rgba.shape[0])],
