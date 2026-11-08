@@ -160,6 +160,7 @@ func _run(names: Array) -> void:
 				g.t = 40.0
 				g.trader = {"x": WinterSim.SPOT.trader.x, "y": WinterSim.SPOT.trader.y, "offers": []}
 				g.event = {"id": "wanderer", "phase": "active", "x": 30, "y": 28, "day": 1}
+				g.snares.append({"x": 24, "y": 28})
 				g.hero.x = 26.5
 				g.hero.y = 27.6
 				main.world.show_game(g)

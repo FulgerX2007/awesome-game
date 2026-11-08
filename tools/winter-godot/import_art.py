@@ -77,7 +77,7 @@ ENV = {
 # Generated groups the painted art replaces entirely (their generated variants would clash in style).
 REPLACE = ["tree.pine", "tree.dead", "tree.fallen", "tree.stump", "log", "rock", "rock.small", "rock.group",
            "rock.rubble", "ice.formation", "bush.berry", "bush.bare", "bush.snow", "branch", "ground.patch",
-           "snow.drift", "hut", "palisade", "bench", "firepit", "bunk", "up", "torch", "stock",
+           "snow.drift", "hut", "palisade", "bench", "firepit", "bunk", "up", "torch", "stock", "trader", "snare",
            "char.hero", "char.trader", "char.wanderer", "animal.rabbit", "animal.deer", "animal.wolf", "animal.bear"]
 SPENT_BUSH = ["bush.bare.0"]     # a picked bush: the bare one
 
@@ -565,9 +565,9 @@ def main() -> None:
     manifest = {"_replace": REPLACE}
     env(manifest)
     cabin(manifest)
+    hero(manifest)
     import compose_buildings
     compose_buildings.build(manifest, OUT / "environment", SRC / "cabin.webp", OUT / "buildings", RES + "buildings/")
-    hero(manifest)
     survivors(manifest)
     strangers(manifest)
     for key in ANIMALS:

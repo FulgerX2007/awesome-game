@@ -24,6 +24,8 @@
   "up",
   "torch",
   "stock",
+  "trader",
+  "snare",
   "char.hero",
   "char.trader",
   "char.wanderer",
@@ -585,15 +587,91 @@
   "decal": true,
   "painted": true
  },
+ "char.hero": {
+  "sheet": "res://assets/painted/characters/hero.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "chop_side": {
+    "row": 1,
+    "from": 0,
+    "count": 12,
+    "fps": 14,
+    "loop": true,
+    "impact": 8
+   },
+   "gather_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   },
+   "mine_side": {
+    "row": 3,
+    "from": 0,
+    "count": 16,
+    "fps": 14,
+    "loop": true,
+    "impact": 10
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "build_side": {
+    "row": 1,
+    "from": 0,
+    "count": 12,
+    "fps": 14,
+    "loop": true,
+    "impact": 8
+   },
+   "craft_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   },
+   "fire_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   }
+  },
+  "painted": true
+ },
  "palisade.h": {
   "file": "res://assets/painted/buildings/palisade_h.png",
   "size": [
-   127,
-   160
+   123,
+   159
   ],
   "foot": [
-   63,
-   152
+   61,
+   151
   ],
   "block": 1,
   "painted": true
@@ -601,12 +679,12 @@
  "palisade.h.damaged": {
   "file": "res://assets/painted/buildings/palisade_h_damaged.png",
   "size": [
-   124,
-   162
+   135,
+   163
   ],
   "foot": [
-   62,
-   154
+   67,
+   155
   ],
   "block": 1,
   "painted": true
@@ -614,12 +692,12 @@
  "palisade.h.broken": {
   "file": "res://assets/painted/buildings/palisade_h_broken.png",
   "size": [
-   125,
-   67
+   123,
+   64
   ],
   "foot": [
-   62,
-   59
+   61,
+   56
   ],
   "block": 1,
   "painted": true
@@ -627,12 +705,12 @@
  "palisade.v": {
   "file": "res://assets/painted/buildings/palisade_v.png",
   "size": [
-   68,
-   206
+   70,
+   207
   ],
   "foot": [
-   34,
-   198
+   35,
+   199
   ],
   "block": 1,
   "painted": true
@@ -640,12 +718,12 @@
  "palisade.v.damaged": {
   "file": "res://assets/painted/buildings/palisade_v_damaged.png",
   "size": [
-   86,
-   211
+   81,
+   208
   ],
   "foot": [
-   43,
-   203
+   40,
+   200
   ],
   "block": 1,
   "painted": true
@@ -653,12 +731,12 @@
  "palisade.v.broken": {
   "file": "res://assets/painted/buildings/palisade_v_broken.png",
   "size": [
-   68,
-   107
+   67,
+   108
   ],
   "foot": [
-   34,
-   99
+   33,
+   100
   ],
   "block": 1,
   "painted": true
@@ -976,80 +1054,33 @@
   "block": 1,
   "painted": true
  },
- "char.hero": {
-  "sheet": "res://assets/painted/characters/hero.png",
-  "frame": [
-   133,
-   159
+ "trader.sled": {
+  "file": "res://assets/painted/buildings/trader_sled.png",
+  "size": [
+   226,
+   117
   ],
   "foot": [
-   56,
-   144
+   113,
+   107
   ],
-  "anims": {
-   "walk_side": {
-    "row": 0,
-    "from": 0,
-    "count": 8,
-    "fps": 12,
-    "loop": true
-   },
-   "chop_side": {
-    "row": 1,
-    "from": 0,
-    "count": 12,
-    "fps": 14,
-    "loop": true,
-    "impact": 8
-   },
-   "gather_side": {
-    "row": 2,
-    "from": 0,
-    "count": 16,
-    "fps": 10,
-    "loop": false,
-    "impact": 6
-   },
-   "mine_side": {
-    "row": 3,
-    "from": 0,
-    "count": 16,
-    "fps": 14,
-    "loop": true,
-    "impact": 10
-   },
-   "idle_side": {
-    "row": 0,
-    "from": 0,
-    "count": 1,
-    "fps": 1,
-    "loop": true
-   },
-   "build_side": {
-    "row": 1,
-    "from": 0,
-    "count": 12,
-    "fps": 14,
-    "loop": true,
-    "impact": 8
-   },
-   "craft_side": {
-    "row": 2,
-    "from": 0,
-    "count": 16,
-    "fps": 10,
-    "loop": false,
-    "impact": 6
-   },
-   "fire_side": {
-    "row": 2,
-    "from": 0,
-    "count": 16,
-    "fps": 10,
-    "loop": false,
-    "impact": 6
-   }
-  },
+  "anchor": [
+   211,
+   55
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "snare": {
+  "file": "res://assets/painted/buildings/snare.png",
+  "size": [
+   62,
+   33
+  ],
+  "foot": [
+   31,
+   27
+  ],
   "painted": true
  },
  "char.sv.hunter": {

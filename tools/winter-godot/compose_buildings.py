@@ -311,6 +311,113 @@ def upgrades(P: Parts, out, res, manifest):
                                        "foot": [round(fx), round(fy)], "block": 1, "painted": True}
 
 
+def _hero_pack(hero_sheet, hero_frame):
+    """The bedroll and packs off the hero's back (frame 0 faces right, so they are on the left): the warm
+    leather-brown pieces left of his body, grown into one piece."""
+    fw, fh = hero_frame
+    a = np.array(hero_sheet.crop((0, 0, fw, fh)))
+    rgb = a[..., :3].astype(np.float32) / 255.0
+    mx, mn = rgb.max(2), rgb.min(2)
+    sat = (mx - mn) / np.maximum(mx, 1e-6)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    brown = (a[..., 3] > 120) & (r > g) & (g > b) & (sat > 0.3) & (mx > 0.25) & (mx < 0.9)
+    ys, xs = np.nonzero(a[..., 3] > 120)
+    left = xs.min()
+    mid = left + (xs.max() - left) * 0.36
+    yy, xx = np.mgrid[0:fh, 0:fw]
+    region = brown & (xx < mid) & (yy < ys.min() + (ys.max() - ys.min()) * 0.72)
+    from import_art import components
+    comps = sorted(components(region), key=lambda c: -c[0])
+    keep = np.zeros_like(region)
+    for n, cy, cx in comps[:3]:
+        if n > 60:
+            keep[cy, cx] = True
+    # close small gaps (straps, seams)
+    for d in range(1, 3):
+        k2 = keep.copy()
+        k2[d:, :] |= keep[:-d, :]
+        k2[:-d, :] |= keep[d:, :]
+        k2[:, d:] |= keep[:, :-d]
+        k2[:, :-d] |= keep[:, d:]
+        keep = k2 & (a[..., 3] > 60) & (xx < mid + 2)
+    a[~keep, 3] = 0
+    img = Image.fromarray(a, "RGBA")
+    return img.crop(solid_box(img, 20))
+
+
+def _sack(w, h, base):
+    """A soft bundle lit from the upper left: a rounded body, a darker rim below, a light top, a cord across,
+    a cap of snow."""
+    k = 3
+    big = canvas(w * k, h * k)
+    d = ImageDraw.Draw(big)
+    bc = tuple(int(v) for v in base)
+    dark = tuple(int(v * 0.62) for v in base)
+    light = tuple(min(255, int(v * 1.22)) for v in base)
+    d.ellipse((0, h * k * 0.12, w * k, h * k), fill=dark + (255,))
+    d.ellipse((w * k * 0.04, h * k * 0.06, w * k * 0.94, h * k * 0.9), fill=bc + (255,))
+    d.ellipse((w * k * 0.14, h * k * 0.1, w * k * 0.62, h * k * 0.44), fill=light + (255,))
+    d.line((w * k * 0.5, h * k * 0.05, w * k * 0.56, h * k * 0.96), fill=(82, 58, 40, 255), width=k * 3)
+    d.ellipse((w * k * 0.16, 0, w * k * 0.7, h * k * 0.26), fill=(238, 243, 250, 245))
+    img = big.filter(ImageFilter.GaussianBlur(k * 1.6)).resize((w, h), Image.LANCZOS)
+    a = np.array(img)
+    R = rng(w * h)
+    a[..., :3] = np.clip(a[..., :3].astype(int) + R.integers(-2, 3, a.shape[:2])[..., None], 0, 255).astype(np.uint8)
+    return Image.fromarray(a, "RGBA")
+
+
+def _rope_loop(w, h):
+    """A coil of rope seen from above: a ring with a tan core, a dark underside and a light top, a knot."""
+    k = 4
+    big = canvas(w * k, h * k)
+    d = ImageDraw.Draw(big)
+    box = (k * 3, k * 3, w * k - k * 3, h * k - k * 3)
+    d.ellipse(box, outline=(92, 66, 42, 255), width=k * 4)
+    d.ellipse((box[0] + k, box[1] + k, box[2] - k, box[3] - k), outline=(176, 140, 96, 255), width=k * 2)
+    d.arc((box[0] + k, box[1], box[2] - k, box[3] - k * 2), 200, 330, fill=(222, 196, 152, 255), width=k)
+    d.ellipse((w * k * 0.12, h * k * 0.42, w * k * 0.12 + k * 7, h * k * 0.42 + k * 6), fill=(120, 88, 58, 255))
+    return big.resize((w, h), Image.LANCZOS)
+
+
+def sled_and_snare(P: Parts, out, res, manifest, hero_sheet, hero_frame):
+    """The trader's sled: dark plank runners, a bed of logs, his goods (the hero's bedroll and packs, cut off his
+    back), a lamp post at the front. The snare: a short stake and a rope loop lying on the snow."""
+    W, H = 300, 200
+    c = canvas(W, H)
+    foot = (W * 0.45, H - 12)
+    plank = P.plank.resize((190, max(8, round(P.plank.height * 190 / P.plank.width * 0.22))), Image.LANCZOS)
+    plank = dim(plank, 0.68, 0.2)
+    for dx, dy in ((0, 0), (10, -24)):
+        r = plank.rotate(4, resample=Image.BICUBIC, expand=True)
+        put(c, r, (foot[0] + dx, foot[1] + dy), (r.width / 2, r.height - 4))
+    logs = scaled(P.logs, 1.05)
+    put(c, logs, (foot[0] - 32, foot[1] - 10), (logs.width / 2, logs.height - 8))
+    put(c, logs.transpose(Image.FLIP_LEFT_RIGHT), (foot[0] + 26, foot[1] - 16), (logs.width / 2, logs.height - 8))
+    # his goods: two burlap sacks and a rolled fur, tied on the logs
+    for (dx, dy, w, h, base) in ((-30, -46, 62, 46, (168, 140, 100)), (14, -50, 54, 42, (150, 122, 86)), (44, -40, 60, 30, (120, 84, 58))):
+        put(c, _sack(w, h, base), (foot[0] + dx, foot[1] + dy), (w / 2, h))
+    lamp = scaled(P.lantern, 0.42)
+    put(c, lamp, (foot[0] + 92, foot[1] - 22), (lamp.width / 3, lamp.height - 8))
+    c = c.crop(solid_box(c, 4))
+    c.save(out / "trader_sled.png", optimize=True)
+    a = np.asarray(c).astype(int)
+    glow = (a[..., 3] > 200) & (a[..., 0] > 220) & (a[..., 1] > 170) & (a[..., 2] < 150)
+    gy, gx = np.nonzero(glow)
+    manifest["trader.sled"] = {"file": res + "trader_sled.png", "size": [c.width, c.height], "foot": [c.width // 2, c.height - 10],
+                               "anchor": [int(gx.mean()), int(gy.mean())] if len(gx) else [c.width - 20, 20],
+                               "block": 0, "painted": True}
+    stake = P.post.crop((0, P.post.height - round(P.post.height * 0.42), P.post.width, P.post.height))
+    stake = scaled(stake, 0.55)
+    sn = canvas(80, 76)
+    loop = _rope_loop(46, 24)
+    put(sn, loop, (46, 66), (loop.width / 2, loop.height - 3))
+    put(sn, stake, (20, 62), (stake.width / 2, stake.height - 3))
+    sn = sn.crop(solid_box(sn, 4))
+    sn.save(out / "snare.png", optimize=True)
+    manifest["snare"] = {"file": res + "snare.png", "size": [sn.width, sn.height], "foot": [sn.width // 2, sn.height - 6],
+                         "painted": True}
+
+
 def build(manifest, env_dir, cabin_path, out, res):
     out.mkdir(parents=True, exist_ok=True)
     P = Parts(env_dir, cabin_path)
@@ -318,6 +425,9 @@ def build(manifest, env_dir, cabin_path, out, res):
     camp_pieces(P, out, res, manifest)
     hut_stages(P, out, res, manifest)
     upgrades(P, out, res, manifest)
+    hs = out.parent / "characters/hero.png"
+    sled_and_snare(P, out, res, manifest, Image.open(hs).convert("RGBA") if hs.exists() else None,
+                   manifest.get("char.hero", {}).get("frame", (133, 159)))
     for k in ("hut.3", "hut.4"):
         manifest[k].pop("_ox", None)
         manifest[k].pop("_oy", None)
