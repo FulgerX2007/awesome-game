@@ -1,0 +1,218 @@
+{
+ "fx.aurora": {
+  "file": "res://assets/effects/weather/aurora.png",
+  "size": [
+   1024,
+   256
+  ],
+  "foot": [
+   512.0,
+   128.0
+  ]
+ },
+ "fx.breath": {
+  "file": "res://assets/effects/weather/breath.png",
+  "size": [
+   48,
+   48
+  ],
+  "foot": [
+   24.0,
+   24.0
+  ]
+ },
+ "fx.chip.stone": {
+  "file": "res://assets/effects/smoke/chip_stone.png",
+  "size": [
+   16,
+   16
+  ],
+  "foot": [
+   8.0,
+   8.0
+  ]
+ },
+ "fx.chip.wood": {
+  "file": "res://assets/effects/fire/chip_wood.png",
+  "size": [
+   16,
+   16
+  ],
+  "foot": [
+   8.0,
+   8.0
+  ]
+ },
+ "fx.ember": {
+  "file": "res://assets/effects/fire/ember.png",
+  "size": [
+   16,
+   16
+  ],
+  "foot": [
+   8.0,
+   8.0
+  ]
+ },
+ "fx.flame": {
+  "sheet": "res://assets/effects/fire/flame.png",
+  "frame": [
+   88,
+   136
+  ],
+  "foot": [
+   44.0,
+   130
+  ],
+  "anims": {
+   "burn": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   }
+  }
+ },
+ "fx.flame.small": {
+  "sheet": "res://assets/effects/fire/flame_small.png",
+  "frame": [
+   40,
+   64
+  ],
+  "foot": [
+   20.0,
+   60
+  ],
+  "anims": {
+   "burn": {
+    "row": 0,
+    "from": 0,
+    "count": 6,
+    "fps": 12,
+    "loop": true
+   }
+  }
+ },
+ "fx.fog": {
+  "file": "res://assets/effects/weather/fog.png",
+  "size": [
+   512,
+   512
+  ],
+  "foot": [
+   256.0,
+   256.0
+  ]
+ },
+ "fx.glow": {
+  "file": "res://assets/effects/fire/glow.png",
+  "size": [
+   64,
+   64
+  ],
+  "foot": [
+   32.0,
+   32.0
+  ]
+ },
+ "fx.light": {
+  "file": "res://assets/effects/weather/light.png",
+  "size": [
+   256,
+   256
+  ],
+  "foot": [
+   128.0,
+   128.0
+  ]
+ },
+ "fx.light.soft": {
+  "file": "res://assets/effects/weather/light_soft.png",
+  "size": [
+   256,
+   256
+  ],
+  "foot": [
+   128.0,
+   128.0
+  ]
+ },
+ "fx.smoke.0": {
+  "file": "res://assets/effects/smoke/smoke_0.png",
+  "size": [
+   72,
+   72
+  ],
+  "foot": [
+   36.0,
+   36.0
+  ]
+ },
+ "fx.smoke.1": {
+  "file": "res://assets/effects/smoke/smoke_1.png",
+  "size": [
+   72,
+   72
+  ],
+  "foot": [
+   36.0,
+   36.0
+  ]
+ },
+ "fx.smoke.2": {
+  "file": "res://assets/effects/smoke/smoke_2.png",
+  "size": [
+   72,
+   72
+  ],
+  "foot": [
+   36.0,
+   36.0
+  ]
+ },
+ "fx.snowflake.0": {
+  "file": "res://assets/effects/snow/flake_0.png",
+  "size": [
+   16,
+   16
+  ],
+  "foot": [
+   8.0,
+   8.0
+  ]
+ },
+ "fx.snowflake.1": {
+  "file": "res://assets/effects/snow/flake_1.png",
+  "size": [
+   16,
+   16
+  ],
+  "foot": [
+   8.0,
+   8.0
+  ]
+ },
+ "fx.snowflake.2": {
+  "file": "res://assets/effects/snow/flake_2.png",
+  "size": [
+   16,
+   16
+  ],
+  "foot": [
+   8.0,
+   8.0
+  ]
+ },
+ "fx.spark": {
+  "file": "res://assets/effects/fire/spark.png",
+  "size": [
+   24,
+   8
+  ],
+  "foot": [
+   12.0,
+   4.0
+  ]
+ }
+}
