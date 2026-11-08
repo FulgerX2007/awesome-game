@@ -1,0 +1,278 @@
+[gd_resource type="Resource" script_class="WinterCatalog" load_steps=21 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/defs/catalog.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/defs/building_def.gd" id="2"]
+
+[sub_resource type="Resource" id="WinterBuildingDef_0"]
+script = ExtResource("2")
+id = "walls"
+kind = "hut"
+order = 0
+cost = {
+"wood": 40
+}
+repair = {}
+hp = 0
+name = "Стены"
+desc = ""
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_1"]
+script = ExtResource("2")
+id = "roof"
+kind = "hut"
+order = 1
+cost = {
+"wood": 30,
+"stone": 10
+}
+repair = {}
+hp = 0
+name = "Крыша"
+desc = ""
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_2"]
+script = ExtResource("2")
+id = "door"
+kind = "hut"
+order = 2
+cost = {
+"wood": 20
+}
+repair = {}
+hp = 0
+name = "Дверь"
+desc = ""
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_3"]
+script = ExtResource("2")
+id = "stove"
+kind = "hut"
+order = 3
+cost = {
+"stone": 30,
+"metal": 6
+}
+repair = {}
+hp = 0
+name = "Печь"
+desc = ""
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_4"]
+script = ExtResource("2")
+id = "palisade:0"
+kind = "palisade"
+order = 0
+cost = {
+"wood": 25
+}
+repair = {
+"wood": 15
+}
+hp = 100
+name = "Частокол: север"
+desc = "north"
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_5"]
+script = ExtResource("2")
+id = "palisade:1"
+kind = "palisade"
+order = 1
+cost = {
+"wood": 25
+}
+repair = {
+"wood": 15
+}
+hp = 100
+name = "Частокол: восток"
+desc = "east"
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_6"]
+script = ExtResource("2")
+id = "palisade:2"
+kind = "palisade"
+order = 2
+cost = {
+"wood": 25
+}
+repair = {
+"wood": 15
+}
+hp = 100
+name = "Частокол: юг"
+desc = "south"
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_7"]
+script = ExtResource("2")
+id = "palisade:3"
+kind = "palisade"
+order = 3
+cost = {
+"wood": 25
+}
+repair = {
+"wood": 15
+}
+hp = 100
+name = "Частокол: запад"
+desc = "west"
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_8"]
+script = ExtResource("2")
+id = "bunk:0"
+kind = "bunk"
+order = 0
+cost = {
+"wood": 20
+}
+repair = {}
+hp = 0
+name = "Нары 1"
+desc = "Готовы: двое спят в тепле"
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_9"]
+script = ExtResource("2")
+id = "bunk:1"
+kind = "bunk"
+order = 1
+cost = {
+"wood": 20
+}
+repair = {}
+hp = 0
+name = "Нары 2"
+desc = "Готовы: двое спят в тепле"
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_10"]
+script = ExtResource("2")
+id = "bunk:2"
+kind = "bunk"
+order = 2
+cost = {
+"wood": 20
+}
+repair = {}
+hp = 0
+name = "Нары 3"
+desc = "Готовы: двое спят в тепле"
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_11"]
+script = ExtResource("2")
+id = "insulation"
+kind = "upgrade"
+order = 0
+cost = {
+"wood": 30,
+"hide": 4
+}
+repair = {}
+hp = 0
+name = "Утепление"
+desc = "Мох и шкуры: печь горит дольше, в хижине теплее даже без неё"
+core_name = "утепление"
+
+[sub_resource type="Resource" id="WinterBuildingDef_12"]
+script = ExtResource("2")
+id = "cellar"
+kind = "upgrade"
+order = 1
+cost = {
+"wood": 20,
+"stone": 30
+}
+repair = {}
+hp = 0
+name = "Погреб"
+desc = "Ещё 100 места для еды"
+core_name = "погреб"
+
+[sub_resource type="Resource" id="WinterBuildingDef_13"]
+script = ExtResource("2")
+id = "smokehouse"
+kind = "upgrade"
+order = 2
+cost = {
+"wood": 25,
+"stone": 15
+}
+repair = {}
+hp = 0
+name = "Коптильня"
+desc = "Сама коптит сырое мясо и рыбу, копчёное сытнее"
+core_name = "коптильня"
+
+[sub_resource type="Resource" id="WinterBuildingDef_14"]
+script = ExtResource("2")
+id = "annex"
+kind = "upgrade"
+order = 3
+cost = {
+"wood": 40,
+"stone": 20,
+"metal": 4
+}
+repair = {}
+hp = 0
+name = "Пристройка"
+desc = "Тёплая комната: выжившие быстрее лечатся и работают"
+core_name = "пристройка"
+
+[sub_resource type="Resource" id="WinterBuildingDef_15"]
+script = ExtResource("2")
+id = "workshop"
+kind = "upgrade"
+order = 4
+cost = {
+"wood": 30,
+"stone": 10,
+"metal": 6
+}
+repair = {}
+hp = 0
+name = "Мастерская"
+desc = "Шуба, фонарь, сани и силки"
+core_name = "мастерская"
+
+[sub_resource type="Resource" id="WinterBuildingDef_16"]
+script = ExtResource("2")
+id = "torch"
+kind = "torch"
+order = 0
+cost = {
+"wood": 2
+}
+repair = {}
+hp = 0
+name = "Факел"
+desc = "Отгоняет волков"
+core_name = ""
+
+[sub_resource type="Resource" id="WinterBuildingDef_17"]
+script = ExtResource("2")
+id = "patch"
+kind = "patch"
+order = 0
+cost = {
+"wood": 15,
+"stone": 5
+}
+repair = {}
+hp = 0
+name = "Залатать крышу"
+desc = ""
+core_name = ""
+
+[resource]
+script = ExtResource("1")
+entries = [SubResource("WinterBuildingDef_0"), SubResource("WinterBuildingDef_1"), SubResource("WinterBuildingDef_2"), SubResource("WinterBuildingDef_3"), SubResource("WinterBuildingDef_4"), SubResource("WinterBuildingDef_5"), SubResource("WinterBuildingDef_6"), SubResource("WinterBuildingDef_7"), SubResource("WinterBuildingDef_8"), SubResource("WinterBuildingDef_9"), SubResource("WinterBuildingDef_10"), SubResource("WinterBuildingDef_11"), SubResource("WinterBuildingDef_12"), SubResource("WinterBuildingDef_13"), SubResource("WinterBuildingDef_14"), SubResource("WinterBuildingDef_15"), SubResource("WinterBuildingDef_16"), SubResource("WinterBuildingDef_17")]

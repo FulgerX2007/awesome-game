@@ -1,0 +1,580 @@
+{
+ "ui.bar.fill": {
+  "file": "res://assets/ui/indicators/bar_fill.png",
+  "size": [
+   48,
+   24
+  ],
+  "slice": [
+   10,
+   10,
+   10,
+   10
+  ]
+ },
+ "ui.bar.frame": {
+  "file": "res://assets/ui/indicators/bar_frame.png",
+  "size": [
+   64,
+   32
+  ],
+  "slice": [
+   14,
+   14,
+   14,
+   14
+  ]
+ },
+ "ui.button": {
+  "file": "res://assets/ui/buttons/button.png",
+  "size": [
+   96,
+   96
+  ],
+  "slice": [
+   26,
+   26,
+   26,
+   26
+  ]
+ },
+ "ui.button.disabled": {
+  "file": "res://assets/ui/buttons/button_disabled.png",
+  "size": [
+   96,
+   96
+  ],
+  "slice": [
+   26,
+   26,
+   26,
+   26
+  ]
+ },
+ "ui.button.hover": {
+  "file": "res://assets/ui/buttons/button_hover.png",
+  "size": [
+   96,
+   96
+  ],
+  "slice": [
+   26,
+   26,
+   26,
+   26
+  ]
+ },
+ "ui.button.pressed": {
+  "file": "res://assets/ui/buttons/button_pressed.png",
+  "size": [
+   96,
+   96
+  ],
+  "slice": [
+   26,
+   26,
+   26,
+   26
+  ]
+ },
+ "ui.icon.action": {
+  "file": "res://assets/ui/icons/action.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.annex": {
+  "file": "res://assets/ui/icons/annex.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.axe": {
+  "file": "res://assets/ui/icons/axe.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.back": {
+  "file": "res://assets/ui/icons/back.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.bear": {
+  "file": "res://assets/ui/icons/bear.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.bench": {
+  "file": "res://assets/ui/icons/bench.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.berries": {
+  "file": "res://assets/ui/icons/berries.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.blizzard": {
+  "file": "res://assets/ui/icons/blizzard.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.build": {
+  "file": "res://assets/ui/icons/build.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.bunk": {
+  "file": "res://assets/ui/icons/bunk.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.cellar": {
+  "file": "res://assets/ui/icons/cellar.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.clock": {
+  "file": "res://assets/ui/icons/clock.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.close": {
+  "file": "res://assets/ui/icons/close.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.coat": {
+  "file": "res://assets/ui/icons/coat.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.cookedFish": {
+  "file": "res://assets/ui/icons/cookedFish.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.cookedMeat": {
+  "file": "res://assets/ui/icons/cookedMeat.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.day": {
+  "file": "res://assets/ui/icons/day.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.eat": {
+  "file": "res://assets/ui/icons/eat.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.fire": {
+  "file": "res://assets/ui/icons/fire.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.fish": {
+  "file": "res://assets/ui/icons/fish.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.food": {
+  "file": "res://assets/ui/icons/food.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.health": {
+  "file": "res://assets/ui/icons/health.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.hide": {
+  "file": "res://assets/ui/icons/hide.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.home": {
+  "file": "res://assets/ui/icons/home.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.hut": {
+  "file": "res://assets/ui/icons/hut.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.icePick": {
+  "file": "res://assets/ui/icons/icePick.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.insulation": {
+  "file": "res://assets/ui/icons/insulation.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.inventory": {
+  "file": "res://assets/ui/icons/inventory.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.ironAxe": {
+  "file": "res://assets/ui/icons/ironAxe.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.lantern": {
+  "file": "res://assets/ui/icons/lantern.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.meat": {
+  "file": "res://assets/ui/icons/meat.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.metal": {
+  "file": "res://assets/ui/icons/metal.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.night": {
+  "file": "res://assets/ui/icons/night.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.palisade": {
+  "file": "res://assets/ui/icons/palisade.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.pause": {
+  "file": "res://assets/ui/icons/pause.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.pick": {
+  "file": "res://assets/ui/icons/pick.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.play": {
+  "file": "res://assets/ui/icons/play.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.settings": {
+  "file": "res://assets/ui/icons/settings.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.shovel": {
+  "file": "res://assets/ui/icons/shovel.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.sled": {
+  "file": "res://assets/ui/icons/sled.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.smokedFish": {
+  "file": "res://assets/ui/icons/smokedFish.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.smokedMeat": {
+  "file": "res://assets/ui/icons/smokedMeat.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.smokehouse": {
+  "file": "res://assets/ui/icons/smokehouse.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.snares": {
+  "file": "res://assets/ui/icons/snares.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.snow": {
+  "file": "res://assets/ui/icons/snow.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.sound_off": {
+  "file": "res://assets/ui/icons/sound_off.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.sound_on": {
+  "file": "res://assets/ui/icons/sound_on.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.spear": {
+  "file": "res://assets/ui/icons/spear.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.stamina": {
+  "file": "res://assets/ui/icons/stamina.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.star": {
+  "file": "res://assets/ui/icons/star.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.star_empty": {
+  "file": "res://assets/ui/icons/star_empty.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.stone": {
+  "file": "res://assets/ui/icons/stone.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.survivor": {
+  "file": "res://assets/ui/icons/survivor.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.thermometer": {
+  "file": "res://assets/ui/icons/thermometer.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.torch": {
+  "file": "res://assets/ui/icons/torch.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.trader": {
+  "file": "res://assets/ui/icons/trader.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.warmth": {
+  "file": "res://assets/ui/icons/warmth.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.warning": {
+  "file": "res://assets/ui/icons/warning.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.wolf": {
+  "file": "res://assets/ui/icons/wolf.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.wood": {
+  "file": "res://assets/ui/icons/wood.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.icon.workshop": {
+  "file": "res://assets/ui/icons/workshop.png",
+  "size": [
+   128,
+   128
+  ]
+ },
+ "ui.menu.bg": {
+  "file": "res://assets/ui/panels/menu_bg.jpg",
+  "size": [
+   1920,
+   1080
+  ]
+ },
+ "ui.panel": {
+  "file": "res://assets/ui/panels/panel.png",
+  "size": [
+   128,
+   128
+  ],
+  "slice": [
+   32,
+   32,
+   32,
+   32
+  ]
+ },
+ "ui.panel.dark": {
+  "file": "res://assets/ui/panels/panel_dark.png",
+  "size": [
+   128,
+   128
+  ],
+  "slice": [
+   32,
+   32,
+   32,
+   32
+  ]
+ },
+ "ui.slot": {
+  "file": "res://assets/ui/indicators/slot.png",
+  "size": [
+   96,
+   96
+  ],
+  "slice": [
+   22,
+   22,
+   22,
+   22
+  ]
+ },
+ "ui.title": {
+  "file": "res://assets/ui/panels/title.webp",
+  "size": [
+   1200,
+   232
+  ]
+ },
+ "ui.title.ro": {
+  "file": "res://assets/ui/panels/title_ro.webp",
+  "size": [
+   1200,
+   289
+  ]
+ },
+ "ui.tooltip": {
+  "file": "res://assets/ui/panels/tooltip.png",
+  "size": [
+   64,
+   64
+  ],
+  "slice": [
+   18,
+   18,
+   18,
+   18
+  ]
+ }
+}

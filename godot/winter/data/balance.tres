@@ -1,0 +1,310 @@
+[gd_resource type="Resource" script_class="WinterBalance" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/defs/balance.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tick = 0.05
+max_dt = 0.25
+day = 150
+night_at = 100
+days = 30
+sleep_speed = 6
+speed = 3
+deep = 1.7
+carry = 40
+sled_carry = 80
+store_cap = 200
+food_cap = 150
+cellar_food = 100
+stat_max = 100
+food_drain = 0.12
+energy_drain = 0.04
+work_energy = 0.25
+sleep_energy = 0.6
+fire_rest = 0.1
+health_loss = 1
+health_gain = 0.3
+raw_meat_energy = 10
+cook_time = 2
+hit_cd = 0.7
+fish_time = 6
+bite = 8
+gnaw = 2
+wolf_hp = 4
+wolf_speed = 3.2
+wolf_cd = 1.5
+wolf_flee = 0.3
+wolf_safe = 14
+survivor_food = 0.08
+survivor_eat_at = 50
+coat = 0.7
+hunter_meat = 3
+palisade_hp = 100
+trade_offers = 3
+trade_reach = 2.5
+fire = {
+"burn": 12,
+"cap": 20,
+"radius": 3,
+"warm": 1.2
+}
+stove = {
+"burn": 15,
+"cap": 30
+}
+torch = {
+"cost": 2,
+"radius": 3,
+"max": 12
+}
+diff = {
+"normal": {
+"cold": 1,
+"wolves": 1,
+"bite": 1
+},
+"harsh": {
+"cold": 1.4,
+"wolves": 1.6,
+"bite": 1.5
+}
+}
+insulation = {
+"stove": 0.6,
+"chill": 0.15
+}
+smoke = {
+"every": 15,
+"perLog": 3
+}
+annex = {
+"heal": 2,
+"work": 0.75
+}
+lantern = {
+"radius": 2,
+"scare": 1.2,
+"cd": 8
+}
+snare = {
+"per": 2,
+"max": 4,
+"chance": 0.6
+}
+event_chance = {
+"normal": 0.45,
+"harsh": 0.55
+}
+event_choices = {
+"roof": ["fix", "later"],
+"wanderer": ["help", "ignore"]
+}
+event_default = {
+"roof": "later",
+"wanderer": "ignore"
+}
+event_ids = ["roof", "wanderer", "lostChild", "aurora", "thaw"]
+event_max = {
+"roof": 2,
+"wanderer": 4,
+"lostChild": 2,
+"aurora": 3,
+"thaw": 2
+}
+lost_child = {
+"near": 10,
+"far": 16,
+"night": 40
+}
+aurora = {
+"energy": 20,
+"hp": 10
+}
+thaw = {
+"warm": 8,
+"lastDay": 27,
+"ice": 0.8
+}
+trader_days = {
+"normal": [4, 9, 14, 19, 24],
+"harsh": [5, 11, 17, 23]
+}
+trades = [{
+"give": {
+"meat": 4
+},
+"get": {
+"metal": 3
+}
+}, {
+"give": {
+"fish": 4
+},
+"get": {
+"stone": 12
+}
+}, {
+"give": {
+"meat": 6
+},
+"get": {
+"tool": 1
+}
+}, {
+"give": {
+"hide": 2
+},
+"get": {
+"smokedMeat": 3
+}
+}, {
+"give": {
+"berries": 6
+},
+"get": {
+"wood": 15
+}
+}, {
+"give": {
+"cookedFish": 3
+},
+"get": {
+"metal": 4
+}
+}, {
+"give": {
+"meat": 3,
+"fish": 3
+},
+"get": {
+"hide": 2
+}
+}, {
+"give": {
+"wood": 20
+},
+"get": {
+"cookedMeat": 3
+}
+}, {
+"give": {
+"stone": 15
+},
+"get": {
+"metal": 4
+}
+}, {
+"give": {
+"metal": 3
+},
+"get": {
+"smokedFish": 4
+}
+}]
+trade_fixed = {
+"give": {
+"hide": 3
+},
+"get": {
+"metal": 5
+}
+}
+trade_no_tool = {
+"metal": 5
+}
+bear = {
+"hp": 14,
+"bite": 15,
+"speed": 2.4,
+"cd": 1.8,
+"sight": 7,
+"reach": 1.2,
+"far": 18,
+"meat": 8,
+"hide": 4,
+"calm": 4,
+"days": {
+"normal": [8, 15, 21, 26],
+"harsh": [6, 11, 15, 19, 23, 27]
+}
+}
+roof_fix = {
+"wood": 15,
+"stone": 5
+}
+roof_hole = {
+"stove": 1.3,
+"chill": 0.7
+}
+wanderer = {
+"near": 8,
+"far": 14,
+"food": 2,
+"foods": ["smokedMeat", "smokedFish", "cookedMeat", "cookedFish", "fish"],
+"tools": ["pick", "spear", "ironAxe"]
+}
+blizzards = {
+"normal": [6, 12, 16, 19, 22, 25],
+"harsh": [4, 6, 9, 12, 14, 16, 19, 21, 22, 25, 27]
+}
+eat_order = ["smokedMeat", "cookedMeat", "smokedFish", "cookedFish", "fish", "berries", "meat"]
+meats = ["meat", "cookedMeat", "smokedMeat"]
+node = {
+"amount": {
+"tree": 12,
+"rock": 10,
+"bush": 6,
+"scrap": 6
+},
+"regrowDays": {
+"tree": 4,
+"bush": 2
+},
+"hitCd": {
+"tree": 0.7,
+"rock": 0.7,
+"bush": 1,
+"scrap": 1.5
+},
+"perHit": {
+"tree": 2,
+"treeIronAxe": 3,
+"rock": 2,
+"bush": 1,
+"scrap": 2
+},
+"item": {
+"tree": "wood",
+"rock": "stone",
+"bush": "berries",
+"scrap": "metal"
+}
+}
+misc = {
+"fireRest": 0.1,
+"wolfSpeed": 3.2,
+"wolfCd": 1.5,
+"wolfFlee": 0.3,
+"survivorFood": 0.08,
+"survivorEatAt": 50,
+"feedCd": 0.4,
+"strikeCd": 0.8,
+"deerReach": 3,
+"animalReach": 1.2,
+"fightReach": 1.3,
+"fireRadiusStove": 3,
+"survivorHeal": 0.2,
+"survivorHurt": 0.35,
+"survivorSpeed": 0.95,
+"lostSpeed": 0.6,
+"rabbits": 6,
+"deer": 3,
+"rabbitEvery": 30,
+"deerEvery": 60,
+"rabbitSpeed": 1.6,
+"deerSpeed": 2.2,
+"childFeedAt": 0.6,
+"palisadeFix": 10,
+"stoveStart": 6
+}
