@@ -67,7 +67,7 @@ func _ready() -> void:
 	atmosphere.layer = 1
 	add_child(atmosphere)
 	atmo_rect = ColorRect.new()
-	atmo_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	atmo_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	atmo_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/atmosphere.gdshader")
@@ -159,7 +159,7 @@ func frame(delta: float, running: bool) -> void:
 	var mat := atmo_rect.material as ShaderMaterial
 	var fog := 0.0
 	if weather.level == "blizzard":
-		fog = 0.42 + weather.gust * 0.3
+		fog = 0.62 + weather.gust * 0.3
 	elif weather.level == "heavy":
 		fog = 0.12 + weather.gust * 0.1
 	mat.set_shader_parameter("fog", fog)

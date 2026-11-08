@@ -55,10 +55,11 @@ func _ready() -> void:
 	ui.layer = 10
 	add_child(ui)
 	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.theme = WinterTheme.build()
 	ui.add_child(root)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud = WinterHud.new()
 	root.add_child(hud)
 	hud.action.connect(_on_hud)

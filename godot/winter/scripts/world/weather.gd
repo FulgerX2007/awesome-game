@@ -22,9 +22,9 @@ var _noise := FastNoiseLite.new()
 
 func _init() -> void:
 	z_index = 20
-	flakes = _system("fx.snowflake.0", 1400, 5.0, Vector2(0.14, 0.32))
-	near = _system("fx.snowflake.1", 260, 2.6, Vector2(0.4, 0.75))
-	drift = _system("fx.snowflake.2", 500, 1.6, Vector2(0.2, 0.4))
+	flakes = _system("fx.snowflake.0", 1400, 5.0, Vector2(0.7, 1.5))
+	near = _system("fx.snowflake.1", 260, 2.6, Vector2(1.6, 2.8))
+	drift = _system("fx.snowflake.2", 500, 1.6, Vector2(0.8, 1.4))
 	_noise.frequency = 0.08
 
 

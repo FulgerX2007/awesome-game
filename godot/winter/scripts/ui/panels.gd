@@ -45,11 +45,11 @@ var save: Dictionary = {}
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dim = ColorRect.new()
 	dim.color = Color(0.02, 0.03, 0.08, 0.55)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.visible = false
 	add_child(dim)
@@ -75,6 +75,7 @@ func is_open() -> bool:
 func _window(title: String, icon_id: String, width := 640.0, dim_on := true) -> VBoxContainer:
 	if box:
 		box.queue_free()
+	dim.color = Color(0.02, 0.03, 0.08, 0.55)
 	if bg and current != "settings":
 		bg.visible = false
 	dim.visible = dim_on
@@ -118,10 +119,12 @@ func _place() -> void:
 	await get_tree().process_frame
 	if box == null:
 		return
-	var maxh := sz.y - 40
+	# under the HUD's top bar while a game is on, centred in what is left
+	var top := 76.0 if current not in ["menu", "result", "confirm"] else 16.0
+	var maxh := sz.y - top - 16.0
 	if box.size.y > maxh:
 		box.size.y = maxh
-	box.position = ((sz - box.size) * 0.5).floor()
+	box.position = Vector2(floor((sz.x - box.size.x) * 0.5), floor(top + maxf(0.0, (maxh - box.size.y) * 0.5)))
 
 
 func relayout() -> void:
@@ -425,8 +428,10 @@ func _slot(id: String, name: String, count: String, on: bool) -> Control:
 	var l := Label.new()
 	l.text = count if count != "" else name
 	l.theme_type_variation = "Small" if count == "" else ""
+	if count == "":
+		l.add_theme_font_size_override("font_size", 12)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.clip_text = true
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	l.custom_minimum_size = Vector2(80, 0)
 	v.add_child(l)
 	p.add_child(v)
@@ -568,11 +573,14 @@ func open_menu(sv: Dictionary, has_current: bool, current_day: int) -> void:
 		bg.texture = WinterArt.texture("ui.menu.bg", false)
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(bg)
 		move_child(bg, 0)
 	bg.visible = true
+	# a soft shade over the painting so the menu's text reads
+	dim.visible = true
+	dim.color = Color(0.02, 0.03, 0.1, 0.32)
 	box = PanelContainer.new()
 	box.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	add_child(box)

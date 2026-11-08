@@ -39,14 +39,14 @@ var _marks := []
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_top()
 	_build_task()
 	_build_banner()
 	_build_bottom()
 	markers = Control.new()
-	markers.set_anchors_preset(Control.PRESET_FULL_RECT)
+	markers.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	markers.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	markers.draw.connect(_draw_markers)
 	add_child(markers)
@@ -267,8 +267,9 @@ func update(g: Dictionary, delta: float, task_text: String, action_label: String
 		b.value.add_theme_color_override("font_color", WinterTheme.BAD if crit else WinterTheme.DIM)
 	day_label.text = tr("День {n}").format({"n": WinterSim.day_of(g)})
 	var blz := WinterSim.is_blizzard(g)
-	clock_label.text = "%s · %s" % [WinterViewMath.clock(g), tr("метель") if blz else tr("ночь") if WinterSim.is_night(g) else tr("день")]
+	clock_label.text = "%s · %s" % [WinterViewMath.clock(g), tr("метель") if blz else tr("ночь") if WinterSim.is_night(g) else tr("вечер") if WinterSim.time_of_day(g) >= 80.0 else tr("день")]
 	weather_icon.texture = WinterTheme.icon("blizzard" if blz else "night" if WinterSim.is_night(g) else "day")
+	weather_icon.modulate = Color(1, 0.75, 0.6) if not blz and not WinterSim.is_night(g) and WinterSim.time_of_day(g) >= 80.0 else Color.WHITE
 	var t := WinterSim.temperature(g)
 	temp_label.text = "%d °C" % int(round(t))
 	temp_label.add_theme_color_override("font_color", WinterTheme.FROST if t > -15 else Color("9fc4ff") if t > -24 else Color("c9b8ff"))
