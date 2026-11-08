@@ -6,7 +6,8 @@ Sources (tools/winter-godot/source/):
   hero_walk.gif            — the hero walking (8 frames);
   hero_chop.gif            — chopping with an axe (12 frames, the blow lands on frame 9);
   hero_gather_berries.gif  — picking berries off a bush (16 frames; the bush is in the picture);
-  hero_mining.gif          — mining with a pick (16 frames, the blow on frame 11; the rock is in the picture).
+  hero_mining.gif          — mining with a pick (16 frames, the blow on frame 11; the rock is in the picture);
+  cabin.webp               — the finished log cabin (the hut's last two stages).
 
 Writes godot/winter/assets/painted/ and the manifest fragment assets/manifest/override_painted.json, whose keys
 replace the generated ones (WinterArt loads override_* fragments last; "_replace" drops whole groups first, so no
@@ -278,9 +279,50 @@ def hero(manifest: dict) -> None:
     print(f"hero: {total} frames of {fw}×{fh}, sheet {sheet.width}×{sheet.height}")
 
 
+# ── The cabin: the finished hut (stage 4: the stove lit) and, with the window and the lantern out, stage 3 ──
+CABIN_CHIMNEY = (195, 58)      # the chimney's mouth in the source picture
+CABIN_WINDOW = (231, 232)      # the lit window (the stove's glow comes from there)
+CABIN_HOLE = (240, 150)        # where a blizzard tears the roof
+
+
+def cabin(manifest: dict) -> None:
+    src = Image.open(SRC / "cabin.webp").convert("RGBA")
+    a = np.asarray(src).astype(np.float32)
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    warm = (al > 200) & (r > 200) & (g > 150) & (b < 140) & (r - b > 90)
+    glow = warm.copy()
+    for d in range(1, 4):
+        glow[d:, :] |= warm[:-d, :]
+        glow[:-d, :] |= warm[d:, :]
+        glow[:, d:] |= warm[:, :-d]
+        glow[:, :-d] |= warm[:, d:]
+    dark = a.copy()
+    glass = np.array([38, 48, 70], np.float32)
+    dark[glow, :3] = dark[glow, :3] * 0.25 + glass * 0.75
+    unlit = Image.fromarray(np.clip(dark, 0, 255).astype(np.uint8), "RGBA")
+    (OUT / "buildings").mkdir(parents=True, exist_ok=True)
+    for stage, img in ((3, unlit), (4, src)):
+        img, (ox, oy) = trim(img)
+        fx, fy = foot_of(img)
+        name = f"cabin_{stage}.png"
+        img.save(OUT / "buildings" / name, optimize=True)
+        at = lambda p: [p[0] - ox, p[1] - oy]
+        manifest[f"hut.{stage}"] = {"file": RES + "buildings/" + name, "size": [img.width, img.height],
+                                    "foot": [round(fx), round(fy)], "block": 1, "painted": True,
+                                    "anchor": at(CABIN_CHIMNEY), "window": at(CABIN_WINDOW), "hole": at(CABIN_HOLE)}
+    # the blizzard's hole as a decal of its own (cut from the generated overlay), laid where the hut says
+    hole_src = ROOT / "godot/winter/assets/buildings/hut/roofhole.png"
+    if hole_src.exists():
+        hole, _ = trim(Image.open(hole_src).convert("RGBA"))
+        hole.save(OUT / "buildings/roofhole.png", optimize=True)
+        manifest["hut.roofhole"] = {"file": RES + "buildings/roofhole.png", "size": [hole.width, hole.height],
+                                    "foot": [hole.width // 2, hole.height // 2], "decal": True, "painted": True}
+
+
 def main() -> None:
     manifest = {"_replace": REPLACE}
     env(manifest)
+    cabin(manifest)
     hero(manifest)
     MANIFEST.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + "\n")
     size = sum(p.stat().st_size for p in OUT.rglob("*.png"))

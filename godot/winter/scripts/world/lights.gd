@@ -14,6 +14,7 @@ const STORM_COLOR := Color(0.72, 0.78, 0.88)
 const DAWN_COLOR := Color(0.93, 0.80, 0.82)
 
 var modulate_node: CanvasModulate
+var camp: WinterCamp              # for the window the stove glows from
 var fire: PointLight2D
 var stove: PointLight2D
 var lantern: PointLight2D
@@ -105,7 +106,8 @@ func update(g: Dictionary, hero: Node2D, delta: float) -> void:
 		fire.position = Vector2((sp.fire.x + 0.5) * TILE + _noise.get_noise_1d(_t * 4.0 + 50.0) * 6.0, (sp.fire.y + 0.3) * TILE)
 	stove.visible = WinterSim.stove_on(g)
 	if stove.visible:
-		stove.position = Vector2((WinterSim.HUT.x + 1.5) * TILE, (WinterSim.HUT.y + 1.7) * TILE)
+		var by_art := Vector2((WinterSim.HUT.x + 1.5) * TILE, (WinterSim.HUT.y + 1.7) * TILE)
+		stove.position = camp.hut_world("window", by_art) + Vector2(0, 30) if camp else by_art
 		stove.energy = float(stove.get_meta("energy")) * k * (0.9 + 0.1 * sin(_t * 3.1))
 	var n := 0
 	for t in g.torches:

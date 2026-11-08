@@ -4,7 +4,7 @@ extends SceneTree
 ## Scenes: menu, day, dusk, night, blizzard, build, bench, inventory, forest, chop, mine (the frame of the blow).
 ## Without names, all of them.
 
-const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest", "chop", "mine"]
+const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest", "chop", "mine", "hut", "hut_day"]
 
 var main: Node
 var out := "user://shots"
@@ -106,6 +106,19 @@ func _run(names: Array) -> void:
 						if hits == 2:
 							break
 				await _frames(1)
+				await _shot(n)
+			"hut", "hut_day":
+				# the cabin: at night with the stove lit; by day a stage earlier, the roof torn by a blizzard
+				var g := _game()
+				var night: bool = n == "hut"
+				g.t = 118.0 if night else 40.0
+				g.hut.stage = 4 if night else 3
+				g.hut.stove = 12.0
+				g.hut.roofHole = not night
+				g.hero.x = 25.5
+				g.hero.y = 19.6
+				main.world.show_game(g)
+				await _frames(60)
 				await _shot(n)
 			"forest":
 				var g := _game()

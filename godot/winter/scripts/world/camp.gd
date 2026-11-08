@@ -205,6 +205,9 @@ func sync(g: Dictionary) -> void:
 			shadows.add_child(sh)
 			hut.set_meta("shadow", sh)
 	hut_hole.visible = bool(g.hut.roofHole) and hs >= 2
+	if hut_hole.visible and WinterArt.entry("hut.roofhole").get("decal", false):
+		# a decal of its own: on the roof spot the hut's art names, or the middle of the roof
+		hut_hole.position = hut_point("hole", Vector2(0, -WinterArt.size("hut.%d" % hs).y * 0.62))
 	hut_scaffold.visible = hs < 4 and not (g.hut.paid as Dictionary).is_empty()
 	# the palisade
 	for i in 4:
@@ -323,3 +326,16 @@ func ghost(id: String, g: Dictionary) -> void:
 	elif id.begins_with("up:"):
 		var u := id.substr(3)
 		add.call("up." + u, UP_FOOT[u])
+
+
+## A named point of the hut's current stage ("anchor" is the chimney's mouth, "window", "hole"), relative to its
+## foot; `fallback` when the art doesn't name it.
+func hut_point(name: String, fallback: Vector2) -> Vector2:
+	var key := "hut.%d" % maxi(0, hut_stage)
+	var p = WinterArt.entry(key).get(name, null)
+	return (Vector2(p[0], p[1]) - WinterArt.foot(key)) if p is Array else fallback
+
+
+## The same point in the world.
+func hut_world(name: String, fallback: Vector2) -> Vector2:
+	return hut.position + hut_point(name, fallback - hut.position) if hut else fallback

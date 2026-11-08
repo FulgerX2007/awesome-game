@@ -9,6 +9,7 @@ const POOL := 14
 const STEPS := 80
 
 var details: Node2D               # the ground-details layer: boot prints and tap marks go there
+var camp: WinterCamp              # for the chimney's place on the hut's art
 var _pool: Array[CPUParticles2D] = []
 var _next := 0
 var sparks: CPUParticles2D
@@ -162,7 +163,7 @@ func animate(g: Dictionary, delta: float, hero: Node2D, cold: float) -> void:
 	smoke.emitting = true
 	var stove := int(g.hut.stage) >= 4 and float(g.hut.stove) > 0.0
 	chimney.emitting = stove
-	chimney.position = Vector2((WinterSim.HUT.x + 2.3) * TILE, (WinterSim.HUT.y - 0.9) * TILE)
+	chimney.position = camp.hut_world("anchor", Vector2((WinterSim.HUT.x + 2.3) * TILE, (WinterSim.HUT.y - 0.9) * TILE)) if camp else Vector2((WinterSim.HUT.x + 2.3) * TILE, (WinterSim.HUT.y - 0.9) * TILE)
 	if hero:
 		# breath: a puff now and then when it's freezing and he isn't sleeping
 		breath.position = hero.position + Vector2(10 if hero.get_child_count() else 0, -112)

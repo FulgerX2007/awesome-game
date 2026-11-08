@@ -110,6 +110,8 @@ func show_game(state: Dictionary) -> void:
 	_marks.clear()
 	ghost_free()
 	camp = WinterCamp.new(objects, details, shadows)
+	fx.camp = camp
+	lights.camp = camp
 	ground.build(g)
 	props.build(g)
 	camp.build(g)

@@ -512,6 +512,69 @@
   "block": 1,
   "painted": true
  },
+ "hut.3": {
+  "file": "res://assets/painted/buildings/cabin_3.png",
+  "size": [
+   259,
+   256
+  ],
+  "foot": [
+   130,
+   240
+  ],
+  "block": 1,
+  "painted": true,
+  "anchor": [
+   161,
+   3
+  ],
+  "window": [
+   197,
+   177
+  ],
+  "hole": [
+   206,
+   95
+  ]
+ },
+ "hut.4": {
+  "file": "res://assets/painted/buildings/cabin_4.png",
+  "size": [
+   259,
+   256
+  ],
+  "foot": [
+   130,
+   240
+  ],
+  "block": 1,
+  "painted": true,
+  "anchor": [
+   161,
+   3
+  ],
+  "window": [
+   197,
+   177
+  ],
+  "hole": [
+   206,
+   95
+  ]
+ },
+ "hut.roofhole": {
+  "file": "res://assets/painted/buildings/roofhole.png",
+  "size": [
+   83,
+   61
+  ],
+  "foot": [
+   41,
+   30
+  ],
+  "decal": true,
+  "painted": true
+ },
  "char.hero": {
   "sheet": "res://assets/painted/characters/hero.png",
   "frame": [
