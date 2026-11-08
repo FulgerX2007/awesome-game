@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Godot runs the tests of the Godot games (godot/deep, godot/pins, godot/castle, godot/rust, godot/mathmagic) and the parity test against web/deep.
+      # Godot runs the tests of the Godot games (godot/deep, godot/pins, godot/castle, godot/rust, godot/winter, godot/mathmagic) and the parity tests against web/deep and web/winter.
       - name: Install Godot
         run: |
           curl -sSfLo "$RUNNER_TEMP/godot.zip" https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
@@ -53,6 +53,13 @@ jobs:
       - run: |
           $GODOT --headless --path godot/rust -s res://tests/scenes.gd 2>&1 | tee "$RUNNER_TEMP/rust-scenes.txt"
           ! grep -q "SCRIPT ERROR" "$RUNNER_TEMP/rust-scenes.txt"
+      # Долгая зима on Godot: the rules (566 checks), then the real scenes headless; the parity test against
+      # web/winter/core.js runs in the node step below, since GODOT is set.
+      - run: $GODOT --headless --path godot/winter --import
+      - run: $GODOT --headless --path godot/winter -s res://tests/run.gd
+      - run: |
+          $GODOT --headless --path godot/winter -s res://tests/scenes.gd 2>&1 | tee "$RUNNER_TEMP/winter-scenes.txt"
+          ! grep -q "SCRIPT ERROR" "$RUNNER_TEMP/winter-scenes.txt"
       # MathMagic: math, save and level tests, then a bot plays all five levels and the boss with real physics.
       - run: $GODOT --headless --path godot/mathmagic --import
       - run: $GODOT --headless --path godot/mathmagic -s res://tests/run.gd

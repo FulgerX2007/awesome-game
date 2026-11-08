@@ -1,0 +1,1125 @@
+{
+ "branch.0": {
+  "file": "res://assets/environment/resources/branch_0.png",
+  "size": [
+   92,
+   23
+  ],
+  "foot": [
+   47.0,
+   23.0
+  ],
+  "normal": "res://assets/environment/resources/branch_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/branch_0.shadow.png",
+   "foot": [
+    45.0,
+    20.0
+   ]
+  }
+ },
+ "branch.1": {
+  "file": "res://assets/environment/resources/branch_1.png",
+  "size": [
+   100,
+   26
+  ],
+  "foot": [
+   50.0,
+   23.0
+  ],
+  "normal": "res://assets/environment/resources/branch_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/branch_1.shadow.png",
+   "foot": [
+    51.0,
+    19.0
+   ]
+  }
+ },
+ "branch.2": {
+  "file": "res://assets/environment/resources/branch_2.png",
+  "size": [
+   100,
+   29
+  ],
+  "foot": [
+   50.0,
+   25.0
+  ],
+  "normal": "res://assets/environment/resources/branch_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/branch_2.shadow.png",
+   "foot": [
+    51.0,
+    21.0
+   ]
+  }
+ },
+ "branch.3": {
+  "file": "res://assets/environment/resources/branch_3.png",
+  "size": [
+   94,
+   23
+  ],
+  "foot": [
+   48.0,
+   21.0
+  ],
+  "normal": "res://assets/environment/resources/branch_3.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/branch_3.shadow.png",
+   "foot": [
+    46.0,
+    17.0
+   ]
+  }
+ },
+ "bush.bare.0": {
+  "file": "res://assets/environment/bushes/bare_0.png",
+  "size": [
+   87,
+   79
+  ],
+  "foot": [
+   44.0,
+   71.0
+  ],
+  "normal": "res://assets/environment/bushes/bare_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/bare_0.shadow.png",
+   "foot": [
+    44.0,
+    8.0
+   ]
+  },
+  "block": 1
+ },
+ "bush.bare.1": {
+  "file": "res://assets/environment/bushes/bare_1.png",
+  "size": [
+   91,
+   69
+  ],
+  "foot": [
+   49.0,
+   61.0
+  ],
+  "normal": "res://assets/environment/bushes/bare_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/bare_1.shadow.png",
+   "foot": [
+    37.0,
+    7.0
+   ]
+  },
+  "block": 1
+ },
+ "bush.bare.2": {
+  "file": "res://assets/environment/bushes/bare_2.png",
+  "size": [
+   79,
+   77
+  ],
+  "foot": [
+   36.0,
+   69.0
+  ],
+  "normal": "res://assets/environment/bushes/bare_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/bare_2.shadow.png",
+   "foot": [
+    35.0,
+    8.0
+   ]
+  },
+  "block": 1
+ },
+ "bush.berry.0": {
+  "file": "res://assets/environment/bushes/berry_0.png",
+  "size": [
+   83,
+   86
+  ],
+  "foot": [
+   36.0,
+   83.0
+  ],
+  "normal": "res://assets/environment/bushes/berry_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/berry_0.shadow.png",
+   "foot": [
+    24.0,
+    24.0
+   ]
+  },
+  "block": 1
+ },
+ "bush.berry.1": {
+  "file": "res://assets/environment/bushes/berry_1.png",
+  "size": [
+   81,
+   72
+  ],
+  "foot": [
+   45.0,
+   71.0
+  ],
+  "normal": "res://assets/environment/bushes/berry_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/berry_1.shadow.png",
+   "foot": [
+    36.0,
+    22.0
+   ]
+  },
+  "block": 1
+ },
+ "bush.berry.2": {
+  "file": "res://assets/environment/bushes/berry_2.png",
+  "size": [
+   71,
+   76
+  ],
+  "foot": [
+   40.0,
+   76.0
+  ],
+  "normal": "res://assets/environment/bushes/berry_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/berry_2.shadow.png",
+   "foot": [
+    34.0,
+    22.0
+   ]
+  },
+  "block": 1
+ },
+ "bush.snow.0": {
+  "file": "res://assets/environment/bushes/snow_0.png",
+  "size": [
+   77,
+   76
+  ],
+  "foot": [
+   29.0,
+   77.0
+  ],
+  "normal": "res://assets/environment/bushes/snow_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/snow_0.shadow.png",
+   "foot": [
+    19.0,
+    22.0
+   ]
+  }
+ },
+ "bush.snow.1": {
+  "file": "res://assets/environment/bushes/snow_1.png",
+  "size": [
+   76,
+   63
+  ],
+  "foot": [
+   34.0,
+   66.0
+  ],
+  "normal": "res://assets/environment/bushes/snow_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/snow_1.shadow.png",
+   "foot": [
+    17.0,
+    20.0
+   ]
+  }
+ },
+ "bush.snow.2": {
+  "file": "res://assets/environment/bushes/snow_2.png",
+  "size": [
+   88,
+   63
+  ],
+  "foot": [
+   47.0,
+   63.0
+  ],
+  "normal": "res://assets/environment/bushes/snow_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/bushes/snow_2.shadow.png",
+   "foot": [
+    36.0,
+    19.0
+   ]
+  }
+ },
+ "foot.boot.l": {
+  "file": "res://assets/environment/ground/boot_l.png",
+  "size": [
+   28,
+   16
+  ],
+  "foot": [
+   15.0,
+   8.0
+  ],
+  "normal": "res://assets/environment/ground/boot_l.n.png"
+ },
+ "foot.boot.r": {
+  "file": "res://assets/environment/ground/boot_r.png",
+  "size": [
+   28,
+   16
+  ],
+  "foot": [
+   15.0,
+   8.0
+  ],
+  "normal": "res://assets/environment/ground/boot_r.n.png"
+ },
+ "ground.patch.0": {
+  "file": "res://assets/environment/ground/patch_0.png",
+  "size": [
+   140,
+   83
+  ],
+  "foot": [
+   70.0,
+   56.0
+  ],
+  "normal": "res://assets/environment/ground/patch_0.n.png"
+ },
+ "ground.patch.1": {
+  "file": "res://assets/environment/ground/patch_1.png",
+  "size": [
+   140,
+   75
+  ],
+  "foot": [
+   70.0,
+   52.0
+  ],
+  "normal": "res://assets/environment/ground/patch_1.n.png"
+ },
+ "ground.patch.2": {
+  "file": "res://assets/environment/ground/patch_2.png",
+  "size": [
+   140,
+   81
+  ],
+  "foot": [
+   70.0,
+   54.0
+  ],
+  "normal": "res://assets/environment/ground/patch_2.n.png"
+ },
+ "ice.formation.0": {
+  "file": "res://assets/environment/snow/ice_0.png",
+  "size": [
+   103,
+   83
+  ],
+  "foot": [
+   51.0,
+   71.0
+  ],
+  "normal": "res://assets/environment/snow/ice_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/snow/ice_0.shadow.png",
+   "foot": [
+    53.0,
+    19.0
+   ]
+  }
+ },
+ "ice.formation.1": {
+  "file": "res://assets/environment/snow/ice_1.png",
+  "size": [
+   110,
+   109
+  ],
+  "foot": [
+   53.0,
+   97.0
+  ],
+  "normal": "res://assets/environment/snow/ice_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/snow/ice_1.shadow.png",
+   "foot": [
+    55.0,
+    24.0
+   ]
+  }
+ },
+ "ice.formation.2": {
+  "file": "res://assets/environment/snow/ice_2.png",
+  "size": [
+   119,
+   102
+  ],
+  "foot": [
+   60.0,
+   90.0
+  ],
+  "normal": "res://assets/environment/snow/ice_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/snow/ice_2.shadow.png",
+   "foot": [
+    60.0,
+    24.0
+   ]
+  }
+ },
+ "ice.hole": {
+  "file": "res://assets/environment/snow/ice_hole.png",
+  "size": [
+   102,
+   64
+  ],
+  "foot": [
+   51.0,
+   48.0
+  ],
+  "normal": "res://assets/environment/snow/ice_hole.n.png"
+ },
+ "log.0": {
+  "file": "res://assets/environment/resources/log_0.png",
+  "size": [
+   122,
+   30
+  ],
+  "foot": [
+   61.0,
+   20.0
+  ],
+  "normal": "res://assets/environment/resources/log_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/log_0.shadow.png",
+   "foot": [
+    60.0,
+    15.0
+   ]
+  }
+ },
+ "log.1": {
+  "file": "res://assets/environment/resources/log_1.png",
+  "size": [
+   118,
+   36
+  ],
+  "foot": [
+   59.0,
+   24.0
+  ],
+  "normal": "res://assets/environment/resources/log_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/log_1.shadow.png",
+   "foot": [
+    58.0,
+    20.0
+   ]
+  }
+ },
+ "rock.0": {
+  "file": "res://assets/environment/rocks/rock_0.png",
+  "size": [
+   115,
+   76
+  ],
+  "foot": [
+   55.5,
+   73.0
+  ],
+  "normal": "res://assets/environment/rocks/rock_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/rock_0.shadow.png",
+   "foot": [
+    45.5,
+    6.0
+   ]
+  },
+  "block": 1
+ },
+ "rock.1": {
+  "file": "res://assets/environment/rocks/rock_1.png",
+  "size": [
+   95,
+   79
+  ],
+  "foot": [
+   49.0,
+   76.0
+  ],
+  "normal": "res://assets/environment/rocks/rock_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/rock_1.shadow.png",
+   "foot": [
+    37.0,
+    6.0
+   ]
+  },
+  "block": 1
+ },
+ "rock.2": {
+  "file": "res://assets/environment/rocks/rock_2.png",
+  "size": [
+   92,
+   72
+  ],
+  "foot": [
+   48.5,
+   69.0
+  ],
+  "normal": "res://assets/environment/rocks/rock_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/rock_2.shadow.png",
+   "foot": [
+    38.5,
+    6.0
+   ]
+  },
+  "block": 1
+ },
+ "rock.3": {
+  "file": "res://assets/environment/rocks/rock_3.png",
+  "size": [
+   93,
+   72
+  ],
+  "foot": [
+   45.0,
+   69.0
+  ],
+  "normal": "res://assets/environment/rocks/rock_3.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/rock_3.shadow.png",
+   "foot": [
+    36.0,
+    6.0
+   ]
+  },
+  "block": 1
+ },
+ "rock.group.0": {
+  "file": "res://assets/environment/rocks/group_0.png",
+  "size": [
+   152,
+   62
+  ],
+  "foot": [
+   74.0,
+   61.0
+  ],
+  "normal": "res://assets/environment/rocks/group_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/group_0.shadow.png",
+   "foot": [
+    68.0,
+    19.0
+   ]
+  }
+ },
+ "rock.group.1": {
+  "file": "res://assets/environment/rocks/group_1.png",
+  "size": [
+   119,
+   68
+  ],
+  "foot": [
+   67.0,
+   61.0
+  ],
+  "normal": "res://assets/environment/rocks/group_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/group_1.shadow.png",
+   "foot": [
+    61.0,
+    14.0
+   ]
+  }
+ },
+ "rock.rubble.0": {
+  "file": "res://assets/environment/rocks/rubble_0.png",
+  "size": [
+   55,
+   41
+  ],
+  "foot": [
+   10.0,
+   42.0
+  ],
+  "normal": "res://assets/environment/rocks/rubble_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/rubble_0.shadow.png",
+   "foot": [
+    9.0,
+    29.0
+   ]
+  }
+ },
+ "rock.rubble.1": {
+  "file": "res://assets/environment/rocks/rubble_1.png",
+  "size": [
+   75,
+   43
+  ],
+  "foot": [
+   31.0,
+   44.0
+  ],
+  "normal": "res://assets/environment/rocks/rubble_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/rubble_1.shadow.png",
+   "foot": [
+    29.0,
+    29.0
+   ]
+  }
+ },
+ "rock.small.0": {
+  "file": "res://assets/environment/rocks/small_0.png",
+  "size": [
+   38,
+   28
+  ],
+  "foot": [
+   18.0,
+   25.0
+  ],
+  "normal": "res://assets/environment/rocks/small_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/small_0.shadow.png",
+   "foot": [
+    15.0,
+    6.0
+   ]
+  }
+ },
+ "rock.small.1": {
+  "file": "res://assets/environment/rocks/small_1.png",
+  "size": [
+   44,
+   35
+  ],
+  "foot": [
+   23.0,
+   32.0
+  ],
+  "normal": "res://assets/environment/rocks/small_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/small_1.shadow.png",
+   "foot": [
+    19.0,
+    6.0
+   ]
+  }
+ },
+ "rock.small.2": {
+  "file": "res://assets/environment/rocks/small_2.png",
+  "size": [
+   52,
+   40
+  ],
+  "foot": [
+   26.0,
+   37.0
+  ],
+  "normal": "res://assets/environment/rocks/small_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/rocks/small_2.shadow.png",
+   "foot": [
+    22.0,
+    6.0
+   ]
+  }
+ },
+ "scrap.0": {
+  "file": "res://assets/environment/resources/scrap_0.png",
+  "size": [
+   119,
+   71
+  ],
+  "foot": [
+   61.0,
+   57.0
+  ],
+  "normal": "res://assets/environment/resources/scrap_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/scrap_0.shadow.png",
+   "foot": [
+    63.0,
+    41.0
+   ]
+  },
+  "block": 1
+ },
+ "scrap.1": {
+  "file": "res://assets/environment/resources/scrap_1.png",
+  "size": [
+   109,
+   90
+  ],
+  "foot": [
+   54.0,
+   77.0
+  ],
+  "normal": "res://assets/environment/resources/scrap_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/scrap_1.shadow.png",
+   "foot": [
+    56.0,
+    41.0
+   ]
+  },
+  "block": 1
+ },
+ "scrap.2": {
+  "file": "res://assets/environment/resources/scrap_2.png",
+  "size": [
+   115,
+   65
+  ],
+  "foot": [
+   59.0,
+   51.0
+  ],
+  "normal": "res://assets/environment/resources/scrap_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/resources/scrap_2.shadow.png",
+   "foot": [
+    59.0,
+    27.0
+   ]
+  },
+  "block": 1
+ },
+ "snow.drift.0": {
+  "file": "res://assets/environment/snow/drift_0.png",
+  "size": [
+   147,
+   79
+  ],
+  "foot": [
+   77.0,
+   71.0
+  ],
+  "normal": "res://assets/environment/snow/drift_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/snow/drift_0.shadow.png",
+   "foot": [
+    59.0,
+    21.0
+   ]
+  },
+  "block": 1
+ },
+ "snow.drift.1": {
+  "file": "res://assets/environment/snow/drift_1.png",
+  "size": [
+   145,
+   82
+  ],
+  "foot": [
+   72.0,
+   75.0
+  ],
+  "normal": "res://assets/environment/snow/drift_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/snow/drift_1.shadow.png",
+   "foot": [
+    57.0,
+    21.0
+   ]
+  },
+  "block": 1
+ },
+ "snow.drift.2": {
+  "file": "res://assets/environment/snow/drift_2.png",
+  "size": [
+   150,
+   89
+  ],
+  "foot": [
+   74.0,
+   81.0
+  ],
+  "normal": "res://assets/environment/snow/drift_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/snow/drift_2.shadow.png",
+   "foot": [
+    58.0,
+    22.0
+   ]
+  },
+  "block": 1
+ },
+ "snow.hill.0": {
+  "file": "res://assets/environment/snow/hill_0.png",
+  "size": [
+   260,
+   98
+  ],
+  "foot": [
+   122.5,
+   69.0
+  ],
+  "normal": "res://assets/environment/snow/hill_0.n.png"
+ },
+ "snow.hill.1": {
+  "file": "res://assets/environment/snow/hill_1.png",
+  "size": [
+   238,
+   94
+  ],
+  "foot": [
+   111.5,
+   69.0
+  ],
+  "normal": "res://assets/environment/snow/hill_1.n.png"
+ },
+ "snow.hill.2": {
+  "file": "res://assets/environment/snow/hill_2.png",
+  "size": [
+   212,
+   113
+  ],
+  "foot": [
+   108.5,
+   83.0
+  ],
+  "normal": "res://assets/environment/snow/hill_2.n.png"
+ },
+ "snow.sparkle": {
+  "file": "res://assets/environment/snow/sparkle.png",
+  "size": [
+   16,
+   16
+  ],
+  "foot": [
+   8.0,
+   8.0
+  ]
+ },
+ "track.deer.0": {
+  "file": "res://assets/environment/ground/track_deer_0.png",
+  "size": [
+   180,
+   32
+  ],
+  "foot": [
+   90.0,
+   13.0
+  ],
+  "normal": "res://assets/environment/ground/track_deer_0.n.png"
+ },
+ "track.rabbit.0": {
+  "file": "res://assets/environment/ground/track_rabbit_0.png",
+  "size": [
+   192,
+   36
+  ],
+  "foot": [
+   100.0,
+   18.0
+  ],
+  "normal": "res://assets/environment/ground/track_rabbit_0.n.png"
+ },
+ "track.rabbit.1": {
+  "file": "res://assets/environment/ground/track_rabbit_1.png",
+  "size": [
+   162,
+   30
+  ],
+  "foot": [
+   85.0,
+   12.0
+  ],
+  "normal": "res://assets/environment/ground/track_rabbit_1.n.png"
+ },
+ "track.wolf.0": {
+  "file": "res://assets/environment/ground/track_wolf_0.png",
+  "size": [
+   183,
+   39
+  ],
+  "foot": [
+   90.0,
+   20.0
+  ],
+  "normal": "res://assets/environment/ground/track_wolf_0.n.png"
+ },
+ "tree.dead.0": {
+  "file": "res://assets/environment/trees/dead_0.png",
+  "size": [
+   148,
+   183
+  ],
+  "foot": [
+   60.0,
+   175.0
+  ],
+  "normal": "res://assets/environment/trees/dead_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/dead_0.shadow.png",
+   "foot": [
+    14.0,
+    6.0
+   ]
+  }
+ },
+ "tree.dead.1": {
+  "file": "res://assets/environment/trees/dead_1.png",
+  "size": [
+   180,
+   218
+  ],
+  "foot": [
+   85.0,
+   210.0
+  ],
+  "normal": "res://assets/environment/trees/dead_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/dead_1.shadow.png",
+   "foot": [
+    15.0,
+    6.0
+   ]
+  }
+ },
+ "tree.dead.2": {
+  "file": "res://assets/environment/trees/dead_2.png",
+  "size": [
+   190,
+   242
+  ],
+  "foot": [
+   95.0,
+   234.0
+  ],
+  "normal": "res://assets/environment/trees/dead_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/dead_2.shadow.png",
+   "foot": [
+    16.0,
+    6.0
+   ]
+  }
+ },
+ "tree.fallen.0": {
+  "file": "res://assets/environment/trees/fallen_0.png",
+  "size": [
+   228,
+   65
+  ],
+  "foot": [
+   114.0,
+   50.0
+  ],
+  "normal": "res://assets/environment/trees/fallen_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/fallen_0.shadow.png",
+   "foot": [
+    112.0,
+    31.0
+   ]
+  }
+ },
+ "tree.fallen.1": {
+  "file": "res://assets/environment/trees/fallen_1.png",
+  "size": [
+   226,
+   77
+  ],
+  "foot": [
+   113.0,
+   60.0
+  ],
+  "normal": "res://assets/environment/trees/fallen_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/fallen_1.shadow.png",
+   "foot": [
+    111.0,
+    46.0
+   ]
+  }
+ },
+ "tree.pine.0": {
+  "file": "res://assets/environment/trees/pine_0.png",
+  "size": [
+   98,
+   156
+  ],
+  "foot": [
+   50.0,
+   153.0
+  ],
+  "normal": "res://assets/environment/trees/pine_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/pine_0.shadow.png",
+   "foot": [
+    40.0,
+    27.0
+   ]
+  },
+  "block": 1
+ },
+ "tree.pine.1": {
+  "file": "res://assets/environment/trees/pine_1.png",
+  "size": [
+   109,
+   170
+  ],
+  "foot": [
+   54.0,
+   167.0
+  ],
+  "normal": "res://assets/environment/trees/pine_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/pine_1.shadow.png",
+   "foot": [
+    44.0,
+    22.0
+   ]
+  },
+  "block": 1
+ },
+ "tree.pine.2": {
+  "file": "res://assets/environment/trees/pine_2.png",
+  "size": [
+   150,
+   206
+  ],
+  "foot": [
+   74.0,
+   203.0
+  ],
+  "normal": "res://assets/environment/trees/pine_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/pine_2.shadow.png",
+   "foot": [
+    58.0,
+    37.0
+   ]
+  },
+  "block": 1
+ },
+ "tree.pine.3": {
+  "file": "res://assets/environment/trees/pine_3.png",
+  "size": [
+   136,
+   217
+  ],
+  "foot": [
+   68.0,
+   214.0
+  ],
+  "normal": "res://assets/environment/trees/pine_3.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/pine_3.shadow.png",
+   "foot": [
+    55.0,
+    33.0
+   ]
+  },
+  "block": 1
+ },
+ "tree.pine.4": {
+  "file": "res://assets/environment/trees/pine_4.png",
+  "size": [
+   173,
+   256
+  ],
+  "foot": [
+   83.0,
+   253.0
+  ],
+  "normal": "res://assets/environment/trees/pine_4.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/pine_4.shadow.png",
+   "foot": [
+    62.0,
+    45.0
+   ]
+  },
+  "block": 1
+ },
+ "tree.pine.5": {
+  "file": "res://assets/environment/trees/pine_5.png",
+  "size": [
+   173,
+   267
+  ],
+  "foot": [
+   86.0,
+   264.0
+  ],
+  "normal": "res://assets/environment/trees/pine_5.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/pine_5.shadow.png",
+   "foot": [
+    67.0,
+    38.0
+   ]
+  },
+  "block": 1
+ },
+ "tree.stump.0": {
+  "file": "res://assets/environment/trees/stump_0.png",
+  "size": [
+   56,
+   40
+  ],
+  "foot": [
+   26.0,
+   37.0
+  ],
+  "normal": "res://assets/environment/trees/stump_0.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/stump_0.shadow.png",
+   "foot": [
+    26.0,
+    13.0
+   ]
+  },
+  "block": 1
+ },
+ "tree.stump.1": {
+  "file": "res://assets/environment/trees/stump_1.png",
+  "size": [
+   64,
+   45
+  ],
+  "foot": [
+   30.0,
+   41.0
+  ],
+  "normal": "res://assets/environment/trees/stump_1.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/stump_1.shadow.png",
+   "foot": [
+    29.0,
+    14.0
+   ]
+  },
+  "block": 1
+ },
+ "tree.stump.2": {
+  "file": "res://assets/environment/trees/stump_2.png",
+  "size": [
+   72,
+   50
+  ],
+  "foot": [
+   34.0,
+   45.0
+  ],
+  "normal": "res://assets/environment/trees/stump_2.n.png",
+  "shadow": {
+   "file": "res://assets/environment/trees/stump_2.shadow.png",
+   "foot": [
+    33.0,
+    14.0
+   ]
+  },
+  "block": 1
+ }
+}
