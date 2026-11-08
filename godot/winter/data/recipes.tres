@@ -1,0 +1,124 @@
+[gd_resource type="Resource" script_class="WinterCatalog" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/defs/catalog.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/defs/recipe_def.gd" id="2"]
+
+[sub_resource type="Resource" id="WinterRecipeDef_0"]
+script = ExtResource("2")
+id = "axe"
+kind = "tool"
+cost = {}
+name = "Каменный топор"
+desc = "Рубить деревья"
+needs = ""
+
+[sub_resource type="Resource" id="WinterRecipeDef_1"]
+script = ExtResource("2")
+id = "ironAxe"
+kind = "tool"
+cost = {
+"stone": 10,
+"metal": 4
+}
+name = "Железный топор"
+desc = "Рубит в полтора раза быстрее"
+needs = ""
+
+[sub_resource type="Resource" id="WinterRecipeDef_2"]
+script = ExtResource("2")
+id = "pick"
+kind = "tool"
+cost = {
+"wood": 12
+}
+name = "Кирка"
+desc = "Добывать камень"
+needs = ""
+
+[sub_resource type="Resource" id="WinterRecipeDef_3"]
+script = ExtResource("2")
+id = "shovel"
+kind = "tool"
+cost = {
+"wood": 12
+}
+name = "Лопата"
+desc = "Копать сугробы"
+needs = ""
+
+[sub_resource type="Resource" id="WinterRecipeDef_4"]
+script = ExtResource("2")
+id = "icePick"
+kind = "tool"
+cost = {
+"metal": 6
+}
+name = "Ледоруб"
+desc = "Ходить по льду озера"
+needs = ""
+
+[sub_resource type="Resource" id="WinterRecipeDef_5"]
+script = ExtResource("2")
+id = "spear"
+kind = "tool"
+cost = {
+"wood": 8,
+"stone": 4
+}
+name = "Копьё"
+desc = "Охота на оленей, вдвое сильнее против волков"
+needs = ""
+
+[sub_resource type="Resource" id="WinterRecipeDef_6"]
+script = ExtResource("2")
+id = "coat"
+kind = "gear"
+cost = {
+"hide": 6
+}
+name = "Шуба"
+desc = "Мороз пробирает слабее"
+needs = "workshop"
+core_name = "шуба"
+
+[sub_resource type="Resource" id="WinterRecipeDef_7"]
+script = ExtResource("2")
+id = "lantern"
+kind = "gear"
+cost = {
+"metal": 4,
+"wood": 2
+}
+name = "Фонарь"
+desc = "Ночью волки шарахаются от света"
+needs = "workshop"
+core_name = "фонарь"
+
+[sub_resource type="Resource" id="WinterRecipeDef_8"]
+script = ExtResource("2")
+id = "sled"
+kind = "gear"
+cost = {
+"wood": 20,
+"metal": 2
+}
+name = "Сани"
+desc = "Уносишь из леса вдвое больше"
+needs = "workshop"
+core_name = "сани"
+
+[sub_resource type="Resource" id="WinterRecipeDef_9"]
+script = ExtResource("2")
+id = "snares"
+kind = "gear"
+cost = {
+"wood": 6
+}
+name = "Силки"
+desc = "По два за раз, ставь в лесу: утром в них зайцы"
+needs = "workshop"
+core_name = "силки"
+
+[resource]
+script = ExtResource("1")
+entries = [SubResource("WinterRecipeDef_0"), SubResource("WinterRecipeDef_1"), SubResource("WinterRecipeDef_2"), SubResource("WinterRecipeDef_3"), SubResource("WinterRecipeDef_4"), SubResource("WinterRecipeDef_5"), SubResource("WinterRecipeDef_6"), SubResource("WinterRecipeDef_7"), SubResource("WinterRecipeDef_8"), SubResource("WinterRecipeDef_9")]

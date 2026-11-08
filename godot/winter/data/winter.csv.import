@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cifn62icob33a"
+
+[deps]
+
+files=["res://data/winter.ru.translation", "res://data/winter.ro.translation"]
+
+source_file="res://data/winter.csv"
+dest_files=["res://data/winter.ru.translation", "res://data/winter.ro.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
