@@ -16,6 +16,14 @@
   "branch",
   "ground.patch",
   "snow.drift",
+  "hut",
+  "palisade",
+  "bench",
+  "firepit",
+  "bunk",
+  "up",
+  "torch",
+  "stock",
   "char.hero",
   "char.trader",
   "char.wanderer",
@@ -530,17 +538,13 @@
   ],
   "block": 1,
   "painted": true,
-  "anchor": [
-   161,
-   3
+  "hole": [
+   206,
+   95
   ],
   "window": [
    197,
    177
-  ],
-  "hole": [
-   206,
-   95
   ]
  },
  "hut.4": {
@@ -579,6 +583,397 @@
    30
   ],
   "decal": true,
+  "painted": true
+ },
+ "palisade.h": {
+  "file": "res://assets/painted/buildings/palisade_h.png",
+  "size": [
+   127,
+   160
+  ],
+  "foot": [
+   63,
+   152
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.h.damaged": {
+  "file": "res://assets/painted/buildings/palisade_h_damaged.png",
+  "size": [
+   124,
+   162
+  ],
+  "foot": [
+   62,
+   154
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.h.broken": {
+  "file": "res://assets/painted/buildings/palisade_h_broken.png",
+  "size": [
+   125,
+   67
+  ],
+  "foot": [
+   62,
+   59
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.v": {
+  "file": "res://assets/painted/buildings/palisade_v.png",
+  "size": [
+   68,
+   206
+  ],
+  "foot": [
+   34,
+   198
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.v.damaged": {
+  "file": "res://assets/painted/buildings/palisade_v_damaged.png",
+  "size": [
+   86,
+   211
+  ],
+  "foot": [
+   43,
+   203
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.v.broken": {
+  "file": "res://assets/painted/buildings/palisade_v_broken.png",
+  "size": [
+   68,
+   107
+  ],
+  "foot": [
+   34,
+   99
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.post": {
+  "file": "res://assets/painted/buildings/palisade_post.png",
+  "size": [
+   75,
+   182
+  ],
+  "foot": [
+   37,
+   175
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.stake": {
+  "file": "res://assets/painted/buildings/palisade_stake.png",
+  "size": [
+   65,
+   158
+  ],
+  "foot": [
+   32,
+   152
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.gate": {
+  "file": "res://assets/painted/buildings/palisade_gate.png",
+  "size": [
+   202,
+   144
+  ],
+  "foot": [
+   101,
+   132
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "torch": {
+  "file": "res://assets/painted/buildings/torch.png",
+  "size": [
+   117,
+   159
+  ],
+  "foot": [
+   39,
+   149
+  ],
+  "anchor": [
+   86,
+   74
+  ],
+  "lantern": true,
+  "block": 0,
+  "painted": true
+ },
+ "firepit": {
+  "file": "res://assets/painted/buildings/firepit.png",
+  "size": [
+   139,
+   83
+  ],
+  "foot": [
+   69,
+   51
+  ],
+  "anchor": [
+   69,
+   41
+  ],
+  "painted": true
+ },
+ "firepit.ash": {
+  "file": "res://assets/painted/buildings/firepit_ash.png",
+  "size": [
+   139,
+   83
+  ],
+  "foot": [
+   69,
+   51
+  ],
+  "anchor": [
+   69,
+   41
+  ],
+  "painted": true
+ },
+ "bench": {
+  "file": "res://assets/painted/buildings/bench.png",
+  "size": [
+   122,
+   65
+  ],
+  "foot": [
+   61,
+   59
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "stock.wood": {
+  "file": "res://assets/painted/buildings/stock_wood.png",
+  "size": [
+   113,
+   102
+  ],
+  "foot": [
+   56,
+   92
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "stock.stone": {
+  "file": "res://assets/painted/buildings/stock_stone.png",
+  "size": [
+   174,
+   132
+  ],
+  "foot": [
+   87,
+   122
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "bunk": {
+  "file": "res://assets/painted/buildings/bunk.png",
+  "size": [
+   88,
+   80
+  ],
+  "foot": [
+   44,
+   72
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bunk.frame": {
+  "file": "res://assets/painted/buildings/bunk_frame.png",
+  "size": [
+   88,
+   80
+  ],
+  "foot": [
+   44,
+   72
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "hut.2": {
+  "file": "res://assets/painted/buildings/cabin_2.png",
+  "size": [
+   259,
+   256
+  ],
+  "foot": [
+   130,
+   240
+  ],
+  "block": 1,
+  "painted": true,
+  "hole": [
+   206,
+   95
+  ]
+ },
+ "hut.1": {
+  "file": "res://assets/painted/buildings/cabin_1.png",
+  "size": [
+   258,
+   141
+  ],
+  "foot": [
+   130,
+   125
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "hut.0": {
+  "file": "res://assets/painted/buildings/cabin_0.png",
+  "size": [
+   281,
+   126
+  ],
+  "foot": [
+   130,
+   110
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "hut.scaffold": {
+  "file": "res://assets/painted/buildings/scaffold.png",
+  "size": [
+   341,
+   168
+  ],
+  "foot": [
+   170,
+   160
+  ],
+  "painted": true
+ },
+ "up.cellar": {
+  "file": "res://assets/painted/buildings/up_cellar.png",
+  "size": [
+   132,
+   73
+  ],
+  "foot": [
+   53,
+   65
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.cellar.frame": {
+  "file": "res://assets/painted/buildings/up_cellar_frame.png",
+  "size": [
+   132,
+   73
+  ],
+  "foot": [
+   53,
+   65
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.smokehouse": {
+  "file": "res://assets/painted/buildings/up_smokehouse.png",
+  "size": [
+   127,
+   124
+  ],
+  "foot": [
+   64,
+   116
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.smokehouse.frame": {
+  "file": "res://assets/painted/buildings/up_smokehouse_frame.png",
+  "size": [
+   127,
+   124
+  ],
+  "foot": [
+   64,
+   116
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.annex": {
+  "file": "res://assets/painted/buildings/up_annex.png",
+  "size": [
+   189,
+   185
+  ],
+  "foot": [
+   92,
+   173
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.annex.frame": {
+  "file": "res://assets/painted/buildings/up_annex_frame.png",
+  "size": [
+   189,
+   185
+  ],
+  "foot": [
+   92,
+   173
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.workshop": {
+  "file": "res://assets/painted/buildings/up_workshop.png",
+  "size": [
+   163,
+   160
+  ],
+  "foot": [
+   80,
+   150
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.workshop.frame": {
+  "file": "res://assets/painted/buildings/up_workshop_frame.png",
+  "size": [
+   163,
+   160
+  ],
+  "foot": [
+   80,
+   150
+  ],
+  "block": 1,
   "painted": true
  },
  "char.hero": {

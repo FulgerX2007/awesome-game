@@ -18,6 +18,10 @@ Every asset of the game is listed here with its source, author and license. No w
   and the wolf, and two pictures of the bear: standing and in its fighting stance). Cut, cleaned (the bush and the rock removed from the
   hero's frames, neighbours removed from each item's box) and scaled by `tools/winter-godot/import_art.py`.
 - License: the project owner's; used with their permission as part of the project.
+- The camp's buildings (every hut stage, the palisade, the gate, posts, the torch, the fire pit, the bench, bunks,
+  stock piles, the house upgrades) are composed by `tools/winter-godot/compose_buildings.py` from these same painted
+  pieces (the cabin, fence posts, the signpost's plank, the pond's stone ring, the lantern post, logs, stones, a
+  drift). The trader's sled and the snare stay generated.
 - Regenerate: `python3 tools/winter-godot/import_art.py`.
 
 ## Characters and animals

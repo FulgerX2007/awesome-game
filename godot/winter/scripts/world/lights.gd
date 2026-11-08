@@ -115,7 +115,7 @@ func update(g: Dictionary, hero: Node2D, delta: float) -> void:
 			break
 		var l := torches[n]
 		l.visible = true
-		l.position = Vector2((t.x + 0.5) * TILE, (t.y + 0.7) * TILE - 80.0)
+		l.position = WinterCamp.torch_light(t)
 		l.energy = float(l.get_meta("energy")) * k * (0.9 + 0.1 * _noise.get_noise_1d(_t * 8.0 + n * 13.0))
 		n += 1
 	for i in range(n, torches.size()):

@@ -77,7 +77,8 @@ ENV = {
 # Generated groups the painted art replaces entirely (their generated variants would clash in style).
 REPLACE = ["tree.pine", "tree.dead", "tree.fallen", "tree.stump", "log", "rock", "rock.small", "rock.group",
            "rock.rubble", "ice.formation", "bush.berry", "bush.bare", "bush.snow", "branch", "ground.patch",
-           "snow.drift", "char.hero", "char.trader", "char.wanderer", "animal.rabbit", "animal.deer", "animal.wolf", "animal.bear"]
+           "snow.drift", "hut", "palisade", "bench", "firepit", "bunk", "up", "torch", "stock",
+           "char.hero", "char.trader", "char.wanderer", "animal.rabbit", "animal.deer", "animal.wolf", "animal.bear"]
 SPENT_BUSH = ["bush.bare.0"]     # a picked bush: the bare one
 
 
@@ -287,6 +288,29 @@ CABIN_WINDOW = (231, 232)      # the lit window (the stove's glow comes from the
 CABIN_HOLE = (240, 150)        # where a blizzard tears the roof
 
 
+def unlit(img: Image.Image) -> Image.Image:
+    """The cabin with its window and lantern out: the warm glowing pixels (and a little around them) turn to
+    dark glass."""
+    a = np.asarray(img).astype(np.float32)
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    warm = (al > 200) & (r > 200) & (g > 150) & (b < 140) & (r - b > 90)
+    # the window and the lantern are patches of glow; a lone warm pixel is a highlight on metal or wood
+    keep = np.zeros_like(warm)
+    for n, ys, xs in components(warm):
+        if n >= 12:
+            keep[ys, xs] = True
+    warm = keep
+    glow = warm.copy()
+    for d in range(1, 4):
+        glow[d:, :] |= warm[:-d, :]
+        glow[:-d, :] |= warm[d:, :]
+        glow[:, d:] |= warm[:, :-d]
+        glow[:, :-d] |= warm[:, d:]
+    dark = a.copy()
+    dark[glow, :3] = dark[glow, :3] * 0.25 + np.array([38, 48, 70], np.float32) * 0.75
+    return Image.fromarray(np.clip(dark, 0, 255).astype(np.uint8), "RGBA")
+
+
 def cabin(manifest: dict) -> None:
     src = Image.open(SRC / "cabin.webp").convert("RGBA")
     a = np.asarray(src).astype(np.float32)
@@ -311,7 +335,8 @@ def cabin(manifest: dict) -> None:
         at = lambda p: [p[0] - ox, p[1] - oy]
         manifest[f"hut.{stage}"] = {"file": RES + "buildings/" + name, "size": [img.width, img.height],
                                     "foot": [round(fx), round(fy)], "block": 1, "painted": True,
-                                    "anchor": at(CABIN_CHIMNEY), "window": at(CABIN_WINDOW), "hole": at(CABIN_HOLE)}
+                                    "anchor": at(CABIN_CHIMNEY), "window": at(CABIN_WINDOW), "hole": at(CABIN_HOLE),
+                                    "_ox": ox, "_oy": oy}
     # the blizzard's hole as a decal of its own (cut from the generated overlay), laid where the hut says
     hole_src = ROOT / "godot/winter/assets/buildings/hut/roofhole.png"
     if hole_src.exists():
@@ -540,6 +565,8 @@ def main() -> None:
     manifest = {"_replace": REPLACE}
     env(manifest)
     cabin(manifest)
+    import compose_buildings
+    compose_buildings.build(manifest, OUT / "environment", SRC / "cabin.webp", OUT / "buildings", RES + "buildings/")
     hero(manifest)
     survivors(manifest)
     strangers(manifest)

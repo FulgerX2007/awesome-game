@@ -259,6 +259,8 @@ func _sync_torches(g: Dictionary) -> void:
 		var f: Sprite2D = fl.sprite
 		var anchor = WinterArt.entry("torch").get("anchor", null)
 		f.position = (Vector2(anchor[0], anchor[1]) - WinterArt.foot("torch")) if anchor is Array else Vector2(0, -WinterArt.size("torch").y * 0.86)
+		# a lantern post glows with its own painted lantern: no flame on top of it
+		f.visible = not WinterArt.entry("torch").get("lantern", false)
 		pole.add_child(f)
 		torches[k] = {"pole": pole, "flame": f, "frames": fl.frames, "fps": fl.fps, "phase": randf() * 3.0}
 	for k in torches.keys():
@@ -339,3 +341,10 @@ func hut_point(name: String, fallback: Vector2) -> Vector2:
 ## The same point in the world.
 func hut_world(name: String, fallback: Vector2) -> Vector2:
 	return hut.position + hut_point(name, fallback - hut.position) if hut else fallback
+
+
+## Where a torch's light shines from: its lantern (or flame), in the world.
+static func torch_light(t: Dictionary) -> Vector2:
+	var base := Vector2(float(t.x) + 0.5, float(t.y) + 0.7) * TILE
+	var a = WinterArt.entry("torch").get("anchor", null)
+	return base + ((Vector2(a[0], a[1]) - WinterArt.foot("torch")) if a is Array else Vector2(0, -80))
