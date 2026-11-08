@@ -9,6 +9,15 @@ Every asset of the game is listed here with its source, author and license. No w
 - Author: the Awesome Game project. License: the same as the project's code.
 - Regenerate: `python3 tools/winter-godot/art/build_all.py` (deterministic, about 3 minutes).
 
+## Painted art (the hero and the forest)
+- Folder: `assets/painted/`; manifest `assets/manifest/override_painted.json` (it replaces the generated hero, trees,
+  rocks, bushes, branches, drifts and ice; the generated buildings, effects, survivors and animals stay).
+- Source: images supplied by the project owner (`tools/winter-godot/source/`: an environment sheet and four GIFs of
+  the hero walking, chopping, picking berries and mining). Cut, cleaned (the bush and the rock removed from the
+  hero's frames, neighbours removed from each item's box) and scaled by `tools/winter-godot/import_art.py`.
+- License: the project owner's; used with their permission as part of the project.
+- Regenerate: `python3 tools/winter-godot/import_art.py`.
+
 ## Characters and animals
 - Folder: `assets/characters/`; manifest `assets/manifest/characters.json`.
 - Source: generated in-house by code, `tools/winter-godot/art/characters/` (a 2.5D puppet renderer on numpy + Pillow:

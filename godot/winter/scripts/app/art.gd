@@ -17,12 +17,20 @@ static var _counts := {}    # prefix -> number of variants
 static func manifest() -> Dictionary:
 	if not _loaded:
 		_loaded = true
-		for f in DirAccess.get_files_at(DIR):
-			if not f.ends_with(".json"):
-				continue
+		# the generated groups first, then override_* fragments (painted art) on top; an override's "_replace"
+		# lists groups whose generated keys go first, so no generated variant is left mixed in
+		var files := Array(DirAccess.get_files_at(DIR)).filter(func(f): return String(f).ends_with(".json"))
+		files.sort_custom(func(x, y): return (int(String(x).begins_with("override_")) * 1000 - int(String(y).begins_with("override_")) * 1000) + (-1 if String(x) < String(y) else 1) < 0)
+		for f in files:
 			var d = JSON.parse_string(FileAccess.get_file_as_string(DIR + "/" + f))
-			if d is Dictionary:
-				_m.merge(d, true)
+			if not d is Dictionary:
+				continue
+			for prefix in d.get("_replace", []):
+				for k in _m.keys():
+					if k == prefix or String(k).begins_with(String(prefix) + "."):
+						_m.erase(k)
+			d.erase("_replace")
+			_m.merge(d, true)
 	return _m
 
 

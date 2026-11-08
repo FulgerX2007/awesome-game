@@ -1,0 +1,591 @@
+{
+ "_replace": [
+  "tree.pine",
+  "tree.dead",
+  "tree.fallen",
+  "tree.stump",
+  "log",
+  "rock",
+  "rock.small",
+  "rock.group",
+  "rock.rubble",
+  "ice.formation",
+  "bush.berry",
+  "bush.bare",
+  "bush.snow",
+  "branch",
+  "ground.patch",
+  "snow.drift",
+  "char.hero"
+ ],
+ "tree.pine.0": {
+  "file": "res://assets/painted/environment/tree_pine_0.png",
+  "size": [
+   52,
+   105
+  ],
+  "foot": [
+   30,
+   94
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.pine.1": {
+  "file": "res://assets/painted/environment/tree_pine_1.png",
+  "size": [
+   119,
+   225
+  ],
+  "foot": [
+   56,
+   195
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.pine.2": {
+  "file": "res://assets/painted/environment/tree_pine_2.png",
+  "size": [
+   143,
+   202
+  ],
+  "foot": [
+   76,
+   183
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.pine.3": {
+  "file": "res://assets/painted/environment/tree_pine_3.png",
+  "size": [
+   147,
+   231
+  ],
+  "foot": [
+   84,
+   212
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.pine.4": {
+  "file": "res://assets/painted/environment/tree_pine_4.png",
+  "size": [
+   187,
+   243
+  ],
+  "foot": [
+   111,
+   225
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.dead.0": {
+  "file": "res://assets/painted/environment/tree_dead_0.png",
+  "size": [
+   174,
+   222
+  ],
+  "foot": [
+   91,
+   203
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.dead.1": {
+  "file": "res://assets/painted/environment/tree_dead_1.png",
+  "size": [
+   104,
+   177
+  ],
+  "foot": [
+   48,
+   161
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.fallen.0": {
+  "file": "res://assets/painted/environment/tree_fallen_0.png",
+  "size": [
+   188,
+   117
+  ],
+  "foot": [
+   76,
+   105
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.stump.0": {
+  "file": "res://assets/painted/environment/tree_stump_0.png",
+  "size": [
+   132,
+   101
+  ],
+  "foot": [
+   63,
+   89
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "log.0": {
+  "file": "res://assets/painted/environment/log_0.png",
+  "size": [
+   113,
+   102
+  ],
+  "foot": [
+   58,
+   90
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "rock.small.0": {
+  "file": "res://assets/painted/environment/rock_small_0.png",
+  "size": [
+   79,
+   63
+  ],
+  "foot": [
+   36,
+   54
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.0": {
+  "file": "res://assets/painted/environment/rock_0.png",
+  "size": [
+   108,
+   88
+  ],
+  "foot": [
+   46,
+   77
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.1": {
+  "file": "res://assets/painted/environment/rock_1.png",
+  "size": [
+   138,
+   113
+  ],
+  "foot": [
+   74,
+   101
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.2": {
+  "file": "res://assets/painted/environment/rock_2.png",
+  "size": [
+   169,
+   137
+  ],
+  "foot": [
+   86,
+   123
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.group.0": {
+  "file": "res://assets/painted/environment/rock_group_0.png",
+  "size": [
+   223,
+   177
+  ],
+  "foot": [
+   122,
+   161
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.group.1": {
+  "file": "res://assets/painted/environment/rock_group_1.png",
+  "size": [
+   204,
+   149
+  ],
+  "foot": [
+   99,
+   135
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "ice.formation.0": {
+  "file": "res://assets/painted/environment/ice_formation_0.png",
+  "size": [
+   189,
+   146
+  ],
+  "foot": [
+   96,
+   132
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "ice.formation.1": {
+  "file": "res://assets/painted/environment/ice_formation_1.png",
+  "size": [
+   223,
+   141
+  ],
+  "foot": [
+   132,
+   127
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.berry.2": {
+  "file": "res://assets/painted/environment/bush_berry_2.png",
+  "size": [
+   165,
+   146
+  ],
+  "foot": [
+   86,
+   132
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.berry.0": {
+  "file": "res://assets/painted/environment/bush_berry_0.png",
+  "size": [
+   174,
+   154
+  ],
+  "foot": [
+   96,
+   139
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.berry.1": {
+  "file": "res://assets/painted/environment/bush_berry_1.png",
+  "size": [
+   171,
+   148
+  ],
+  "foot": [
+   89,
+   131
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.snow.0": {
+  "file": "res://assets/painted/environment/bush_snow_0.png",
+  "size": [
+   149,
+   124
+  ],
+  "foot": [
+   78,
+   110
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.bare.0": {
+  "file": "res://assets/painted/environment/bush_bare_0.png",
+  "size": [
+   166,
+   127
+  ],
+  "foot": [
+   96,
+   114
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "ground.patch.0": {
+  "file": "res://assets/painted/environment/ground_patch_0.png",
+  "size": [
+   116,
+   112
+  ],
+  "foot": [
+   56,
+   99
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "branch.2": {
+  "file": "res://assets/painted/environment/branch_2.png",
+  "size": [
+   122,
+   91
+  ],
+  "foot": [
+   65,
+   80
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "branch.0": {
+  "file": "res://assets/painted/environment/branch_0.png",
+  "size": [
+   108,
+   75
+  ],
+  "foot": [
+   45,
+   65
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "branch.1": {
+  "file": "res://assets/painted/environment/branch_1.png",
+  "size": [
+   107,
+   71
+  ],
+  "foot": [
+   49,
+   61
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "rock.small.1": {
+  "file": "res://assets/painted/environment/rock_small_1.png",
+  "size": [
+   147,
+   86
+  ],
+  "foot": [
+   69,
+   76
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "snow.drift.0": {
+  "file": "res://assets/painted/environment/snow_drift_0.png",
+  "size": [
+   154,
+   101
+  ],
+  "foot": [
+   96,
+   89
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "snow.drift.1": {
+  "file": "res://assets/painted/environment/snow_drift_1.png",
+  "size": [
+   213,
+   116
+  ],
+  "foot": [
+   84,
+   104
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "ice.formation.2": {
+  "file": "res://assets/painted/environment/ice_formation_2.png",
+  "size": [
+   126,
+   149
+  ],
+  "foot": [
+   62,
+   135
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.rubble.0": {
+  "file": "res://assets/painted/environment/rock_rubble_0.png",
+  "size": [
+   137,
+   132
+  ],
+  "foot": [
+   65,
+   119
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.pond": {
+  "file": "res://assets/painted/environment/decor_pond.png",
+  "size": [
+   224,
+   134
+  ],
+  "foot": [
+   110,
+   121
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "rock.rubble.1": {
+  "file": "res://assets/painted/environment/rock_rubble_1.png",
+  "size": [
+   174,
+   132
+  ],
+  "foot": [
+   74,
+   119
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.snowman": {
+  "file": "res://assets/painted/environment/decor_snowman.png",
+  "size": [
+   145,
+   178
+  ],
+  "foot": [
+   76,
+   162
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.signpost": {
+  "file": "res://assets/painted/environment/decor_signpost.png",
+  "size": [
+   100,
+   165
+  ],
+  "foot": [
+   48,
+   150
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.fence": {
+  "file": "res://assets/painted/environment/decor_fence.png",
+  "size": [
+   220,
+   157
+  ],
+  "foot": [
+   77,
+   142
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.lantern": {
+  "file": "res://assets/painted/environment/decor_lantern.png",
+  "size": [
+   143,
+   194
+  ],
+  "foot": [
+   67,
+   177
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "char.hero": {
+  "sheet": "res://assets/painted/characters/hero.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "chop_side": {
+    "row": 1,
+    "from": 0,
+    "count": 12,
+    "fps": 14,
+    "loop": true,
+    "impact": 8
+   },
+   "gather_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   },
+   "mine_side": {
+    "row": 3,
+    "from": 0,
+    "count": 16,
+    "fps": 14,
+    "loop": true,
+    "impact": 10
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "build_side": {
+    "row": 1,
+    "from": 0,
+    "count": 12,
+    "fps": 14,
+    "loop": true,
+    "impact": 8
+   },
+   "craft_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   },
+   "fire_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   }
+  },
+  "painted": true
+ }
+}

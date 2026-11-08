@@ -1,9 +1,10 @@
 extends SceneTree
 ## Frames of the real game as PNGs, for eyes (needs a display: xvfb-run works):
 ##   xvfb-run -a godot --path godot/winter -s res://tests/shot.gd --resolution 1600x900 -- <out dir> [scene …]
-## Scenes: menu, day, dusk, night, blizzard, build, bench, inventory, forest. Without names, all of them.
+## Scenes: menu, day, dusk, night, blizzard, build, bench, inventory, forest, chop, mine (the frame of the blow).
+## Without names, all of them.
 
-const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest"]
+const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest", "chop", "mine"]
 
 var main: Node
 var out := "user://shots"
@@ -79,6 +80,33 @@ func _run(names: Array) -> void:
 				await _frames(20)
 				await _shot(n)
 				main.panels.close()
+			"chop", "mine":
+				# the hero next to a tree (or a rock, with a pick), the frame right after a blow lands
+				var g := _game()
+				g.t = 45.0
+				g.tools.pick = true
+				var kind := "tree" if n == "chop" else "rock"
+				var node = null
+				for nd in g.nodes:
+					if nd.kind == kind and WinterSim.hyp(float(nd.x) - 27.0, float(nd.y) - 20.0) < 14.0:
+						node = nd
+						break
+				g.hero.x = float(node.x) - 0.5
+				g.hero.y = float(node.y) + 0.5
+				main.world.show_game(g)
+				main.tap(int(node.x), int(node.y))
+				var hits := 0
+				for k in 200:
+					WinterSim.step(g, 1.0 / 60.0)
+					var ev := WinterSim.drain(g)
+					main.handle(ev)
+					await process_frame
+					if ev.any(func(e): return e.type == "gather"):
+						hits += 1
+						if hits == 2:
+							break
+				await _frames(1)
+				await _shot(n)
 			"forest":
 				var g := _game()
 				g.t = 50.0

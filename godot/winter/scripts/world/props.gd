@@ -115,6 +115,9 @@ func _ring(W: int, H: int) -> void:
 				key = pick("tree.fallen", x, y, seed)
 			elif r < 96:
 				key = pick("bush.snow", x, y, seed)
+			elif r < 98 and WinterArt.has("decor.snowman"):
+				# a few signs of people at the forest's edge: a snowman, a signpost, a fence, a lamp, a frozen pond
+				key = ["decor.snowman", "decor.signpost", "decor.fence", "decor.lantern", "decor.pond"][hash2(x, y, seed + 13) % 5]
 			if key != "":
 				_place(objects, key, x, y, off, true)
 

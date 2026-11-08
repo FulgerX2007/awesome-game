@@ -189,28 +189,39 @@ func _die(id: String, v: Dictionary) -> void:
 		views.erase(id))
 
 
+## Seconds between blows on a node, as the rules count them (D.NODE.hitCd): the swing is kept in step
+## with that timer, so the frame where the axe or the pick lands is the moment the rules take the wood or stone
+## (and the chips, the sound and the shudder of the tree come from that same event).
+static func blow_period(kind: String) -> float:
+	return float(WinterSim.D.NODE.hitCd[kind])
+
+
 func _hero(g: Dictionary, delta: float) -> void:
 	var h: Dictionary = g.hero
 	var v = views.get("hero")
 	if v == null:
 		v = _make("hero", "char.hero", "hero")
+		v.finish = ""
 	var speed := _ease(v, float(h.x), float(h.y), delta)
 	var a := "idle"
 	var tg = h.target
+	var period := 0.0
 	hero_action_t = maxf(0.0, hero_action_t - delta)
 	hero_hurt = maxf(0.0, hero_hurt - delta)
+	var walking: bool = speed > 0.3 or h.path != null or h.dir != null
 	if g.status == "lost":
 		a = "death"
 	elif h.sleeping:
 		a = "sleep"
 		v.dir = "down"
-	elif speed > 0.3 or h.path != null or h.dir != null:
+	elif walking:
 		a = "walk"
 	elif tg != null:
 		match String(tg.type):
 			"node":
 				var n: Dictionary = g.nodes[int(tg.id)]
 				a = {"tree": "chop", "rock": "mine", "bush": "gather", "scrap": "gather"}[n.kind]
+				period = blow_period(n.kind)
 				_face_to(v, float(n.x) + 0.5, float(n.y) + 0.5, float(h.x), float(h.y))
 			"hole":
 				a = "gather"
@@ -220,14 +231,50 @@ func _hero(g: Dictionary, delta: float) -> void:
 				_face_to(v, WinterSim.SPOT.fire.x + 0.5, WinterSim.SPOT.fire.y + 0.5, float(h.x), float(h.y))
 			"animal", "wolf", "bear":
 				a = "chop"
+				period = 0.8
+	elif _warming(g):
+		# standing by a burning fire while cold: warming up (the rules do the warming; this is the look)
+		a = "warm"
+		_face_to(v, WinterSim.SPOT.fire.x + 0.5, WinterSim.SPOT.fire.y + 0.5, float(h.x), float(h.y))
 	if hero_action_t > 0.0 and a == "idle":
 		a = hero_action
-	if hero_hurt > 0.0 and a in ["idle", "walk"]:
-		a = "hurt"
-	v.spr.play(a, v.dir)
-	v.spr.speed = 1.0 if a != "walk" else clampf(speed / 3.0, 0.6, 1.4)
+	var spr: WinterAnimSprite = v.spr
+	# a swing that was cut short by the end of the work plays out to its last frame, then idle
+	if a == "idle" and v.finish != "" and not walking:
+		if spr.anim.begins_with(v.finish) and not spr.done:
+			a = v.finish
+		else:
+			v.finish = ""
+	if period > 0.0:
+		spr.play(a, v.dir)
+		if spr.clip_impact() >= 0:
+			spr.show_progress(clampf((period - float(h.cd)) / period, 0.0, 0.999))
+			v.finish = a
+	else:
+		if v.finish != "" and a == v.finish:
+			# let the clock run the rest of the swing, without looping back
+			spr.driven = false
+			if spr.frame_index() >= spr.clip_count() - 1:
+				spr.done = true
+		else:
+			spr.play(a, v.dir)
+	spr.speed = 1.0 if a != "walk" else clampf(speed / 3.0, 0.6, 1.4)
+	# hurt and death: a red flash and a fall when the sheet has no frames for them
+	var red := clampf(hero_hurt / 0.35, 0.0, 1.0)
+	spr.modulate = Color(1.0, 1.0 - red * 0.55, 1.0 - red * 0.55)
+	var lying := a == "death" and not spr.has_anim("death_side")
+	spr.rotation = lerp_angle(spr.rotation, -PI * 0.5 if lying else 0.0, 1.0 - exp(-delta * 6.0))
 	v.shadow.visible = a != "sleep" or not WinterSim.in_hut(h)
 	v.node.visible = not (h.sleeping and WinterSim.in_hut(h))
+
+
+## The hero warms up at the fire: it burns, he is in its circle, standing still, not yet warm.
+func _warming(g: Dictionary) -> bool:
+	var h: Dictionary = g.hero
+	if not WinterSim.fire_on(g) or float(h.warmth) >= 95.0 or h.target != null or h.path != null or h.dir != null:
+		return false
+	var sp: Dictionary = WinterSim.SPOT
+	return WinterSim.hyp(float(h.x) - sp.fire.x - 0.5, float(h.y) - sp.fire.y - 0.5) <= float(WinterSim.D.FIRE.radius)
 
 
 func hero_node() -> Node2D:
