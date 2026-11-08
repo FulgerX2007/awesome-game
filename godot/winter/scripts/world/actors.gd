@@ -140,9 +140,12 @@ func sync(g: Dictionary, delta: float) -> void:
 		var speed := _ease(v, float(w.x), float(w.y), delta)
 		var near := hypot2(float(w.x) - float(g.hero.x), float(w.y) - float(g.hero.y)) < 1.3
 		var anim := "run" if speed > 0.3 else ("bite" if near and float(w.cd) > 1.0 else "idle")
-		if v.has("hurt_until") and Time.get_ticks_msec() < int(v.hurt_until):
+		var hurt: bool = v.has("hurt_until") and Time.get_ticks_msec() < int(v.hurt_until)
+		if hurt:
 			anim = "hurt"
 		v.spr.play(anim, v.dir)
+		_motion(v, speed > 0.3, anim == "bite", hurt, delta)
+		_eyes(v, WinterSim.is_night(g) and not w.get("flee", false))
 	if g.bear != null:
 		var b: Dictionary = g.bear
 		seen["bear"] = true
@@ -152,6 +155,7 @@ func sync(g: Dictionary, delta: float) -> void:
 		var speed := _ease(v, float(b.x), float(b.y), delta)
 		var anim := "walk" if speed > 0.2 else ("swipe" if float(b.cd) > WinterSim.D.BEAR.cd - 0.5 else "idle")
 		v.spr.play(anim, v.dir)
+		_motion(v, speed > 0.2, anim == "swipe", v.has("hurt_until") and Time.get_ticks_msec() < int(v.hurt_until), delta)
 	if g.trader != null:
 		seen["trader"] = true
 		var v = views.get("trader")
@@ -285,6 +289,59 @@ func _warming(g: Dictionary) -> bool:
 func hero_node() -> Node2D:
 	var v = views.get("hero")
 	return v.node if v else null
+
+
+## Motion the art has no frames for, drawn by moving the sprite: a still picture (the bear) bobs and rocks as it
+## walks; an attack lunges forward and back; a hit flashes red. Animals with frames for them keep their frames.
+func _motion(v: Dictionary, moving: bool, attack: bool, hurt: bool, delta: float) -> void:
+	var spr: WinterAnimSprite = v.spr
+	v.mt = float(v.get("mt", 0.0)) + delta
+	var t: float = v.mt
+	var still := spr.clip_count() <= 1
+	var bob := Vector2.ZERO
+	var rock := 0.0
+	if moving and still:
+		bob.y = -absf(sin(t * 7.0)) * 6.0
+		rock = sin(t * 7.0) * 0.035
+	if attack and (still or not (spr.anim.begins_with("bite") or spr.anim.begins_with("swipe"))):
+		var k := maxf(0.0, sin(fmod(t, 0.6) / 0.6 * PI))
+		bob.x = (-1.0 if spr.flip else 1.0) * k * 16.0
+		bob.y -= k * 4.0
+		rock -= (-1.0 if spr.flip else 1.0) * k * 0.08
+	spr.position = spr.position.lerp(bob, 1.0 - exp(-delta * 18.0))
+	spr.rotation = lerp_angle(spr.rotation, rock, 1.0 - exp(-delta * 14.0))
+	spr.modulate = Color(1.0, 0.55, 0.55) if hurt else Color.WHITE
+
+
+## Eyes that shine in the dark (where the art marks them): two small warm glows on the head, at night, blinking now
+## and then; they ignore the night's tint, so a wolf beyond the firelight shows as a pair of eyes.
+func _eyes(v: Dictionary, on: bool) -> void:
+	var spr: WinterAnimSprite = v.spr
+	var e = WinterArt.entry(spr.key).get("eyes", null)
+	if not e is Array:
+		return
+	var glow: Sprite2D = v.get("eyes")
+	if glow == null:
+		glow = Sprite2D.new()
+		glow.texture = WinterArt.texture("fx.glow", false)
+		glow.modulate = Color(1.0, 0.82, 0.3, 0.95)
+		glow.scale = Vector2(0.32, 0.22)
+		var m := CanvasItemMaterial.new()
+		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		glow.material = m
+		spr.add_child(glow)
+		v.eyes = glow
+	var p := Vector2(e[0], e[1]) - WinterArt.foot(spr.key)
+	glow.position = Vector2(-p.x if spr.flip else p.x, p.y)
+	var blink := fmod(float(v.get("mt", 0.0)) + float(hash(spr.key + str(v.node.get_instance_id())) % 97) * 0.1, 4.0) < 0.12
+	glow.visible = on and not blink
+
+
+func hurt_bear() -> void:
+	var v = views.get("bear")
+	if v:
+		v.hurt_until = Time.get_ticks_msec() + 250
 
 
 func hurt_wolf(id: int) -> void:

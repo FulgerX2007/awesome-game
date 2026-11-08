@@ -266,6 +266,7 @@ func effect(e: Dictionary) -> void:
 			actors.hurt_wolf(int(e.id))
 			fx.burst(Vector2(float(e.x) * TILE, float(e.y) * TILE - 30), "snow", 8)
 		"bearHit":
+			actors.hurt_bear()
 			fx.burst(Vector2(float(e.x) * TILE, float(e.y) * TILE - 40), "snow", 10)
 		"feed":
 			var sp: Dictionary = WinterSim.SPOT

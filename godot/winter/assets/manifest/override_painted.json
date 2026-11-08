@@ -16,7 +16,11 @@
   "branch",
   "ground.patch",
   "snow.drift",
-  "char.hero"
+  "char.hero",
+  "animal.rabbit",
+  "animal.deer",
+  "animal.wolf",
+  "animal.bear"
  ],
  "tree.pine.0": {
   "file": "res://assets/painted/environment/tree_pine_0.png",
@@ -830,5 +834,125 @@
   },
   "scale": 0.78,
   "painted": true
+ },
+ "animal.rabbit": {
+  "sheet": "res://assets/painted/animals/rabbit.png",
+  "frame": [
+   59,
+   59
+  ],
+  "foot": [
+   30,
+   56
+  ],
+  "anims": {
+   "hop_side": {
+    "row": 0,
+    "from": 0,
+    "count": 16,
+    "fps": 14,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "still": false
+ },
+ "animal.deer": {
+  "sheet": "res://assets/painted/animals/deer.png",
+  "frame": [
+   142,
+   165
+  ],
+  "foot": [
+   61,
+   153
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 16,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "still": false
+ },
+ "animal.wolf": {
+  "sheet": "res://assets/painted/animals/wolf.png",
+  "frame": [
+   140,
+   102
+  ],
+  "foot": [
+   69,
+   96
+  ],
+  "anims": {
+   "run_side": {
+    "row": 0,
+    "from": 0,
+    "count": 16,
+    "fps": 14,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "still": false,
+  "eyes": [
+   110,
+   59
+  ]
+ },
+ "animal.bear": {
+  "sheet": "res://assets/painted/animals/bear.png",
+  "frame": [
+   175,
+   173
+  ],
+  "foot": [
+   87,
+   170
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "still": true
  }
 }

@@ -4,7 +4,7 @@ extends SceneTree
 ## Scenes: menu, day, dusk, night, blizzard, build, bench, inventory, forest, chop, mine (the frame of the blow).
 ## Without names, all of them.
 
-const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest", "chop", "mine", "hut", "hut_day", "survivors"]
+const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest", "chop", "mine", "hut", "hut_day", "survivors", "animals", "wolves"]
 
 var main: Node
 var out := "user://shots"
@@ -135,6 +135,25 @@ func _run(names: Array) -> void:
 				main.world.show_game(g)
 				await _frames(60)
 				await _shot("survivors")
+			"animals", "wolves":
+				# the beasts around the hero in the forest: by day a hare, a deer and the bear; at night wolves
+				var g := _game()
+				var night: bool = n == "wolves"
+				g.t = 120.0 if night else 50.0
+				g.hero.x = 14.5
+				g.hero.y = 28.5
+				g.animals.clear()
+				g.wolves.clear()
+				if night:
+					for k in 3:
+						g.wolves.append({"id": 900 + k, "x": 12.5 + k * 2.2, "y": 26.5 + (k % 2) * 2.0, "hp": 4.0, "maxHp": 4.0, "cd": 0.0, "flee": false})
+				else:
+					g.animals.append({"id": 901, "kind": "rabbit", "x": 12.6, "y": 29.4, "hp": 1, "tx": 12, "ty": 29, "cd": 9.0})
+					g.animals.append({"id": 902, "kind": "deer", "x": 17.0, "y": 27.4, "hp": 2, "tx": 17, "ty": 27, "cd": 9.0})
+					g.bear = {"id": 903, "x": 11.5, "y": 26.2, "hp": 14.0, "cd": 0.0, "calm": 9.0, "path": null, "plan": 9.0, "chase": false}
+				main.world.show_game(g)
+				await _frames(40)
+				await _shot(n)
 			"forest":
 				var g := _game()
 				g.t = 50.0

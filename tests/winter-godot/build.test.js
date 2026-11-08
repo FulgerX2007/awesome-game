@@ -67,7 +67,11 @@ test('every key of the asset contract exists and its files are on disk', () => {
       if (f) assert.ok(fs.existsSync(res(f)), `${k}: ${f}`);
     }
   }
-  for (const id of ['idle', 'run', 'bite', 'hurt', 'death']) assert.ok(Object.keys(m['animal.wolf'].anims).some((a) => a.startsWith(id)), `wolf ${id}`);
+  // the painted animals move with their frames; what they lack (bite, hurt, the bear's walk) the game draws
+  for (const [k, id] of [['animal.wolf', 'run'], ['animal.deer', 'walk'], ['animal.rabbit', 'hop'], ['animal.bear', 'idle']]) {
+    assert.ok(m[k].anims[`${id}_side`] && m[k].anims.idle_side, `${k} ${id}`);
+  }
+  assert.ok(Array.isArray(m['animal.wolf'].eyes), 'the wolf\'s eyes, to shine at night');
   // the painted hero (tools/winter-godot/import_art.py) is drawn from one side; the game mirrors it
   for (const id of ['idle', 'walk', 'chop', 'mine', 'gather', 'build', 'craft', 'fire']) assert.ok(m['char.hero'].anims[`${id}_side`], `hero ${id}_side`);
   for (const sv of ['hunter', 'carpenter', 'herbalist', 'smith', 'child']) {

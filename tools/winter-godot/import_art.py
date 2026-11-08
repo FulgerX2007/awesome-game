@@ -7,7 +7,8 @@ Sources (tools/winter-godot/source/):
   hero_chop.gif            — chopping with an axe (12 frames, the blow lands on frame 9);
   hero_gather_berries.gif  — picking berries off a bush (16 frames; the bush is in the picture);
   hero_mining.gif          — mining with a pick (16 frames, the blow on frame 11; the rock is in the picture);
-  cabin.webp               — the finished log cabin (the hut's last two stages).
+  cabin.webp               — the finished log cabin (the hut's last two stages);
+  hare_run.gif, deer_walk.gif, wolf_run.gif (16 frames each) and bear.webp (one picture) — the animals.
 
 Writes godot/winter/assets/painted/ and the manifest fragment assets/manifest/override_painted.json, whose keys
 replace the generated ones (WinterArt loads override_* fragments last; "_replace" drops whole groups first, so no
@@ -75,7 +76,7 @@ ENV = {
 # Generated groups the painted art replaces entirely (their generated variants would clash in style).
 REPLACE = ["tree.pine", "tree.dead", "tree.fallen", "tree.stump", "log", "rock", "rock.small", "rock.group",
            "rock.rubble", "ice.formation", "bush.berry", "bush.bare", "bush.snow", "branch", "ground.patch",
-           "snow.drift", "char.hero"]
+           "snow.drift", "char.hero", "animal.rabbit", "animal.deer", "animal.wolf", "animal.bear"]
 SPENT_BUSH = ["bush.bare.0"]     # a picked bush: the bare one
 
 
@@ -417,12 +418,76 @@ def survivors(manifest: dict) -> None:
         print(f"survivor {sid}: {len(frames)} frames")
 
 
+# ── The animals: each faces right; the game mirrors them for left ──
+# key: (source, clip name, fps, size on screen: ("w" | "h", px) of the first frame's body)
+ANIMALS = {
+    "animal.rabbit": ("hare_run.gif", "hop", 14, ("h", 50)),
+    "animal.deer": ("deer_walk.gif", "walk", 12, ("h", 150)),
+    "animal.wolf": ("wolf_run.gif", "run", 14, ("w", 124)),
+    "animal.bear": ("bear.webp", "walk", 1, ("w", 170)),
+}
+
+
+def clean_edge(fr: Image.Image) -> Image.Image:
+    """Drops the one-pixel rim of the GIF's hard mask, where the old background's colour fringes the fur."""
+    a = np.array(fr)
+    m = a[..., 3] > 0
+    inner = m.copy()
+    inner[1:, :] &= m[:-1, :]
+    inner[:-1, :] &= m[1:, :]
+    inner[:, 1:] &= m[:, :-1]
+    inner[:, :-1] &= m[:, 1:]
+    a[~inner, 3] = 0
+    return Image.fromarray(a, "RGBA")
+
+
+def animal(manifest: dict, key: str) -> None:
+    src, clip, fps, (axis, px) = ANIMALS[key]
+    frames = [clean_edge(f) for f in frames_of(SRC / src)]
+    n, ys, xs = hero_body(frames[0])
+    s = px / ((xs.max() - xs.min()) if axis == "w" else (ys.max() - ys.min()))
+    bottom = ys.max()
+    low = xs[ys > bottom - (ys.max() - ys.min()) * 0.08]
+    foot = ((low.min() + low.max()) / 2, bottom)
+    left = right = up = down = 0
+    for fr in frames:
+        bb = fr.getchannel("A").getbbox()
+        left, right = max(left, (foot[0] - bb[0]) * s), max(right, (bb[2] - foot[0]) * s)
+        up, down = max(up, (foot[1] - bb[1]) * s), max(down, (bb[3] - foot[1]) * s)
+    fw, fh = int(np.ceil(left + right)) + 4, int(np.ceil(up + down)) + 4
+    fx, fy = int(np.ceil(left)) + 2, int(np.ceil(up)) + 2
+    cols = min(16, len(frames))
+    sheet = Image.new("RGBA", (cols * fw, -(-len(frames) // cols) * fh), (0, 0, 0, 0))
+    for i, fr in enumerate(frames):
+        big = fr.resize((max(1, round(fr.width * s)), max(1, round(fr.height * s))), Image.LANCZOS)
+        ox, oy = fx - round(foot[0] * s), fy - round(foot[1] * s)
+        cell = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
+        cell.alpha_composite(big.crop((max(0, -ox), max(0, -oy), big.width, big.height)), (max(0, ox), max(0, oy)))
+        sheet.paste(cell, ((i % cols) * fw, (i // cols) * fh))
+    name = key.split(".")[1] + ".png"
+    (OUT / "animals").mkdir(parents=True, exist_ok=True)
+    sheet.save(OUT / "animals" / name, optimize=True)
+    anims = {clip + "_side": {"row": 0, "from": 0, "count": len(frames), "fps": fps, "loop": True},
+             "idle_side": {"row": 0, "from": 0, "count": 1, "fps": 1, "loop": True}}
+    manifest[key] = {"sheet": RES + "animals/" + name, "frame": [fw, fh], "foot": [fx, fy], "anims": anims,
+                     "painted": True, "still": len(frames) == 1}
+    # the eyes (yellow, like the wolf's): where they shine at night, in the cell, from the first frame
+    a = np.asarray(frames[0]).astype(int)
+    eye = (a[..., 3] > 0) & (a[..., 0] > 190) & (a[..., 1] > 140) & (a[..., 2] < 90) & (a[..., 0] - a[..., 2] > 120)
+    if eye.sum() >= 3:
+        ey, ex = np.nonzero(eye)
+        manifest[key]["eyes"] = [round(fx + (ex.mean() - foot[0]) * s), round(fy + (ey.mean() - foot[1]) * s)]
+    print(f"{key}: {len(frames)} frames of {fw}×{fh}")
+
+
 def main() -> None:
     manifest = {"_replace": REPLACE}
     env(manifest)
     cabin(manifest)
     hero(manifest)
     survivors(manifest)
+    for key in ANIMALS:
+        animal(manifest, key)
     MANIFEST.write_text(json.dumps(manifest, indent=1, ensure_ascii=False) + "\n")
     size = sum(p.stat().st_size for p in OUT.rglob("*.png"))
     print(f"{len(manifest) - 1} keys, {size // 1024} KB")
