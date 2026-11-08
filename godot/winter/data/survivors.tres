@@ -1,0 +1,76 @@
+[gd_resource type="Resource" script_class="WinterCatalog" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/defs/catalog.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/defs/survivor_def.gd" id="2"]
+
+[sub_resource type="Resource" id="WinterSurvivorDef_0"]
+script = ExtResource("2")
+id = "hunter"
+name = "Охотник"
+x = 48
+y = 34
+need = "meat"
+work_every = 40
+work_give = {
+"meat": 1
+}
+role = "приносит мясо"
+need_text = "Охотник ждёт: принеси 3 куска мяса"
+
+[sub_resource type="Resource" id="WinterSurvivorDef_1"]
+script = ExtResource("2")
+id = "carpenter"
+name = "Плотник"
+x = 5
+y = 5
+need = "shovel"
+work_every = 6
+work_give = {
+"wood": 1
+}
+role = "рубит лес и чинит частокол"
+need_text = ""
+
+[sub_resource type="Resource" id="WinterSurvivorDef_2"]
+script = ExtResource("2")
+id = "herbalist"
+name = "Травница"
+x = 5
+y = 34
+need = "day"
+work_every = 12
+work_give = {
+"berries": 1
+}
+role = "собирает ягоды и готовит"
+need_text = ""
+
+[sub_resource type="Resource" id="WinterSurvivorDef_3"]
+script = ExtResource("2")
+id = "smith"
+name = "Кузнец"
+x = 53
+y = 10
+need = "icePick"
+work_every = 30
+work_give = {
+"metal": 1
+}
+role = "добывает металл и чинит частокол"
+need_text = ""
+
+[sub_resource type="Resource" id="WinterSurvivorDef_4"]
+script = ExtResource("2")
+id = "child"
+name = "Ребёнок"
+x = 28
+y = 3
+need = "palisade"
+work_every = 10
+work_give = {}
+role = "подкладывает дрова в огонь"
+need_text = "Ребёнок пойдёт, когда лагерь будет за частоколом"
+
+[resource]
+script = ExtResource("1")
+entries = [SubResource("WinterSurvivorDef_0"), SubResource("WinterSurvivorDef_1"), SubResource("WinterSurvivorDef_2"), SubResource("WinterSurvivorDef_3"), SubResource("WinterSurvivorDef_4")]

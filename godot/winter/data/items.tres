@@ -1,0 +1,96 @@
+[gd_resource type="Resource" script_class="WinterCatalog" load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/defs/catalog.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/defs/item_def.gd" id="2"]
+
+[sub_resource type="Resource" id="WinterItemDef_0"]
+script = ExtResource("2")
+id = "wood"
+kind = "material"
+food = 0
+name = "Дерево"
+eat_rank = -1
+
+[sub_resource type="Resource" id="WinterItemDef_1"]
+script = ExtResource("2")
+id = "stone"
+kind = "material"
+food = 0
+name = "Камень"
+eat_rank = -1
+
+[sub_resource type="Resource" id="WinterItemDef_2"]
+script = ExtResource("2")
+id = "metal"
+kind = "material"
+food = 0
+name = "Металл"
+eat_rank = -1
+
+[sub_resource type="Resource" id="WinterItemDef_3"]
+script = ExtResource("2")
+id = "hide"
+kind = "material"
+food = 0
+name = "Шкуры"
+eat_rank = -1
+
+[sub_resource type="Resource" id="WinterItemDef_4"]
+script = ExtResource("2")
+id = "berries"
+kind = "food"
+food = 8
+name = "Ягоды"
+eat_rank = 5
+
+[sub_resource type="Resource" id="WinterItemDef_5"]
+script = ExtResource("2")
+id = "meat"
+kind = "food"
+food = 10
+name = "Сырое мясо"
+eat_rank = 6
+
+[sub_resource type="Resource" id="WinterItemDef_6"]
+script = ExtResource("2")
+id = "fish"
+kind = "food"
+food = 12
+name = "Рыба"
+eat_rank = 4
+
+[sub_resource type="Resource" id="WinterItemDef_7"]
+script = ExtResource("2")
+id = "cookedMeat"
+kind = "food"
+food = 35
+name = "Жареное мясо"
+eat_rank = 1
+
+[sub_resource type="Resource" id="WinterItemDef_8"]
+script = ExtResource("2")
+id = "cookedFish"
+kind = "food"
+food = 25
+name = "Жареная рыба"
+eat_rank = 3
+
+[sub_resource type="Resource" id="WinterItemDef_9"]
+script = ExtResource("2")
+id = "smokedMeat"
+kind = "food"
+food = 45
+name = "Копчёное мясо"
+eat_rank = 0
+
+[sub_resource type="Resource" id="WinterItemDef_10"]
+script = ExtResource("2")
+id = "smokedFish"
+kind = "food"
+food = 35
+name = "Копчёная рыба"
+eat_rank = 2
+
+[resource]
+script = ExtResource("1")
+entries = [SubResource("WinterItemDef_0"), SubResource("WinterItemDef_1"), SubResource("WinterItemDef_2"), SubResource("WinterItemDef_3"), SubResource("WinterItemDef_4"), SubResource("WinterItemDef_5"), SubResource("WinterItemDef_6"), SubResource("WinterItemDef_7"), SubResource("WinterItemDef_8"), SubResource("WinterItemDef_9"), SubResource("WinterItemDef_10")]
