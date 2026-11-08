@@ -42,7 +42,6 @@ var pending_diff := ""
 var since_save := 0.0
 var step_t := 0.0
 var keys := {}
-var _menu_g: Dictionary = {}  # a winter that plays behind the menu
 
 
 func _ready() -> void:
@@ -155,6 +154,8 @@ func begin(state: Dictionary, diff := "normal") -> void:
 	ghost.visible = false
 	panels.close()
 	hud.visible = true
+	world.visible = true
+	world.atmosphere.visible = true
 	world.show_game(g)
 	if state.is_empty():
 		save.current = WinterSim.snapshot(g)
@@ -197,11 +198,10 @@ func show_menu() -> void:
 	ghost.visible = false
 	hud.visible = false
 	sfx.set_loop("crackle", 0)
-	# a calm winter evening plays behind the menu
-	_menu_g = WinterSim.new_game("normal", 20261108)
-	_menu_g.t = 88.0
-	g = _menu_g
-	world.show_game(g)
+	sfx.set_loop("wind", 0.25)
+	g = {}
+	world.visible = false
+	world.atmosphere.visible = false
 	var cur = save.current
 	panels.open_menu(save, cur != null, int(floor(float(cur.t) / WinterSim.DAY)) + 1 if cur != null else 1)
 
@@ -222,10 +222,6 @@ func set_paused(on: bool) -> void:
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.05)
 	var running := screen == "play" and not paused and not panels.is_open()
-	if screen == "menu" and not g.is_empty():
-		# the menu's winter: only the clock and the fire run
-		g.t = 88.0 + fmod(Time.get_ticks_msec() / 1000.0 * 0.5, 40.0)
-		g.fire.fuel = 12.0
 	if running:
 		var dx := int(keys.get(KEY_D, false) or keys.get(KEY_RIGHT, false)) - int(keys.get(KEY_A, false) or keys.get(KEY_LEFT, false))
 		var dy := int(keys.get(KEY_S, false) or keys.get(KEY_DOWN, false)) - int(keys.get(KEY_W, false) or keys.get(KEY_UP, false))

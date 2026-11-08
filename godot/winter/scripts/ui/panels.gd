@@ -36,6 +36,7 @@ const EVENT_ASK := {
 }
 
 var current := ""
+var bg: TextureRect                   # the menu's painted backdrop
 var dim: ColorRect
 var box: PanelContainer
 var g: Dictionary = {}
@@ -55,6 +56,8 @@ func _ready() -> void:
 
 
 func close() -> void:
+	if bg:
+		bg.visible = false
 	if box:
 		box.queue_free()
 		box = null
@@ -72,6 +75,8 @@ func is_open() -> bool:
 func _window(title: String, icon_id: String, width := 640.0, dim_on := true) -> VBoxContainer:
 	if box:
 		box.queue_free()
+	if bg and current != "settings":
+		bg.visible = false
 	dim.visible = dim_on
 	box = PanelContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -558,6 +563,16 @@ func open_menu(sv: Dictionary, has_current: bool, current_day: int) -> void:
 	if box:
 		box.queue_free()
 	dim.visible = false
+	if bg == null:
+		bg = TextureRect.new()
+		bg.texture = WinterArt.texture("ui.menu.bg", false)
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(bg)
+		move_child(bg, 0)
+	bg.visible = true
 	box = PanelContainer.new()
 	box.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	add_child(box)
