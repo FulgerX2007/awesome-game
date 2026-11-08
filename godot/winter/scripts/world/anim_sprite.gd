@@ -63,9 +63,12 @@ func play(name: String, d: String, restart := false) -> void:
 		flip = true
 	elif dd == "right":
 		dd = "side"
-	var full := _resolve(name, dd)
-	if full == "" and dd != "down":
-		full = _resolve(name, "down")
+	var full := _chain(name, dd)
+	if full == "" and dd != "side":
+		# no such animation facing this way: the same one from the side
+		full = _chain(name, "side")
+	if full == "":
+		full = _resolve(name, dd)
 	if full == anim and dir == dd and not restart:
 		_apply_flip()
 		return
@@ -76,6 +79,18 @@ func play(name: String, d: String, restart := false) -> void:
 	_cur = anims.get(full, {})
 	_apply_flip()
 	_show(0)
+
+
+## The animation or its fallbacks (FALLBACK) in one direction, or "".
+func _chain(name: String, d: String) -> String:
+	var n := name
+	for k in 6:
+		if anims.has("%s_%s" % [n, d]):
+			return "%s_%s" % [n, d]
+		if not FALLBACK.has(n):
+			return ""
+		n = FALLBACK[n]
+	return ""
 
 
 func _resolve(name: String, d: String) -> String:
