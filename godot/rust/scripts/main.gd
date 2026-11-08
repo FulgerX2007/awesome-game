@@ -142,6 +142,7 @@ func _build() -> void:
 	_pause_btn.focus_mode = Control.FOCUS_NONE
 	_pause_btn.tooltip_text = tr("Пауза (Пробел)")
 	_pause_btn.custom_minimum_size = Vector2(40, 34)
+	_pause_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_pause_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_pause_btn.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_pause_btn.pressed.connect(func(): Game.set_paused(not Game.paused))
@@ -230,7 +231,7 @@ func _refresh() -> void:
 	_chips.scrap.show_value(Fmt.num(s.scrap), Fmt.rate(r.scrap), r.scrap < -0.05)
 	_chips.parts.show_value(Fmt.num(s.parts), Fmt.rate(r.parts))
 	_chips.cores.visible = s.stats.cores >= 1.0 or s.cores >= 1.0
-	_chips.cores.show_value(Fmt.num(s.cores), tr("+{v}/мин").format({v = Fmt.dec(r.cores * 60.0)}) if r.cores >= 0.01 else "")
+	_chips.cores.show_value(Fmt.num(s.cores), tr("+{v}/мин").format({v = Fmt.dec(r.cores * 60.0) if r.cores * 60.0 < 10.0 else Fmt.num(r.cores * 60.0)}) if r.cores >= 0.01 else "")
 	_chips.robots.visible = s.built >= 1
 	_chips.robots.show_value(str(WorkerManager.total(s)), tr("свободны: {n}").format({n = s.robots.idle}) if s.robots.idle > 0 else "")
 	_chips.blueprints.visible = s.blueprints >= 1
@@ -238,10 +239,10 @@ func _refresh() -> void:
 	_chips.power.visible = s.stage >= 2
 	_power.text = tr("Питание ×{v}").format({v = Fmt.dec(d.power)})
 	_power.add_theme_color_override("font_color", UiTheme.DANGER if s.shortage_active() else UiTheme.LAMP)
-	_pause_btn.text = "▶" if Game.paused else "❚❚"
+	_pause_btn.icon = UiTheme.icon("play" if Game.paused else "pause")
 	# actions
 	_act.dig.show_state(tr("Копать"), tr("+{n} хлам").format({n = Fmt.num(d.click)}), true)
-	_act.sort.show_state(tr("Разобрать"), tr("{a} хлама → {b} дет.").format({a = Fmt.dec(d.ratio * d.batch), b = d.batch}), s.scrap >= d.ratio)
+	_act.sort.show_state(tr("Разобрать"), tr("{a} хлама → {b} дет.").format({a = Fmt.dec(d.ratio * d.batch), b = d.batch, pl = Fmt.plural(int(d.batch), "деталь|детали|деталей")}), s.scrap >= d.ratio)
 	if not s.repair.is_empty():
 		_act.repair.show_state(tr("Чинить робота"), tr("+{w} к ремонту · {p}/{n}").format({w = Fmt.num(d.wrench), p = Fmt.num(s.repair.progress), n = Fmt.num(s.repair.need)}),
 			true, s.repair.progress / s.repair.need)
@@ -250,7 +251,7 @@ func _refresh() -> void:
 		if s.free_jobs > 0:
 			_act.repair.show_state(name, tr("брошенный робот — бесплатно"), true, 0.0)
 		else:
-			_act.repair.show_state(name, tr("нужно {n} деталей").format({n = Fmt.num(d.robot_cost)}), s.parts >= d.robot_cost, clampf(s.parts / d.robot_cost, 0.0, 1.0))
+			_act.repair.show_state(name, tr("нужно {n} деталей").format({n = Fmt.num(d.robot_cost), pl = Fmt.plural(int(d.robot_cost), "деталь|детали|деталей")}), s.parts >= d.robot_cost, clampf(s.parts / d.robot_cost, 0.0, 1.0))
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -287,7 +288,7 @@ func _on_offline(r: Dictionary, seconds: float) -> void:
 	if r.scrap >= 1.0:
 		lines.append("• " + tr("+{n} хлама").format({n = Fmt.num(r.scrap)}))
 	if r.parts >= 1.0:
-		lines.append("• " + tr("+{n} деталей").format({n = Fmt.num(r.parts)}))
+		lines.append("• " + tr("+{n} деталей").format({n = Fmt.num(r.parts), pl = Fmt.plural(int(r.parts), "деталь|детали|деталей")}))
 	if r.cores >= 1.0:
 		lines.append("• +%s %s" % [Fmt.num(r.cores), Fmt.plural(int(r.cores), "ядро|ядра|ядер")])
 	if r.robots > 0:
@@ -305,7 +306,7 @@ func _on_launch_finished() -> void:
 	var gain := ReconstructionManager.blueprint_gain(s)
 	var body := "\n\n".join([
 		tr("Свалка провожает его щелчками сотен роботов. Ты остаёшься на земле, но небо уже светлеет."),
-		tr("За {time} ты собрал {parts} деталей и починил {n} {robots}.").format({time = Fmt.duration(s.time), parts = Fmt.num(s.stats.parts),
+		tr("За {time} ты собрал {parts} деталей и починил {n} {robots}.").format({time = Fmt.duration(s.time), parts = Fmt.num(s.stats.parts), pl = Fmt.plural(int(s.stats.parts), "деталь|детали|деталей"),
 			n = s.built, robots = Fmt.plural(s.built, "робота|роботов|роботов")}),
 		tr("«Новый рассвет» начнёт всё сначала, но даст {n} {bp}: каждый навсегда ускоряет всю работу на 10%.").format({n = gain,
 			bp = Fmt.plural(gain, "чертёж|чертежа|чертежей")}),

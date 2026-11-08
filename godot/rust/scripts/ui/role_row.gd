@@ -78,17 +78,17 @@ func refresh(s: GameState, d: Dictionary, r: Dictionary) -> void:
 	match role:
 		"digger":
 			_desc.text = tr("{v} хлама/с каждый").format({v = Fmt.dec(d.digger)})
-			_rate.text = tr("+{v} хлама/с").format({v = Fmt.dec(n * d.digger)}) if n > 0 else ""
+			_rate.text = tr("+{v} хлама/с").format({v = Fmt.dec(n * d.digger) if n * d.digger < 1000.0 else Fmt.num(n * d.digger)}) if n > 0 else ""
 		"sorter":
 			_desc.text = tr("{v} деталей/с каждый · {r} хлама → 1 деталь").format({v = Fmt.dec(d.sorter), r = Fmt.dec(d.ratio)})
 			if r.sorter_starved:
 				_rate.text = tr("ждут хлам")
 				_rate.add_theme_color_override("font_color", UiTheme.DANGER)
 			else:
-				_rate.text = tr("+{v} дет./с").format({v = Fmt.dec(r.parts)}) if n > 0 else ""
+				_rate.text = tr("+{v} дет./с").format({v = Fmt.dec(r.parts) if r.parts < 1000.0 else Fmt.num(r.parts)}) if n > 0 else ""
 				_rate.add_theme_color_override("font_color", Kit.ROLE_COLORS[role])
 		"mechanic":
 			_desc.text = tr("{v} ремонта/с каждый").format({v = Fmt.dec(d.mechanic)})
-			_rate.text = tr("+{v} ремонта/с").format({v = Fmt.dec(n * d.mechanic)}) if n > 0 else ""
+			_rate.text = tr("+{v} ремонта/с").format({v = Fmt.dec(n * d.mechanic) if n * d.mechanic < 1000.0 else Fmt.num(n * d.mechanic)}) if n > 0 else ""
 	var team := WorkerManager.total(s)
 	_bar.value = float(n) / team if team > 0 else 0.0

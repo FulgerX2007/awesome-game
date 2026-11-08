@@ -16,7 +16,7 @@ func _initialize() -> void:
 		out = args[1]
 	if args.size() > 2:
 		var wh := args[2].split("x")
-		root.size = Vector2i(int(wh[0]), int(wh[1]))
+		DisplayServer.window_set_size(Vector2i(int(wh[0]), int(wh[1])))
 	SaveManager.dir = "user://shot-saves"
 	SaveManager.delete_all()
 	main = load("res://scenes/main.tscn").instantiate()

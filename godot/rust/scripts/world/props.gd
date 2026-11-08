@@ -86,8 +86,3 @@ static func ridges(parent: Node3D) -> void:
 			var r := rng.randf_range(3.5, 6.5)
 			var m := Kit.place(parent, Kit.sphere_mesh(1.0, 8, 4), Kit.mat(col, 1.0, 0.0), Vector3(x, -0.3, z + rng.randf_range(-1.5, 1.5)), Vector3.ZERO, false)
 			m.scale = Vector3(r, rng.randf_range(0.3, 0.8) * (1.0 + row * 0.5), r * 0.6)
-	# broken towers and chimneys far away
-	for i in 7:
-		var x := -40.0 + i * 13.0 + rng.randf_range(-3, 3)
-		var h := rng.randf_range(2.0, 4.0)
-		Kit.box(parent, Vector3(1.4, h, 1.4), Color("241830"), Vector3(x, h / 2.0, -33), Vector3(0, 0, rng.randf_range(-6, 6)))

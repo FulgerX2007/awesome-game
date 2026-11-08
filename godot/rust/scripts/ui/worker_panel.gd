@@ -78,10 +78,10 @@ func refresh() -> void:
 	_factory.visible = d.factory > 0.0
 	_factory.text = tr("Сборочный цех: +{v} ремонта/с").format({v = Fmt.dec(d.factory)})
 	var need: float = ceilf(d.repair_need / 2.0) if s.free_jobs > 0 else d.repair_need
-	var cost := tr("бесплатно") if s.free_jobs > 0 else tr("{n} деталей").format({n = Fmt.num(d.robot_cost)})
+	var cost := tr("бесплатно") if s.free_jobs > 0 else tr("{n} деталей").format({n = Fmt.num(d.robot_cost), pl = Fmt.plural(int(d.robot_cost), "деталь|детали|деталей")})
 	_next.text = tr("Следующий робот: {cost}, {need} ед. ремонта").format({cost = cost, need = Fmt.num(need)})
 	if r.repair > 0.0:
-		_next.text += tr(" · ~{t}").format({t = Fmt.duration(need / r.repair)})
+		_next.text += tr(" · ~{t}").format({t = Fmt.duration(maxf(1.0, need / r.repair))})
 	_auto.visible = ProductionManager.has_auto_repair(s)
 	_auto.set_pressed_no_signal(s.auto_repair)
 	_drone_row.visible = s.lvl("drone") > 0

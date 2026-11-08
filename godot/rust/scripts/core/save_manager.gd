@@ -4,13 +4,17 @@ extends RefCounted
 ##   rust_dawn.json         autosave (every 10 s, on pause, when the window loses focus or closes)
 ##   rust_dawn.bak          the previous autosave, used when the main file is damaged
 ##   rust_dawn_manual.json  the manual slot ("Сохранить" / "Загрузить")
-## Writes go to a .tmp file first and are then renamed, so a crash mid-write cannot eat the save.
+## On the desktop writes go to a .tmp file first and are then renamed, so a crash mid-write cannot eat the
+## save; in the browser the file is written in place (closing it is what stores it in IndexedDB).
 ## Version 1 is the web game's format (localStorage "rust-dawn.save"); it is migrated on load.
 
 const AUTO := "rust_dawn.json"
 const BACKUP := "rust_dawn.bak"
 const MANUAL := "rust_dawn_manual.json"
 const LEGACY_KEY := "rust-dawn.save"
+## In the browser the autosave is mirrored here: localStorage is written at once, while user:// reaches
+## IndexedDB a moment later, which a reload or a closed tab can cut short. The newer copy wins on load.
+const WEB_KEY := "rust-dawn-godot.save"
 
 static var dir := "user://"
 
@@ -26,20 +30,38 @@ static func encode(s: GameState, saved_at: float) -> String:
 static func write(s: GameState, name := AUTO) -> bool:
 	DirAccess.make_dir_recursive_absolute(dir)
 	var p := path(name)
+	var text := encode(s, Time.get_unix_time_from_system())
+	if name == AUTO and FileAccess.file_exists(p):
+		_write_file(path(BACKUP), FileAccess.get_file_as_string(p))
+	if OS.has_feature("web"):
+		if name == AUTO:
+			JavaScriptBridge.eval("(() => { try { localStorage.setItem(%s, %s); } catch (e) {} })()" % [JSON.stringify(WEB_KEY), JSON.stringify(text)], true)
+		# the browser keeps user:// in IndexedDB and syncs it when a file is closed, not on a rename
+		return _write_file(p, text)
 	var tmp := p + ".tmp"
-	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if not _write_file(tmp, text):
+		return false
+	return DirAccess.rename_absolute(tmp, p) == OK
+
+
+static func _write_file(p: String, text: String) -> bool:
+	var f := FileAccess.open(p, FileAccess.WRITE)
 	if f == null:
 		return false
-	f.store_string(encode(s, Time.get_unix_time_from_system()))
+	f.store_string(text)
 	f.close()
-	if name == AUTO and FileAccess.file_exists(p):
-		DirAccess.copy_absolute(p, path(BACKUP))
-	return DirAccess.rename_absolute(tmp, p) == OK
+	return true
 
 
 ## {status: ok | missing | corrupt | newer, state, saved_at}. On "corrupt" the backup is tried.
 static func read(name := AUTO) -> Dictionary:
 	var res := read_file(path(name))
+	if name == AUTO and OS.has_feature("web"):
+		var v = JavaScriptBridge.eval("(() => { try { return localStorage.getItem(%s); } catch (e) { return null; } })()" % JSON.stringify(WEB_KEY), true)
+		if v is String and not v.is_empty():
+			var mirror := decode(v)
+			if mirror.status == "ok" and (res.status != "ok" or mirror.saved_at > res.saved_at):
+				return mirror
 	if res.status == "corrupt" and name == AUTO:
 		var bak := read_file(path(BACKUP))
 		if bak.status == "ok":

@@ -34,7 +34,7 @@ var running := false
 var _acc := 0.0
 var _last_wall := 0
 var _since_save := 0.0
-var _save_blocked := false
+var _js_hide: JavaScriptObject
 
 
 func boot(seed_value := -1) -> void:
@@ -58,6 +58,13 @@ func boot(seed_value := -1) -> void:
 	s.drain()
 	running = true
 	_last_wall = Time.get_ticks_msec()
+	if OS.has_feature("web"):
+		# save when the tab is hidden or closed (the browser gives no close request)
+		_js_hide = JavaScriptBridge.create_callback(func(_args): save())
+		var doc := JavaScriptBridge.get_interface("document")
+		var win := JavaScriptBridge.get_interface("window")
+		doc.addEventListener("visibilitychange", _js_hide)
+		win.addEventListener("pagehide", _js_hide)
 	state_replaced.emit()
 	match res.status:
 		"restored": notify.emit(tr("Сохранение было повреждено, загружена резервная копия"), "warn")
@@ -259,7 +266,6 @@ func reset() -> void:
 	s.achievements = keep
 	StoryData.check(s)
 	s.drain()
-	_save_blocked = false
 	state_replaced.emit()
 	save()
 

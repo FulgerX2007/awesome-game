@@ -62,7 +62,8 @@ func refresh(s: GameState) -> void:
 	var st := GameData.stages()[index]
 	var done := index < s.stage
 	var next := index == s.stage
-	_num.text = "✓" if done else "%d" % (index + 1)
+	_num.text = "%d" % (index + 1)
+	_name.text = tr(st.name) + (" — " + tr("готово") if done else "")
 	_num.add_theme_color_override("font_color", UiTheme.VERDIGRIS if done else (UiTheme.LAMP if next else UiTheme.DIM))
 	_desc.visible = next
 	_gain.visible = next or done

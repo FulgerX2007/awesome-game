@@ -480,3 +480,40 @@ func test_web_save_migrates() -> void:
 	near(r.saved_at, 1700000000.0, "milliseconds become seconds")
 	ok(ReconstructionManager.stage_from_legacy_ark(5) == 7, "a launched ark stays launched")
 	ok(ReconstructionManager.stage_from_legacy_ark(0) == 0, "nothing built")
+
+
+# ── translations ──
+
+func test_translations_keep_placeholders() -> void:
+	var f := FileAccess.open("res://data/rust.csv", FileAccess.READ)
+	var re := RegEx.create_from_string("\\{(\\w+)\\}")
+	f.get_csv_line()
+	var n := 0
+	while not f.eof_reached():
+		var row := f.get_csv_line()
+		if row.size() < 3:
+			continue
+		n += 1
+		var ru := {}
+		for m in re.search_all(row[1]):
+			ru[m.get_string(1)] = true
+		var ro := {}
+		for m in re.search_all(row[2]):
+			ro[m.get_string(1)] = true
+		ro.erase("pl")
+		ok(ru.keys() == ro.keys() or (ru.keys().all(func(k): return ro.has(k)) and ro.keys().all(func(k): return ru.has(k))),
+			"placeholders of %s: %s vs %s" % [row[0], ru.keys(), ro.keys()])
+		ok(row[2].count("|") == row[1].count("|"), "plural forms of %s" % row[0])
+	ok(n > 200, "the table has %d lines" % n)
+
+
+func test_plurals() -> void:
+	TranslationServer.set_locale("ru")
+	ok(Fmt.plural(1, "деталь|детали|деталей") == "деталь" and Fmt.plural(3, "деталь|детали|деталей") == "детали"
+		and Fmt.plural(11, "деталь|детали|деталей") == "деталей" and Fmt.plural(22, "деталь|детали|деталей") == "детали", "Russian plurals")
+	ok(Fmt.num(12345) == "12,3 тыс." and Fmt.num(9999) == "9999" and Fmt.rate(-1.25) == "−1,2/с", "Russian numbers: %s %s" % [Fmt.num(12345), Fmt.rate(-1.25)])
+	TranslationServer.set_locale("ro")
+	ok(Fmt.plural(1, "деталь|детали|деталей") == "piesă" and Fmt.plural(5, "деталь|детали|деталей") == "piese"
+		and Fmt.plural(25, "деталь|детали|деталей") == "de piese", "Romanian plurals")
+	ok(tr("{a} хлама → {b} дет.").format({a = 5, b = 1, pl = Fmt.plural(1, "деталь|детали|деталей")}) == "5 fier vechi → 1 piesă", "a sentence with a plural")
+	TranslationServer.set_locale("ru")

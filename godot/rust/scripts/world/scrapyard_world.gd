@@ -134,7 +134,7 @@ func _build_environment() -> void:
 	# only the far back fades into the dusk: the yard stays crisp
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = Color("8a4a3c")
+	env.fog_light_color = Color("4a2c48")
 	env.fog_light_energy = 1.0
 	env.fog_depth_begin = 47.0
 	env.fog_depth_end = 72.0
@@ -459,10 +459,14 @@ func fit_camera(size: Vector2) -> void:
 	var aspect := size.x / size.y
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT
 	camera.size = maxf(15.5, 34.0 / aspect)
+	# extra height goes to the sky: the front edge of the yard stays at the bottom
+	_cam_base = CAM_CENTER + camera.basis.z * 45.0 + camera.basis.y * (camera.size / 2.0 - 7.75)
+	camera.position = _cam_base
 	# the backdrop fills the view; its horizon sits where the ground ends
 	_backdrop.scale = Vector3(camera.size * aspect * 1.1, camera.size * 1.1, 1)
 	var local := camera.global_transform.affine_inverse() * Vector3(0, 0, HORIZON_Z)
 	_sky_mat.set_shader_parameter("horizon", 0.5 + local.y / (camera.size * 1.1))
+	_sky_mat.set_shader_parameter("aspect", aspect)
 
 
 # ── events from the rules ──
@@ -478,12 +482,12 @@ func _on_acted(kind: String, amount: float, info: Dictionary) -> void:
 				floater(TABLE_POS + Vector3(0, 2.2, 0), tr("мало хлама"), Color("a698b1"))
 			else:
 				table.pop()
-				floater(TABLE_POS + Vector3(0, 2.2, 0), tr("+{n} дет.").format({n = Fmt.num(amount)}), Kit.VERDIGRIS)
+				floater(TABLE_POS + Vector3(0, 2.2, 0), tr("+{n} дет.").format({n = Fmt.num(amount), pl = Fmt.plural(int(amount), "деталь|детали|деталей")}), Kit.VERDIGRIS)
 				if info.get("core", false):
 					floater(TABLE_POS + Vector3(0, 3.0, 0), tr("+ядро"), Kit.CORE)
 		"repair":
 			if amount <= 0.0:
-				floater(BAY_POS + Vector3(0, 4.6, 0), tr("нужно {n} дет.").format({n = Fmt.num(info.get("cost", 0))}), Color("a698b1"))
+				floater(BAY_POS + Vector3(0, 4.6, 0), tr("нужно {n} дет.").format({n = Fmt.num(info.get("cost", 0)), pl = Fmt.plural(int(info.get("cost", 0)), "деталь|детали|деталей")}), Color("a698b1"))
 			else:
 				bay.hit_fx()
 				if info.get("finished", false):

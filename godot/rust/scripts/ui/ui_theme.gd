@@ -131,3 +131,20 @@ static func bar(color: Color, height := 6) -> ProgressBar:
 	b.add_theme_stylebox_override("fill", box(color, Color.TRANSPARENT, 3, 0))
 	b.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return b
+
+
+## Small icons drawn in code (the font has no media symbols): "pause" or "play".
+static func icon(kind: String, size := 16, color := FG) -> ImageTexture:
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(Color.TRANSPARENT)
+	if kind == "pause":
+		var w := int(size * 0.28)
+		img.fill_rect(Rect2i(int(size * 0.15), int(size * 0.1), w, int(size * 0.8)), color)
+		img.fill_rect(Rect2i(int(size * 0.57), int(size * 0.1), w, int(size * 0.8)), color)
+	else:
+		for y in size:
+			var half := absf(y - (size - 1) / 2.0)
+			var run := int((size * 0.8) * (1.0 - half / (size / 2.0)))
+			for x in run:
+				img.set_pixel(int(size * 0.18) + x, y, color)
+	return ImageTexture.create_from_image(img)

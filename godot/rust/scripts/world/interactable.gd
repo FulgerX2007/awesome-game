@@ -45,7 +45,7 @@ func setup(target: Node3D, size: Vector3, center: Vector3, radius: float, title_
 	_ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_ring = Kit.place(self, Kit.torus_mesh(radius - 0.06, radius), _ring_mat, Vector3(0, 0.04, 0), Vector3.ZERO, false)
 	_ring.scale = Vector3(1, 0.15, 1)
-	_label = Kit.label(self, "", center + Vector3(0, size.y / 2.0 + 0.6, 0), Color.WHITE, 40)
+	_label = Kit.label(self, "", center + Vector3(0, size.y / 2.0 + 0.7, 0), Color.WHITE, 60)
 	_label.visible = false
 	mouse_entered.connect(func(): _set_hover(true))
 	mouse_exited.connect(func(): _set_hover(false))
