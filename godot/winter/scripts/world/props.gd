@@ -36,10 +36,8 @@ func _init(objects_layer: Node2D, details_layer: Node2D, shadows_layer: Node2D) 
 	shadows = shadows_layer
 
 
+## Forgets the views (world.gd frees the nodes of the layers).
 func clear() -> void:
-	for n in [objects, details, shadows]:
-		for c in n.get_children():
-			c.queue_free()
 	views.clear()
 	drifts.clear()
 	by_tile.clear()
@@ -87,7 +85,7 @@ func _decor(x: int, y: int, c: String) -> void:
 	elif r < 72:
 		_place(details, pick("rock.small", x, y, seed), x, y, off, false)
 	elif r < 88:
-		var t := ["track.rabbit.0", "track.rabbit.1", "track.deer.0", "track.wolf.0"][hash2(x, y, seed + 5) % 4]
+		var t = ["track.rabbit.0", "track.rabbit.1", "track.deer.0", "track.wolf.0"][hash2(x, y, seed + 5) % 4]
 		var s := _place(details, t, x, y, off, false)
 		s.rotation = (hash2(x, y, seed + 6) % 628) / 100.0
 	elif r < 100:

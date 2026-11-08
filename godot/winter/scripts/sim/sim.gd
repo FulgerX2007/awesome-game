@@ -2320,7 +2320,7 @@ static func new_save() -> Dictionary:
 ## Reads the save's JSON text; anything broken falls back to a fresh save (a broken current game is dropped).
 static func parse_save(raw) -> Dictionary:
 	var out := new_save()
-	if not raw is String:
+	if not raw is String or not String(raw).strip_edges().begins_with("{"):
 		return out
 	var d = JSON.parse_string(raw)
 	if not d is Dictionary or d.get("v") != 1:

@@ -124,7 +124,7 @@ func _fade_ramp(c: Color) -> Gradient:
 func burst(at: Vector2, kind: String, n := 10) -> void:
 	var p := _pool[_next]
 	_next = (_next + 1) % POOL
-	var key := {"wood": "fx.chip.wood", "stone": "fx.chip.stone", "snow": "fx.snowflake.0", "smoke": "fx.smoke.1", "spark": "fx.spark", "metal": "fx.chip.stone", "berry": "fx.ember"}.get(kind, "fx.snowflake.1")
+	var key = {"wood": "fx.chip.wood", "stone": "fx.chip.stone", "snow": "fx.snowflake.0", "smoke": "fx.smoke.1", "spark": "fx.spark", "metal": "fx.chip.stone", "berry": "fx.ember"}.get(kind, "fx.snowflake.1")
 	p.texture = WinterArt.texture(key, false)
 	p.position = at
 	p.amount = n
@@ -157,11 +157,9 @@ func animate(g: Dictionary, delta: float, hero: Node2D, cold: float) -> void:
 	sparks.position = fire
 	embers.position = fire + Vector2(0, 14)
 	sparks.emitting = fuel > 0.0
-	sparks.amount_ratio = clampf(0.25 + fuel / 14.0, 0.25, 1.0)
 	embers.emitting = fuel > 0.0
 	smoke.position = fire + Vector2(0, -60 if fuel > 0.0 else -10)
 	smoke.emitting = true
-	smoke.amount_ratio = 0.35 if fuel > 0.0 else 0.8
 	var stove := int(g.hut.stage) >= 4 and float(g.hut.stove) > 0.0
 	chimney.emitting = stove
 	chimney.position = Vector2((WinterSim.HUT.x + 2.3) * TILE, (WinterSim.HUT.y - 0.9) * TILE)
@@ -169,7 +167,6 @@ func animate(g: Dictionary, delta: float, hero: Node2D, cold: float) -> void:
 		# breath: a puff now and then when it's freezing and he isn't sleeping
 		breath.position = hero.position + Vector2(10 if hero.get_child_count() else 0, -112)
 		breath.emitting = cold > 0.25 and not g.hero.sleeping and g.status == "playing"
-		breath.amount_ratio = clampf(cold, 0.3, 1.0)
 		_footsteps(g, hero.position, delta)
 	for f in _floats:
 		f.t += delta

@@ -168,7 +168,7 @@ func sync(g: Dictionary) -> void:
 		var shown := list.size()
 		if not p.built:
 			var paid := float((p.paid as Dictionary).get("wood", 0))
-			shown = int(floor(paid / float(WinterData.palisade_cost().get("wood", 25)) * list.size()))
+			shown = int(floor(paid / float(WinterSim.D.PALISADE_COST.get("wood", 25)) * list.size()))
 		var state := ""
 		if p.built:
 			var hp := float(p.hp)

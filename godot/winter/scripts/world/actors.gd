@@ -120,7 +120,7 @@ func sync(g: Dictionary, delta: float) -> void:
 		if v == null:
 			v = _make(id, "animal." + String(a.kind), String(a.kind))
 		var speed := _ease(v, float(a.x), float(a.y), delta)
-		var side := "left" if v.dir == "left" else "right" if v.dir == "right" else v.dir
+		var side = "left" if v.dir == "left" else "right" if v.dir == "right" else v.dir
 		v.spr.play(("hop" if a.kind == "rabbit" else "walk") if speed > 0.2 else "idle", side)
 	for w in g.wolves:
 		var id := "wf:%d" % int(w.id)
@@ -141,7 +141,7 @@ func sync(g: Dictionary, delta: float) -> void:
 		if v == null:
 			v = _make("bear", "animal.bear", "bear")
 		var speed := _ease(v, float(b.x), float(b.y), delta)
-		var anim := "walk" if speed > 0.2 else ("swipe" if float(b.cd) > WinterData.balance().BEAR.cd - 0.5 else "idle")
+		var anim := "walk" if speed > 0.2 else ("swipe" if float(b.cd) > WinterSim.D.BEAR.cd - 0.5 else "idle")
 		v.spr.play(anim, v.dir)
 	if g.trader != null:
 		seen["trader"] = true
@@ -251,7 +251,7 @@ func pick(p: Vector2, g: Dictionary) -> Dictionary:
 		if v.get("dying", false) or id == "hero":
 			continue
 		var node: Node2D = v.node
-		var sz := WinterArt.size(v.spr.key) * v.spr.scale
+		var sz = WinterArt.size(v.spr.key) * v.spr.scale
 		var rect := Rect2(node.position - Vector2(sz.x * 0.35, sz.y * 0.9), Vector2(sz.x * 0.7, sz.y * 0.95))
 		if rect.has_point(p) and node.position.y > by:
 			by = node.position.y

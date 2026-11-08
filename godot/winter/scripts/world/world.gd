@@ -107,6 +107,8 @@ func show_game(state: Dictionary) -> void:
 	for c in details.get_children():
 		if not fx._steps.has(c):
 			c.queue_free()
+	_marks.clear()
+	ghost_free()
 	camp = WinterCamp.new(objects, details, shadows)
 	ground.build(g)
 	props.build(g)
@@ -246,7 +248,7 @@ func effect(e: Dictionary) -> void:
 	match String(e.type):
 		"gather":
 			var at := Vector2((float(e.x) + 0.5) * TILE, (float(e.y) + 0.3) * TILE)
-			var kind := {"tree": "wood", "rock": "stone", "bush": "berry", "scrap": "metal"}.get(e.kind, "snow")
+			var kind = {"tree": "wood", "rock": "stone", "bush": "berry", "scrap": "metal"}.get(e.kind, "snow")
 			fx.burst(at, kind, 8)
 			fx.burst(at + Vector2(0, -30), "snow", 6)
 			var id := props.view_at(g, int(e.x), int(e.y))
@@ -288,3 +290,8 @@ func effect(e: Dictionary) -> void:
 			fx.float_text(Vector2((float(e.x) + 0.5) * TILE, float(e.y) * TILE), tr("+1 мясо в силках"), Color("ff9a8a"))
 		"bearDead":
 			fx.float_text(Vector2(float(e.x) * TILE, (float(e.y) - 0.6) * TILE), "+%d / +%d" % [int(e.meat), int(e.hide)], Color("ff9a8a"))
+
+
+func ghost_free() -> void:
+	if camp:
+		camp.ghosts.clear()

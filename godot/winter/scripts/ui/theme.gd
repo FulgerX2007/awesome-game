@@ -111,7 +111,7 @@ static func panel_style(dark := false) -> StyleBox:
 
 static func button_style(state: String, accent := false) -> StyleBox:
 	if not accent:
-		var key := {"normal": "ui.button", "hover": "ui.button.hover", "pressed": "ui.button.pressed", "disabled": "ui.button.disabled", "focus": "ui.button.hover"}[state]
+		var key = {"normal": "ui.button", "hover": "ui.button.hover", "pressed": "ui.button.pressed", "disabled": "ui.button.disabled", "focus": "ui.button.hover"}[state]
 		var s = _nine(key, 14)
 		if s:
 			s.content_margin_left = 16

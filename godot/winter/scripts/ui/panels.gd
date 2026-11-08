@@ -290,7 +290,7 @@ func open_build(state: Dictionary) -> void:
 	var away := not WinterSim.at_base(g)
 	_lead(v, tr("Строить можно только в лагере.") if away else tr("Вноси, что есть: постройка достраивается по частям."))
 	var list := _list(v)
-	var stages: Array = WinterData.hut_stages()
+	var stages: Array = WinterSim.D.HUT_STAGES
 	var hs := int(g.hut.stage)
 	if hs < stages.size():
 		var st: Dictionary = stages[hs]
@@ -310,19 +310,19 @@ func open_build(state: Dictionary) -> void:
 		if b.built:
 			_row(list, "bunk", tr("Нары {n}").format({"n": i + 1}), tr("Готовы: двое спят в тепле"))
 		else:
-			_row(list, "bunk", tr("Нары {n}").format({"n": i + 1}), tr("Двое выживших спят в тепле"), WinterData.bunk_cost(), b.paid, [[tr("Внести"), "contribute", "bunk:%d" % i, not away]], "bunk:%d" % i)
+			_row(list, "bunk", tr("Нары {n}").format({"n": i + 1}), tr("Двое выживших спят в тепле"), WinterSim.D.BUNK_COST, b.paid, [[tr("Внести"), "contribute", "bunk:%d" % i, not away]], "bunk:%d" % i)
 	if g.hut.roofHole:
-		_row(list, "hut", tr("Залатать крышу"), tr("Через дыру уходит тепло"), WinterData.roof_fix(), g.hut.patchPaid, [[tr("Внести"), "contribute", "patch", not away]])
+		_row(list, "hut", tr("Залатать крышу"), tr("Через дыру уходит тепло"), WinterSim.D.ROOF_FIX, g.hut.patchPaid, [[tr("Внести"), "contribute", "patch", not away]])
 	_head(list, tr("Улучшения дома"), tr("Откроются, когда в хижине будет печь") if hs < stages.size() else "")
 	if hs >= stages.size():
-		for id in WinterSim.UPGRADE_IDS:
+		for id in WinterSim.D.UPGRADE_IDS:
 			var u: Dictionary = g.upgrades[id]
 			if u.built:
 				_row(list, id, tr(UP_NAME[id]), tr(UP_DESC[id]) + " · " + tr("готово"))
 			else:
-				_row(list, id, tr(UP_NAME[id]), tr(UP_DESC[id]), WinterData.upgrade_cost(id), u.paid, [[tr("Внести"), "contribute", "up:" + id, not away]], "up:" + id)
-	var tc: Dictionary = WinterData.torch()
-	var can_torch := g.torches.size() < int(tc.max) and int(g.stock.wood) >= int(tc.cost)
+				_row(list, id, tr(UP_NAME[id]), tr(UP_DESC[id]), WinterSim.D.UPGRADES[id].cost, u.paid, [[tr("Внести"), "contribute", "up:" + id, not away]], "up:" + id)
+	var tc: Dictionary = WinterSim.D.TORCH
+	var can_torch = g.torches.size() < int(tc.max) and int(g.stock.wood) >= int(tc.cost)
 	_row(list, "torch", tr("Факел"), tr("{n} дерева, отгоняет волков. Стоит: {k} из {m}").format({"n": int(tc.cost), "k": g.torches.size(), "m": int(tc.max)}), {}, {}, [[tr("Поставить"), "torch", null, can_torch]])
 
 
@@ -334,7 +334,7 @@ func open_bench(state: Dictionary) -> void:
 	_lead(v, tr("Верстак стоит в лагере.") if away else tr("Инструменты открывают новые места и работу."))
 	var list := _list(v)
 	_head(list, tr("Инструменты"))
-	var tools: Dictionary = WinterData.tools()
+	var tools: Dictionary = WinterSim.D.TOOLS
 	for id in tools:
 		var have: bool = g.tools[id]
 		if have:
@@ -343,8 +343,8 @@ func open_bench(state: Dictionary) -> void:
 			_row(list, id, tr(TOOL_NAME[id]), tr(TOOL_DESC[id]), tools[id].cost, {}, [[tr("Сделать"), "craft", id, not away and WinterSim.afford(g, tools[id].cost)]])
 	var shop := WinterSim.upgrade_on(g, "workshop")
 	_head(list, tr("Мастерская"), "" if shop else tr("Построй мастерскую (улучшение дома), чтобы делать снаряжение"))
-	var gear: Dictionary = WinterData.gear()
-	var snare_max := int(WinterData.balance().SNARE.max)
+	var gear: Dictionary = WinterSim.D.GEAR
+	var snare_max := int(WinterSim.D.SNARE.max)
 	for id in gear:
 		var snares: bool = id == "snares"
 		var have: bool = (int(g.gear.snares) + g.snares.size() >= snare_max) if snares else bool(g.gear[id])
@@ -360,7 +360,7 @@ func open_bench(state: Dictionary) -> void:
 			desc += " · " + tr("есть")
 		_row(list, id, tr(GEAR_LABEL[id]), desc, {} if have else gear[id].cost, {}, acts)
 	_head(list, tr("Рецепты огня"), tr("Жарят у костра: подойди к огню, когда есть сырое"))
-	var food: Dictionary = WinterData.food()
+	var food: Dictionary = WinterSim.D.FOOD
 	_row(list, "cookedMeat", tr("Жареное мясо"), tr("Сырое мясо у костра, 2 секунды · сытость {n}").format({"n": int(food.cookedMeat)}))
 	_row(list, "cookedFish", tr("Жареная рыба"), tr("Рыба у костра, 2 секунды · сытость {n}").format({"n": int(food.cookedFish)}))
 	_row(list, "smokedMeat", tr("Копчёное мясо и рыба"), tr("Коптильня сама коптит запасы, полено на три куска · сытость {n}").format({"n": int(food.smokedMeat)}))
@@ -376,16 +376,16 @@ func open_inventory(state: Dictionary) -> void:
 	else:
 		_lead(v, tr("Ноша: {n} из {m}. В лагере всё уходит на склад.").format({"n": int(g.hero.load), "m": WinterSim.carry_of(g)}))
 	var list := _list(v, 520)
-	_head(list, tr("Материалы: {n} из {m}").format({"n": WinterSim.stock_total(g), "m": WinterSim.STORE_CAP}))
+	_head(list, tr("Материалы: {n} из {m}").format({"n": WinterSim.stock_total(g), "m": WinterSim.D.STORE_CAP}))
 	list.add_child(_grid(WinterSim.RES))
 	_head(list, tr("Еда: {n} из {m}").format({"n": WinterSim.food_total(g), "m": WinterSim.food_cap(g)}))
 	list.add_child(_grid(WinterSim.FOOD_ITEMS))
 	_head(list, tr("Инструменты"))
 	var tg := GridContainer.new()
 	tg.columns = 6
-	for id in WinterData.tools():
+	for id in WinterSim.D.TOOLS:
 		tg.add_child(_slot(id, tr(TOOL_NAME[id]), "", g.tools[id]))
-	for id in WinterData.gear():
+	for id in WinterSim.D.GEAR:
 		var on: bool = int(g.gear.snares) > 0 if id == "snares" else bool(g.gear[id])
 		tg.add_child(_slot(id, tr(GEAR_LABEL[id]), str(int(g.gear.snares)) if id == "snares" and on else "", on))
 	list.add_child(tg)
@@ -440,7 +440,7 @@ func open_trade(state: Dictionary) -> void:
 	if g.trader == null:
 		_lead(v, tr("Торговец уехал"))
 		return
-	var near := WinterSim.hypot(float(g.trader.x) + 0.5 - float(g.hero.x), float(g.trader.y) + 0.5 - float(g.hero.y)) <= float(WinterData.balance().TRADE_REACH)
+	var near := WinterSim.hyp(float(g.trader.x) + 0.5 - float(g.hero.x), float(g.trader.y) + 0.5 - float(g.hero.y)) <= float(WinterSim.D.TRADE_REACH)
 	_lead(v, tr("Каждый обмен — один раз. До вечера он у ворот.") if near else tr("Подойди к саням у южных ворот."))
 	var list := _list(v)
 	var offers: Array = g.trader.offers
@@ -467,7 +467,7 @@ func open_event(state: Dictionary) -> void:
 	var a: Dictionary = EVENT_ASK[ev.id]
 	var v := _window(tr(a.title), "warning", 560)
 	var l := Label.new()
-	l.text = tr(a.text).format({"cost": _cost_text(WinterData.roof_fix())})
+	l.text = tr(a.text).format({"cost": _cost_text(WinterSim.D.ROOF_FIX)})
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(l)
 	_buttons(v, [[tr(a.yes) + "  (Y)", "answer", true, "accent"], [tr(a.no) + "  (N)", "answer", false]])

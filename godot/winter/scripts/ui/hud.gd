@@ -57,7 +57,7 @@ func _build_top() -> void:
 	top.add_theme_stylebox_override("panel", _bar_style())
 	top.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(top)
-	top_box = HBoxContainer.new()
+	top_box = BoxContainer.new()
 	top_box.add_theme_constant_override("separation", 22)
 	top.add_child(top_box)
 	var stats := HBoxContainer.new()
@@ -229,8 +229,6 @@ func layout(sz: Vector2) -> void:
 	top.position = Vector2(0, 0)
 	top.size = Vector2(sz.x, 0)
 	top_box.vertical = narrow
-	if top_box is HBoxContainer:
-		pass
 	for s in STATS:
 		bars[s].bar.custom_minimum_size.x = 70 if compact else 110
 	for k in buttons:
@@ -276,7 +274,7 @@ func update(g: Dictionary, delta: float, task_text: String, action_label: String
 	temp_label.add_theme_color_override("font_color", WinterTheme.FROST if t > -15 else Color("9fc4ff") if t > -24 else Color("c9b8ff"))
 	for r in RES:
 		res_labels[r].text = str(int(g.stock[r]))
-	res_labels.food.text = str(WinterSim.food_total(g))
+	res_labels.food.text = str(int(WinterSim.food_total(g)))
 	var away := not WinterSim.at_base(g)
 	load_label.visible = away
 	if away:

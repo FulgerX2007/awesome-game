@@ -50,7 +50,7 @@ func _run() -> void:
 	var g: Dictionary = main.g
 	var tree = null
 	for n in g.nodes:
-		if n.kind == "tree" and WinterSim.hypot(float(n.x) - g.hero.x, float(n.y) - g.hero.y) < 12:
+		if n.kind == "tree" and WinterSim.hyp(float(n.x) - g.hero.x, float(n.y) - g.hero.y) < 12:
 			tree = n
 			break
 	check(tree != null, "a tree near the camp")

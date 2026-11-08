@@ -85,7 +85,8 @@ func _ready() -> void:
 ## ── Settings and screen size ──
 
 func _load_settings() -> void:
-	var d = JSON.parse_string(WinterStore.get_item(SETTINGS_KEY)) if WinterStore.get_item(SETTINGS_KEY) != "" else null
+	var raw := WinterStore.get_item(SETTINGS_KEY)
+	var d = JSON.parse_string(raw) if raw.begins_with("{") else null
 	if d is Dictionary:
 		for k in settings:
 			if d.has(k) and (d[k] is float or d[k] is int):
@@ -121,7 +122,7 @@ func _relayout() -> void:
 ## ── Saving ──
 
 func _persist() -> void:
-	WinterStore.set_item(SAVE_KEY, JSON.stringify(save))
+	WinterStore.set_item(SAVE_KEY, WinterSim.save_text(save))
 
 
 func save_current() -> void:
@@ -239,7 +240,7 @@ func _process(delta: float) -> void:
 		if since_save >= SAVE_EVERY:
 			save_current()
 		var sp: Dictionary = WinterSim.SPOT
-		var near_fire := WinterSim.fire_on(g) and WinterSim.hypot(float(g.hero.x) - sp.fire.x - 0.5, float(g.hero.y) - sp.fire.y - 0.5) < 6.0
+		var near_fire := WinterSim.fire_on(g) and WinterSim.hyp(float(g.hero.x) - sp.fire.x - 0.5, float(g.hero.y) - sp.fire.y - 0.5) < 6.0
 		sfx.set_loop("crackle", 1.0 if near_fire else 0.0)
 		sfx.set_loop("wind", 1.0 if WinterSim.is_blizzard(g) else 0.4 if WinterSim.is_night(g) else 0.15)
 		if g.status != "playing":
@@ -260,7 +261,7 @@ func _process(delta: float) -> void:
 
 
 func _trader_near() -> bool:
-	return WinterSim.hypot(float(g.trader.x) + 0.5 - float(g.hero.x), float(g.trader.y) + 0.5 - float(g.hero.y)) <= float(WinterData.balance().TRADE_REACH)
+	return WinterSim.hyp(float(g.trader.x) + 0.5 - float(g.hero.x), float(g.trader.y) + 0.5 - float(g.hero.y)) <= float(WinterSim.D.TRADE_REACH)
 
 
 func _task_text() -> String:
@@ -369,7 +370,7 @@ func handle(events: Array) -> void:
 
 
 func _sv_name(id: String) -> String:
-	return String(WinterData.survivors()[id].name)
+	return String(WinterSim.D.SURVIVORS[id].name)
 
 
 func _event_done(e: Dictionary) -> void:
@@ -398,7 +399,7 @@ func _open_event() -> void:
 func answer(yes: bool) -> void:
 	if g.is_empty() or g.event == null or g.event.phase != "ask":
 		return
-	var r := WinterSim.answer_event(g, WinterData.event_choices()[g.event.id][0 if yes else 1])
+	var r := WinterSim.answer_event(g, WinterSim.D.EVENT_CHOICES[g.event.id][0 if yes else 1])
 	if r == "nores":
 		banner(tr("Не хватает припасов"))
 		return
@@ -420,7 +421,7 @@ func action_target() -> Dictionary:
 	var best := {}
 	var bd := INF
 	var consider := func(x: int, y: int, label: String):
-		var d := WinterSim.hypot(x + 0.5 - float(h.x), y + 0.5 - float(h.y))
+		var d := WinterSim.hyp(x + 0.5 - float(h.x), y + 0.5 - float(h.y))
 		if d <= 1.6 and d < bd:
 			bd = d
 			best = {"x": x, "y": y, "label": label}
@@ -496,8 +497,8 @@ func tap(x: int, y: int) -> void:
 func eat() -> void:
 	if screen != "play" or g.is_empty():
 		return
-	var item = WinterSim.eat(g)
-	if item == null:
+	var item := WinterSim.eat(g)
+	if item == "":
 		banner(tr("Ты сыт") if float(g.hero.food) >= 98.0 else tr("Еды нет"), 1.2)
 	handle(WinterSim.drain(g))
 
@@ -533,12 +534,12 @@ func _fits(t: Vector2i) -> bool:
 		if int(k.x) == x and int(k.y) == y:
 			return false
 	if place_mode == "torch":
-		return WinterSim.walkable(g, x, y) and g.torches.size() < int(WinterData.torch().max)
+		return WinterSim.walkable(g, x, y) and g.torches.size() < int(WinterSim.D.TORCH.max)
 	for n in g.snares:
 		if int(n.x) == x and int(n.y) == y:
 			return false
 	return not WinterSim.in_base(x, y) and g.tiles[WinterSim.idx(x, y)] == "." and WinterSim.node_at(g, x, y) == null \
-		and WinterSim.hypot(x + 0.5 - float(g.hero.x), y + 0.5 - float(g.hero.y)) <= 2.0
+		and WinterSim.hyp(x + 0.5 - float(g.hero.x), y + 0.5 - float(g.hero.y)) <= 2.0
 
 
 ## Arrows toward who waits off screen: survivors to rescue, the lost child, the trader, the wanderer.
@@ -553,7 +554,8 @@ func _markers() -> Array:
 			return
 		var center := vp * 0.5
 		var d := p - center
-		var k := minf((vp.x * 0.5 - 40) / maxf(1e-6, absf(d.x)), (vp.y * 0.5 - 90) / maxf(1e-6, absf(d.y)))
+		# inside the band between the top bar with the task card and the bottom buttons
+		var k := minf((vp.x * 0.5 - 40) / maxf(1e-6, absf(d.x)), (vp.y * 0.5 - 150) / maxf(1e-6, absf(d.y)))
 		out.append({"p": center + d * k, "a": d.angle(), "color": c})
 	for s in g.survivors:
 		if s.state == "waiting":

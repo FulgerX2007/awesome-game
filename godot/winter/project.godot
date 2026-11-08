@@ -22,6 +22,11 @@ window/stretch/aspect="expand"
 
 pointing/emulate_touch_from_mouse=false
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://data/winter.ru.translation", "res://data/winter.ro.translation")
+locale/fallback="ru"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
