@@ -161,7 +161,7 @@ func frame(delta: float, running: bool) -> void:
 	if weather.level == "blizzard":
 		fog = 0.62 + weather.gust * 0.3
 	elif weather.level == "heavy":
-		fog = 0.12 + weather.gust * 0.1
+		fog = 0.06 + weather.gust * 0.08
 	mat.set_shader_parameter("fog", fog)
 	mat.set_shader_parameter("wind", weather.wind)
 	mat.set_shader_parameter("night", lights.night)

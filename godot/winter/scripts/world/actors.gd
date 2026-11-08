@@ -37,7 +37,11 @@ func _make(id: String, key: String, kind: String, tint := Color(0, 0, 0, 0), sca
 	var sh := Sprite2D.new()
 	sh.texture = _shadow_tex()
 	sh.scale = Vector2(0.62, 0.26) * scale * (1.6 if kind == "bear" else 1.15 if kind in ["wolf", "deer"] else 0.5 if kind == "rabbit" else 1.0)
-	sh.modulate = Color(0.1, 0.12, 0.25, 0.42)
+	sh.modulate = Color(0.1, 0.12, 0.25, 0.5)
+	# the fire's light must not wash the contact shadow out
+	var unshaded := CanvasItemMaterial.new()
+	unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	sh.material = unshaded
 	node.add_child(sh)
 	var spr := WinterAnimSprite.new()
 	spr.setup(key, tint)

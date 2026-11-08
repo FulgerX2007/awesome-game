@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/patch_0.png-6f4354d9bc98db4d9c0c53a4233316c1.
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.9
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

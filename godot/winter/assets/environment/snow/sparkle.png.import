@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/sparkle.png-66e7a343f1eb6c75d64b624911577e8e.
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.9
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

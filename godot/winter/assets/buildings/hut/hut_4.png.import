@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/hut_4.png-2026f9b9019de9d831466c3526ec9054.ct
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.9
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

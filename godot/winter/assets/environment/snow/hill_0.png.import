@@ -15,9 +15,9 @@ dest_files=["res://.godot/imported/hill_0.png-1ad4a070c65f3ce40a9825f55148b926.c
 
 [params]
 
-compress/mode=0
+compress/mode=1
 compress/high_quality=false
-compress/lossy_quality=0.7
+compress/lossy_quality=0.9
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1

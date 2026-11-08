@@ -9,7 +9,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 GODOT="${GODOT:-godot}"
 
 cd "$ROOT"
-node tools/winter-godot/data.cjs --check
+node --test tests/winter-godot/data.test.js >/dev/null
 "$GODOT" --headless --path godot/winter --import >/dev/null 2>&1 || true
 "$GODOT" --headless --path godot/winter -s res://tests/run.gd | tail -1
 out="$("$GODOT" --headless --path godot/winter -s res://tests/scenes.gd 2>&1)"
