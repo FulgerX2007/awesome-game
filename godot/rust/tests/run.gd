@@ -216,6 +216,17 @@ func test_upgrade_data() -> void:
 		ok(ids.has(id), "the web game's upgrade %s is kept" % id)
 
 
+## "+15%" in a text must be the effect's real amount, so balancing cannot leave stale descriptions.
+func test_texts_match_numbers() -> void:
+	var re := RegEx.create_from_string("\\+(\\d+)%")
+	for st in GameData.stages():
+		for m in re.search_all(st.unlock_text):
+			ok(int(m.get_string(1)) == roundi(st.amount * 100), "stage %s says %s%%, amount %s" % [st.id, m.get_string(1), st.amount])
+	for u in GameData.upgrades():
+		for m in re.search_all(u.description):
+			ok(int(m.get_string(1)) == roundi(u.amount * 100), "upgrade %s says %s%%, amount %s" % [u.id, m.get_string(1), u.amount])
+
+
 func test_every_upgrade_has_an_effect() -> void:
 	for u in GameData.upgrades():
 		var s := fresh()

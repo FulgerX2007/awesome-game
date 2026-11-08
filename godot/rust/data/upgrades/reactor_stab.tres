@@ -6,7 +6,7 @@
 script = ExtResource("1_vaybg")
 id = "reactor_stab"
 name = "Стабилизатор реактора"
-description = "Вся автоматика +20%, перебои с питанием реже. Открывает дрона-помощника"
+description = "Вся автоматика +15%, перебои с питанием реже. Открывает дрона-помощника"
 max_level = 3
 parts_base = 6000.0
 parts_growth = 3.0

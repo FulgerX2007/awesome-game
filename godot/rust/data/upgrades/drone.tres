@@ -6,7 +6,7 @@
 script = ExtResource("1_iuu7t")
 id = "drone"
 name = "Дрон-помощник"
-description = "Сам делает выбранное ручное дело: +1 действие в секунду"
+description = "Сам делает выбранное ручное дело: +1 действие за 2 секунды"
 max_level = 10
 parts_base = 20000.0
 parts_growth = 2.2
