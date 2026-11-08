@@ -34,7 +34,52 @@ var snares := {}                      # "x,y" -> Sprite2D
 var sled: Sprite2D
 var ghosts := []
 var _flame_frames := 1
-var _small_frames := 1
+var _flame_fps := 12.0
+
+## The Ember Flipbooks campfire (tools/winter-godot/ember.py writes it to assets/ember, outside git: its licence
+## forbids a public repository). Loaded once; {} when it isn't there.
+const EMBER := "res://assets/ember/"
+const EMBER_SCALE := 2.0          # the campfire flipbook's flame is small in its frame
+const EMBER_TORCH := 0.62
+static var _ember := {}
+static var _ember_checked := false
+
+
+static func ember() -> Dictionary:
+	if not _ember_checked:
+		_ember_checked = true
+		if FileAccess.file_exists(EMBER + "ember.json") and ResourceLoader.exists(EMBER + "fire_campfire.png"):
+			var d = JSON.parse_string(FileAccess.get_file_as_string(EMBER + "ember.json"))
+			if d is Dictionary and d.get("fire_campfire") is Dictionary:
+				_ember = d.fire_campfire.duplicate()
+				_ember.tex = load(EMBER + "fire_campfire.png")
+	return _ember
+
+
+## A flame sprite: the Ember campfire when it is there, else the generated one. Both keep their colour by day
+## (unshaded, mixed rather than added, so the flame doesn't burn out to white on the snow).
+## → {sprite, frames, fps}
+func _make_flame(small: bool) -> Dictionary:
+	var e := ember()
+	var mat := CanvasItemMaterial.new()
+	mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	if not e.is_empty():
+		var s := Sprite2D.new()
+		s.texture = e.tex
+		s.centered = false
+		s.hframes = int(e.columns)
+		s.vframes = int(ceil(float(e.frames) / float(e.columns)))
+		s.offset = -Vector2(e.base[0], e.base[1])
+		s.scale = Vector2.ONE * (EMBER_TORCH if small else EMBER_SCALE)
+		s.set_meta("base_scale", s.scale.x)
+		s.material = mat
+		return {"sprite": s, "frames": int(e.frames), "fps": float(e.fps)}
+	var key := "fx.flame.small" if small else "fx.flame"
+	var f := WinterArt.sprite(key)
+	var n := _sheet(f, key)
+	f.material = mat
+	f.set_meta("base_scale", 1.0)
+	return {"sprite": f, "frames": n, "fps": 11.0 if small else 12.0}
 
 
 func _init(objects_layer: Node2D, details_layer: Node2D, shadows_layer: Node2D) -> void:
@@ -78,12 +123,13 @@ func build(g: Dictionary) -> void:
 	pit = _at("firepit", Vector2(sp.fire.x + 0.5, sp.fire.y + 0.62), null, false)
 	pit_ash = WinterArt.sprite("firepit.ash")
 	pit.add_child(pit_ash)
-	flame = WinterArt.sprite("fx.flame")
-	flame.position = Vector2(0, -10)
-	_flame_frames = _sheet(flame, "fx.flame")
-	var mat := CanvasItemMaterial.new()
-	mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
-	flame.material = mat
+	var fl := _make_flame(false)
+	flame = fl.sprite
+	_flame_frames = fl.frames
+	_flame_fps = fl.fps
+	# the flame stands on the pit's embers (the generator marks the spot as the pit's anchor)
+	var anchor = WinterArt.entry("firepit").get("anchor", null)
+	flame.position = (Vector2(anchor[0], anchor[1]) - WinterArt.foot("firepit")) if anchor is Array else Vector2(0, -10)
 	pit.add_child(flame)
 	for i in sp.bunks.size():
 		var b: Dictionary = sp.bunks[i]
@@ -159,6 +205,9 @@ func sync(g: Dictionary) -> void:
 			shadows.add_child(sh)
 			hut.set_meta("shadow", sh)
 	hut_hole.visible = bool(g.hut.roofHole) and hs >= 2
+	if hut_hole.visible and WinterArt.entry("hut.roofhole").get("decal", false):
+		# a decal of its own: on the roof spot the hut's art names, or the middle of the roof
+		hut_hole.position = hut_point("hole", Vector2(0, -WinterArt.size("hut.%d" % hs).y * 0.62))
 	hut_scaffold.visible = hs < 4 and not (g.hut.paid as Dictionary).is_empty()
 	# the palisade
 	for i in 4:
@@ -206,14 +255,14 @@ func _sync_torches(g: Dictionary) -> void:
 		if torches.has(k):
 			continue
 		var pole := _at("torch", Vector2(t.x + 0.5, t.y + 0.7))
-		var f := WinterArt.sprite("fx.flame.small")
-		var n := _sheet(f, "fx.flame.small")
-		f.position = Vector2(0, -WinterArt.size("torch").y * 0.86)
-		var mat := CanvasItemMaterial.new()
-		mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
-		f.material = mat
+		var fl := _make_flame(true)
+		var f: Sprite2D = fl.sprite
+		var anchor = WinterArt.entry("torch").get("anchor", null)
+		f.position = (Vector2(anchor[0], anchor[1]) - WinterArt.foot("torch")) if anchor is Array else Vector2(0, -WinterArt.size("torch").y * 0.86)
+		# a lantern post glows with its own painted lantern: no flame on top of it
+		f.visible = not WinterArt.entry("torch").get("lantern", false)
 		pole.add_child(f)
-		torches[k] = {"pole": pole, "flame": f, "frames": n, "phase": randf() * 3.0}
+		torches[k] = {"pole": pole, "flame": f, "frames": fl.frames, "fps": fl.fps, "phase": randf() * 3.0}
 	for k in torches.keys():
 		if not seen.has(k):
 			var v: Dictionary = torches[k]
@@ -245,12 +294,12 @@ func animate(g: Dictionary, delta: float) -> void:
 	pit_ash.visible = not on
 	if on:
 		var k := clampf(fuel / 10.0, 0.0, 1.0)
-		var s := 0.4 + 0.6 * k
+		var s := (0.4 + 0.6 * k) * float(flame.get_meta("base_scale", 1.0))
 		flame.scale = Vector2(s * (1.0 + sin(flame_t * 7.3) * 0.03), s * (1.0 + sin(flame_t * 5.1) * 0.06))
-		flame.frame = int(flame_t * 12.0) % _flame_frames
+		flame.frame = int(flame_t * _flame_fps) % _flame_frames
 	for k in torches:
 		var t: Dictionary = torches[k]
-		t.flame.frame = int((flame_t + t.phase) * 11.0) % int(t.frames)
+		t.flame.frame = int((flame_t + t.phase) * float(t.fps)) % int(t.frames)
 
 
 ## The silhouette of a building to come, on its spot (the build menu shows where it will stand). "" hides it.
@@ -279,3 +328,23 @@ func ghost(id: String, g: Dictionary) -> void:
 	elif id.begins_with("up:"):
 		var u := id.substr(3)
 		add.call("up." + u, UP_FOOT[u])
+
+
+## A named point of the hut's current stage ("anchor" is the chimney's mouth, "window", "hole"), relative to its
+## foot; `fallback` when the art doesn't name it.
+func hut_point(name: String, fallback: Vector2) -> Vector2:
+	var key := "hut.%d" % maxi(0, hut_stage)
+	var p = WinterArt.entry(key).get(name, null)
+	return (Vector2(p[0], p[1]) - WinterArt.foot(key)) if p is Array else fallback
+
+
+## The same point in the world.
+func hut_world(name: String, fallback: Vector2) -> Vector2:
+	return hut.position + hut_point(name, fallback - hut.position) if hut else fallback
+
+
+## Where a torch's light shines from: its lantern (or flame), in the world.
+static func torch_light(t: Dictionary) -> Vector2:
+	var base := Vector2(float(t.x) + 0.5, float(t.y) + 0.7) * TILE
+	var a = WinterArt.entry("torch").get("anchor", null)
+	return base + ((Vector2(a[0], a[1]) - WinterArt.foot("torch")) if a is Array else Vector2(0, -80))

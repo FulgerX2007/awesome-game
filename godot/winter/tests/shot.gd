@@ -1,9 +1,10 @@
 extends SceneTree
 ## Frames of the real game as PNGs, for eyes (needs a display: xvfb-run works):
 ##   xvfb-run -a godot --path godot/winter -s res://tests/shot.gd --resolution 1600x900 -- <out dir> [scene …]
-## Scenes: menu, day, dusk, night, blizzard, build, bench, inventory, forest. Without names, all of them.
+## Scenes: menu, day, dusk, night, blizzard, build, bench, inventory, forest, chop, mine (the frame of the blow).
+## Without names, all of them.
 
-const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest"]
+const ALL := ["menu", "day", "dusk", "night", "blizzard", "build", "bench", "inventory", "forest", "chop", "mine", "hut", "hut_day", "survivors", "animals", "wolves", "strangers"]
 
 var main: Node
 var out := "user://shots"
@@ -79,6 +80,92 @@ func _run(names: Array) -> void:
 				await _frames(20)
 				await _shot(n)
 				main.panels.close()
+			"chop", "mine":
+				# the hero next to a tree (or a rock, with a pick), the frame right after a blow lands
+				var g := _game()
+				g.t = 45.0
+				g.tools.pick = true
+				var kind := "tree" if n == "chop" else "rock"
+				var node = null
+				for nd in g.nodes:
+					if nd.kind == kind and WinterSim.hyp(float(nd.x) - 27.0, float(nd.y) - 20.0) < 14.0:
+						node = nd
+						break
+				g.hero.x = float(node.x) - 0.5
+				g.hero.y = float(node.y) + 0.5
+				main.world.show_game(g)
+				main.tap(int(node.x), int(node.y))
+				var hits := 0
+				for k in 200:
+					WinterSim.step(g, 1.0 / 60.0)
+					var ev := WinterSim.drain(g)
+					main.handle(ev)
+					await process_frame
+					if ev.any(func(e): return e.type == "gather"):
+						hits += 1
+						if hits == 2:
+							break
+				await _frames(1)
+				await _shot(n)
+			"hut", "hut_day":
+				# the cabin: at night with the stove lit; by day a stage earlier, the roof torn by a blizzard
+				var g := _game()
+				var night: bool = n == "hut"
+				g.t = 118.0 if night else 40.0
+				g.hut.stage = 4 if night else 3
+				g.hut.stove = 12.0
+				g.hut.roofHole = not night
+				g.hero.x = 25.5
+				g.hero.y = 19.6
+				main.world.show_game(g)
+				await _frames(60)
+				await _shot(n)
+			"survivors":
+				# all five at home in the camp by day, at work
+				var g := _game()
+				g.t = 40.0
+				var spots := [[24.5, 21.6], [26.0, 22.4], [29.3, 21.0], [30.6, 22.3], [28.0, 23.2]]
+				for i in g.survivors.size():
+					var sv: Dictionary = g.survivors[i]
+					sv.state = "home"
+					sv.x = spots[i][0]
+					sv.y = spots[i][1]
+				g.hero.x = 27.4
+				g.hero.y = 21.6
+				main.world.show_game(g)
+				await _frames(60)
+				await _shot("survivors")
+			"animals", "wolves":
+				# the beasts around the hero in the forest: by day a hare, a deer and the bear; at night wolves
+				var g := _game()
+				var night: bool = n == "wolves"
+				g.t = 120.0 if night else 50.0
+				g.hero.x = 14.5
+				g.hero.y = 28.5
+				g.animals.clear()
+				g.wolves.clear()
+				if night:
+					for k in 3:
+						g.wolves.append({"id": 900 + k, "x": 12.5 + k * 2.2, "y": 26.5 + (k % 2) * 2.0, "hp": 4.0, "maxHp": 4.0, "cd": 0.0, "flee": false})
+				else:
+					g.animals.append({"id": 901, "kind": "rabbit", "x": 12.6, "y": 29.4, "hp": 1, "tx": 12, "ty": 29, "cd": 9.0})
+					g.animals.append({"id": 902, "kind": "deer", "x": 17.0, "y": 27.4, "hp": 2, "tx": 17, "ty": 27, "cd": 9.0})
+					g.bear = {"id": 903, "x": 11.5, "y": 26.2, "hp": 14.0, "cd": 0.0, "calm": 9.0, "path": null, "plan": 9.0, "chase": false}
+				main.world.show_game(g)
+				await _frames(40)
+				await _shot(n)
+			"strangers":
+				# the trader at the south gate and the wounded wanderer in the snow nearby
+				var g := _game()
+				g.t = 40.0
+				g.trader = {"x": WinterSim.SPOT.trader.x, "y": WinterSim.SPOT.trader.y, "offers": []}
+				g.event = {"id": "wanderer", "phase": "active", "x": 30, "y": 28, "day": 1}
+				g.snares.append({"x": 24, "y": 28})
+				g.hero.x = 26.5
+				g.hero.y = 27.6
+				main.world.show_game(g)
+				await _frames(40)
+				await _shot("strangers")
 			"forest":
 				var g := _game()
 				g.t = 50.0

@@ -8,7 +8,7 @@ extends Node2D
 const FALLBACK := {
 	"chop": "work", "mine": "work", "gather": "work", "build": "work", "craft": "work", "fire": "work",
 	"work": "idle", "hurt": "idle", "death": "idle", "sleep": "idle", "hop": "walk", "run": "walk",
-	"bite": "idle", "swipe": "idle", "walk": "idle",
+	"bite": "idle", "swipe": "idle", "walk": "idle", "warm": "fire",
 }
 
 var key := ""
@@ -21,6 +21,7 @@ var flip := false
 var time := 0.0
 var speed := 1.0
 var done := false           # a non-looping animation reached its last frame
+var driven := false         # the frame is set from outside (show_progress), the clock stands
 var _cur := {}
 var _cols := 1
 
@@ -76,6 +77,7 @@ func play(name: String, d: String, restart := false) -> void:
 	dir = dd
 	time = 0.0
 	done = false
+	driven = false
 	_cur = anims.get(full, {})
 	_apply_flip()
 	_show(0)
@@ -120,7 +122,7 @@ func _apply_flip() -> void:
 
 
 func _process(delta: float) -> void:
-	if _cur.is_empty():
+	if _cur.is_empty() or driven:
 		return
 	time += delta * speed
 	var count := int(_cur.get("count", 1))
@@ -145,3 +147,30 @@ func _show(i: int) -> void:
 		body.frame = idx
 		if tint:
 			tint.frame = idx
+
+
+## The current animation's frame count and the frame where its blow lands (−1 when it has none).
+func clip_count() -> int:
+	return int(_cur.get("count", 1))
+
+
+func clip_impact() -> int:
+	return int(_cur.get("impact", -1))
+
+
+## Shows a frame chosen from outside (a swing kept in step with the rules' timer), stopping the clock.
+func show_progress(progress: float) -> void:
+	if _cur.is_empty():
+		return
+	var count := clip_count()
+	var impact := maxi(0, clip_impact())
+	var i := (impact + int(floor(progress * count))) % count
+	time = float(i) / maxf(1.0, float(_cur.get("fps", 8)))
+	driven = true
+	_show(i)
+
+
+## The frame now on screen.
+func frame_index() -> int:
+	var fps := float(_cur.get("fps", 8))
+	return int(time * fps) % maxi(1, clip_count())

@@ -43,6 +43,8 @@ func _make(id: String, key: String, kind: String, tint := Color(0, 0, 0, 0), sca
 	unshaded.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	sh.material = unshaded
 	node.add_child(sh)
+	if WinterArt.entry(key).get("lying", false):
+		sh.scale = Vector2(1.1, 0.3)
 	var spr := WinterAnimSprite.new()
 	spr.setup(key, tint)
 	spr.scale = Vector2.ONE * scale
@@ -110,7 +112,12 @@ func sync(g: Dictionary, delta: float) -> void:
 		seen[id] = true
 		var v = views.get(id)
 		if v == null:
-			v = _make(id, "char.villager", "person", COATS.get(s.id, Color("7a5638")), 0.78 if s.id == "child" else 1.0)
+			# the painted survivor in their own clothes when there is one, else the generated villager tinted
+			var painted := "char.sv." + String(s.id)
+			if WinterArt.has(painted):
+				v = _make(id, painted, "person", Color(0, 0, 0, 0), float(WinterArt.entry(painted).get("scale", 1.0)))
+			else:
+				v = _make(id, "char.villager", "person", COATS.get(s.id, Color("7a5638")), 0.78 if s.id == "child" else 1.0)
 		var speed := _ease(v, float(s.x), float(s.y), delta)
 		var a := "walk" if speed > 0.4 else ("work" if s.state == "home" and s.get("busy", false) else "idle")
 		if s.state == "home" and WinterSim.is_night(g):
@@ -135,9 +142,12 @@ func sync(g: Dictionary, delta: float) -> void:
 		var speed := _ease(v, float(w.x), float(w.y), delta)
 		var near := hypot2(float(w.x) - float(g.hero.x), float(w.y) - float(g.hero.y)) < 1.3
 		var anim := "run" if speed > 0.3 else ("bite" if near and float(w.cd) > 1.0 else "idle")
-		if v.has("hurt_until") and Time.get_ticks_msec() < int(v.hurt_until):
+		var hurt: bool = v.has("hurt_until") and Time.get_ticks_msec() < int(v.hurt_until)
+		if hurt:
 			anim = "hurt"
 		v.spr.play(anim, v.dir)
+		_motion(v, speed > 0.3, anim == "bite", hurt, delta)
+		_eyes(v, WinterSim.is_night(g) and not w.get("flee", false))
 	if g.bear != null:
 		var b: Dictionary = g.bear
 		seen["bear"] = true
@@ -147,6 +157,7 @@ func sync(g: Dictionary, delta: float) -> void:
 		var speed := _ease(v, float(b.x), float(b.y), delta)
 		var anim := "walk" if speed > 0.2 else ("swipe" if float(b.cd) > WinterSim.D.BEAR.cd - 0.5 else "idle")
 		v.spr.play(anim, v.dir)
+		_motion(v, speed > 0.2, anim == "swipe", v.has("hurt_until") and Time.get_ticks_msec() < int(v.hurt_until), delta)
 	if g.trader != null:
 		seen["trader"] = true
 		var v = views.get("trader")
@@ -162,6 +173,9 @@ func sync(g: Dictionary, delta: float) -> void:
 			v = _make("wanderer", "char.wanderer", "person")
 		_ease(v, float(ev.x) + 0.5, float(ev.y) + 0.6, delta)
 		v.spr.play("idle", "down")
+		# he lies in the snow and shivers
+		v.mt = float(v.get("mt", 0.0)) + delta
+		v.spr.position.x = sin(v.mt * 38.0) * 1.3 * (0.5 + 0.5 * absf(sin(v.mt * 1.3)))
 	for id in views.keys():
 		if not seen.has(id):
 			var v: Dictionary = views[id]
@@ -189,28 +203,39 @@ func _die(id: String, v: Dictionary) -> void:
 		views.erase(id))
 
 
+## Seconds between blows on a node, as the rules count them (D.NODE.hitCd): the swing is kept in step
+## with that timer, so the frame where the axe or the pick lands is the moment the rules take the wood or stone
+## (and the chips, the sound and the shudder of the tree come from that same event).
+static func blow_period(kind: String) -> float:
+	return float(WinterSim.D.NODE.hitCd[kind])
+
+
 func _hero(g: Dictionary, delta: float) -> void:
 	var h: Dictionary = g.hero
 	var v = views.get("hero")
 	if v == null:
 		v = _make("hero", "char.hero", "hero")
+		v.finish = ""
 	var speed := _ease(v, float(h.x), float(h.y), delta)
 	var a := "idle"
 	var tg = h.target
+	var period := 0.0
 	hero_action_t = maxf(0.0, hero_action_t - delta)
 	hero_hurt = maxf(0.0, hero_hurt - delta)
+	var walking: bool = speed > 0.3 or h.path != null or h.dir != null
 	if g.status == "lost":
 		a = "death"
 	elif h.sleeping:
 		a = "sleep"
 		v.dir = "down"
-	elif speed > 0.3 or h.path != null or h.dir != null:
+	elif walking:
 		a = "walk"
 	elif tg != null:
 		match String(tg.type):
 			"node":
 				var n: Dictionary = g.nodes[int(tg.id)]
 				a = {"tree": "chop", "rock": "mine", "bush": "gather", "scrap": "gather"}[n.kind]
+				period = blow_period(n.kind)
 				_face_to(v, float(n.x) + 0.5, float(n.y) + 0.5, float(h.x), float(h.y))
 			"hole":
 				a = "gather"
@@ -220,19 +245,108 @@ func _hero(g: Dictionary, delta: float) -> void:
 				_face_to(v, WinterSim.SPOT.fire.x + 0.5, WinterSim.SPOT.fire.y + 0.5, float(h.x), float(h.y))
 			"animal", "wolf", "bear":
 				a = "chop"
+				period = 0.8
+	elif _warming(g):
+		# standing by a burning fire while cold: warming up (the rules do the warming; this is the look)
+		a = "warm"
+		_face_to(v, WinterSim.SPOT.fire.x + 0.5, WinterSim.SPOT.fire.y + 0.5, float(h.x), float(h.y))
 	if hero_action_t > 0.0 and a == "idle":
 		a = hero_action
-	if hero_hurt > 0.0 and a in ["idle", "walk"]:
-		a = "hurt"
-	v.spr.play(a, v.dir)
-	v.spr.speed = 1.0 if a != "walk" else clampf(speed / 3.0, 0.6, 1.4)
+	var spr: WinterAnimSprite = v.spr
+	# a swing that was cut short by the end of the work plays out to its last frame, then idle
+	if a == "idle" and v.finish != "" and not walking:
+		if spr.anim.begins_with(v.finish) and not spr.done:
+			a = v.finish
+		else:
+			v.finish = ""
+	if period > 0.0:
+		spr.play(a, v.dir)
+		if spr.clip_impact() >= 0:
+			spr.show_progress(clampf((period - float(h.cd)) / period, 0.0, 0.999))
+			v.finish = a
+	else:
+		if v.finish != "" and a == v.finish:
+			# let the clock run the rest of the swing, without looping back
+			spr.driven = false
+			if spr.frame_index() >= spr.clip_count() - 1:
+				spr.done = true
+		else:
+			spr.play(a, v.dir)
+	spr.speed = 1.0 if a != "walk" else clampf(speed / 3.0, 0.6, 1.4)
+	# hurt and death: a red flash and a fall when the sheet has no frames for them
+	var red := clampf(hero_hurt / 0.35, 0.0, 1.0)
+	spr.modulate = Color(1.0, 1.0 - red * 0.55, 1.0 - red * 0.55)
+	var lying := a == "death" and not spr.has_anim("death_side")
+	spr.rotation = lerp_angle(spr.rotation, -PI * 0.5 if lying else 0.0, 1.0 - exp(-delta * 6.0))
 	v.shadow.visible = a != "sleep" or not WinterSim.in_hut(h)
 	v.node.visible = not (h.sleeping and WinterSim.in_hut(h))
+
+
+## The hero warms up at the fire: it burns, he is in its circle, standing still, not yet warm.
+func _warming(g: Dictionary) -> bool:
+	var h: Dictionary = g.hero
+	if not WinterSim.fire_on(g) or float(h.warmth) >= 95.0 or h.target != null or h.path != null or h.dir != null:
+		return false
+	var sp: Dictionary = WinterSim.SPOT
+	return WinterSim.hyp(float(h.x) - sp.fire.x - 0.5, float(h.y) - sp.fire.y - 0.5) <= float(WinterSim.D.FIRE.radius)
 
 
 func hero_node() -> Node2D:
 	var v = views.get("hero")
 	return v.node if v else null
+
+
+## Motion the art has no frames for, drawn by moving the sprite: a still picture (the bear) bobs and rocks as it
+## walks; an attack lunges forward and back; a hit flashes red. Animals with frames for them keep their frames.
+func _motion(v: Dictionary, moving: bool, attack: bool, hurt: bool, delta: float) -> void:
+	var spr: WinterAnimSprite = v.spr
+	v.mt = float(v.get("mt", 0.0)) + delta
+	var t: float = v.mt
+	var still := spr.clip_count() <= 1
+	var bob := Vector2.ZERO
+	var rock := 0.0
+	if moving and still:
+		bob.y = -absf(sin(t * 7.0)) * 6.0
+		rock = sin(t * 7.0) * 0.035
+	if attack and (still or not (spr.anim.begins_with("bite") or spr.anim.begins_with("swipe"))):
+		var k := maxf(0.0, sin(fmod(t, 0.6) / 0.6 * PI))
+		bob.x = (-1.0 if spr.flip else 1.0) * k * 16.0
+		bob.y -= k * 4.0
+		rock -= (-1.0 if spr.flip else 1.0) * k * 0.08
+	spr.position = spr.position.lerp(bob, 1.0 - exp(-delta * 18.0))
+	spr.rotation = lerp_angle(spr.rotation, rock, 1.0 - exp(-delta * 14.0))
+	spr.modulate = Color(1.0, 0.55, 0.55) if hurt else Color.WHITE
+
+
+## Eyes that shine in the dark (where the art marks them): two small warm glows on the head, at night, blinking now
+## and then; they ignore the night's tint, so a wolf beyond the firelight shows as a pair of eyes.
+func _eyes(v: Dictionary, on: bool) -> void:
+	var spr: WinterAnimSprite = v.spr
+	var e = WinterArt.entry(spr.key).get("eyes", null)
+	if not e is Array:
+		return
+	var glow: Sprite2D = v.get("eyes")
+	if glow == null:
+		glow = Sprite2D.new()
+		glow.texture = WinterArt.texture("fx.glow", false)
+		glow.modulate = Color(1.0, 0.82, 0.3, 0.95)
+		glow.scale = Vector2(0.32, 0.22)
+		var m := CanvasItemMaterial.new()
+		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		glow.material = m
+		spr.add_child(glow)
+		v.eyes = glow
+	var p := Vector2(e[0], e[1]) - WinterArt.foot(spr.key)
+	glow.position = Vector2(-p.x if spr.flip else p.x, p.y)
+	var blink := fmod(float(v.get("mt", 0.0)) + float(hash(spr.key + str(v.node.get_instance_id())) % 97) * 0.1, 4.0) < 0.12
+	glow.visible = on and not blink
+
+
+func hurt_bear() -> void:
+	var v = views.get("bear")
+	if v:
+		v.hurt_until = Time.get_ticks_msec() + 250
 
 
 func hurt_wolf(id: int) -> void:

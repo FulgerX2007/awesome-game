@@ -9,6 +9,21 @@ Every asset of the game is listed here with its source, author and license. No w
 - Author: the Awesome Game project. License: the same as the project's code.
 - Regenerate: `python3 tools/winter-godot/art/build_all.py` (deterministic, about 3 minutes).
 
+## Painted art (the hero and the forest)
+- Folder: `assets/painted/`; manifest `assets/manifest/override_painted.json` (it replaces the generated hero, trees,
+  rocks, bushes, branches, drifts and ice, the hut's last two stages, the five survivors, the trader and the
+  wanderer (made from the hero's frames recoloured), and the hare, deer, wolf and bear; the other generated buildings and effects stay).
+- Source: images supplied by the project owner (`tools/winter-godot/source/`: an environment sheet, four GIFs of
+  the hero walking, chopping, picking berries and mining, the finished log cabin, three GIFs of the hare, the deer
+  and the wolf, and two pictures of the bear: standing and in its fighting stance). Cut, cleaned (the bush and the rock removed from the
+  hero's frames, neighbours removed from each item's box) and scaled by `tools/winter-godot/import_art.py`.
+- License: the project owner's; used with their permission as part of the project.
+- The camp's buildings (every hut stage, the palisade, the gate, posts, the torch, the fire pit, the bench, bunks,
+  stock piles, the house upgrades, the trader's sled, the snare) are composed by `tools/winter-godot/compose_buildings.py` from these same painted
+  pieces (the cabin, fence posts, the signpost's plank, the pond's stone ring, the lantern post, logs, stones, a
+  drift); the sled's sacks and the snare's rope loop are drawn by the same script in that light.
+- Regenerate: `python3 tools/winter-godot/import_art.py`.
+
 ## Characters and animals
 - Folder: `assets/characters/`; manifest `assets/manifest/characters.json`.
 - Source: generated in-house by code, `tools/winter-godot/art/characters/` (a 2.5D puppet renderer on numpy + Pillow:
@@ -22,6 +37,14 @@ Every asset of the game is listed here with its source, author and license. No w
   the logo set in Golos Text, the menu backdrop painted procedurally). No external images or stock art.
 - Author: the Awesome Game project. License: the same as the project's code.
 - Regenerate: `python3 tools/winter-godot/art/ui/build.py`.
+
+## Fire flipbook (not in the repository)
+- `assets/ember/fire_campfire.png` + `ember.json` — Fire Campfire from **Ember Flipbooks Lite** by Inkharbor Studio,
+  bought from the official store page. Licence: Ember Flipbooks Licence 1.0 — use in products, modification and
+  distribution inside a built product are allowed; publishing the files on their own or in a public repository is
+  not (section 4.2). So the folder is in `.gitignore`; `tools/winter-godot/ember.py` makes it from the purchased archive
+  (crops the flame and sparks, drops the wide glow, scales to 3/4), and the exported `index.pck` carries it.
+  Without it the game uses its own generated flame (`assets/effects/fire/`).
 
 ## Sound
 - No files: every sound is synthesized at start by `scripts/app/sfx.gd` (a port of `web/winter/audio.js`).

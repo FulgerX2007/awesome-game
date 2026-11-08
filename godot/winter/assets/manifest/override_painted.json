@@ -1,0 +1,1436 @@
+{
+ "_replace": [
+  "tree.pine",
+  "tree.dead",
+  "tree.fallen",
+  "tree.stump",
+  "log",
+  "rock",
+  "rock.small",
+  "rock.group",
+  "rock.rubble",
+  "ice.formation",
+  "bush.berry",
+  "bush.bare",
+  "bush.snow",
+  "branch",
+  "ground.patch",
+  "snow.drift",
+  "hut",
+  "palisade",
+  "bench",
+  "firepit",
+  "bunk",
+  "up",
+  "torch",
+  "stock",
+  "trader",
+  "snare",
+  "char.hero",
+  "char.trader",
+  "char.wanderer",
+  "animal.rabbit",
+  "animal.deer",
+  "animal.wolf",
+  "animal.bear"
+ ],
+ "tree.pine.0": {
+  "file": "res://assets/painted/environment/tree_pine_0.png",
+  "size": [
+   52,
+   105
+  ],
+  "foot": [
+   30,
+   94
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.pine.1": {
+  "file": "res://assets/painted/environment/tree_pine_1.png",
+  "size": [
+   119,
+   225
+  ],
+  "foot": [
+   56,
+   195
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.pine.2": {
+  "file": "res://assets/painted/environment/tree_pine_2.png",
+  "size": [
+   143,
+   202
+  ],
+  "foot": [
+   76,
+   183
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.pine.3": {
+  "file": "res://assets/painted/environment/tree_pine_3.png",
+  "size": [
+   147,
+   231
+  ],
+  "foot": [
+   84,
+   212
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.pine.4": {
+  "file": "res://assets/painted/environment/tree_pine_4.png",
+  "size": [
+   187,
+   243
+  ],
+  "foot": [
+   111,
+   225
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.dead.0": {
+  "file": "res://assets/painted/environment/tree_dead_0.png",
+  "size": [
+   174,
+   222
+  ],
+  "foot": [
+   91,
+   203
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.dead.1": {
+  "file": "res://assets/painted/environment/tree_dead_1.png",
+  "size": [
+   104,
+   177
+  ],
+  "foot": [
+   48,
+   161
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.fallen.0": {
+  "file": "res://assets/painted/environment/tree_fallen_0.png",
+  "size": [
+   188,
+   117
+  ],
+  "foot": [
+   76,
+   105
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "tree.stump.0": {
+  "file": "res://assets/painted/environment/tree_stump_0.png",
+  "size": [
+   132,
+   101
+  ],
+  "foot": [
+   63,
+   89
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "log.0": {
+  "file": "res://assets/painted/environment/log_0.png",
+  "size": [
+   113,
+   102
+  ],
+  "foot": [
+   58,
+   90
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "rock.small.0": {
+  "file": "res://assets/painted/environment/rock_small_0.png",
+  "size": [
+   79,
+   63
+  ],
+  "foot": [
+   36,
+   54
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.0": {
+  "file": "res://assets/painted/environment/rock_0.png",
+  "size": [
+   108,
+   88
+  ],
+  "foot": [
+   46,
+   77
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.1": {
+  "file": "res://assets/painted/environment/rock_1.png",
+  "size": [
+   138,
+   113
+  ],
+  "foot": [
+   74,
+   101
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.2": {
+  "file": "res://assets/painted/environment/rock_2.png",
+  "size": [
+   169,
+   137
+  ],
+  "foot": [
+   86,
+   123
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.group.0": {
+  "file": "res://assets/painted/environment/rock_group_0.png",
+  "size": [
+   223,
+   177
+  ],
+  "foot": [
+   122,
+   161
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.group.1": {
+  "file": "res://assets/painted/environment/rock_group_1.png",
+  "size": [
+   204,
+   149
+  ],
+  "foot": [
+   99,
+   135
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "ice.formation.0": {
+  "file": "res://assets/painted/environment/ice_formation_0.png",
+  "size": [
+   189,
+   146
+  ],
+  "foot": [
+   96,
+   132
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "ice.formation.1": {
+  "file": "res://assets/painted/environment/ice_formation_1.png",
+  "size": [
+   223,
+   141
+  ],
+  "foot": [
+   132,
+   127
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.berry.2": {
+  "file": "res://assets/painted/environment/bush_berry_2.png",
+  "size": [
+   165,
+   146
+  ],
+  "foot": [
+   86,
+   132
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.berry.0": {
+  "file": "res://assets/painted/environment/bush_berry_0.png",
+  "size": [
+   174,
+   154
+  ],
+  "foot": [
+   96,
+   139
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.berry.1": {
+  "file": "res://assets/painted/environment/bush_berry_1.png",
+  "size": [
+   171,
+   148
+  ],
+  "foot": [
+   89,
+   131
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.snow.0": {
+  "file": "res://assets/painted/environment/bush_snow_0.png",
+  "size": [
+   149,
+   124
+  ],
+  "foot": [
+   78,
+   110
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bush.bare.0": {
+  "file": "res://assets/painted/environment/bush_bare_0.png",
+  "size": [
+   166,
+   127
+  ],
+  "foot": [
+   96,
+   114
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "ground.patch.0": {
+  "file": "res://assets/painted/environment/ground_patch_0.png",
+  "size": [
+   116,
+   112
+  ],
+  "foot": [
+   56,
+   99
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "branch.2": {
+  "file": "res://assets/painted/environment/branch_2.png",
+  "size": [
+   122,
+   91
+  ],
+  "foot": [
+   65,
+   80
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "branch.0": {
+  "file": "res://assets/painted/environment/branch_0.png",
+  "size": [
+   108,
+   75
+  ],
+  "foot": [
+   45,
+   65
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "branch.1": {
+  "file": "res://assets/painted/environment/branch_1.png",
+  "size": [
+   107,
+   71
+  ],
+  "foot": [
+   49,
+   61
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "rock.small.1": {
+  "file": "res://assets/painted/environment/rock_small_1.png",
+  "size": [
+   147,
+   86
+  ],
+  "foot": [
+   69,
+   76
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "snow.drift.0": {
+  "file": "res://assets/painted/environment/snow_drift_0.png",
+  "size": [
+   154,
+   101
+  ],
+  "foot": [
+   96,
+   89
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "snow.drift.1": {
+  "file": "res://assets/painted/environment/snow_drift_1.png",
+  "size": [
+   213,
+   116
+  ],
+  "foot": [
+   84,
+   104
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "ice.formation.2": {
+  "file": "res://assets/painted/environment/ice_formation_2.png",
+  "size": [
+   126,
+   149
+  ],
+  "foot": [
+   62,
+   135
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "rock.rubble.0": {
+  "file": "res://assets/painted/environment/rock_rubble_0.png",
+  "size": [
+   137,
+   132
+  ],
+  "foot": [
+   65,
+   119
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.pond": {
+  "file": "res://assets/painted/environment/decor_pond.png",
+  "size": [
+   224,
+   134
+  ],
+  "foot": [
+   110,
+   121
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "rock.rubble.1": {
+  "file": "res://assets/painted/environment/rock_rubble_1.png",
+  "size": [
+   174,
+   132
+  ],
+  "foot": [
+   74,
+   119
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.snowman": {
+  "file": "res://assets/painted/environment/decor_snowman.png",
+  "size": [
+   145,
+   178
+  ],
+  "foot": [
+   76,
+   162
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.signpost": {
+  "file": "res://assets/painted/environment/decor_signpost.png",
+  "size": [
+   100,
+   165
+  ],
+  "foot": [
+   48,
+   150
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.fence": {
+  "file": "res://assets/painted/environment/decor_fence.png",
+  "size": [
+   220,
+   157
+  ],
+  "foot": [
+   77,
+   142
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "decor.lantern": {
+  "file": "res://assets/painted/environment/decor_lantern.png",
+  "size": [
+   143,
+   194
+  ],
+  "foot": [
+   67,
+   177
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "hut.3": {
+  "file": "res://assets/painted/buildings/cabin_3.png",
+  "size": [
+   259,
+   256
+  ],
+  "foot": [
+   130,
+   240
+  ],
+  "block": 1,
+  "painted": true,
+  "hole": [
+   206,
+   95
+  ],
+  "window": [
+   197,
+   177
+  ]
+ },
+ "hut.4": {
+  "file": "res://assets/painted/buildings/cabin_4.png",
+  "size": [
+   259,
+   256
+  ],
+  "foot": [
+   130,
+   240
+  ],
+  "block": 1,
+  "painted": true,
+  "anchor": [
+   161,
+   3
+  ],
+  "window": [
+   197,
+   177
+  ],
+  "hole": [
+   206,
+   95
+  ]
+ },
+ "hut.roofhole": {
+  "file": "res://assets/painted/buildings/roofhole.png",
+  "size": [
+   83,
+   61
+  ],
+  "foot": [
+   41,
+   30
+  ],
+  "decal": true,
+  "painted": true
+ },
+ "char.hero": {
+  "sheet": "res://assets/painted/characters/hero.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "chop_side": {
+    "row": 1,
+    "from": 0,
+    "count": 12,
+    "fps": 14,
+    "loop": true,
+    "impact": 8
+   },
+   "gather_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   },
+   "mine_side": {
+    "row": 3,
+    "from": 0,
+    "count": 16,
+    "fps": 14,
+    "loop": true,
+    "impact": 10
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "build_side": {
+    "row": 1,
+    "from": 0,
+    "count": 12,
+    "fps": 14,
+    "loop": true,
+    "impact": 8
+   },
+   "craft_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   },
+   "fire_side": {
+    "row": 2,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": false,
+    "impact": 6
+   }
+  },
+  "painted": true
+ },
+ "palisade.h": {
+  "file": "res://assets/painted/buildings/palisade_h.png",
+  "size": [
+   123,
+   159
+  ],
+  "foot": [
+   61,
+   151
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.h.damaged": {
+  "file": "res://assets/painted/buildings/palisade_h_damaged.png",
+  "size": [
+   135,
+   163
+  ],
+  "foot": [
+   67,
+   155
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.h.broken": {
+  "file": "res://assets/painted/buildings/palisade_h_broken.png",
+  "size": [
+   123,
+   64
+  ],
+  "foot": [
+   61,
+   56
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.v": {
+  "file": "res://assets/painted/buildings/palisade_v.png",
+  "size": [
+   70,
+   207
+  ],
+  "foot": [
+   35,
+   199
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.v.damaged": {
+  "file": "res://assets/painted/buildings/palisade_v_damaged.png",
+  "size": [
+   81,
+   208
+  ],
+  "foot": [
+   40,
+   200
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.v.broken": {
+  "file": "res://assets/painted/buildings/palisade_v_broken.png",
+  "size": [
+   67,
+   108
+  ],
+  "foot": [
+   33,
+   100
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.post": {
+  "file": "res://assets/painted/buildings/palisade_post.png",
+  "size": [
+   75,
+   182
+  ],
+  "foot": [
+   37,
+   175
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.stake": {
+  "file": "res://assets/painted/buildings/palisade_stake.png",
+  "size": [
+   65,
+   158
+  ],
+  "foot": [
+   32,
+   152
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "palisade.gate": {
+  "file": "res://assets/painted/buildings/palisade_gate.png",
+  "size": [
+   202,
+   144
+  ],
+  "foot": [
+   101,
+   132
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "torch": {
+  "file": "res://assets/painted/buildings/torch.png",
+  "size": [
+   117,
+   159
+  ],
+  "foot": [
+   39,
+   149
+  ],
+  "anchor": [
+   86,
+   74
+  ],
+  "lantern": true,
+  "block": 0,
+  "painted": true
+ },
+ "firepit": {
+  "file": "res://assets/painted/buildings/firepit.png",
+  "size": [
+   139,
+   83
+  ],
+  "foot": [
+   69,
+   51
+  ],
+  "anchor": [
+   69,
+   41
+  ],
+  "painted": true
+ },
+ "firepit.ash": {
+  "file": "res://assets/painted/buildings/firepit_ash.png",
+  "size": [
+   139,
+   83
+  ],
+  "foot": [
+   69,
+   51
+  ],
+  "anchor": [
+   69,
+   41
+  ],
+  "painted": true
+ },
+ "bench": {
+  "file": "res://assets/painted/buildings/bench.png",
+  "size": [
+   122,
+   65
+  ],
+  "foot": [
+   61,
+   59
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "stock.wood": {
+  "file": "res://assets/painted/buildings/stock_wood.png",
+  "size": [
+   113,
+   102
+  ],
+  "foot": [
+   56,
+   92
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "stock.stone": {
+  "file": "res://assets/painted/buildings/stock_stone.png",
+  "size": [
+   174,
+   132
+  ],
+  "foot": [
+   87,
+   122
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "bunk": {
+  "file": "res://assets/painted/buildings/bunk.png",
+  "size": [
+   88,
+   80
+  ],
+  "foot": [
+   44,
+   72
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "bunk.frame": {
+  "file": "res://assets/painted/buildings/bunk_frame.png",
+  "size": [
+   88,
+   80
+  ],
+  "foot": [
+   44,
+   72
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "hut.2": {
+  "file": "res://assets/painted/buildings/cabin_2.png",
+  "size": [
+   259,
+   256
+  ],
+  "foot": [
+   130,
+   240
+  ],
+  "block": 1,
+  "painted": true,
+  "hole": [
+   206,
+   95
+  ]
+ },
+ "hut.1": {
+  "file": "res://assets/painted/buildings/cabin_1.png",
+  "size": [
+   258,
+   141
+  ],
+  "foot": [
+   130,
+   125
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "hut.0": {
+  "file": "res://assets/painted/buildings/cabin_0.png",
+  "size": [
+   281,
+   126
+  ],
+  "foot": [
+   130,
+   110
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "hut.scaffold": {
+  "file": "res://assets/painted/buildings/scaffold.png",
+  "size": [
+   341,
+   168
+  ],
+  "foot": [
+   170,
+   160
+  ],
+  "painted": true
+ },
+ "up.cellar": {
+  "file": "res://assets/painted/buildings/up_cellar.png",
+  "size": [
+   132,
+   73
+  ],
+  "foot": [
+   53,
+   65
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.cellar.frame": {
+  "file": "res://assets/painted/buildings/up_cellar_frame.png",
+  "size": [
+   132,
+   73
+  ],
+  "foot": [
+   53,
+   65
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.smokehouse": {
+  "file": "res://assets/painted/buildings/up_smokehouse.png",
+  "size": [
+   127,
+   124
+  ],
+  "foot": [
+   64,
+   116
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.smokehouse.frame": {
+  "file": "res://assets/painted/buildings/up_smokehouse_frame.png",
+  "size": [
+   127,
+   124
+  ],
+  "foot": [
+   64,
+   116
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.annex": {
+  "file": "res://assets/painted/buildings/up_annex.png",
+  "size": [
+   189,
+   185
+  ],
+  "foot": [
+   92,
+   173
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.annex.frame": {
+  "file": "res://assets/painted/buildings/up_annex_frame.png",
+  "size": [
+   189,
+   185
+  ],
+  "foot": [
+   92,
+   173
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.workshop": {
+  "file": "res://assets/painted/buildings/up_workshop.png",
+  "size": [
+   163,
+   160
+  ],
+  "foot": [
+   80,
+   150
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "up.workshop.frame": {
+  "file": "res://assets/painted/buildings/up_workshop_frame.png",
+  "size": [
+   163,
+   160
+  ],
+  "foot": [
+   80,
+   150
+  ],
+  "block": 1,
+  "painted": true
+ },
+ "trader.sled": {
+  "file": "res://assets/painted/buildings/trader_sled.png",
+  "size": [
+   226,
+   117
+  ],
+  "foot": [
+   113,
+   107
+  ],
+  "anchor": [
+   211,
+   55
+  ],
+  "block": 0,
+  "painted": true
+ },
+ "snare": {
+  "file": "res://assets/painted/buildings/snare.png",
+  "size": [
+   62,
+   33
+  ],
+  "foot": [
+   31,
+   27
+  ],
+  "painted": true
+ },
+ "char.sv.hunter": {
+  "sheet": "res://assets/painted/characters/survivor_hunter.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 16,
+    "fps": 8,
+    "loop": true
+   }
+  },
+  "scale": 1.0,
+  "painted": true
+ },
+ "char.sv.carpenter": {
+  "sheet": "res://assets/painted/characters/survivor_carpenter.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 12,
+    "fps": 10,
+    "loop": true
+   }
+  },
+  "scale": 1.0,
+  "painted": true
+ },
+ "char.sv.herbalist": {
+  "sheet": "res://assets/painted/characters/survivor_herbalist.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 16,
+    "fps": 8,
+    "loop": true
+   }
+  },
+  "scale": 0.95,
+  "painted": true
+ },
+ "char.sv.smith": {
+  "sheet": "res://assets/painted/characters/survivor_smith.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 16,
+    "fps": 10,
+    "loop": true
+   }
+  },
+  "scale": 1.04,
+  "painted": true
+ },
+ "char.sv.child": {
+  "sheet": "res://assets/painted/characters/survivor_child.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "work_side": {
+    "row": 1,
+    "from": 0,
+    "count": 16,
+    "fps": 8,
+    "loop": true
+   }
+  },
+  "scale": 0.78,
+  "painted": true
+ },
+ "char.trader": {
+  "sheet": "res://assets/painted/characters/trader.png",
+  "frame": [
+   133,
+   159
+  ],
+  "foot": [
+   56,
+   144
+  ],
+  "anims": {
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 2,
+    "fps": 1.2,
+    "loop": true
+   }
+  },
+  "painted": true
+ },
+ "char.wanderer": {
+  "sheet": "res://assets/painted/characters/wanderer.png",
+  "frame": [
+   146,
+   89
+  ],
+  "foot": [
+   73,
+   83
+  ],
+  "anims": {
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "lying": true
+ },
+ "animal.rabbit": {
+  "sheet": "res://assets/painted/animals/rabbit.png",
+  "frame": [
+   59,
+   59
+  ],
+  "foot": [
+   30,
+   56
+  ],
+  "anims": {
+   "hop_side": {
+    "row": 0,
+    "from": 0,
+    "count": 16,
+    "fps": 14,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "still": false
+ },
+ "animal.deer": {
+  "sheet": "res://assets/painted/animals/deer.png",
+  "frame": [
+   142,
+   165
+  ],
+  "foot": [
+   61,
+   153
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 16,
+    "fps": 12,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "still": false
+ },
+ "animal.wolf": {
+  "sheet": "res://assets/painted/animals/wolf.png",
+  "frame": [
+   140,
+   102
+  ],
+  "foot": [
+   69,
+   96
+  ],
+  "anims": {
+   "run_side": {
+    "row": 0,
+    "from": 0,
+    "count": 16,
+    "fps": 14,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "still": false,
+  "eyes": [
+   110,
+   59
+  ]
+ },
+ "animal.bear": {
+  "sheet": "res://assets/painted/animals/bear.png",
+  "frame": [
+   180,
+   182
+  ],
+  "foot": [
+   87,
+   180
+  ],
+  "anims": {
+   "walk_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   },
+   "swipe_side": {
+    "row": 0,
+    "from": 1,
+    "count": 1,
+    "fps": 1,
+    "loop": true
+   }
+  },
+  "painted": true,
+  "still": true
+ }
+}
