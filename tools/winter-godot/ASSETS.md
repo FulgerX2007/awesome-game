@@ -12,7 +12,9 @@ sprites **by key only**, so a generator may change files freely as long as the k
 - `foot` is the pixel where the object touches the ground (bottom centre of its contact), in texture pixels. Godot
   places that pixel on the object's tile point and y-sorts by it.
 - World sprites (environment, buildings, characters) ship a **normal map** (`<name>.n.png`, tangent space,
-  +X right, +Y **down** as Godot 2D expects, flat = (128,128,255)) so `PointLight2D` lights them. UI and effects don't.
+  OpenGL convention as Godot 2D reads it: red = +X right, **green = +Y up on screen** (a face turned towards the top
+  of the image has green > 128), flat = (128,128,255)) so `PointLight2D` lights them. Checked in Godot 4.7.2: a light
+  above a sprite lights the green > 128 half. UI and effects don't need normal maps.
 - Cast shadows are separate soft sprites (`<name>.shadow.png`, black with alpha ≤ 0.45, blurred) falling down-right
   (`palette.SHADOW_DIR`); their own `foot` lines up with the object's foot.
 - Variants: a key ending in `.{n}` exists for every n from 0. Deterministic output (fixed seeds).
