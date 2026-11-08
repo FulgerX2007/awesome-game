@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_whu8o"]
+
+[resource]
+script = ExtResource("1_whu8o")
+id = "dispatch"
+name = "Диспетчер"
+description = "Новые роботы сами встают туда, где они нужнее"
+parts_base = 120.0
+effect = "dispatch"
+amount = 1.0
+unlock_kind = "built"
+unlock_value = 3.0
+prop = "dispatch"

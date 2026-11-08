@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StageDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/stage_def.gd" id="1_wbi72"]
+
+[resource]
+script = ExtResource("1_wbi72")
+id = "frame"
+name = "Каркас"
+description = "Поднять рёбра корпуса и стянуть их балками."
+unlock_text = "Открывается Северный отвал: копатели +25%"
+parts = 12000.0
+cores = 10.0
+effect = "zone"
+effect_target = "north"
+amount = 0.15
+story = "Каркас ковчега стоит. Роботы носят балки и, кажется, гордятся. За ним открылся Северный отвал."

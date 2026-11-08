@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_swyh0"]
+
+[resource]
+script = ExtResource("1_swyh0")
+id = "gloves"
+name = "Рабочие перчатки"
+description = "Разбираешь на одну горсть больше за раз"
+max_level = 10
+parts_base = 8.0
+parts_growth = 1.9
+effect = "batch_add"
+amount = 1.0
+unlock_kind = "total_parts"
+unlock_value = 3.0
+prop = "gloves"

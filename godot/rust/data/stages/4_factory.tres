@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StageDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/stage_def.gd" id="1_3qlqp"]
+
+[resource]
+script = ExtResource("1_3qlqp")
+id = "factory"
+name = "Производственные цеха"
+description = "Запустить сборочные линии внутри корпуса."
+unlock_text = "Сортировщики +25%"
+parts = 30000.0
+cores = 25.0
+effect = "role_speed"
+effect_target = "sorter"
+amount = 0.2
+story = "Внутри корпуса застучали станки. Детали идут потоком."

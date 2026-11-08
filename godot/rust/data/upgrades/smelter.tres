@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_wsbai"]
+
+[resource]
+script = ExtResource("1_wsbai")
+id = "smelter"
+name = "Плавильня"
+description = "Деталь получается из меньшего количества хлама"
+max_level = 3
+parts_base = 150.0
+parts_growth = 4.0
+effect = "ratio_sub"
+amount = 1.0
+unlock_kind = "built"
+unlock_value = 3.0
+prop = "smelter"

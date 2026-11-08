@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StageDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/stage_def.gd" id="1_egu7p"]
+
+[resource]
+script = ExtResource("1_egu7p")
+id = "reactor"
+name = "Реакторное ядро"
+description = "Достать из-под завалов сердце ковчега и поставить его в центр свалки."
+unlock_text = "Механики +25% к ремонту"
+parts = 1000.0
+cores = 1.0
+effect = "role_speed"
+effect_target = "mechanic"
+amount = 0.15
+story = "Реакторное ядро снова светится. Над свалкой стало теплее."

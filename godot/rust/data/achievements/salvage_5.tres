@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AchievementDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/achievement_def.gd" id="1_gqw48"]
+
+[resource]
+script = ExtResource("1_gqw48")
+id = "salvage_5"
+name = "Старатель"
+description = "Подбери 5 находок"
+kind = "salvage"
+value = 5.0

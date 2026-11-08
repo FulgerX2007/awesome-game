@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AchievementDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/achievement_def.gd" id="1_s2jy1"]
+
+[resource]
+script = ExtResource("1_s2jy1")
+id = "first_robot"
+name = "Первый помощник"
+description = "Почини первого робота"
+kind = "built"
+value = 1.0

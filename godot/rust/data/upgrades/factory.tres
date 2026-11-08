@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_n5gc8"]
+
+[resource]
+script = ExtResource("1_n5gc8")
+id = "factory"
+name = "Сборочный цех"
+description = "Ремонтирует роботов сам: +1 к ремонту в секунду"
+max_level = 15
+parts_base = 200.0
+parts_growth = 2.0
+cores_base = 2.0
+cores_growth = 1.8
+effect = "factory"
+amount = 1.0
+unlock_kind = "total_cores"
+unlock_value = 1.0
+prop = "factory"
