@@ -18,7 +18,15 @@ func check(cond: bool, what: String) -> void:
 func _initialize() -> void:
 	WinterStore.set_item("winter-godot.save", "")
 	main = load("res://scenes/main.tscn").instantiate()
+	if main.get_script() == null or not "screen" in main:
+		printerr("FAIL the main script doesn't load (SCRIPT ERROR above)")
+		quit(1)
+		return
 	root.add_child(main)
+	# a hang must fail CI, not stall it
+	create_timer(240.0).timeout.connect(func():
+		printerr("FAIL the scene test timed out")
+		quit(1))
 	_run.call_deferred()
 
 

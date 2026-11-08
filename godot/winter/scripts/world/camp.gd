@@ -210,7 +210,7 @@ func _sync_torches(g: Dictionary) -> void:
 		var n := _sheet(f, "fx.flame.small")
 		f.position = Vector2(0, -WinterArt.size("torch").y * 0.86)
 		var mat := CanvasItemMaterial.new()
-			mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 		f.material = mat
 		pole.add_child(f)
 		torches[k] = {"pole": pole, "flame": f, "frames": n, "phase": randf() * 3.0}
