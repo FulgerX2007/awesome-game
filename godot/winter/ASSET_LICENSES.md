@@ -23,6 +23,14 @@ Every asset of the game is listed here with its source, author and license. No w
 - Author: the Awesome Game project. License: the same as the project's code.
 - Regenerate: `python3 tools/winter-godot/art/ui/build.py`.
 
+## Fire flipbook (not in the repository)
+- `assets/ember/fire_campfire.png` + `ember.json` — Fire Campfire from **Ember Flipbooks Lite** by Inkharbor Studio,
+  bought from the official store page. Licence: Ember Flipbooks Licence 1.0 — use in products, modification and
+  distribution inside a built product are allowed; publishing the files on their own or in a public repository is
+  not (section 4.2). So the folder is in `.gitignore`; `tools/winter-godot/ember.py` makes it from the purchased archive
+  (crops the flame and sparks, drops the wide glow, scales to 3/4), and the exported `index.pck` carries it.
+  Without it the game uses its own generated flame (`assets/effects/fire/`).
+
 ## Sound
 - No files: every sound is synthesized at start by `scripts/app/sfx.gd` (a port of `web/winter/audio.js`).
 
