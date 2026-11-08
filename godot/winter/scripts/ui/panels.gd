@@ -372,13 +372,13 @@ func open_inventory(state: Dictionary) -> void:
 	var v := _window(tr("Вещи"), "inventory", 700)
 	var at_base := WinterSim.at_base(g)
 	if at_base:
-		_lead(v, tr("Склад лагеря. Вне лагеря уносишь до {n} вещей.").format({"n": WinterSim.carry_of(g)}))
+		_lead(v, tr("Склад лагеря. Вне лагеря уносишь до {n} вещей.").format({"n": int(WinterSim.carry_of(g))}))
 	else:
-		_lead(v, tr("Ноша: {n} из {m}. В лагере всё уходит на склад.").format({"n": int(g.hero.load), "m": WinterSim.carry_of(g)}))
+		_lead(v, tr("Ноша: {n} из {m}. В лагере всё уходит на склад.").format({"n": int(g.hero.load), "m": int(WinterSim.carry_of(g))}))
 	var list := _list(v, 520)
-	_head(list, tr("Материалы: {n} из {m}").format({"n": WinterSim.stock_total(g), "m": WinterSim.D.STORE_CAP}))
+	_head(list, tr("Материалы: {n} из {m}").format({"n": int(WinterSim.stock_total(g)), "m": int(WinterSim.D.STORE_CAP)}))
 	list.add_child(_grid(WinterSim.RES))
-	_head(list, tr("Еда: {n} из {m}").format({"n": WinterSim.food_total(g), "m": WinterSim.food_cap(g)}))
+	_head(list, tr("Еда: {n} из {m}").format({"n": int(WinterSim.food_total(g)), "m": int(WinterSim.food_cap(g))}))
 	list.add_child(_grid(WinterSim.FOOD_ITEMS))
 	_head(list, tr("Инструменты"))
 	var tg := GridContainer.new()

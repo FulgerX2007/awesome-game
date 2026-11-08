@@ -279,7 +279,7 @@ func update(g: Dictionary, delta: float, task_text: String, action_label: String
 	load_label.visible = away
 	if away:
 		var cap := WinterSim.carry_of(g)
-		load_label.text = tr("ноша {n}/{m}").format({"n": int(h.load), "m": cap})
+		load_label.text = tr("ноша {n}/{m}").format({"n": int(h.load), "m": int(cap)})
 		load_label.add_theme_color_override("font_color", WinterTheme.WARN if float(h.load) >= cap else WinterTheme.DIM)
 	task_label.text = task_text
 	buttons.act.text = action_label if action_label != "" else tr("Действие")
