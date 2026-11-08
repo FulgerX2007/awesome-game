@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_ydo7r"]
+
+[resource]
+script = ExtResource("1_ydo7r")
+id = "magnet"
+name = "Электромагнит"
+description = "Копатели работают на 50% быстрее"
+max_level = 20
+parts_base = 30.0
+parts_growth = 1.7
+effect = "role_speed"
+effect_target = "digger"
+amount = 0.5
+unlock_kind = "built"
+unlock_value = 1.0
+prop = "crane"

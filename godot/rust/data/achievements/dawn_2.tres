@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AchievementDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/achievement_def.gd" id="1_i6j06"]
+
+[resource]
+script = ExtResource("1_i6j06")
+id = "dawn_2"
+name = "Снова рассвет"
+description = "Начни «Новый рассвет»"
+kind = "runs"
+value = 1.0

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_cnqk5"]
+
+[resource]
+script = ExtResource("1_cnqk5")
+id = "wrench"
+name = "Гаечный ключ"
+description = "+2 к ремонту за удар"
+max_level = 10
+parts_base = 12.0
+parts_growth = 1.9
+effect = "wrench_add"
+amount = 2.0
+unlock_kind = "built_or_repair"
+unlock_value = 1.0
+prop = "wrench"

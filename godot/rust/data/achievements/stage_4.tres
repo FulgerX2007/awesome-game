@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AchievementDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/achievement_def.gd" id="1_27or0"]
+
+[resource]
+script = ExtResource("1_27or0")
+id = "stage_4"
+name = "Полпути"
+description = "Восстанови четыре этапа ковчега"
+kind = "stage"
+value = 4.0

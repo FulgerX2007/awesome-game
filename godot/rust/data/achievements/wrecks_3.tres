@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AchievementDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/achievement_def.gd" id="1_m42q1"]
+
+[resource]
+script = ExtResource("1_m42q1")
+id = "wrecks_3"
+name = "Вторая жизнь"
+description = "Подбери 3 брошенных робота"
+kind = "wrecks"
+value = 3.0

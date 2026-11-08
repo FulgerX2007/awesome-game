@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AchievementDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/achievement_def.gd" id="1_dc83q"]
+
+[resource]
+script = ExtResource("1_dc83q")
+id = "no_dispatch"
+name = "Сам себе диспетчер"
+description = "Испытание: почини 30 роботов без диспетчера"
+kind = "challenge_no_upgrade"
+target = "dispatch"
+value = 30.0
+challenge = true

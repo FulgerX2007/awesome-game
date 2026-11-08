@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_1anyq"]
+
+[resource]
+script = ExtResource("1_1anyq")
+id = "shovel"
+name = "Лопата"
+description = "+1 хлам за удар"
+max_level = 15
+parts_base = 5.0
+parts_growth = 1.8
+effect = "click_add"
+amount = 1.0
+prop = "shovel"

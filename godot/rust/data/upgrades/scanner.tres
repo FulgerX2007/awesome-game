@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_gwpu6"]
+
+[resource]
+script = ExtResource("1_gwpu6")
+id = "scanner"
+name = "Сканер"
+description = "Шанс найти ядро среди деталей +0,5%"
+max_level = 8
+parts_base = 80.0
+parts_growth = 2.5
+effect = "core_chance"
+amount = 0.005
+unlock_kind = "total_parts"
+unlock_value = 50.0
+prop = "scanner"

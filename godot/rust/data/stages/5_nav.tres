@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StageDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/stage_def.gd" id="1_syn7w"]
+
+[resource]
+script = ExtResource("1_syn7w")
+id = "nav"
+name = "Навигация и связь"
+description = "Поднять антенну и оживить навигационный компьютер."
+unlock_text = "Кладбище кораблей: копатели +15%, находки чаще"
+parts = 80000.0
+cores = 50.0
+effect = "zone"
+effect_target = "graveyard"
+amount = 0.15
+story = "Навигация ожила и сама нашла звезду, к которой стоит лететь. Антенна слышит обломки на Кладбище кораблей."

@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cj7wqd0i8ypbl"
+
+[deps]
+
+files=["res://data/rust.ru.translation", "res://data/rust.ro.translation"]
+
+source_file="res://data/rust.csv"
+dest_files=["res://data/rust.ru.translation", "res://data/rust.ro.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_18n1l"]
+
+[resource]
+script = ExtResource("1_18n1l")
+id = "belt"
+name = "Лента транспортёра"
+description = "Сортировщики работают на 50% быстрее"
+max_level = 20
+parts_base = 40.0
+parts_growth = 1.7
+effect = "role_speed"
+effect_target = "sorter"
+amount = 0.5
+unlock_kind = "built"
+unlock_value = 2.0
+prop = "conveyor"

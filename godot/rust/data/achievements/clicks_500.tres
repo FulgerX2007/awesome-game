@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AchievementDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/achievement_def.gd" id="1_g8ojm"]
+
+[resource]
+script = ExtResource("1_g8ojm")
+id = "clicks_500"
+name = "Мозоли"
+description = "Сделай 500 дел своими руками"
+kind = "clicks"
+value = 500.0

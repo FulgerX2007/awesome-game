@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="UpgradeDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/upgrade_def.gd" id="1_550ak"]
+
+[resource]
+script = ExtResource("1_550ak")
+id = "neuro"
+name = "Нейроядро"
+description = "Все роботы работают вдвое быстрее"
+max_level = 5
+parts_base = 1000.0
+parts_growth = 5.0
+cores_base = 10.0
+cores_growth = 3.0
+effect = "global_mul"
+amount = 2.0
+unlock_kind = "total_cores"
+unlock_value = 5.0
+prop = "neuro"

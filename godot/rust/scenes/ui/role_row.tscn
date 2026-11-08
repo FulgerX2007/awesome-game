@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/role_row.gd" id="1"]
+
+[node name="RoleRow" type="VBoxContainer"]
+script = ExtResource("1")

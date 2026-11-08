@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StageDef" format=3]
+
+[ext_resource type="Script" path="res://scripts/core/stage_def.gd" id="1_7t0hd"]
+
+[resource]
+script = ExtResource("1_7t0hd")
+id = "launch"
+name = "Запуск"
+description = "Зажечь двигатели и поднять ковчег в небо."
+unlock_text = "Финал и «Новый рассвет»"
+parts = 300000.0
+cores = 120.0
+effect = "launch"
+story = "Двигатели проснулись. Свалка затихла и смотрит вверх."
