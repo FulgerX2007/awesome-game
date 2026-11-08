@@ -1,0 +1,572 @@
+{
+ "animal.bear": {
+  "sheet": "res://assets/characters/animals/bear.png",
+  "normal": "res://assets/characters/animals/bear.n.png",
+  "frame": [
+   165,
+   156
+  ],
+  "foot": [
+   71,
+   124
+  ],
+  "anims": {
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 4,
+    "fps": 3,
+    "loop": true
+   },
+   "walk_side": {
+    "row": 0,
+    "from": 4,
+    "count": 8,
+    "fps": 8,
+    "loop": true
+   },
+   "walk_down": {
+    "row": 1,
+    "from": 0,
+    "count": 8,
+    "fps": 8,
+    "loop": true
+   },
+   "walk_up": {
+    "row": 1,
+    "from": 8,
+    "count": 8,
+    "fps": 8,
+    "loop": true
+   },
+   "swipe_side": {
+    "row": 2,
+    "from": 0,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "hurt_side": {
+    "row": 2,
+    "from": 6,
+    "count": 3,
+    "fps": 12,
+    "loop": false
+   },
+   "death_side": {
+    "row": 2,
+    "from": 9,
+    "count": 6,
+    "fps": 8,
+    "loop": false
+   }
+  }
+ },
+ "animal.deer": {
+  "sheet": "res://assets/characters/animals/deer.png",
+  "normal": "res://assets/characters/animals/deer.n.png",
+  "frame": [
+   132,
+   179
+  ],
+  "foot": [
+   54,
+   152
+  ],
+  "anims": {
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 4,
+    "fps": 3,
+    "loop": true
+   },
+   "walk_side": {
+    "row": 0,
+    "from": 4,
+    "count": 8,
+    "fps": 9,
+    "loop": true
+   },
+   "walk_down": {
+    "row": 1,
+    "from": 0,
+    "count": 8,
+    "fps": 9,
+    "loop": true
+   },
+   "walk_up": {
+    "row": 1,
+    "from": 8,
+    "count": 8,
+    "fps": 9,
+    "loop": true
+   }
+  }
+ },
+ "animal.rabbit": {
+  "sheet": "res://assets/characters/animals/rabbit.png",
+  "normal": "res://assets/characters/animals/rabbit.n.png",
+  "frame": [
+   47,
+   58
+  ],
+  "foot": [
+   21,
+   53
+  ],
+  "anims": {
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   },
+   "hop_side": {
+    "row": 0,
+    "from": 4,
+    "count": 6,
+    "fps": 12,
+    "loop": true
+   },
+   "hop_down": {
+    "row": 0,
+    "from": 10,
+    "count": 6,
+    "fps": 12,
+    "loop": true
+   },
+   "hop_up": {
+    "row": 1,
+    "from": 0,
+    "count": 6,
+    "fps": 12,
+    "loop": true
+   }
+  }
+ },
+ "animal.wolf": {
+  "sheet": "res://assets/characters/animals/wolf.png",
+  "normal": "res://assets/characters/animals/wolf.n.png",
+  "frame": [
+   140,
+   120
+  ],
+  "foot": [
+   66,
+   94
+  ],
+  "anims": {
+   "idle_side": {
+    "row": 0,
+    "from": 0,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   },
+   "run_side": {
+    "row": 0,
+    "from": 4,
+    "count": 6,
+    "fps": 12,
+    "loop": true
+   },
+   "run_down": {
+    "row": 0,
+    "from": 10,
+    "count": 6,
+    "fps": 12,
+    "loop": true
+   },
+   "run_up": {
+    "row": 1,
+    "from": 0,
+    "count": 6,
+    "fps": 12,
+    "loop": true
+   },
+   "bite_side": {
+    "row": 1,
+    "from": 6,
+    "count": 5,
+    "fps": 12,
+    "loop": true
+   },
+   "hurt_side": {
+    "row": 1,
+    "from": 11,
+    "count": 3,
+    "fps": 12,
+    "loop": false
+   },
+   "death_side": {
+    "row": 2,
+    "from": 0,
+    "count": 5,
+    "fps": 9,
+    "loop": false
+   }
+  }
+ },
+ "char.hero": {
+  "sheet": "res://assets/characters/player/hero.png",
+  "normal": "res://assets/characters/player/hero.n.png",
+  "frame": [
+   180,
+   179
+  ],
+  "foot": [
+   89,
+   160
+  ],
+  "anims": {
+   "idle_down": {
+    "row": 0,
+    "from": 0,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   },
+   "idle_up": {
+    "row": 0,
+    "from": 4,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 8,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   },
+   "walk_down": {
+    "row": 1,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "walk_up": {
+    "row": 1,
+    "from": 8,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "walk_side": {
+    "row": 2,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "chop_down": {
+    "row": 2,
+    "from": 8,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "chop_up": {
+    "row": 3,
+    "from": 0,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "chop_side": {
+    "row": 3,
+    "from": 6,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "mine_down": {
+    "row": 4,
+    "from": 0,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "mine_up": {
+    "row": 4,
+    "from": 6,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "mine_side": {
+    "row": 5,
+    "from": 0,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "gather_down": {
+    "row": 5,
+    "from": 6,
+    "count": 6,
+    "fps": 8,
+    "loop": true
+   },
+   "gather_up": {
+    "row": 6,
+    "from": 0,
+    "count": 6,
+    "fps": 8,
+    "loop": true
+   },
+   "gather_side": {
+    "row": 6,
+    "from": 6,
+    "count": 6,
+    "fps": 8,
+    "loop": true
+   },
+   "build_down": {
+    "row": 7,
+    "from": 0,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "build_up": {
+    "row": 7,
+    "from": 6,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "build_side": {
+    "row": 8,
+    "from": 0,
+    "count": 6,
+    "fps": 10,
+    "loop": true
+   },
+   "craft_down": {
+    "row": 8,
+    "from": 6,
+    "count": 6,
+    "fps": 8,
+    "loop": true
+   },
+   "craft_up": {
+    "row": 9,
+    "from": 0,
+    "count": 6,
+    "fps": 8,
+    "loop": true
+   },
+   "craft_side": {
+    "row": 9,
+    "from": 6,
+    "count": 6,
+    "fps": 8,
+    "loop": true
+   },
+   "fire_down": {
+    "row": 10,
+    "from": 0,
+    "count": 6,
+    "fps": 7,
+    "loop": true
+   },
+   "fire_up": {
+    "row": 10,
+    "from": 6,
+    "count": 6,
+    "fps": 7,
+    "loop": true
+   },
+   "fire_side": {
+    "row": 11,
+    "from": 0,
+    "count": 6,
+    "fps": 7,
+    "loop": true
+   },
+   "hurt_down": {
+    "row": 11,
+    "from": 6,
+    "count": 3,
+    "fps": 12,
+    "loop": false
+   },
+   "hurt_up": {
+    "row": 11,
+    "from": 9,
+    "count": 3,
+    "fps": 12,
+    "loop": false
+   },
+   "hurt_side": {
+    "row": 11,
+    "from": 12,
+    "count": 3,
+    "fps": 12,
+    "loop": false
+   },
+   "death_down": {
+    "row": 12,
+    "from": 0,
+    "count": 6,
+    "fps": 9,
+    "loop": false
+   },
+   "death_up": {
+    "row": 12,
+    "from": 6,
+    "count": 6,
+    "fps": 9,
+    "loop": false
+   },
+   "death_side": {
+    "row": 13,
+    "from": 0,
+    "count": 6,
+    "fps": 9,
+    "loop": false
+   },
+   "sleep_down": {
+    "row": 13,
+    "from": 6,
+    "count": 2,
+    "fps": 1.5,
+    "loop": true
+   }
+  }
+ },
+ "char.trader": {
+  "sheet": "res://assets/characters/survivors/trader.png",
+  "normal": "res://assets/characters/survivors/trader.n.png",
+  "frame": [
+   66,
+   152
+  ],
+  "foot": [
+   33,
+   143
+  ],
+  "anims": {
+   "idle_down": {
+    "row": 0,
+    "from": 0,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   }
+  }
+ },
+ "char.villager": {
+  "sheet": "res://assets/characters/survivors/villager.png",
+  "normal": "res://assets/characters/survivors/villager.n.png",
+  "frame": [
+   165,
+   164
+  ],
+  "foot": [
+   85,
+   145
+  ],
+  "anims": {
+   "idle_down": {
+    "row": 0,
+    "from": 0,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   },
+   "idle_up": {
+    "row": 0,
+    "from": 4,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   },
+   "idle_side": {
+    "row": 0,
+    "from": 8,
+    "count": 4,
+    "fps": 4,
+    "loop": true
+   },
+   "walk_down": {
+    "row": 1,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "walk_up": {
+    "row": 1,
+    "from": 8,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "walk_side": {
+    "row": 2,
+    "from": 0,
+    "count": 8,
+    "fps": 12,
+    "loop": true
+   },
+   "work_down": {
+    "row": 2,
+    "from": 8,
+    "count": 6,
+    "fps": 9,
+    "loop": true
+   },
+   "work_up": {
+    "row": 3,
+    "from": 0,
+    "count": 6,
+    "fps": 9,
+    "loop": true
+   },
+   "work_side": {
+    "row": 3,
+    "from": 6,
+    "count": 6,
+    "fps": 9,
+    "loop": true
+   },
+   "sleep_down": {
+    "row": 3,
+    "from": 12,
+    "count": 2,
+    "fps": 1.5,
+    "loop": true
+   }
+  },
+  "layers": {
+   "tint": "res://assets/characters/survivors/villager.tint.png"
+  }
+ },
+ "char.wanderer": {
+  "sheet": "res://assets/characters/survivors/wanderer.png",
+  "normal": "res://assets/characters/survivors/wanderer.n.png",
+  "frame": [
+   155,
+   65
+  ],
+  "foot": [
+   75,
+   55
+  ],
+  "anims": {
+   "idle_down": {
+    "row": 0,
+    "from": 0,
+    "count": 4,
+    "fps": 6,
+    "loop": true
+   }
+  }
+ }
+}
